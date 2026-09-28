@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# تسجيل خط عربي لضمان ظهور الحروف العربية في الـ PDF بدون مربعات
+# تسجيل خط عربي لضمان ظهور الحروف العربية في الـ PDF
 try:
     pdfmetrics.registerFont(TTFont('Cairo', 'Cairo-Regular.ttf'))
     PDF_FONT = 'Cairo'
@@ -137,7 +137,7 @@ def build_signatures_table(styles):
 # ==========================================
 # 3. دوال تصدير التقارير والامتحانات الورقية باللغة العربية (درجتان لكل سؤال)
 # ==========================================
-def generate_pdf_report(student_name, student_phone, active_questions, user_answers, score_pct, total_score, max_score, exam_mode):
+def generate_pdf_report(facility_name, student_name, student_phone, active_questions, user_answers, score_pct, total_score, max_score, exam_mode):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
     story = []
@@ -153,9 +153,9 @@ def generate_pdf_report(student_name, student_phone, active_questions, user_answ
     story.append(Spacer(1, 8))
 
     summary_data = [
-        [Paragraph(f"<b>اسم المتدرب:</b> {student_name}", normal_style), Paragraph(f"<b>رقم الهاتف:</b> {student_phone}", normal_style)],
-        [Paragraph(f"<b>النتيجة النهائية:</b> {score_pct:.1f}%", normal_style), Paragraph(f"<b>المجموع:</b> {total_score} / {max_score} درجة", normal_style)],
-        [Paragraph(f"<b>تصنيف الاختبار:</b> {exam_mode}", normal_style), Paragraph(f"<b>التاريخ:</b> {time.strftime('%Y-%m-%d %H:%M')}", normal_style)]
+        [Paragraph(f"<b>اسم المنشأة:</b> {facility_name}", normal_style), Paragraph(f"<b>اسم المتدرب:</b> {student_name}", normal_style)],
+        [Paragraph(f"<b>رقم الهاتف:</b> {student_phone}", normal_style), Paragraph(f"<b>النتيجة النهائية:</b> {score_pct:.1f}%", normal_style)],
+        [Paragraph(f"<b>المجموع:</b> {total_score} / {max_score} درجة", normal_style), Paragraph(f"<b>تصنيف الاختبار:</b> {exam_mode}", normal_style)]
     ]
     
     summary_table = Table(summary_data, colWidths=[260, 260])
@@ -228,9 +228,9 @@ def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target
             story.append(Spacer(1, 4))
 
             info_data = [
-                [Paragraph("<b>اسم المتدرب / الممتحن:</b> .....................................................", info_style),
+                [Paragraph("<b>اسم المنشأة:</b> .....................................................", info_style),
                  Paragraph(f"<b>الزمن:</b> {duration_min} دقيقة", info_style)],
-                [Paragraph("<b>جهة العمل / الوحدة:</b> .....................................................", info_style),
+                [Paragraph("<b>اسم المتدرب:</b> .....................................................", info_style),
                  Paragraph(f"<b>الأسئلة:</b> {total_q} (لكل سؤال درجتان)", info_style)]
             ]
             info_table = Table(info_data, colWidths=[340, 195])
@@ -281,9 +281,10 @@ def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target
     return buffer
 
 # ==========================================
-# 4. بنك الأسئلة والمجموعات
+# 4. بنك الأسئلة الشامل والمقسم حسب التصنيفات المطلوبة
 # ==========================================
 questions_db = [
+    # 1. دورات الحياة والمخططات
     {
         "id": 1,
         "difficulty": "medium",
@@ -311,36 +312,98 @@ questions_db = [
         "answer": "في الأمعاء الدقيقة (الأثنى عشر)",
         "explanation": "عند ابتلاع العائل الميتا سركاريا تتحرر من الحويصلة بالأمعاء الدقيقة (الأثنى عشر) وتخترق جدار الأمعاء نحو الكبد."
     },
+    
+    # 2. خطة فحص تلاميذ المدارس
     {
         "id": 4,
         "difficulty": "medium",
         "category": "خطة فحص تلاميذ المدارس",
-        "question": "ما الإجراء التنفيذي المعتمد لجمع وتأكيد العينات بالقطاع الريفي للحصول على نتائج دقيقة؟",
+        "question": "ما الإجراء التنفيذي المعتمد لجمع وتأكيد العينات بالقطاع الريفي للحصول على نتائج دقيقة بفحص المدارس؟",
         "options": ["فحص 100 طالب من الصفوف المستهدفة بكوبين (بول وبراز)", "فحص 10 طلاب فقط", "الاعتماد على الفحص الظاهري", "تأجيل الفحص للصيف"],
         "answer": "فحص 100 طالب من الصفوف المستهدفة بكوبين (بول وبراز)",
         "explanation": "ينص البروتوكول على فحص 100 طالب لكل صف مستهدف باستخدام كوب للبول وكوب للبراز."
     },
     {
         "id": 5,
+        "difficulty": "easy",
+        "category": "خطة فحص تلاميذ المدارس",
+        "question": "ما هي الصفوف الدراسية المستهدفة عادة بالمسح الأساسي لفحص البلهارسيا بالمدارس الابتدائية؟",
+        "options": ["الصف الرابع الابتدائي والصف الأول الابتدائي", "الصف السادس فقط", "المرحلة الثانوية بالكامل", "رياض الأطفال"],
+        "answer": "الصف الرابع الابتدائي والصف الأول الابتدائي",
+        "explanation": "يتم استهداف الصفوف الأولى والرابعة غالباً لتقييم الوضع الوبائي للمنطقة."
+    },
+
+    # 3. إجراءات التشغيل المعيارية (SOPs)
+    {
+        "id": 6,
         "difficulty": "medium",
         "category": "إجراءات التشغيل المعيارية (SOPs)",
         "question": "ما هو حجم العينة والتركيز المحدد لتحضير القراءة الميكروسكوبية الدقيقة طبقاً لكتيب SOPs؟",
         "options": ["10 مل بول بالسنترفيوج / 1/24 جم براز بثقب كاتو", "50 مل بول / 5 جم براز", "قطرة بول واحدة بدون سنترفيوج", "مسحة جافة من الغطاء"],
         "answer": "10 مل بول بالسنترفيوج / 1/24 جم براز بثقب كاتو",
         "explanation": "تنص المعايير القياسية على تدوير 10 مل بول أو تعبئة 1/24 جم براز بثقب كاتو المخصص."
-    }
-]
+    },
 
-for i in range(6, 101):
-    questions_db.append({
-        "id": i,
+    # 4. التشخيص المعملي والجدول الموحد
+    {
+        "id": 7,
         "difficulty": "medium",
         "category": "التشخيص المعملي والجدول الموحد",
-        "question": f"سؤال التشخيص المعملي رقم {i}: ما الخاصية التشخيصية لبويضات الطفيليات المعوية بالكتيب القومي؟",
-        "options": ["بويضة بيضاوية بشوكة طرفية أو جانبية", "بويضة برميلية بسدادتين شفافتين", "بويضة ذات غلاف حليمي خشن", "كيس كروي بأربعة أنوية"],
-        "answer": "بويضة بيضاوية بشوكة طرفية أو جانبية",
-        "explanation": "تستند الإجابة للبيانات الواردة بجدول التشخيص المعملي بكتيب الوزارة."
-    })
+        "question": "ما الخاصية التشخيصية لبويضة الشستوسوما هيماتوبيام (Schistosoma haematobium) تحت المجهر؟",
+        "options": ["بيضاوية ذات شوكة طرفية (Terminal Spine)", "بيضاوية ذات شوكة جانبية", "برميلية بسدادتين", "كروية جدارها ألبوميني"],
+        "answer": "بيضاوية ذات شوكة طرفية (Terminal Spine)",
+        "explanation": "تتميز بويضة S. haematobium بوجود شوكة طرفية واضحة في نهايتها."
+    },
+    {
+        "id": 8,
+        "difficulty": "medium",
+        "category": "التشخيص المعملي والجدول الموحد",
+        "question": "ما الأداة المستخدمة في تقنية كاتو-كاتس (Kato-Katz) لتقدير شدة الإصابة بالديدان المعوية كمياً؟",
+        "options": ["الصفيحة البلاستيكية ذات الثقب المعاير لوزن العينة", "أنبوب اختبار زجاجي طويل", "أنبوب الهيموجلوبين", "شريحة دم سميكة"],
+        "answer": "الصفيحة البلاستيكية ذات الثقب المعاير لوزن العينة",
+        "explanation": "تعتمد طريقة كاتو-كاتس على أخذ كمية محددة من البراز بواسطة قالب معدري أو بلاستيكي ثاقب."
+    },
+
+    # 5. إستراتيجية المكافحة والتجريع
+    {
+        "id": 9,
+        "difficulty": "hard",
+        "category": "إستراتيجية المكافحة والتجريع",
+        "question": "متى يتم تنفيذ العلاج الجموعي الشامل بعقار البرازيكوانتيل في قرية أو مدرسة مستهدفة حسب الإستراتيجية القومية؟",
+        "options": ["إذا بلغت نسبة الإصابة 1% فأكثر", "إذا لم تُوجد أي اصابة", "عند ظهور حالات ملاريا", "في فصل الشتاء فقط"],
+        "answer": "إذا بلغت نسبة الإصابة 1% فأكثر",
+        "explanation": "وفقاً لتعليمات البرنامج القومي للمكافحة، يُطبق العلاج الجموعي عند وصول معدل الإيجابية إلى 1% فأكثر."
+    },
+    {
+        "id": 10,
+        "difficulty": "medium",
+        "category": "إستراتيجية المكافحة والتجريع",
+        "question": "ما هو العقار الأساسي المستخدم في العلاج الجماعي والفردي لمرضى البلهارسيا بالوحدات الصحية؟",
+        "options": ["البرازيكوانتيل (Praziquantel)", "الميترونيدازول", "الباراسيتامول", "الأموكسيسيلين"],
+        "answer": "البرازيكوانتيل (Praziquantel)",
+        "explanation": "البرازيكوانتيل هو الدواء الفعال والآمن المعتمد للقضاء على ديدان البلهارسيا بجميع أنواعها."
+    },
+
+    # 6. استمارة ترصد معامل البلهارسيا والفاشيولا
+    {
+        "id": 11,
+        "difficulty": "medium",
+        "category": "استمارة ترصد معامل البلهارسيا والفاشيولا",
+        "question": "ما المسار الإداري الصحيح لإرسال أصل استمارة إبلاغ الحالة الإيجابية والشريحة المعملية ببرنامج الترصد؟",
+        "options": ["إرسال الأصل والشريحة للوزارة مع حفظ نسخ ورقية بالوحدة والإدارة والمديرية", "إتلاف الاستمارة بعد التسجيل", "تسليم الأصل للمريض شخصياً", "الاحتفاظ بها بالوحدة فقط دون إرسال"],
+        "answer": "إرسال الأصل والشريحة للوزارة مع حفظ نسخ ورقية بالوحدة والإدارة والمديرية",
+        "explanation": "تنص تعليمات الترصد المعملي على إرسال الأصل والشريحة للتأكيد بالوزارة وحفظ النسخ بالمستويات المختلفة."
+    },
+    {
+        "id": 12,
+        "difficulty": "easy",
+        "category": "استمارة ترصد معامل البلهارسيا والفاشيولا",
+        "question": "ما الغرض الرئيسي من استمارة ترصد البلهارسيا والفاشيولا بالمعامل ريفياً؟",
+        "options": ["حصر الحالات بدقة ومتابعة خريطة التوطن الوبائية", "تسجيل أعداد العاملين بالمعمل", "حساب استهلاك الكهرباء", "إصدار الإجازات المرضية"],
+        "answer": "حصر الحالات بدقة ومتابعة خريطة التوطن الوبائية",
+        "explanation": "تهدف استمارة الترصد إلى المتابعة الدقيقة للاكتشاف المبكر للحالات ومنع انتشار العدوى."
+    }
+]
 
 all_categories = list(set([q["category"] for q in questions_db]))
 
@@ -349,6 +412,8 @@ all_categories = list(set([q["category"] for q in questions_db]))
 # ==========================================
 if "app_stage" not in st.session_state:
     st.session_state.app_stage = "start_page"
+if "facility_name" not in st.session_state:
+    st.session_state.facility_name = ""
 if "student_full_name" not in st.session_state:
     st.session_state.student_full_name = ""
 if "student_phone" not in st.session_state:
@@ -387,7 +452,7 @@ if "admin_exam_open" not in st.session_state:
 if "exam_type" not in st.session_state:
     st.session_state.exam_type = "قبل التدريب"
 if "temp_num_q" not in st.session_state:
-    st.session_state.temp_num_q = 5
+    st.session_state.temp_num_q = 6
 if "target_pdf_pages" not in st.session_state:
     st.session_state.target_pdf_pages = 1
 if "approval_requests" not in st.session_state:
@@ -395,7 +460,7 @@ if "approval_requests" not in st.session_state:
 
 if "exam_results_records" not in st.session_state:
     st.session_state.exam_results_records = [
-        {"الاسم الرباعي": "أحمد محمد محمود السيد", "رقم الهاتف": "01012345678", "نوع الاختبار": "قبل التدريب", "النتيجة %": 60.0, "التاريخ": datetime.now() - timedelta(days=5)},
+        {"اسم المنشأة": "الوحدة الصحية بأولاد صقر", "الاسم الرباعي": "أحمد محمد محمود السيد", "رقم الهاتف": "01012345678", "نوع الاختبار": "قبل التدريب", "النتيجة %": 60.0, "التاريخ": datetime.now() - timedelta(days=5)},
     ]
 
 # ==========================================
@@ -406,7 +471,7 @@ if st.session_state.app_stage == "start_page":
     st.subheader("الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل")
     st.write("---")
 
-    # لوحة تسجيل دخول المدير وثابتة في الصفحة الرئيسية
+    # لوحة تسجيل دخول المدير
     with st.expander("🔐 لوحة التحكم الإدارية (تسجيل دخول المالك)", expanded=not is_admin_logged):
         if not is_admin_logged:
             col_l1, col_l2 = st.columns(2)
@@ -431,7 +496,7 @@ if st.session_state.app_stage == "start_page":
 
     if is_admin_logged:
         st.write("---")
-        st.subheader("⚙️ لوحة إعدادات الامتحان والتصنيفات الثابتة:")
+        st.subheader("⚙️ لوحة إعدادات الامتحان والتصنيفات المعملية:")
         
         col_t1, col_t2 = st.columns(2)
         with col_t1:
@@ -445,11 +510,10 @@ if st.session_state.app_stage == "start_page":
             st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان للمشتركين", value=st.session_state.admin_exam_open)
 
         st.write("---")
-        st.markdown("#### 📂 اختيار التصنيفات والمجموعات (نقاط ثابتة متعددة الاختيارات):")
+        st.markdown("#### 📂 اختيار التصنيفات والمجموعات المعملية (إستراتيجية، ترصد، دورات حياة، فحص مدارس، SOPs):")
         
-        # اختيار المجموعات عبر نقاط ثابتة Checkboxes مرتبة
         selected_cats = []
-        cols_c = st.columns(len(all_categories))
+        cols_c = st.columns(min(len(all_categories), 3))
         for idx, cat in enumerate(all_categories):
             with cols_c[idx % len(cols_c)]:
                 is_checked = st.checkbox(cat, value=(cat in st.session_state.selected_categories_admin), key=f"cat_chk_{idx}")
@@ -502,7 +566,7 @@ if st.session_state.app_stage == "start_page":
         else:
             for phone_key, req_data in list(st.session_state.approval_requests.items()):
                 rc1, rc2, rc3 = st.columns([3, 2, 2])
-                rc1.write(f"👤 **{req_data['name']}** ({phone_key})")
+                rc1.write(f"👤 **{req_data['name']}** - المنشأة: ({req_data['facility']})")
                 rc2.write(f"الحالة: **{req_data['status']}**")
                 if req_data['status'] == "pending":
                     if rc3.button("موافقة ✅", key=f"app_{phone_key}"):
@@ -530,25 +594,35 @@ if st.session_state.app_stage == "start_page":
         st.warning("⚠️ بوابة الامتحان مغلقة حالياً من قِبل الإدارة.")
 
 elif st.session_state.app_stage == "registration_page":
-    st.title(f"📝 تسجيل البيانات - ({st.session_state.exam_type})")
+    st.title(f"📝 تسجيل بيانات المتدرب - ({st.session_state.exam_type})")
     st.write("---")
 
     with st.form("student_reg_form"):
+        facility_input = st.text_input("🏥 اسم المنشأة / الوحدة الصحية:", placeholder="مثال: وحدة الحصوة الصحية / مستشفى أولاد صقر")
         full_name_input = st.text_input("👤 الاسم الرباعي كاملاً:", placeholder="مثال: أحمد محمد علي حسن")
         phone_input = st.text_input("📞 رقم الهاتف (11 رقماً):", placeholder="01012345678")
         submit_reg = st.form_submit_button("إرسال طلب الدخول 🏁", type="primary", use_container_width=True)
 
         if submit_reg:
+            facility_clean = facility_input.strip()
             words_name = full_name_input.strip().split()
             phone_clean = phone_input.strip()
-            if len(words_name) < 4:
-                st.error("⚠️ يرجى كتابة الاسم رباعياً.")
+
+            if not facility_clean:
+                st.error("⚠️ يرجى إدخال اسم المنشأة.")
+            elif len(words_name) < 4:
+                st.error("⚠️ يرجى كتابة الاسم رباعياً بشكل صحيح.")
             elif not re.match(r"^01[0125][0-9]{8}$", phone_clean):
-                st.error("⚠️ يرجى إدخال رقم هاتف صحيح مكون من 11 رقماً.")
+                st.error("⚠️ يرجى إدخال رقم هاتف محمول صحيح مكون من 11 رقماً.")
             else:
+                st.session_state.facility_name = facility_clean
                 st.session_state.student_full_name = full_name_input.strip()
                 st.session_state.student_phone = phone_clean
-                st.session_state.approval_requests[phone_clean] = {"name": full_name_input.strip(), "status": "pending"}
+                st.session_state.approval_requests[phone_clean] = {
+                    "facility": facility_clean,
+                    "name": full_name_input.strip(),
+                    "status": "pending"
+                }
                 st.session_state.app_stage = "waiting_approval"
                 st.rerun()
 
@@ -565,7 +639,8 @@ elif st.session_state.app_stage == "waiting_approval":
     st.markdown(f"""
     <div class="waiting-box">
         <h4>تم إرسال الطلب بنجاح</h4>
-        <p><b>الاسم:</b> {st.session_state.student_full_name}</p>
+        <p><b>اسم المنشأة:</b> {st.session_state.facility_name}</p>
+        <p><b>اسم المتدرب:</b> {st.session_state.student_full_name}</p>
         <p><b>الحالة:</b> <span style="color: #558b2f; font-weight: bold;">{req_status}</span></p>
     </div>
     """, unsafe_allow_html=True)
@@ -612,7 +687,7 @@ elif st.session_state.app_stage == "exam_page":
         """, unsafe_allow_html=True)
 
         current_ans = st.session_state.user_answers.get(curr_idx, None)
-        selected_option = st.radio("اختر الإجابة:", q_data["options"], index=q_data["options"].index(current_ans) if current_ans in q_data["options"] else None, key=f"radio_{curr_idx}")
+        selected_option = st.radio("اختر الإجابة الصحيحة:", q_data["options"], index=q_data["options"].index(current_ans) if current_ans in q_data["options"] else None, key=f"radio_{curr_idx}")
 
         if selected_option is not None:
             st.session_state.user_answers[curr_idx] = selected_option
@@ -639,6 +714,7 @@ elif st.session_state.app_stage == "exam_page":
         st.metric("الدرجة الكلية", f"{total_score} / {max_score} ({score_pct:.1f}%)")
 
         pdf_bytes = generate_pdf_report(
+            st.session_state.facility_name,
             st.session_state.student_full_name,
             st.session_state.student_phone,
             active_questions,
