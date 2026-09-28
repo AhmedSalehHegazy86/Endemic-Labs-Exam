@@ -6,6 +6,7 @@ import sqlite3
 import html
 from datetime import datetime
 import urllib.parse
+import pandas as pd
 
 import streamlit as st
 
@@ -199,6 +200,12 @@ st.markdown(
     .stButton > button:hover {
         background: linear-gradient(90deg, #1b5e20, #33691e);
         color: white;
+    }
+
+    @media print {
+        .stButton, header, footer {
+            display: none !important;
+        }
     }
 
     </style>
@@ -906,6 +913,21 @@ def get_pending_requests():
         SELECT *
         FROM trainees
         WHERE status = 'pending'
+        ORDER BY id DESC
+        """
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
+def get_all_results_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT *
+        FROM exam_results
         ORDER BY id DESC
         """
     )
@@ -2162,6 +2184,43 @@ elif st.session_state.page == "admin_dashboard":
                 st.rerun()
 
     st.markdown("---")
+    st.subheader("📊 لوحة نتائج الممتحنين والأدوات الإدارية:")
+    results_list = get_all_results_db()
+    
+    if results_list:
+        df_results = pd.DataFrame(results_list)
+        # عرض جدول النتائج المبسط
+        st.dataframe(df_results[['student_name', 'facility', 'score', 'max_score', 'percentage', 'created_at']], use_container_width=True)
+        
+        col_act1, col_act2 = st.columns(2)
+        with col_act1:
+            # زر طباعة نتيجة الممتحنين
+            st.markdown(
+                """
+                <button onclick="window.print()" style="width: 100%; border-radius: 12px; border: none; background: linear-gradient(90deg, #1e3a8a, #3b82f6); color: white; font-weight: 800; min-height: 45px; cursor: pointer;">
+                    🖨️ طباعة تقرير نتائج الممتحنين
+                </button>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col_act2:
+            # زر تصدير النتائج إلى Excel
+            output_excel = io.BytesIO()
+            with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+                df_results.to_excel(writer, index=False, sheet_name='Exam_Results')
+            output_excel.seek(0)
+            
+            st.download_button(
+                label="📥 تصدير الامتحان والنتائج إلى ملف Excel (.xlsx)",
+                data=output_excel,
+                file_name="Exam_Results_Export.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+    else:
+        st.info("لا توجد نتائج اختبارات مسجلة حتى الآن.")
+
+    st.markdown("---")
     st.subheader("⚙️ إعدادات الامتحان والتصنيفات المعملية:")
 
     config = get_exam_config()
@@ -2292,7 +2351,7 @@ elif st.session_state.page == "exam":
             st.rerun()
 
 # ---------------------------------------------------------
-# صفحة النتيجة (تظهر الإجابات الصحيحة والشرح التفصيلي بعد التسليم فقط)
+# صفحة النتيجة (تظهر الإجابات الصحيحة والشرح بعد التسليم فقط)
 # ---------------------------------------------------------
 elif st.session_state.page == "result":
     st.markdown(
@@ -2330,12 +2389,12 @@ elif st.session_state.page == "result":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    col_btn1, col_btn2 = st.columns(2)
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
     
     with col_btn1:
         pdf_report_bytes = generate_pdf_report()
         st.download_button(
-            label="📄 تحميل تقرير النتيجة الرسمي PDF",
+            label="📄 تحميل تقرير النتيجة PDF",
             data=pdf_report_bytes,
             file_name="Exam_Result_Report.pdf",
             mime="application/pdf",
@@ -2343,6 +2402,17 @@ elif st.session_state.page == "result":
         )
 
     with col_btn2:
+        # زر طباعة النتيجة مباشرة للممتحن
+        st.markdown(
+            """
+            <button onclick="window.print()" style="width: 100%; border-radius: 12px; border: none; background: linear-gradient(90deg, #1e3a8a, #3b82f6); color: white; font-weight: 800; min-height: 45px; cursor: pointer;">
+                🖨️ طباعة النتيجة مباشرة
+            </button>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col_btn3:
         trainee_phone = st.session_state.student_phone.strip()
         if trainee_phone.startswith("0"):
             trainee_phone_intl = "2" + trainee_phone
@@ -2357,7 +2427,7 @@ elif st.session_state.page == "result":
         wa_pct = f"{st.session_state.score_pct:.1f}%"
         
         wa_text = (
-            f"🌟 شهادة نتيجة اختبار معامل المتوطنة (صادرة من منصة المالك)\n"
+            f"🌟 شهادة نتيجة اختبار معامل المتوطنة (صادرة من منصة المالك: 01003309543)\n"
             f"-----------------------------------\n"
             f"👤 الممتحن: {wa_name}\n"
             f"🏥 المنشأة: {wa_facility}\n"
@@ -2373,7 +2443,7 @@ elif st.session_state.page == "result":
             f"""
             <a href="{wa_url}" target="_blank">
                 <button style="width: 100%; border-radius: 12px; border: none; background: linear-gradient(90deg, #25d366, #128c7e); color: white; font-weight: 800; min-height: 45px; cursor: pointer;">
-                    💬 إرسال النتيجة على واتساب الممتحن ( )
+                    💬 إرسال الواتساب للممتحن
                 </button>
             </a>
             """,
