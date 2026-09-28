@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# تسجيل خط عربي لضمان ظهور الحروف العربية في الـ PDF
+# تسجيل خط عربي لضمان ظهور الحروف العربية بدقة
 try:
     pdfmetrics.registerFont(TTFont('Cairo', 'Cairo-Regular.ttf'))
     PDF_FONT = 'Cairo'
@@ -32,7 +32,7 @@ except:
 
 is_admin_logged = st.session_state.get("logged_admin_user") is not None
 
-# تنسيقات CSS العامة للبرنامج وتثبيت الاتجاه من اليمين لليسار (RTL)
+# تنسيقات CSS العامة للبرنامج وتثبيت الاتجاه من اليمين لليسار (RTL) مع دعم كامل للغة العربية
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
@@ -71,13 +71,16 @@ st.markdown("""
         border-radius: 15px;
         margin-top: 20px;
     }
-    .stRadio > label {
-        font-weight: 700;
-        color: #1b5e20;
+    .stRadio > label, .stCheckbox > label {
+        font-weight: 700 !important;
+        color: #1b5e20 !important;
     }
     .stButton>button {
         border-radius: 10px;
         font-weight: bold;
+    }
+    p, span, div, label, h1, h2, h3, h4 {
+        font-family: 'Cairo', sans-serif !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -137,7 +140,7 @@ def build_signatures_table(styles):
 # ==========================================
 # 3. دوال تصدير التقارير والامتحانات الورقية باللغة العربية (درجتان لكل سؤال)
 # ==========================================
-def generate_pdf_report(facility_name, student_name, student_phone, active_questions, user_answers, score_pct, total_score, max_score, exam_mode):
+def generate_pdf_report(facility_name, student_name, student_phone, active_questions, user_answers, score_pct, total_score, max_score, exam_timing, exam_mode):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
     story = []
@@ -155,7 +158,7 @@ def generate_pdf_report(facility_name, student_name, student_phone, active_quest
     summary_data = [
         [Paragraph(f"<b>اسم المنشأة:</b> {facility_name}", normal_style), Paragraph(f"<b>اسم المتدرب:</b> {student_name}", normal_style)],
         [Paragraph(f"<b>رقم الهاتف:</b> {student_phone}", normal_style), Paragraph(f"<b>النتيجة النهائية:</b> {score_pct:.1f}%", normal_style)],
-        [Paragraph(f"<b>المجموع:</b> {total_score} / {max_score} درجة", normal_style), Paragraph(f"<b>تصنيف الاختبار:</b> {exam_mode}", normal_style)]
+        [Paragraph(f"<b>المجموع:</b> {total_score} / {max_score} درجة", normal_style), Paragraph(f"<b>نوع الاختبار:</b> {exam_timing} - {exam_mode}", normal_style)]
     ]
     
     summary_table = Table(summary_data, colWidths=[260, 260])
@@ -205,7 +208,7 @@ def generate_pdf_report(facility_name, student_name, student_phone, active_quest
     buffer.seek(0)
     return buffer
 
-def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target_pages):
+def generate_exam_paper_pdf(exam_timing, exam_mode, duration_min, questions_list, target_pages):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
     story = []
@@ -224,7 +227,7 @@ def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target
         story.append(Spacer(1, 4))
 
         if page_idx == 0:
-            story.append(Paragraph(f"نموذج ورقة اختبار ورقي: ({exam_type_name})", title_style))
+            story.append(Paragraph(f"نموذج ورقة اختبار ورقي: ({exam_timing} - {exam_mode})", title_style))
             story.append(Spacer(1, 4))
 
             info_data = [
@@ -449,8 +452,10 @@ if "allow_reexam" not in st.session_state:
     st.session_state.allow_reexam = False
 if "admin_exam_open" not in st.session_state:
     st.session_state.admin_exam_open = False
-if "exam_type" not in st.session_state:
-    st.session_state.exam_type = "قبل التدريب"
+if "exam_timing" not in st.session_state:
+    st.session_state.exam_timing = "قبل التدريب"
+if "exam_mode" not in st.session_state:
+    st.session_state.exam_mode = "فردي"
 if "temp_num_q" not in st.session_state:
     st.session_state.temp_num_q = 6
 if "target_pdf_pages" not in st.session_state:
@@ -460,7 +465,7 @@ if "approval_requests" not in st.session_state:
 
 if "exam_results_records" not in st.session_state:
     st.session_state.exam_results_records = [
-        {"اسم المنشأة": "الوحدة الصحية بأولاد صقر", "الاسم الرباعي": "أحمد محمد محمود السيد", "رقم الهاتف": "01012345678", "نوع الاختبار": "قبل التدريب", "النتيجة %": 60.0, "التاريخ": datetime.now() - timedelta(days=5)},
+        {"اسم المنشأة": "الوحدة الصحية بأولاد صقر", "الاسم الرباعي": "أحمد محمد محمود السيد", "رقم الهاتف": "01012345678", "توقيت الاختبار": "قبل التدريب", "نمط الاختبار": "فردي", "النتيجة %": 60.0, "التاريخ": datetime.now() - timedelta(days=5)},
     ]
 
 # ==========================================
@@ -496,21 +501,28 @@ if st.session_state.app_stage == "start_page":
 
     if is_admin_logged:
         st.write("---")
-        st.subheader("⚙️ لوحة إعدادات الامتحان والتصنيفات المعملية:")
+        st.subheader("⚙️ لوحة إعدادات الامتحان وتصنيفاته:")
         
         col_t1, col_t2 = st.columns(2)
         with col_t1:
-            st.session_state.exam_type = st.radio(
-                "🎯 تصنيف نوع الاختبار للمشتركين:",
-                options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
-                index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0,
+            st.session_state.exam_timing = st.radio(
+                "📅 توقيت الاختبار:",
+                options=["قبل التدريب", "بعد التدريب"],
+                index=["قبل التدريب", "بعد التدريب"].index(st.session_state.exam_timing) if st.session_state.exam_timing in ["قبل التدريب", "بعد التدريب"] else 0,
                 horizontal=True
             )
         with col_t2:
-            st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان للمشتركين", value=st.session_state.admin_exam_open)
+            st.session_state.exam_mode = st.radio(
+                "👥 نمط الاختبار:",
+                options=["فردي", "جماعي"],
+                index=["فردي", "جماعي"].index(st.session_state.exam_mode) if st.session_state.exam_mode in ["فردي", "جماعي"] else 0,
+                horizontal=True
+            )
+
+        st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان للمشتركين", value=st.session_state.admin_exam_open)
 
         st.write("---")
-        st.markdown("#### 📂 اختيار التصنيفات والمجموعات المعملية (إستراتيجية، ترصد، دورات حياة، فحص مدارس، SOPs):")
+        st.markdown("#### 📂 اختيار التصنيفات والمجموعات المعملية (نقاط ثابتة متعددة الاختيارات):")
         
         selected_cats = []
         cols_c = st.columns(min(len(all_categories), 3))
@@ -543,7 +555,8 @@ if st.session_state.app_stage == "start_page":
         if filtered_db_for_export:
             selected_export_q = filtered_db_for_export[:st.session_state.temp_num_q]
             exam_pdf_paper = generate_exam_paper_pdf(
-                st.session_state.exam_type,
+                st.session_state.exam_timing,
+                st.session_state.exam_mode,
                 st.session_state.admin_timer_minutes,
                 selected_export_q,
                 st.session_state.target_pdf_pages
@@ -551,7 +564,7 @@ if st.session_state.app_stage == "start_page":
             st.download_button(
                 label=f"📥 تنزيل ورقة الامتحان الورقية A4 ({len(selected_export_q)} سؤالاً - الدرجة الكلية: {len(selected_export_q)*2})",
                 data=exam_pdf_paper,
-                file_name=f"Exam_Paper_{st.session_state.exam_type}.pdf",
+                file_name=f"Exam_Paper_{st.session_state.exam_timing}_{st.session_state.exam_mode}.pdf",
                 mime="application/pdf",
                 type="primary",
                 use_container_width=True
@@ -578,13 +591,13 @@ if st.session_state.app_stage == "start_page":
     
     st.markdown(f"""
     ### تعليمات الامتحان للمتدربين:
-    - **تصنيف الاختبار الحالي:** <span style="color:#2e7d32; font-weight:bold;">{st.session_state.exam_type}</span>.
+    - **توقيت ونمط الاختبار الحالي:** <span style="color:#2e7d32; font-weight:bold;">{st.session_state.exam_timing} ({st.session_state.exam_mode})</span>.
     - **عدد الأسئلة:** <span style="color:#1b5e20; font-weight:bold;">{st.session_state.temp_num_q} سؤالاً</span> (لكل سؤال درجتان | الإجمالي: {st.session_state.temp_num_q * 2} درجة).
     - **المدة الزمنية:** {st.session_state.admin_timer_minutes} دقيقة.
     """, unsafe_allow_html=True)
 
     if st.session_state.admin_exam_open:
-        if st.button(f"الانتقال لصفحة تسجيل البيانات (اختبار {st.session_state.exam_type}) 🚀", type="primary", use_container_width=True):
+        if st.button(f"الانتقال لصفحة تسجيل البيانات 🚀", type="primary", use_container_width=True):
             if not filtered_db:
                 st.error("⚠️ لا توجد أسئلة متاحة بناءً على التصنيفات المختارة.")
             else:
@@ -594,7 +607,7 @@ if st.session_state.app_stage == "start_page":
         st.warning("⚠️ بوابة الامتحان مغلقة حالياً من قِبل الإدارة.")
 
 elif st.session_state.app_stage == "registration_page":
-    st.title(f"📝 تسجيل بيانات المتدرب - ({st.session_state.exam_type})")
+    st.title(f"📝 تسجيل بيانات المتدرب - ({st.session_state.exam_timing} / {st.session_state.exam_mode})")
     st.write("---")
 
     with st.form("student_reg_form"):
@@ -722,7 +735,8 @@ elif st.session_state.app_stage == "exam_page":
             score_pct,
             total_score,
             max_score,
-            st.session_state.exam_type
+            st.session_state.exam_timing,
+            st.session_state.exam_mode
         )
         st.download_button(
             label="📄 تحميل تقرير النتيجة الرسمي PDF",
