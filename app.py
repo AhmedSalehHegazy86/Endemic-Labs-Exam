@@ -153,7 +153,7 @@ def build_signatures_table(styles):
     return sig_table
 
 # ==========================================
-# 3. توثيق تقارير الـ PDF وشهادات التقدير
+# 3. توثيق تقارير الـ PDF وشهادات التقدير وتصدير ورقة الامتحان
 # ==========================================
 def generate_pdf_report(student_name, student_phone, active_questions, user_answers, score_pct, correct_count, total_q, exam_mode):
     buffer = io.BytesIO()
@@ -241,7 +241,7 @@ def generate_certificate_pdf(student_name, student_phone, pre_score, post_score)
     story.append(Spacer(1, 15))
 
     cert_text = f"""
-    تشهد الإدارة الصحية بأولاد صقر بأن المتدرب / <b>{student_name}</b>
+    تشهد الإدارة الصحية بأولاد صقر بأن المتدرب / <b>{student_name}</b><br/>
     قد اجتاز بنجاح متميز البرنامج التدريبي لمعامل المتوطنة، وحصل على التقييمات التالية:<br/><br/>
     - تقييم اختبار بعد التدريب (Post-Training): <b>{post_score:.1f}%</b><br/><br/>
     وتم منحه هذه الشهادة تقديراً لتفوقه العلمي والعملي بالمجال للكشف عن البلهارسيا و الطفيليات المعوية.
@@ -299,6 +299,73 @@ def generate_periodic_report_pdf(period_name, df_results):
     story.append(p_table)
     story.append(Spacer(1, 20))
 
+    story.append(build_signatures_table(styles))
+
+    doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
+    buffer.seek(0)
+    return buffer
+
+def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list):
+    """دالة لتوليد ورقة امتحان ورقية جاهزة للطباعة A4 تحتوي على الأسئلة والخيارات لخاصية المالك"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=35)
+    story = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle('ExamTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, alignment=1, spaceAfter=6, textColor=colors.HexColor("#1b5e20"))
+    q_title_style = ParagraphStyle('QTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9.5, leading=13, textColor=colors.HexColor("#2e7d32"))
+    option_style = ParagraphStyle('OptStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=11)
+    info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12)
+
+    story.append(build_pdf_header(styles))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph(f"نموذج ورقة اختبار ورقي: ({exam_type_name})", title_style))
+    story.append(Spacer(1, 4))
+
+    info_data = [
+        [Paragraph(f"<b>اسم المتدرب / الممتحن:</b> .....................................................", info_style),
+         Paragraph(f"<b>الزمن المخصص:</b> {duration_min} دقيقة", info_style)],
+        [Paragraph(f"<b>جهة العمل / الوحدة:</b> .....................................................", info_style),
+         Paragraph(f"<b>عدد الأسئلة:</b> {len(questions_list)} سؤالاً", info_style)]
+    ]
+    info_table = Table(info_data, colWidths=[340, 195])
+    info_table.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#558b2f")),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f1f8e9")),
+        ('PADDING', (0,0), (-1,-1), 5),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 10))
+
+    for idx, q in enumerate(questions_list):
+        q_text = f"<b>س{idx+1}: {q['question']}</b> (المجموعة: {q['category']})"
+        story.append(Paragraph(q_text, q_title_style))
+        story.append(Spacer(1, 3))
+
+        opts = q['options']
+        opt_letters = ['A', 'B', 'C', 'D']
+        opt_cells = []
+        for i, opt in enumerate(opts):
+            letter = opt_letters[i] if i < len(opt_letters) else ''
+            opt_cells.append(Paragraph(f"[  ]  <b>{letter})</b> {opt}", option_style))
+
+        # توزيع الخيارات بجدول من صفين وعمودين لتوفير المساحة
+        if len(opt_cells) >= 4:
+            opt_matrix = [[opt_cells[0], opt_cells[1]], [opt_cells[2], opt_cells[3]]]
+        else:
+            opt_matrix = [[c] for c in opt_cells]
+
+        opt_table = Table(opt_matrix, colWidths=[265, 270])
+        opt_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 2),
+        ]))
+        story.append(opt_table)
+        story.append(Spacer(1, 6))
+
+    story.append(Spacer(1, 10))
     story.append(build_signatures_table(styles))
 
     doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
@@ -586,6 +653,28 @@ if st.session_state.app_stage == "start_page":
                             st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (بالدقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="main_tab_timer")
                             st.session_state.allow_reexam = st.checkbox("🔒 السماح بإعادة الاختبار", value=st.session_state.allow_reexam)
 
+                        st.write("---")
+                        st.markdown("#### 📄 طباعة وتصدير نموذج اختبار ورقي (خاص بالمالك والإدارة):")
+                        filtered_db_for_export = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
+                        
+                        if filtered_db_for_export:
+                            selected_export_q = filtered_db_for_export[:st.session_state.temp_num_q]
+                            exam_pdf_paper = generate_exam_paper_pdf(
+                                st.session_state.exam_type,
+                                st.session_state.admin_timer_minutes,
+                                selected_export_q
+                            )
+                            st.download_button(
+                                label=f"📥 تنزيل ورقة الامتحان الورقية جاهزة للطباعة A4 ({len(selected_export_q)} سؤالاً)",
+                                data=exam_pdf_paper,
+                                file_name=f"Exam_Paper_{st.session_state.exam_type}.pdf",
+                                mime="application/pdf",
+                                type="primary",
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("⚠️ يرجى تحديد مجموعة أسئلة واحدة على الأقل لتتمكن من استخراج ورقة الامتحان PDF.")
+
             # 2. الموافقة
             with tab_approvals:
                 if "approve_users" in admin_data["permissions"] or admin_data["role"] == "owner":
@@ -761,7 +850,7 @@ elif st.session_state.app_stage == "registration_page":
             if len(words_name) < 4:
                 st.error("⚠️ يرجى كتابة الاسم رباعياً بشكل صحيح (4 أسماء على الأقل).")
             elif not re.match(r"^01[0125][0-9]{8}$", phone_clean):
-                st.error("⚠️ يرجى إدخال رقم هاتف محمول صحيح مكون من 12 رقما.")
+                st.error("⚠️ يرجى إدخال رقم هاتف محمول صحيح مكون من 11 رقماً.")
             else:
                 st.session_state.student_full_name = full_name_input.strip()
                 st.session_state.student_phone = phone_clean
