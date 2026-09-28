@@ -11,51 +11,45 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 # ==========================================
-# 1. إعدادات الصفحة والتنسيق Visuals (إخفاء الشريط الجانبي إلا للمالك)
+# 1. إعدادات الصفحة والتنسيق Visuals
 # ==========================================
 st.set_page_config(
     page_title="المنصة القومية للاختبارات المعملية والترصد القومي",
     page_icon="🔬",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# التحقق مما إذا كان المستخدم الحالي مالكاً/إدارياً لتحديد ظهور الشريط الجانبي
+# التحقق مما إذا كان المستخدم مسجلاً كإداري/مالك
 is_admin_logged = st.session_state.get("logged_admin_user") is not None
 
-# تنسيق الشاشة والخلفية 4K مع وضع الشريط الجانبي يساراً وإخفائه عن الطلاب
-sidebar_style = "" if is_admin_logged else """
-    [data-testid="stSidebar"] {
-        display: none !important;
-    }
-    [data-testid="collapsedControl"] {
-        display: none !important;
-    }
-"""
+# إذا لم يكن المالك مسجلاً للدخول، يتم إخفاء الشريط الجانبي وأزرار التحكم بالكامل عن الطلاب
+if not is_admin_logged:
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
+        [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-st.markdown(f"""
+# تنسيقات CSS العامة للبرنامج والخلفية 4K المتدرجة
+st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
     
-    .stApp {{
+    .stApp {
         background: linear-gradient(135deg, #fffde7 0%, #f0f4c3 35%, #dce775 70%, #c5e1a5 100%) !important;
         background-attachment: fixed !important;
         font-family: 'Cairo', sans-serif !important;
         direction: rtl;
         text-align: right;
-    }}
+    }
 
-    /* جعل الشريط الجانبي على يسار الشاشة للمالك فقط */
-    [data-testid="stSidebar"] {{
-        left: 0 !important;
-        right: auto !important;
-        border-right: none !important;
-        border-left: 2px solid #558b2f !important;
-    }}
-
-    {sidebar_style}
-
-    .question-card {{
+    .question-card {
         background: rgba(255, 255, 255, 0.92);
         border-right: 6px solid #558b2f;
         padding: 25px;
@@ -63,8 +57,8 @@ st.markdown(f"""
         box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         margin-bottom: 20px;
         backdrop-filter: blur(5px);
-    }}
-    .timer-box {{
+    }
+    .timer-box {
         background: linear-gradient(135deg, #d32f2f, #c62828);
         border: 2px solid #b71c1c;
         color: #ffffff;
@@ -75,31 +69,31 @@ st.markdown(f"""
         text-align: center;
         margin-bottom: 15px;
         box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
-    }}
-    .admin-box {{
+    }
+    .admin-box {
         background: rgba(255, 255, 255, 0.95);
         border: 2px solid #afb42b;
         padding: 20px;
         border-radius: 12px;
         margin-bottom: 20px;
         box-shadow: 0 4px 15px rgba(175, 180, 43, 0.2);
-    }}
-    .reg-box, .waiting-box {{
+    }
+    .reg-box, .waiting-box {
         background: rgba(255, 255, 255, 0.95);
         border: 2px solid #33691e;
         padding: 25px;
         border-radius: 15px;
         margin-top: 20px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-    }}
-    .stRadio > label {{
+    }
+    .stRadio > label {
         font-weight: 700;
         color: #1b5e20;
-    }}
-    .stButton>button {{
+    }
+    .stButton>button {
         border-radius: 10px;
         font-weight: bold;
-    }}
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -510,23 +504,24 @@ if "exam_results_records" not in st.session_state:
     ]
 
 # ==========================================
-# 6. الشريط الجانبي للمالك فقط (Sidebar - Admin Only)
+# 6. الشريط الجانبي (يظهر للمالك فقط)
 # ==========================================
 if is_admin_logged:
     with st.sidebar:
         st.title("⚙️ لوحة تحكم المالك")
-        st.write(f"👑 **المسؤول:** {st.session_state.logged_admin_user}")
+        st.write(f"👑 **المسؤول الحالي:** {st.session_state.logged_admin_user}")
         st.write("---")
         
         st.session_state.exam_type = st.radio(
-            "🎯 نوع الاختبار:",
+            "🎯 تصنيف الاختبار:",
             options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
-            index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0
+            index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0,
+            key="sb_exam_type"
         )
         
-        st.session_state.admin_exam_open = st.toggle("🟢 فتح بوابة الاختبار", value=st.session_state.admin_exam_open)
+        st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان", value=st.session_state.admin_exam_open, key="sb_open_gate")
         
-        st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الاختبار (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes)
+        st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="sb_timer")
         
         st.write("---")
         if st.button("تسجيل الخروج 🚪", use_container_width=True):
