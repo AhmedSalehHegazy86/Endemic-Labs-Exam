@@ -32,7 +32,7 @@ from bidi.algorithm import get_display
 # =========================================================
 
 st.set_page_config(
-    page_title="المنصة الرقمية لاختبارات تقييم معامل المتوطنة  ",
+    page_title="المنصة القومية لاختبارات معامل المتوطنة والمجهر الضوئي",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1280,7 +1280,7 @@ def build_pdf_header():
                     logo,
                     Paragraph(
                         ar(
-                            " المنصة الرقمية لاختبارات تقييم معامل المتوطنة"
+                            "المنصة القومية لاختبارات معامل المتوطنة"
                         ),
                         ParagraphStyle(
                             "title",
@@ -1328,7 +1328,7 @@ def build_pdf_header():
         elements.append(
             Paragraph(
                 ar(
-                    "المنصة الرقمية لاختبارات تقييم معامل المتوطنة"
+                    "المنصة القومية لاختبارات معامل المتوطنة"
                 ),
                 ParagraphStyle(
                     "title2",
@@ -1909,7 +1909,7 @@ if st.session_state.page == "home":
     st.markdown(
         """
         <div class="main-title">
-            🔬 المنصة الرقمية لاختبارات تقييم معامل المتوطنة 
+            🔬 المنصة القومية لاختبارات معامل المتوطنة والمجهر الضوئي
         </div>
         """,
         unsafe_allow_html=True,
@@ -2002,7 +2002,7 @@ elif st.session_state.page == "register":
     with st.form("reg_form"):
         facility_input = st.text_input(
             "🏥 اسم المنشأة / الوحدة الصحية:",
-            placeholder="مثال: وحدة بنى حسن الصحية"
+            placeholder="مثال: وحدة الحصوة الصحية"
         )
         name_input = st.text_input(
             "👤 الاسم الرباعي كاملاً:",
@@ -2292,7 +2292,7 @@ elif st.session_state.page == "exam":
             st.rerun()
 
 # ---------------------------------------------------------
-# صفحة النتيجة (تظهر الإجابات والشرح، وزر الواتساب للممتحن عبر رقم المالك 01003309543)
+# صفحة النتيجة (تظهر الإجابات الصحيحة والشرح التفصيلي بعد التسليم فقط)
 # ---------------------------------------------------------
 elif st.session_state.page == "result":
     st.markdown(
@@ -2330,7 +2330,6 @@ elif st.session_state.page == "result":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # أزرار تحميل PDF وإرسال الواتساب للممتحن عبر رقم المالك (01003309543)
     col_btn1, col_btn2 = st.columns(2)
     
     with col_btn1:
@@ -2344,9 +2343,7 @@ elif st.session_state.page == "result":
         )
 
     with col_btn2:
-        # إرسال النتيجة إلى رقم هاتف الممتحن المسجل، مع استخدام رقم المالك كمرسل أو جهة اتصال رسمية
         trainee_phone = st.session_state.student_phone.strip()
-        # تنسيق رقم الهاتف ليطابق الصيغة الدولية المصرية (إن لم يبدأ بـ 20)
         if trainee_phone.startswith("0"):
             trainee_phone_intl = "2" + trainee_phone
         elif not trainee_phone.startswith("2"):
@@ -2360,7 +2357,7 @@ elif st.session_state.page == "result":
         wa_pct = f"{st.session_state.score_pct:.1f}%"
         
         wa_text = (
-            f"🌟 شهادة نتيجة اختبار معامل المتوطنة (صادرة من منصة المالك: 01003309543)\n"
+            f"🌟 شهادة نتيجة اختبار معامل المتوطنة (صادرة من منصة المالك)\n"
             f"-----------------------------------\n"
             f"👤 الممتحن: {wa_name}\n"
             f"🏥 المنشأة: {wa_facility}\n"
@@ -2370,14 +2367,13 @@ elif st.session_state.page == "result":
             f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         )
         encoded_wa_text = urllib.parse.quote(wa_text)
-        # رابط محادثة واتساب لرقم الممتحن مع رسالة معتمدة
         wa_url = f"https://wa.me/{trainee_phone_intl}?text={encoded_wa_text}"
         
         st.markdown(
             f"""
             <a href="{wa_url}" target="_blank">
                 <button style="width: 100%; border-radius: 12px; border: none; background: linear-gradient(90deg, #25d366, #128c7e); color: white; font-weight: 800; min-height: 45px; cursor: pointer;">
-                    💬 إرسال النتيجة على واتساب الممتحن (رقم المنصة: 01003309543)
+                    💬 إرسال النتيجة على واتساب الممتحن ( )
                 </button>
             </a>
             """,
