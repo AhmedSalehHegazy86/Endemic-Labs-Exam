@@ -507,7 +507,7 @@ if "exam_results_records" not in st.session_state:
 # ==========================================
 if is_admin_logged:
     with st.sidebar:
-        st.title("⚙️ لوحة تحكم المالك")
+        st.title("⚙️ لوحة التحكم ")
         st.write(f"👑 **المسؤول الحالي:** {st.session_state.logged_admin_user}")
         st.write("---")
         
@@ -533,8 +533,8 @@ if is_admin_logged:
 
 # ----- المرحلة 1: شاشة البداية واللوحات الإدارية -----
 if st.session_state.app_stage == "start_page":
-    st.title("🔬 المنصة القومية للاختبارات المعملية والترصد القومي")
-    st.subheader("الإدارة المركزية للأمراض المدارية - الإدارة العامة للأمراض المدارية")
+    st.title("🔬 المنصة الرقمية للاختبارات معامل المتوطنة ")
+    st.subheader("الإدارة الصحية باولاد صقر   - قسم المتوطنة - قسم المعامل  ")
     st.write("---")
 
     with st.expander("🔐 تسجيل دخول المالك والمساعدين وإدارة التقارير والشهادات", expanded=True):
@@ -549,7 +549,7 @@ if st.session_state.app_stage == "start_page":
             if st.button("تسجيل الدخول للإدارة 🔓", type="primary"):
                 if input_user in st.session_state.users_db and st.session_state.users_db[input_user]["password"] == input_pass:
                     st.session_state.logged_admin_user = input_user
-                    st.success(f"مرحباً بك د. {input_user}! تم تسجيل الدخول بنجاح.")
+                    st.success(f"مرحباً بك . {input_user}! تم تسجيل الدخول بنجاح.")
                     st.rerun()
                 else:
                     st.error("⚠️ بيانات الدخول غير صحيحة.")
@@ -761,7 +761,7 @@ elif st.session_state.app_stage == "registration_page":
             if len(words_name) < 4:
                 st.error("⚠️ يرجى كتابة الاسم رباعياً بشكل صحيح (4 أسماء على الأقل).")
             elif not re.match(r"^01[0125][0-9]{8}$", phone_clean):
-                st.error("⚠️ يرجى إدخال رقم هاتف محمول صحيح مكون من 11 رقماً.")
+                st.error("⚠️ يرجى إدخال رقم هاتف محمول صحيح مكون من 12 رقما.")
             else:
                 st.session_state.student_full_name = full_name_input.strip()
                 st.session_state.student_phone = phone_clean
