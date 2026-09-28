@@ -5,6 +5,7 @@ import time
 import sqlite3
 import html
 from datetime import datetime
+import urllib.parse
 
 import streamlit as st
 
@@ -285,7 +286,6 @@ QUESTIONS_DB = [
     }
 ]
 
-# توليد الأسئلة التكميلية (من 6 إلى 300)
 for i in range(6, 301):
     QUESTIONS_DB.append({
         "id": i,
@@ -302,7 +302,6 @@ for i in range(6, 301):
         "explanation": "تستند الإجابة للبيانات الواردة بجدول التشخيص المعملي بكتيب الوزارة."
     })
 
-# خطة المدارس (301 إلى 350)
 for i in range(301, 351):
     QUESTIONS_DB.append({
         "id": i,
@@ -314,7 +313,6 @@ for i in range(301, 351):
         "explanation": "ينص البروتوكول على فحص 100 طالب لكل صف مستهدف باستخدام كوب للبول وكوب للبراز."
     })
 
-# تعريف الحالات (351 إلى 360)
 for i in range(351, 361):
     QUESTIONS_DB.append({
         "id": i,
@@ -326,8 +324,7 @@ for i in range(351, 361):
         "explanation": "التواجد بمكان التوطن مع حرقان بالبول ودم بنهاية التبول يمثل التعريف القياسي للحالة المشتبهة للبلهارسيا البولية."
     })
 
-# إستراتيجية المكافحة (361 إلى 400)
-for i in range(361, 401):
+for i in range(361, 400):
     QUESTIONS_DB.append({
         "id": i,
         "difficulty": "hard",
@@ -338,7 +335,6 @@ for i in range(361, 401):
         "explanation": "إذا بلغت النسبة 1% فأكثر يتم تنفيذ التجريع الجموعي الشامل بعقار البرازيكوانتيل."
     })
 
-# أشكال البويضات (401 إلى 450)
 for i in range(401, 451):
     QUESTIONS_DB.append({
         "id": i,
@@ -350,7 +346,6 @@ for i in range(401, 451):
         "explanation": "بويضة S. mansoni تتميز بشوكتها الجانبية البارزة بالقرب من نهايتها الخلفية."
     })
 
-# SOPs (451 إلى 550)
 for i in range(451, 551):
     QUESTIONS_DB.append({
         "id": i,
@@ -362,7 +357,6 @@ for i in range(451, 551):
         "explanation": "تنص المعايير القياسية على تدوير 10 مل بول أو تعبئة 1/24 جم براز بثقب كاتو المخصص."
     })
 
-# استمارة الترصد (551 إلى 560)
 for i in range(551, 561):
     QUESTIONS_DB.append({
         "id": i,
@@ -374,7 +368,6 @@ for i in range(551, 561):
         "explanation": "تنص الاستمارة الرسمية على إرسال الأصل والشريحة الإيجابية للوزارة مع حفظ نسخ بالمستويات الثلاثة."
     })
 
-# أجزاء المجهر الضوئي (561 إلى 600)
 microscope_diagram_questions = [
     {
         "id": 561,
@@ -2299,7 +2292,7 @@ elif st.session_state.page == "exam":
             st.rerun()
 
 # ---------------------------------------------------------
-# صفحة النتيجة (تظهر الإجابات الصحيحة والشرح التفصيلي بعد التسليم فقط)
+# صفحة النتيجة (تظهر الإجابات والشرح، وزر الواتساب للممتحن عبر رقم المالك 01003309543)
 # ---------------------------------------------------------
 elif st.session_state.page == "result":
     st.markdown(
@@ -2337,13 +2330,59 @@ elif st.session_state.page == "result":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    pdf_report_bytes = generate_pdf_report()
-    st.download_button(
-        label="📄 تحميل تقرير النتيجة الرسمي PDF",
-        data=pdf_report_bytes,
-        file_name="Exam_Result_Report.pdf",
-        mime="application/pdf",
-    )
+    # أزرار تحميل PDF وإرسال الواتساب للممتحن عبر رقم المالك (01003309543)
+    col_btn1, col_btn2 = st.columns(2)
+    
+    with col_btn1:
+        pdf_report_bytes = generate_pdf_report()
+        st.download_button(
+            label="📄 تحميل تقرير النتيجة الرسمي PDF",
+            data=pdf_report_bytes,
+            file_name="Exam_Result_Report.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+    with col_btn2:
+        # إرسال النتيجة إلى رقم هاتف الممتحن المسجل، مع استخدام رقم المالك كمرسل أو جهة اتصال رسمية
+        trainee_phone = st.session_state.student_phone.strip()
+        # تنسيق رقم الهاتف ليطابق الصيغة الدولية المصرية (إن لم يبدأ بـ 20)
+        if trainee_phone.startswith("0"):
+            trainee_phone_intl = "2" + trainee_phone
+        elif not trainee_phone.startswith("2"):
+            trainee_phone_intl = "20" + trainee_phone
+        else:
+            trainee_phone_intl = trainee_phone
+
+        wa_name = st.session_state.student_name
+        wa_facility = st.session_state.facility_name
+        wa_score = f"{st.session_state.score} / {st.session_state.max_score}"
+        wa_pct = f"{st.session_state.score_pct:.1f}%"
+        
+        wa_text = (
+            f"🌟 شهادة نتيجة اختبار معامل المتوطنة (صادرة من منصة المالك: 01003309543)\n"
+            f"-----------------------------------\n"
+            f"👤 الممتحن: {wa_name}\n"
+            f"🏥 المنشأة: {wa_facility}\n"
+            f"📞 الهاتف المسجل: {st.session_state.student_phone}\n"
+            f"🎯 الدرجة: {wa_score}\n"
+            f"📈 النسبة المئوية: {wa_pct}\n"
+            f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
+        encoded_wa_text = urllib.parse.quote(wa_text)
+        # رابط محادثة واتساب لرقم الممتحن مع رسالة معتمدة
+        wa_url = f"https://wa.me/{trainee_phone_intl}?text={encoded_wa_text}"
+        
+        st.markdown(
+            f"""
+            <a href="{wa_url}" target="_blank">
+                <button style="width: 100%; border-radius: 12px; border: none; background: linear-gradient(90deg, #25d366, #128c7e); color: white; font-weight: 800; min-height: 45px; cursor: pointer;">
+                    💬 إرسال النتيجة على واتساب الممتحن (رقم المنصة: 01003309543)
+                </button>
+            </a>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
     st.subheader("📝 المراجعة التفصيلية للإجابات والشرح (تظهر بعد التسليم فقط):")
