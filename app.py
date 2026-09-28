@@ -243,7 +243,6 @@ def generate_certificate_pdf(student_name, student_phone, pre_score, post_score)
     cert_text = f"""
     تشهد الإدارة الصحية بأولاد صقر بأن المتدرب / <b>{student_name}</b>
     قد اجتاز بنجاح متميز البرنامج التدريبي لمعامل المتوطنة، وحصل على التقييمات التالية:<br/><br/>
-    - تقييم اختبار قبل التدريب (Pre-Training): <b>{pre_score:.1f}%</b><br/>
     - تقييم اختبار بعد التدريب (Post-Training): <b>{post_score:.1f}%</b><br/><br/>
     وتم منحه هذه الشهادة تقديراً لتفوقه العلمي والعملي بالمجال للكشف عن البلهارسيا و الطفيليات المعوية.
     """
