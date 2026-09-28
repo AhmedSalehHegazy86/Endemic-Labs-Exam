@@ -14,7 +14,7 @@ from reportlab.lib import colors
 # 1. إعدادات الصفحة والتنسيق Visuals
 # ==========================================
 st.set_page_config(
-    page_title="المنصة القومية للاختبارات المعملية والترصد القومي",
+    page_title="المنصة الرقمية لاختبارات فريق معامل المتوطنة",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -167,7 +167,7 @@ def generate_pdf_report(student_name, student_phone, active_questions, user_answ
 
     story.append(build_pdf_header(styles))
     story.append(Spacer(1, 8))
-    story.append(Paragraph("تقرير نتيجة اختبار ترصد المعامل المتوطنة", title_style))
+    story.append(Paragraph("تقرير نتيجة اختبار معامل المتوطنة", title_style))
     story.append(Spacer(1, 8))
 
     summary_data = [
@@ -241,11 +241,11 @@ def generate_certificate_pdf(student_name, student_phone, pre_score, post_score)
     story.append(Spacer(1, 15))
 
     cert_text = f"""
-    تشهد الإدارة الصحية بأولاد صقر بأن المتدرب / <b>{student_name}</b> (رقم الهاتف: {student_phone})<br/>
-    قد اجتاز بنجاح متميز البرنامج التدريبي لترصد المعامل المتوطنة، وحصل على التقييمات التالية:<br/><br/>
+    تشهد الإدارة الصحية بأولاد صقر بأن المتدرب / <b>{student_name}</b>
+    قد اجتاز بنجاح متميز البرنامج التدريبي لمعامل المتوطنة، وحصل على التقييمات التالية:<br/><br/>
     - تقييم اختبار قبل التدريب (Pre-Training): <b>{pre_score:.1f}%</b><br/>
     - تقييم اختبار بعد التدريب (Post-Training): <b>{post_score:.1f}%</b><br/><br/>
-    وتم منحه هذه الشهادة تقديراً لتفوقه العلمي والعملي بالمجال المعملي.
+    وتم منحه هذه الشهادة تقديراً لتفوقه العلمي والعملي بالمجال للكشف عن البلهارسيا و الطفيليات المعوية.
     """
     story.append(Paragraph(cert_text, body_style))
     story.append(Spacer(1, 35))
