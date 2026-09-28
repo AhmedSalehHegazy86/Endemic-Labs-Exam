@@ -10,9 +10,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # ==========================================
-# 1. إعدادات الصفحة والتنسيق Visuals
+# 1. إعدادات الصفحة وتنسيق الخطوط العربية للـ PDF
 # ==========================================
 st.set_page_config(
     page_title="المنصة الرقمية لاختبارات فريق معامل المتوطنة",
@@ -21,9 +23,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# تسجيل خط عربي لضمان ظهور الحروف العربية في الـ PDF بدون مربعات
+try:
+    pdfmetrics.registerFont(TTFont('Cairo', 'Cairo-Regular.ttf'))
+    PDF_FONT = 'Cairo'
+except:
+    PDF_FONT = 'Helvetica'
+
 is_admin_logged = st.session_state.get("logged_admin_user") is not None
 
-# تنسيقات CSS متقدمة: تثبيت الشريط الجانبي في أقصى اليسار وتعديل الاتجاهات
+# تنسيقات CSS العامة للبرنامج وتثبيت الاتجاه من اليمين لليسار (RTL)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
@@ -36,28 +45,17 @@ st.markdown("""
         text-align: right;
     }
 
-    /* تثبيت الشريط الجانبي في جهة اليسار تماماً وتنسيقه */
     [data-testid="stSidebar"] {
-        right: auto !important;
-        left: 0 !important;
-        direction: rtl !important;
-        background-color: rgba(255, 255, 255, 0.98) !important;
-        box-shadow: 5px 0px 25px rgba(0,0,0,0.15) !important;
-    }
-    
-    [data-testid="stSidebar"] * {
-        text-align: right !important;
-        direction: rtl !important;
+        display: none !important;
     }
 
     .question-card {
-        background: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.95);
         border-right: 6px solid #558b2f;
         padding: 25px;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         margin-bottom: 20px;
-        backdrop-filter: blur(5px);
     }
     .admin-box {
         background: rgba(255, 255, 255, 0.95);
@@ -65,7 +63,6 @@ st.markdown("""
         padding: 20px;
         border-radius: 12px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(175, 180, 43, 0.2);
     }
     .waiting-box {
         background: rgba(255, 255, 255, 0.95);
@@ -73,7 +70,6 @@ st.markdown("""
         padding: 25px;
         border-radius: 15px;
         margin-top: 20px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
     }
     .stRadio > label {
         font-weight: 700;
@@ -87,23 +83,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. اللوجو والعلامة المائية والتوقيعات الرسمية
+# 2. الهيدر والعلامة المائية والتوقيعات باللغة العربية
 # ==========================================
 LOGO_PATH = "logo.jpg"
-OFFICIAL_RIGHT_HEADER = """<b>Health Administration of Awlad Sakr</b><br/><b>Endemic & Laboratories Department</b><br/><b>Endemic Labs Training Unit</b>"""
+OFFICIAL_RIGHT_HEADER = """<b>الإدارة الصحية بأولاد صقر</b><br/><b>قسم المتوطنة وقسم المعامل</b><br/><b>تدريب معامل المتوطنة</b>"""
 
 def draw_watermark(canvas, doc):
     canvas.saveState()
-    canvas.setFont('Helvetica-Bold', 12)
+    canvas.setFont(PDF_FONT, 14)
     canvas.setFillColor(colors.HexColor("#2e7d32"))
     canvas.setFillAlpha(0.06)
     canvas.translate(A4[0] / 2.0, A4[1] / 2.0)
     canvas.rotate(45)
-    canvas.drawCentredString(0, 0, "Awlad Sakr Health Administration - Endemic Laboratories Training")
+    canvas.drawCentredString(0, 0, "الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل")
     canvas.restoreState()
 
 def build_pdf_header(styles):
-    header_style = ParagraphStyle('HeaderStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, leading=11, alignment=0)
+    header_style = ParagraphStyle('HeaderStyle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=9, leading=12, alignment=2)
     header_p = Paragraph(OFFICIAL_RIGHT_HEADER, header_style)
     
     if os.path.exists(LOGO_PATH):
@@ -114,18 +110,18 @@ def build_pdf_header(styles):
 
     header_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (0,0), 'LEFT'),
-        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('ALIGN', (0,0), (0,0), 'RIGHT'),
+        ('ALIGN', (1,0), (1,0), 'LEFT'),
     ]))
     return header_table
 
 def build_signatures_table(styles):
-    sig_style = ParagraphStyle('SigStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.5, leading=10, alignment=1)
+    sig_style = ParagraphStyle('SigStyle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=8, leading=11, alignment=1)
     
-    cell1 = Paragraph("<b>Training Supervisor</b><br/><br/><b>Dr. Ahmed Saleh</b>", sig_style)
-    cell2 = Paragraph("<b>Lab Head</b><br/><br/>...........................", sig_style)
-    cell3 = Paragraph("<b>Endemic Manager</b><br/><br/>...........................", sig_style)
-    cell4 = Paragraph("<b>General Director</b><br/><br/>...........................", sig_style)
+    cell1 = Paragraph("<b>مسؤول التدريب</b><br/><br/><b>أ.م / أحمد صالح حجازي</b>", sig_style)
+    cell2 = Paragraph("<b>رئيس قسم المعامل</b><br/><br/>...........................", sig_style)
+    cell3 = Paragraph("<b>مدير المتوطنة</b><br/><br/>...........................", sig_style)
+    cell4 = Paragraph("<b>مدير عام الإدارة</b><br/><br/>...........................", sig_style)
     
     sig_table = Table([[cell1, cell2, cell3, cell4]], colWidths=[130, 130, 130, 130])
     sig_table.setStyle(TableStyle([
@@ -139,27 +135,27 @@ def build_signatures_table(styles):
     return sig_table
 
 # ==========================================
-# 3. دوال تصدير الـ PDF المعيارية (بدون مربعات)
+# 3. دوال تصدير التقارير والامتحانات الورقية باللغة العربية (درجتان لكل سؤال)
 # ==========================================
-def generate_pdf_report(student_name, student_phone, active_questions, user_answers, score_pct, correct_count, total_q, exam_mode):
+def generate_pdf_report(student_name, student_phone, active_questions, user_answers, score_pct, total_score, max_score, exam_mode):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=12, alignment=1, spaceAfter=8)
-    normal_style = ParagraphStyle('NormalStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10)
-    header_table_style = ParagraphStyle('HTStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, textColor=colors.whitesmoke)
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName=PDF_FONT, fontSize=13, alignment=1, spaceAfter=8)
+    normal_style = ParagraphStyle('NormalStyle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=8.5, leading=11)
+    header_table_style = ParagraphStyle('HTStyle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=8.5, textColor=colors.whitesmoke, alignment=1)
 
     story.append(build_pdf_header(styles))
-    story.append(Spacer(1, 6))
-    story.append(Paragraph("ENDEMIC LABS EXAM EVALUATION REPORT", title_style))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("تقرير نتيجة اختبار معامل المتوطنة", title_style))
+    story.append(Spacer(1, 8))
 
     summary_data = [
-        [Paragraph(f"<b>Candidate Name:</b> {student_name}", normal_style), Paragraph(f"<b>Phone:</b> {student_phone}", normal_style)],
-        [Paragraph(f"<b>Final Percentage:</b> {score_pct:.1f}%", normal_style), Paragraph(f"<b>Score:</b> {correct_count} / {total_q}", normal_style)],
-        [Paragraph(f"<b>Exam Type:</b> {exam_mode}", normal_style), Paragraph(f"<b>Date:</b> {time.strftime('%Y-%m-%d %H:%M')}", normal_style)]
+        [Paragraph(f"<b>اسم المتدرب:</b> {student_name}", normal_style), Paragraph(f"<b>رقم الهاتف:</b> {student_phone}", normal_style)],
+        [Paragraph(f"<b>النتيجة النهائية:</b> {score_pct:.1f}%", normal_style), Paragraph(f"<b>المجموع:</b> {total_score} / {max_score} درجة", normal_style)],
+        [Paragraph(f"<b>تصنيف الاختبار:</b> {exam_mode}", normal_style), Paragraph(f"<b>التاريخ:</b> {time.strftime('%Y-%m-%d %H:%M')}", normal_style)]
     ]
     
     summary_table = Table(summary_data, colWidths=[260, 260])
@@ -167,33 +163,33 @@ def generate_pdf_report(student_name, student_phone, active_questions, user_answ
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f1f3f5")),
         ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#689f38")),
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#dee2e6")),
-        ('PADDING', (0,0), (-1,-1), 4),
+        ('PADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(summary_table)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 10))
 
     table_data = [[
         Paragraph("<b>#</b>", header_table_style),
-        Paragraph("<b>Question Item</b>", header_table_style),
-        Paragraph("<b>Your Answer</b>", header_table_style),
-        Paragraph("<b>Correct Answer</b>", header_table_style),
-        Paragraph("<b>Grade</b>", header_table_style)
+        Paragraph("<b>السؤال</b>", header_table_style),
+        Paragraph("<b>إجابتك</b>", header_table_style),
+        Paragraph("<b>الإجابة الصحيحة</b>", header_table_style),
+        Paragraph("<b>الدرجة (من 2)</b>", header_table_style)
     ]]
 
     for idx, q in enumerate(active_questions):
-        user_ans = user_answers.get(idx, "N/A")
+        user_ans = user_answers.get(idx, "لم يُجب")
         is_correct = user_ans == q["answer"]
-        grade_str = "1 / 1" if is_correct else "0 / 1"
+        grade_str = "2 / 2" if is_correct else "0 / 2"
         
         table_data.append([
             Paragraph(str(idx + 1), normal_style),
-            Paragraph(f"Q{idx+1} Item", normal_style),
-            Paragraph(str(user_ans)[:20], normal_style),
-            Paragraph(str(q["answer"])[:20], normal_style),
+            Paragraph(q["question"][:50] + "...", normal_style),
+            Paragraph(str(user_ans), normal_style),
+            Paragraph(str(q["answer"]), normal_style),
             Paragraph(grade_str, normal_style)
         ])
 
-    q_table = Table(table_data, colWidths=[20, 230, 110, 110, 50])
+    q_table = Table(table_data, colWidths=[20, 210, 115, 120, 55])
     q_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#558b2f")),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
@@ -202,7 +198,7 @@ def generate_pdf_report(student_name, student_phone, active_questions, user_answ
         ('PADDING', (0,0), (-1,-1), 4),
     ]))
     story.append(q_table)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 15))
     story.append(build_signatures_table(styles))
 
     doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
@@ -215,44 +211,44 @@ def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target
     story = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle('ExamTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=12, alignment=1, spaceAfter=4, textColor=colors.HexColor("#1b5e20"))
-    q_title_style = ParagraphStyle('QTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=colors.HexColor("#2e7d32"))
-    option_style = ParagraphStyle('OptStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=9)
-    info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10)
+    title_style = ParagraphStyle('ExamTitle', parent=styles['Heading1'], fontName=PDF_FONT, fontSize=13, alignment=1, spaceAfter=4, textColor=colors.HexColor("#1b5e20"))
+    q_title_style = ParagraphStyle('QTitle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=9, leading=12, textColor=colors.HexColor("#2e7d32"))
+    option_style = ParagraphStyle('OptStyle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=8.5, leading=11)
+    info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontName=PDF_FONT, fontSize=8.5, leading=11)
 
     total_q = len(questions_list)
     q_per_page = math.ceil(total_q / max(1, target_pages))
 
     for page_idx in range(target_pages):
         story.append(build_pdf_header(styles))
-        story.append(Spacer(1, 3))
+        story.append(Spacer(1, 4))
 
         if page_idx == 0:
-            story.append(Paragraph(f"OFFICIAL EXAM PAPER: ({exam_type_name})", title_style))
-            story.append(Spacer(1, 3))
+            story.append(Paragraph(f"نموذج ورقة اختبار ورقي: ({exam_type_name})", title_style))
+            story.append(Spacer(1, 4))
 
             info_data = [
-                [Paragraph("<b>Candidate Name:</b> .............................................................", info_style),
-                 Paragraph(f"<b>Duration:</b> {duration_min} Min", info_style)],
-                [Paragraph("<b>Unit / Department:</b> .............................................................", info_style),
-                 Paragraph(f"<b>Total Q:</b> {total_q} | <b>Page:</b> {page_idx+1}/{target_pages}", info_style)]
+                [Paragraph("<b>اسم المتدرب / الممتحن:</b> .....................................................", info_style),
+                 Paragraph(f"<b>الزمن:</b> {duration_min} دقيقة", info_style)],
+                [Paragraph("<b>جهة العمل / الوحدة:</b> .....................................................", info_style),
+                 Paragraph(f"<b>الأسئلة:</b> {total_q} (لكل سؤال درجتان)", info_style)]
             ]
             info_table = Table(info_data, colWidths=[340, 195])
             info_table.setStyle(TableStyle([
                 ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#558b2f")),
                 ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f1f8e9")),
-                ('PADDING', (0,0), (-1,-1), 3),
+                ('PADDING', (0,0), (-1,-1), 4),
                 ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ]))
             story.append(info_table)
-            story.append(Spacer(1, 5))
+            story.append(Spacer(1, 8))
 
         start_q_idx = page_idx * q_per_page
         end_q_idx = min(start_q_idx + q_per_page, total_q)
         page_questions = questions_list[start_q_idx:end_q_idx]
 
         for idx, q in enumerate(page_questions, start=start_q_idx + 1):
-            q_text = f"<b>Q{idx}: {q['question']}</b>"
+            q_text = f"<b>س{idx}: {q['question']}</b> (درجتان)"
             story.append(Paragraph(q_text, q_title_style))
             story.append(Spacer(1, 2))
 
@@ -272,9 +268,9 @@ def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target
                 ('PADDING', (0,0), (-1,-1), 2),
             ]))
             story.append(opt_table)
-            story.append(Spacer(1, 3))
+            story.append(Spacer(1, 4))
 
-        story.append(Spacer(1, 5))
+        story.append(Spacer(1, 8))
         story.append(build_signatures_table(styles))
 
         if page_idx < target_pages - 1:
@@ -403,45 +399,16 @@ if "exam_results_records" not in st.session_state:
     ]
 
 # ==========================================
-# 6. الشريط الجانبي (في أيسر الصفحة)
-# ==========================================
-if is_admin_logged:
-    with st.sidebar:
-        st.title("⚙️ لوحة التحكم")
-        st.write(f"👑 **المسؤول:** {st.session_state.logged_admin_user}")
-        st.write("---")
-        
-        st.session_state.exam_type = st.radio(
-            "🎯 تصنيف الاختبار:",
-            options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
-            index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0,
-            key="sb_exam_type"
-        )
-        
-        st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان", value=st.session_state.admin_exam_open, key="sb_open_gate")
-        st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="sb_timer")
-        
-        filtered_db_sb = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
-        max_q_sb = max(len(filtered_db_sb), 1)
-        st.session_state.temp_num_q = st.number_input("🔢 عدد أسئلة النموذج:", min_value=1, max_value=max_q_sb, value=min(st.session_state.temp_num_q, max_q_sb), key="sb_num_q")
-        st.session_state.target_pdf_pages = st.number_input("📄 صفحات الـ PDF الورقي:", min_value=1, max_value=10, value=st.session_state.target_pdf_pages, key="sb_num_pages")
-
-        st.write("---")
-        if st.button("تسجيل الخروج 🚪", use_container_width=True):
-            st.session_state.logged_admin_user = None
-            st.rerun()
-
-# ==========================================
-# 7. الشاشات الرئيسية
+# 6. الشاشة الرئيسية والتحكم الكامل (بدون شريط جانبي)
 # ==========================================
 if st.session_state.app_stage == "start_page":
     st.title("🔬 المنصة الرقمية لاختبارات وتقييم معامل المتوطنة")
     st.subheader("الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل")
     st.write("---")
 
-    with st.expander("🔐 تسجيل دخول المالك وإدارة المنصة", expanded=True):
-        if st.session_state.logged_admin_user is None:
-            st.markdown("<div class=\"admin-box\"><b>🔑 تسجيل دخول الإدارة:</b> أدخل بيانات الاعتماد للوصول للصلاحيات الكاملة.</div>", unsafe_allow_html=True)
+    # لوحة تسجيل دخول المدير وثابتة في الصفحة الرئيسية
+    with st.expander("🔐 لوحة التحكم الإدارية (تسجيل دخول المالك)", expanded=not is_admin_logged):
+        if not is_admin_logged:
             col_l1, col_l2 = st.columns(2)
             with col_l1:
                 input_user = st.text_input("اسم المستخدم الإداري:", value="Dr Ahmed")
@@ -457,121 +424,110 @@ if st.session_state.app_stage == "start_page":
                     st.error("⚠️ بيانات الدخول غير صحيحة.")
         else:
             current_admin = st.session_state.logged_admin_user
-            admin_data = st.session_state.users_db[current_admin]
-            st.success(f"👑 تم تسجيل الدخول بواسطة: **{current_admin}**")
+            st.success(f"👑 المسؤول الحالي مسجل: **{current_admin}**")
+            if st.button("تسجيل الخروج من الإدارة 🚪"):
+                st.session_state.logged_admin_user = None
+                st.rerun()
 
-            st.write("---")
-            tab_control, tab_approvals, tab_reports = st.tabs(["⚙️ إعدادات وتصنيفات الامتحان", "👥 طلبات الموافقة", "📊 التقارير"])
-
-            with tab_control:
-                if "control_gate" in admin_data["permissions"] or admin_data["role"] == "owner":
-                    col_t1, col_t2 = st.columns(2)
-                    with col_t1:
-                        st.session_state.exam_type = st.radio(
-                            "🎯 تصنيف نوع الاختبار للمشتركين:",
-                            options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
-                            index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0,
-                            horizontal=True,
-                            key="main_tab_exam_type"
-                        )
-                    with col_t2:
-                        st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان للمشتركين", value=st.session_state.admin_exam_open, key="main_tab_open")
-
-                    if "set_settings" in admin_data["permissions"] or admin_data["role"] == "owner":
-                        st.write("---")
-                        st.markdown("#### 📂 قائمة منسدلة متعددة الاختيارات للمجموعات والتصنيفات:")
-                        selected_admin = st.multiselect(
-                            "اختر التصنيفات والمجموعات المطلوبة للامتحان:",
-                            options=all_categories,
-                            default=st.session_state.selected_categories_admin,
-                            key="categories_multiselect_box"
-                        )
-                        if selected_admin:
-                            st.session_state.selected_categories_admin = selected_admin
-
-                        col_s1, col_s2 = st.columns(2)
-                        with col_s1:
-                            st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="main_tab_timer")
-                        with col_s2:
-                            st.session_state.allow_reexam = st.checkbox("🔒 السماح بإعادة الاختبار", value=st.session_state.allow_reexam)
-
-                        st.write("---")
-                        st.markdown("#### 🎯 تخصيص عدد الأسئلة وعدد الأوراق المطبوعة:")
-                        filtered_db_for_export = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
-                        max_q = max(len(filtered_db_for_export), 1)
-
-                        col_cfg1, col_cfg2 = st.columns(2)
-                        with col_cfg1:
-                            st.session_state.temp_num_q = st.number_input("🔢 عدد أسئلة النموذج:", min_value=1, max_value=max_q, value=min(st.session_state.temp_num_q, max_q), key="owner_q_number")
-                        with col_cfg2:
-                            st.session_state.target_pdf_pages = st.number_input("📄 عدد الأوراق (A4):", min_value=1, max_value=10, value=st.session_state.target_pdf_pages, key="owner_page_number")
-
-                        st.write("---")
-                        if filtered_db_for_export:
-                            selected_export_q = filtered_db_for_export[:st.session_state.temp_num_q]
-                            exam_pdf_paper = generate_exam_paper_pdf(
-                                st.session_state.exam_type,
-                                st.session_state.admin_timer_minutes,
-                                selected_export_q,
-                                st.session_state.target_pdf_pages
-                            )
-                            st.download_button(
-                                label=f"📥 تنزيل ورقة الامتحان الورقية A4 ({len(selected_export_q)} سؤالاً - {st.session_state.target_pdf_pages} صفحات)",
-                                data=exam_pdf_paper,
-                                file_name=f"Exam_Paper_{st.session_state.exam_type}.pdf",
-                                mime="application/pdf",
-                                type="primary",
-                                use_container_width=True
-                            )
-                        else:
-                            st.warning("⚠️ يرجى اختيار مجموعة واحدة على الأقل لتصدير ورقة الامتحان.")
-
-            with tab_approvals:
-                st.subheader("👥 طلبات الدخول:")
-                if not st.session_state.approval_requests:
-                    st.info("لا توجد طلبات انضمام حالياً.")
-                else:
-                    for phone_key, req_data in list(st.session_state.approval_requests.items()):
-                        rc1, rc2, rc3 = st.columns([3, 2, 2])
-                        rc1.write(f"👤 **{req_data['name']}** ({phone_key})")
-                        rc2.write(f"الحالة: **{req_data['status']}**")
-                        if req_data['status'] == "pending":
-                            if rc3.button("موافقة ✅", key=f"app_{phone_key}"):
-                                st.session_state.approval_requests[phone_key]['status'] = "approved"
-                                st.rerun()
-
-            with tab_reports:
-                st.subheader("📊 التقارير:")
-                df_raw = pd.DataFrame(st.session_state.exam_results_records)
-                if not df_raw.empty:
-                    st.dataframe(df_raw, use_container_width=True)
-
-    filtered_db = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
-
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.markdown(f"""
-        ### تعليمات الامتحان للمتدربين:
-        - **نوع الاختبار الحالي:** <span style="color:#2e7d32; font-weight:bold;">{st.session_state.exam_type}</span>.
-        - **عدد الأسئلة:** <span style="color:#1b5e20; font-weight:bold;">{st.session_state.temp_num_q} سؤالاً</span>.
-        - **المدة:** {st.session_state.admin_timer_minutes} دقيقة.
-        """, unsafe_allow_html=True)
+    if is_admin_logged:
+        st.write("---")
+        st.subheader("⚙️ لوحة إعدادات الامتحان والتصنيفات الثابتة:")
+        
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            st.session_state.exam_type = st.radio(
+                "🎯 تصنيف نوع الاختبار للمشتركين:",
+                options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
+                index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0,
+                horizontal=True
+            )
+        with col_t2:
+            st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان للمشتركين", value=st.session_state.admin_exam_open)
 
         st.write("---")
-        if st.session_state.admin_exam_open:
-            if st.button(f"الانتقال لصفحة التسجيل (اختبار {st.session_state.exam_type}) 🚀", type="primary", use_container_width=True):
-                if not filtered_db:
-                    st.error("⚠️ لا توجد أسئلة متاحة بناءً على التصنيفات المختارة.")
-                else:
-                    st.session_state.app_stage = "registration_page"
-                    st.rerun()
-        else:
-            st.warning("⚠️ بوابة الامتحان مغلقة حالياً من قِبل الإدارة.")
+        st.markdown("#### 📂 اختيار التصنيفات والمجموعات (نقاط ثابتة متعددة الاختيارات):")
+        
+        # اختيار المجموعات عبر نقاط ثابتة Checkboxes مرتبة
+        selected_cats = []
+        cols_c = st.columns(len(all_categories))
+        for idx, cat in enumerate(all_categories):
+            with cols_c[idx % len(cols_c)]:
+                is_checked = st.checkbox(cat, value=(cat in st.session_state.selected_categories_admin), key=f"cat_chk_{idx}")
+                if is_checked:
+                    selected_cats.append(cat)
+        
+        if selected_cats:
+            st.session_state.selected_categories_admin = selected_cats
 
-    with col2:
-        st.info("📊 **ملخص الحالة:**")
-        st.write(f"- **البوابة:** {'مفتوح 🟢' if st.session_state.admin_exam_open else 'مغلق 🔴'}")
-        st.write(f"- **التصنيفات المتاحة:** {len(st.session_state.selected_categories_admin)}")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes)
+        with col_s2:
+            st.session_state.allow_reexam = st.checkbox("🔒 السماح بإعادة الاختبار", value=st.session_state.allow_reexam)
+
+        st.write("---")
+        st.markdown("#### 🎯 تخصيص عدد الأسئلة وعدد الأوراق وتصدير الـ PDF:")
+        filtered_db_for_export = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
+        max_q = max(len(filtered_db_for_export), 1)
+
+        col_cfg1, col_cfg2 = st.columns(2)
+        with col_cfg1:
+            st.session_state.temp_num_q = st.number_input("🔢 عدد أسئلة النموذج:", min_value=1, max_value=max_q, value=min(st.session_state.temp_num_q, max_q))
+        with col_cfg2:
+            st.session_state.target_pdf_pages = st.number_input("📄 عدد الأوراق (A4):", min_value=1, max_value=10, value=st.session_state.target_pdf_pages)
+
+        if filtered_db_for_export:
+            selected_export_q = filtered_db_for_export[:st.session_state.temp_num_q]
+            exam_pdf_paper = generate_exam_paper_pdf(
+                st.session_state.exam_type,
+                st.session_state.admin_timer_minutes,
+                selected_export_q,
+                st.session_state.target_pdf_pages
+            )
+            st.download_button(
+                label=f"📥 تنزيل ورقة الامتحان الورقية A4 ({len(selected_export_q)} سؤالاً - الدرجة الكلية: {len(selected_export_q)*2})",
+                data=exam_pdf_paper,
+                file_name=f"Exam_Paper_{st.session_state.exam_type}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True
+            )
+        else:
+            st.warning("⚠️ يرجى اختيار تصنيف واحد على الأقل.")
+
+        st.write("---")
+        st.subheader("👥 طلبات دخول الممتحنين للموافقة:")
+        if not st.session_state.approval_requests:
+            st.info("لا توجد طلبات انضمام حالياً.")
+        else:
+            for phone_key, req_data in list(st.session_state.approval_requests.items()):
+                rc1, rc2, rc3 = st.columns([3, 2, 2])
+                rc1.write(f"👤 **{req_data['name']}** ({phone_key})")
+                rc2.write(f"الحالة: **{req_data['status']}**")
+                if req_data['status'] == "pending":
+                    if rc3.button("موافقة ✅", key=f"app_{phone_key}"):
+                        st.session_state.approval_requests[phone_key]['status'] = "approved"
+                        st.rerun()
+
+    st.write("---")
+    filtered_db = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
+    
+    st.markdown(f"""
+    ### تعليمات الامتحان للمتدربين:
+    - **تصنيف الاختبار الحالي:** <span style="color:#2e7d32; font-weight:bold;">{st.session_state.exam_type}</span>.
+    - **عدد الأسئلة:** <span style="color:#1b5e20; font-weight:bold;">{st.session_state.temp_num_q} سؤالاً</span> (لكل سؤال درجتان | الإجمالي: {st.session_state.temp_num_q * 2} درجة).
+    - **المدة الزمنية:** {st.session_state.admin_timer_minutes} دقيقة.
+    """, unsafe_allow_html=True)
+
+    if st.session_state.admin_exam_open:
+        if st.button(f"الانتقال لصفحة تسجيل البيانات (اختبار {st.session_state.exam_type}) 🚀", type="primary", use_container_width=True):
+            if not filtered_db:
+                st.error("⚠️ لا توجد أسئلة متاحة بناءً على التصنيفات المختارة.")
+            else:
+                st.session_state.app_stage = "registration_page"
+                st.rerun()
+    else:
+        st.warning("⚠️ بوابة الامتحان مغلقة حالياً من قِبل الإدارة.")
 
 elif st.session_state.app_stage == "registration_page":
     st.title(f"📝 تسجيل البيانات - ({st.session_state.exam_type})")
@@ -601,7 +557,7 @@ elif st.session_state.app_stage == "registration_page":
         st.rerun()
 
 elif st.session_state.app_stage == "waiting_approval":
-    st.title("⏳ بانتظار موافقة مالك المنصة")
+    st.title("⏳ بانتظار موافقة الإدارة")
     st.write("---")
     phone_key = st.session_state.student_phone
     req_status = st.session_state.approval_requests.get(phone_key, {}).get("status", "pending")
@@ -650,7 +606,7 @@ elif st.session_state.app_stage == "exam_page":
         st.progress((curr_idx + 1) / total_q)
         st.markdown(f"""
         <div class="question-card">
-            <h4>السؤال {curr_idx + 1} من {total_q}</h4>
+            <h4>السؤال {curr_idx + 1} من {total_q} (درجتان)</h4>
             <p><b>{q_data['question']}</b></p>
         </div>
         """, unsafe_allow_html=True)
@@ -676,12 +632,30 @@ elif st.session_state.app_stage == "exam_page":
         st.balloons()
         st.title("🏆 النتيجة النهائية")
         correct_count = sum(1 for idx, q in enumerate(active_questions) if st.session_state.user_answers.get(idx) == q["answer"])
-        score_pct = (correct_count / total_q) * 100
+        max_score = total_q * 2
+        total_score = correct_count * 2
+        score_pct = (correct_count / total_q) * 100 if total_q > 0 else 0
 
-        st.metric("النسبة المئوية", f"{score_pct:.1f}%")
+        st.metric("الدرجة الكلية", f"{total_score} / {max_score} ({score_pct:.1f}%)")
 
-        pdf_bytes = generate_pdf_report(st.session_state.student_full_name, st.session_state.student_phone, active_questions, st.session_state.user_answers, score_pct, correct_count, total_q, st.session_state.exam_type)
-        st.download_button(label="📄 تحميل تقرير النتيجة PDF", data=pdf_bytes, file_name=f"Report_{st.session_state.student_phone}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+        pdf_bytes = generate_pdf_report(
+            st.session_state.student_full_name,
+            st.session_state.student_phone,
+            active_questions,
+            st.session_state.user_answers,
+            score_pct,
+            total_score,
+            max_score,
+            st.session_state.exam_type
+        )
+        st.download_button(
+            label="📄 تحميل تقرير النتيجة الرسمي PDF",
+            data=pdf_bytes,
+            file_name=f"Report_{st.session_state.student_phone}.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True
+        )
 
         if st.session_state.allow_reexam and st.button("إعادة الاختبار 🔄"):
             st.session_state.app_stage = "start_page"
