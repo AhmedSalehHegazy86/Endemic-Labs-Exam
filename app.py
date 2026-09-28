@@ -3,10 +3,11 @@ import time
 import re
 import io
 import os
+import math
 import pandas as pd
 from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
@@ -17,26 +18,13 @@ st.set_page_config(
     page_title="المنصة الرقمية لاختبارات فريق معامل المتوطنة",
     page_icon="🔬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # مطوي افتراضياً ولا يفتح إلا بالسهم أعلى الصفحة
 )
 
 # التحقق مما إذا كان المستخدم مسجلاً كإداري/مالك
 is_admin_logged = st.session_state.get("logged_admin_user") is not None
 
-# إذا لم يكن المالك مسجلاً للدخول، يتم إخفاء الشريط الجانبي وأزرار التحكم بالكامل عن الطلاب
-if not is_admin_logged:
-    st.markdown("""
-        <style>
-        [data-testid="stSidebar"] {
-            display: none !important;
-        }
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-# تنسيقات CSS العامة للبرنامج والخلفية 4K المتدرجة
+# تنسيقات CSS العامة للبرنامج والخلفية المتدرجة
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
@@ -153,7 +141,7 @@ def build_signatures_table(styles):
     return sig_table
 
 # ==========================================
-# 3. توثيق تقارير الـ PDF وشهادات التقدير وتصدير ورقة الامتحان
+# 3. دالة تصدير تقارير النتيجة والشهادات والامتحان الورقي (A4 PDF)
 # ==========================================
 def generate_pdf_report(student_name, student_phone, active_questions, user_answers, score_pct, correct_count, total_q, exam_mode):
     buffer = io.BytesIO()
@@ -305,68 +293,78 @@ def generate_periodic_report_pdf(period_name, df_results):
     buffer.seek(0)
     return buffer
 
-def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list):
-    """دالة لتوليد ورقة امتحان ورقية جاهزة للطباعة A4 تحتوي على الأسئلة والخيارات لخاصية المالك"""
+def generate_exam_paper_pdf(exam_type_name, duration_min, questions_list, target_pages):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=35)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle('ExamTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, alignment=1, spaceAfter=6, textColor=colors.HexColor("#1b5e20"))
-    q_title_style = ParagraphStyle('QTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9.5, leading=13, textColor=colors.HexColor("#2e7d32"))
-    option_style = ParagraphStyle('OptStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=11)
-    info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12)
+    title_style = ParagraphStyle('ExamTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, alignment=1, spaceAfter=4, textColor=colors.HexColor("#1b5e20"))
+    q_title_style = ParagraphStyle('QTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor("#2e7d32"))
+    option_style = ParagraphStyle('OptStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10)
+    info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, leading=11)
 
-    story.append(build_pdf_header(styles))
-    story.append(Spacer(1, 6))
+    total_q = len(questions_list)
+    q_per_page = math.ceil(total_q / max(1, target_pages))
 
-    story.append(Paragraph(f"نموذج ورقة اختبار ورقي: ({exam_type_name})", title_style))
-    story.append(Spacer(1, 4))
+    for page_idx in range(target_pages):
+        story.append(build_pdf_header(styles))
+        story.append(Spacer(1, 4))
 
-    info_data = [
-        [Paragraph(f"<b>اسم المتدرب / الممتحن:</b> .....................................................", info_style),
-         Paragraph(f"<b>الزمن المخصص:</b> {duration_min} دقيقة", info_style)],
-        [Paragraph(f"<b>جهة العمل / الوحدة:</b> .....................................................", info_style),
-         Paragraph(f"<b>عدد الأسئلة:</b> {len(questions_list)} سؤالاً", info_style)]
-    ]
-    info_table = Table(info_data, colWidths=[340, 195])
-    info_table.setStyle(TableStyle([
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#558b2f")),
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f1f8e9")),
-        ('PADDING', (0,0), (-1,-1), 5),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    ]))
-    story.append(info_table)
-    story.append(Spacer(1, 10))
+        if page_idx == 0:
+            story.append(Paragraph(f"نموذج ورقة اختبار ورقي: ({exam_type_name})", title_style))
+            story.append(Spacer(1, 4))
 
-    for idx, q in enumerate(questions_list):
-        q_text = f"<b>س{idx+1}: {q['question']}</b> (المجموعة: {q['category']})"
-        story.append(Paragraph(q_text, q_title_style))
-        story.append(Spacer(1, 3))
+            info_data = [
+                [Paragraph(f"<b>اسم المتدرب / الممتحن:</b> .....................................................", info_style),
+                 Paragraph(f"<b>الزمن المخصص:</b> {duration_min} دقيقة", info_style)],
+                [Paragraph(f"<b>جهة العمل / الوحدة:</b> .....................................................", info_style),
+                 Paragraph(f"<b>عدد الأسئلة:</b> {total_q} سؤالاً | <b>الصفحات:</b> {target_pages}", info_style)]
+            ]
+            info_table = Table(info_data, colWidths=[340, 195])
+            info_table.setStyle(TableStyle([
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#558b2f")),
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f1f8e9")),
+                ('PADDING', (0,0), (-1,-1), 4),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ]))
+            story.append(info_table)
+            story.append(Spacer(1, 8))
 
-        opts = q['options']
-        opt_letters = ['A', 'B', 'C', 'D']
-        opt_cells = []
-        for i, opt in enumerate(opts):
-            letter = opt_letters[i] if i < len(opt_letters) else ''
-            opt_cells.append(Paragraph(f"[  ]  <b>{letter})</b> {opt}", option_style))
+        start_q_idx = page_idx * q_per_page
+        end_q_idx = min(start_q_idx + q_per_page, total_q)
+        page_questions = questions_list[start_q_idx:end_q_idx]
 
-        # توزيع الخيارات بجدول من صفين وعمودين لتوفير المساحة
-        if len(opt_cells) >= 4:
-            opt_matrix = [[opt_cells[0], opt_cells[1]], [opt_cells[2], opt_cells[3]]]
-        else:
-            opt_matrix = [[c] for c in opt_cells]
+        for idx, q in enumerate(page_questions, start=start_q_idx + 1):
+            q_text = f"<b>س{idx}: {q['question']}</b> (المجموعة: {q['category']})"
+            story.append(Paragraph(q_text, q_title_style))
+            story.append(Spacer(1, 2))
 
-        opt_table = Table(opt_matrix, colWidths=[265, 270])
-        opt_table.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 2),
-        ]))
-        story.append(opt_table)
-        story.append(Spacer(1, 6))
+            opts = q['options']
+            opt_letters = ['A', 'B', 'C', 'D']
+            opt_cells = []
+            for i, opt in enumerate(opts):
+                letter = opt_letters[i] if i < len(opt_letters) else ''
+                opt_cells.append(Paragraph(f"[  ]  <b>{letter})</b> {opt}", option_style))
 
-    story.append(Spacer(1, 10))
-    story.append(build_signatures_table(styles))
+            if len(opt_cells) >= 4:
+                opt_matrix = [[opt_cells[0], opt_cells[1]], [opt_cells[2], opt_cells[3]]]
+            else:
+                opt_matrix = [[c] for c in opt_cells]
+
+            opt_table = Table(opt_matrix, colWidths=[265, 270])
+            opt_table.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('PADDING', (0,0), (-1,-1), 2),
+            ]))
+            story.append(opt_table)
+            story.append(Spacer(1, 4))
+
+        story.append(Spacer(1, 8))
+        story.append(build_signatures_table(styles))
+
+        if page_idx < target_pages - 1 and end_q_idx < total_q:
+            story.append(PageBreak())
 
     doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
     buffer.seek(0)
@@ -486,7 +484,7 @@ for i in range(451, 551):
         "question": f"سؤال SOPs رقم {i}: ما هو حجم العينة والتركيز المحدد لتحضير القراءة الميكروسكوبية الدقيقة طبقاً لكتيب SOPs؟",
         "options": ["10 مل بول بالسنترفيوج / 1/24 جم براز بثقب كاتو", "50 مل بول / 5 جم براز", "قطرة بول واحدة بدون سنترفيوج", "مسحة جافة من الغطاء"],
         "answer": "10 مل بول بالسنترفيوج / 1/24 جم براز بثقب كاتو",
-        "explanation": "تنص المعايير القياسية على تدوير 10 مل بول أو تعبئة 1/24 جم براز بثقب كاتو المخصص[span_0](start_span)[span_0](end_span)."
+        "explanation": "تنص المعايير القياسية على تدوير 10 مل بول أو تعبئة 1/24 جم براز بثقب كاتو المخصص."
     })
 
 for i in range(551, 561):
@@ -497,7 +495,7 @@ for i in range(551, 561):
         "question": f"سؤال استمارة الترصد رقم {i}: ما المسار الإداري الصحيح لإرسال أصل استمارة إبلاغ الحالة والشريحة الإيجابية؟",
         "options": ["الاحتفاظ بنسخة ورقية بالوحدة والإدارة والمديرية وإرسال الأصل والشريحة للوزارة", "إتلاف الاستمارة", "تسليم الأصل للمريض", "إرسال الصورة بدون شريحة"],
         "answer": "الاحتفاظ بنسخة ورقية بالوحدة والإدارة والمديرية وإرسال الأصل والشريحة للوزارة",
-        "explanation": "تنص الاستمارة الرسمية على إرسال الأصل والشريحة الإيجابية للوزارة مع حفظ نسخ بالمستويات الثلاثة[span_1](start_span)[span_1](end_span)."
+        "explanation": "تنص الاستمارة الرسمية على إرسال الأصل والشريحة الإيجابية للوزارة مع حفظ نسخ بالمستويات الثلاثة."
     })
 
 for i in range(561, 601):
@@ -508,7 +506,7 @@ for i in range(561, 601):
         "question": f"سؤال المجهر الضوئي رقم {i}: ما الجزء الميكانيكي أو البصري المخصص للتحكم في تركيز الصورة الضوئية أو ضبط حقل الرؤية برقم {i}؟",
         "options": ["العدسات العينية / الشيئية / المنضدة الميكانيكية", "مفتاح التشغيل الرئيسي", "ملقط الشريحة", "الغطاء الخارجي"],
         "answer": "العدسات العينية / الشيئية / المنضدة الميكانيكية",
-        "explanation": "يتعلق السؤال بالأجزاء البصرية والميكانيكية للمجهر الضوئي كما وردت بالمخطط المعتمد[span_2](start_span)[span_2](end_span)."
+        "explanation": "يتعلق السؤال بالأجزاء البصرية والميكانيكية للمجهر الضوئي كما وردت بالمخطط المعتمد."
     })
 
 all_categories = list(set([q["category"] for q in questions_db]))
@@ -558,6 +556,8 @@ if "exam_type" not in st.session_state:
     st.session_state.exam_type = "قبل التدريب"
 if "temp_num_q" not in st.session_state:
     st.session_state.temp_num_q = 30
+if "target_pdf_pages" not in st.session_state:
+    st.session_state.target_pdf_pages = 2
 if "approval_requests" not in st.session_state:
     st.session_state.approval_requests = {}
 
@@ -570,7 +570,7 @@ if "exam_results_records" not in st.session_state:
     ]
 
 # ==========================================
-# 6. الشريط الجانبي (يظهر للمالك فقط)
+# 6. الشريط الجانبي (يفتح بالسهم أعلى الصفحة للمالك)
 # ==========================================
 if is_admin_logged:
     with st.sidebar:
@@ -586,9 +586,13 @@ if is_admin_logged:
         )
         
         st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان", value=st.session_state.admin_exam_open, key="sb_open_gate")
-        
         st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="sb_timer")
         
+        filtered_db_sb = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
+        max_q_sb = max(len(filtered_db_sb), 1)
+        st.session_state.temp_num_q = st.number_input("🔢 عدد أسئلة النموذج:", min_value=1, max_value=max_q_sb, value=min(st.session_state.temp_num_q, max_q_sb), key="sb_num_q")
+        st.session_state.target_pdf_pages = st.number_input("📄 عدد الأوراق المطبوعة:", min_value=1, max_value=10, value=st.session_state.target_pdf_pages, key="sb_num_pages")
+
         st.write("---")
         if st.button("تسجيل الخروج 🚪", use_container_width=True):
             st.session_state.logged_admin_user = None
@@ -628,7 +632,7 @@ if st.session_state.app_stage == "start_page":
             st.write("---")
             tab_control, tab_approvals, tab_reports, tab_users = st.tabs(["⚙️ إعدادات الامتحان", "👥 طلبات الموافقة", "📊 التقارير والشهادات الدوريّة", "👤 إدارة الحسابات"])
 
-            # 1. إعدادات الامتحان
+            # 1. إعدادات الامتحان (إمكانية تحديد عدد الأسئلة وعدد الأوراق وتصدير الـ PDF للمالك فقط)
             with tab_control:
                 if "control_gate" in admin_data["permissions"] or admin_data["role"] == "owner":
                     col_t1, col_t2 = st.columns(2)
@@ -649,23 +653,47 @@ if st.session_state.app_stage == "start_page":
                             selected_admin = st.multiselect("المجموعات المسموح بها:", options=all_categories, default=st.session_state.selected_categories_admin)
                             if selected_admin:
                                 st.session_state.selected_categories_admin = selected_admin
+                        
                         with col_s2:
                             st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (بالدقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="main_tab_timer")
                             st.session_state.allow_reexam = st.checkbox("🔒 السماح بإعادة الاختبار", value=st.session_state.allow_reexam)
 
                         st.write("---")
-                        st.markdown("#### 📄 طباعة وتصدير نموذج اختبار ورقي (خاص بالمالك والإدارة):")
+                        st.markdown("#### 🎯 التحكم بأسئلة وعدد الأوراق المطبوعة (خاص بالمالك فقط):")
                         filtered_db_for_export = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
+                        max_q = max(len(filtered_db_for_export), 1)
+
+                        col_cfg1, col_cfg2 = st.columns(2)
+                        with col_cfg1:
+                            st.session_state.temp_num_q = st.number_input(
+                                "🔢 تحديد عدد أسئلة النموذج:",
+                                min_value=1,
+                                max_value=max_q,
+                                value=min(st.session_state.temp_num_q, max_q),
+                                key="owner_q_number"
+                            )
+                        with col_cfg2:
+                            st.session_state.target_pdf_pages = st.number_input(
+                                "📄 تحديد عدد الأوراق المطلوبة للطباعة A4:",
+                                min_value=1,
+                                max_value=10,
+                                value=st.session_state.target_pdf_pages,
+                                key="owner_page_number"
+                            )
+
+                        st.write("---")
+                        st.markdown("#### 📄 طباعة وتصدير نموذج اختبار ورقي A4 (خاص بالمالك والإدارة):")
                         
                         if filtered_db_for_export:
                             selected_export_q = filtered_db_for_export[:st.session_state.temp_num_q]
                             exam_pdf_paper = generate_exam_paper_pdf(
                                 st.session_state.exam_type,
                                 st.session_state.admin_timer_minutes,
-                                selected_export_q
+                                selected_export_q,
+                                st.session_state.target_pdf_pages
                             )
                             st.download_button(
-                                label=f"📥 تنزيل ورقة الامتحان الورقية جاهزة للطباعة A4 ({len(selected_export_q)} سؤالاً)",
+                                label=f"📥 تنزيل ورقة الامتحان الورقية جاهزة للطباعة A4 ({len(selected_export_q)} سؤالاً - موزعة على {st.session_state.target_pdf_pages} صفحة)",
                                 data=exam_pdf_paper,
                                 file_name=f"Exam_Paper_{st.session_state.exam_type}.pdf",
                                 mime="application/pdf",
@@ -808,12 +836,10 @@ if st.session_state.app_stage == "start_page":
         st.markdown(f"""
         ### تعليمات الامتحان للمدرب/الممتحن:
         - **تصنيف نوع الاختبار الحالي:** <span style="color:#2e7d32; font-weight:bold;">{st.session_state.exam_type}</span>.
+        - **عدد أسئلة الامتحان المحدد:** <span style="color:#1b5e20; font-weight:bold;">{st.session_state.temp_num_q} سؤالاً</span>.
         - **المدة الزمنية المحددة للامتحان:** {st.session_state.admin_timer_minutes} دقيقة.
         - **شرط الدخول:** بعد تسجل اسمك الرباعي ورقم هاتفك، ينتقل الطلب **للمالك أو المساعدين للموافقة** قبل الدخول المباشر.
         """, unsafe_allow_html=True)
-        
-        max_q = max(len(filtered_db), 1)
-        st.session_state.temp_num_q = st.slider("اختر عدد الأسئلة المطلوبة في نموذج هذا الامتحان:", min_value=min(5, max_q), max_value=max_q, value=min(30, max_q), step=1)
 
         st.write("---")
         if st.session_state.admin_exam_open:
@@ -829,6 +855,7 @@ if st.session_state.app_stage == "start_page":
     with col2:
         st.info("📊 **تفاصيل المجموعات وإتاحة التحكم:**")
         st.write(f"- **نوع الاختبار:** {st.session_state.exam_type}")
+        st.write(f"- **عدد الأسئلة:** {st.session_state.temp_num_q} سؤالاً")
         st.write(f"- **حالة بوابة الامتحان:** {'مفتوح 🟢' if st.session_state.admin_exam_open else 'مغلق 🔴'}")
         st.write(f"- **مدة الامتحان:** {st.session_state.admin_timer_minutes} دقيقة")
 
