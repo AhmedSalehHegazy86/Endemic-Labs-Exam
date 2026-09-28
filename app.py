@@ -32,7 +32,7 @@ from bidi.algorithm import get_display
 # =========================================================
 
 st.set_page_config(
-    page_title="المنصة القومية لاختبارات معامل المتوطنة والمجهر الضوئي",
+    page_title="المنصة الرقمية لاختبارات تقييم معامل المتوطنة  ",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1280,7 +1280,7 @@ def build_pdf_header():
                     logo,
                     Paragraph(
                         ar(
-                            "المنصة القومية لاختبارات معامل المتوطنة"
+                            " المنصة الرقمية لاختبارات تقييم معامل المتوطنة"
                         ),
                         ParagraphStyle(
                             "title",
@@ -1328,7 +1328,7 @@ def build_pdf_header():
         elements.append(
             Paragraph(
                 ar(
-                    "المنصة القومية لاختبارات معامل المتوطنة"
+                    "المنصة الرقمية لاختبارات تقييم معامل المتوطنة"
                 ),
                 ParagraphStyle(
                     "title2",
@@ -1909,7 +1909,7 @@ if st.session_state.page == "home":
     st.markdown(
         """
         <div class="main-title">
-            🔬 المنصة القومية لاختبارات معامل المتوطنة والمجهر الضوئي
+            🔬 المنصة الرقمية لاختبارات تقييم معامل المتوطنة 
         </div>
         """,
         unsafe_allow_html=True,
@@ -2002,7 +2002,7 @@ elif st.session_state.page == "register":
     with st.form("reg_form"):
         facility_input = st.text_input(
             "🏥 اسم المنشأة / الوحدة الصحية:",
-            placeholder="مثال: وحدة الحصوة الصحية"
+            placeholder="مثال: وحدة بنى حسن الصحية"
         )
         name_input = st.text_input(
             "👤 الاسم الرباعي كاملاً:",
