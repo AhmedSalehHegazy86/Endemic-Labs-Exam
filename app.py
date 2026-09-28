@@ -234,7 +234,7 @@ def ar_plain(text):
 
 
 # =========================================================
-# 6. بنك الأسئلة الشامل (دورات الحياة، فحص المدارس، SOPs، الترصد، الإستراتيجية)
+# 6. بنك الأسئلة الشامل
 # =========================================================
 
 QUESTIONS_DB = [
@@ -1583,10 +1583,10 @@ def generate_exam_paper():
 
 
 # =========================================================
-# 21. الصفحات وواجهة المستخدم
+# 21. الصفحات وواجهة المستخدم (فصل تام بين الممتحن والمالك)
 # =========================================================
 
-# الصفحة الرئيسية (لا تظهر واجهة المالك أبداً للممتحن العادي)
+# الصفحة الرئيسية للممتحن (مع زر خفي بالأسفل لدخول المالك فقط)
 if st.session_state.page == "home":
     st.markdown(
         """
@@ -1652,18 +1652,19 @@ if st.session_state.page == "home":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # أزرار الدخول للمتدرب أو المدير
-    col1, col2 = st.columns(2)
-    with col1:
-        if config["open"]:
-            if st.button("📝 تسجيل ممتحن جديد وبدء الاختبار"):
-                st.session_state.page = "register"
-                st.rerun()
-        else:
-            st.warning("⚠️ بوابة الامتحان مغلقة حالياً من قِبل الإدارة.")
+    # شاشة الممتحن فقط (تظهر أزرار الممتحن حصرياً)
+    if config["open"]:
+        if st.button("📝 تسجيل ممتحن جديد وبدء الاختبار"):
+            st.session_state.page = "register"
+            st.rerun()
+    else:
+        st.warning("⚠️ بوابة الامتحان مغلقة حالياً من قِبل الإدارة.")
 
-    with col2:
-        if st.button("🔐 دخول لوحة التحكم الإدارية"):
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # رابط خفي أو زر صغير جداً لدخول لوحة التحكم الخاصة بالمالك فقط
+    with st.expander("🔐 دخول المالك / المسؤول"):
+        if st.button("انتقال لوحة التحكم الإدارية"):
             st.session_state.page = "admin_login"
             st.rerun()
 
@@ -1771,13 +1772,13 @@ elif st.session_state.page == "waiting":
         st.rerun()
 
 # ---------------------------------------------------------
-# صفحة تسجيل دخول الإدارة
+# صفحة تسجيل دخول الإدارة (للمالك فقط)
 # ---------------------------------------------------------
 elif st.session_state.page == "admin_login":
     st.markdown(
         """
         <div class="main-title">
-            🔐 لوحة تحكم الإدارة
+            🔐 تسجيل دخول المالك / المسؤول
         </div>
         """,
         unsafe_allow_html=True,
@@ -1786,7 +1787,7 @@ elif st.session_state.page == "admin_login":
     with st.form("admin_login_form"):
         username = st.text_input("اسم المستخدم الإداري:", value="Dr Ahmed")
         password = st.text_input("كلمة المرور:", type="password", value="20786")
-        login_btn = st.form_submit_button("تسجيل الدخول للإدارة 🔓")
+        login_btn = st.form_submit_button("دخول لوحة التحكم 🔓")
 
         if login_btn:
             if username == "Dr Ahmed" and password == "20786":
@@ -1813,7 +1814,7 @@ elif st.session_state.page == "admin_dashboard":
     st.markdown(
         """
         <div class="main-title">
-            ⚙️ لوحة التحكم والإعدادات الإدارية
+            ⚙️ لوحة التحكم والإعدادات الإدارية (خاص بالمالك)
         </div>
         """,
         unsafe_allow_html=True,
