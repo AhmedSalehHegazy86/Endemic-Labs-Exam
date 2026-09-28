@@ -1,64 +1,326 @@
 import streamlit as st
 import time
+import re
+import io
+import os
+import pandas as pd
+from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 # ==========================================
-# 1. إعدادات الصفحة
+# 1. إعدادات الصفحة والتنسيق Visuals (إخفاء الشريط الجانبي إلا للمالك)
 # ==========================================
 st.set_page_config(
-    page_title="اختبار بنك الأسئلة القومي لمكافحة البلهارسيا",
+    page_title="المنصة القومية للاختبارات المعملية والترصد القومي",
     page_icon="🔬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# تحسين مظهر الواجهة بالـ CSS لدعم اللغة العربية وتصميم البطاقات
-st.markdown("""
+# التحقق مما إذا كان المستخدم الحالي مالكاً/إدارياً لتحديد ظهور الشريط الجانبي
+is_admin_logged = st.session_state.get("logged_admin_user") is not None
+
+# تنسيق الشاشة والخلفية 4K مع وضع الشريط الجانبي يساراً وإخفائه عن الطلاب
+sidebar_style = "" if is_admin_logged else """
+    [data-testid="stSidebar"] {
+        display: none !important;
+    }
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+"""
+
+st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Cairo', sans-serif;
+    .stApp {{
+        background: linear-gradient(135deg, #fffde7 0%, #f0f4c3 35%, #dce775 70%, #c5e1a5 100%) !important;
+        background-attachment: fixed !important;
+        font-family: 'Cairo', sans-serif !important;
         direction: rtl;
         text-align: right;
-    }
-    .question-card {
-        background-color: #ffffff;
-        border-right: 5px solid #0d6efd;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }}
+
+    /* جعل الشريط الجانبي على يسار الشاشة للمالك فقط */
+    [data-testid="stSidebar"] {{
+        left: 0 !important;
+        right: auto !important;
+        border-right: none !important;
+        border-left: 2px solid #558b2f !important;
+    }}
+
+    {sidebar_style}
+
+    .question-card {{
+        background: rgba(255, 255, 255, 0.92);
+        border-right: 6px solid #558b2f;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         margin-bottom: 20px;
-    }
-    .timer-box {
-        background-color: #e7f1ff;
-        border: 2px solid #0d6efd;
-        color: #0c4128;
-        padding: 10px 15px;
+        backdrop-filter: blur(5px);
+    }}
+    .timer-box {{
+        background: linear-gradient(135deg, #d32f2f, #c62828);
+        border: 2px solid #b71c1c;
+        color: #ffffff;
+        padding: 12px 15px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 1.3rem;
+        text-align: center;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+    }}
+    .admin-box {{
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid #afb42b;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(175, 180, 43, 0.2);
+    }}
+    .reg-box, .waiting-box {{
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid #33691e;
+        padding: 25px;
+        border-radius: 15px;
+        margin-top: 20px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    }}
+    .stRadio > label {{
+        font-weight: 700;
+        color: #1b5e20;
+    }}
+    .stButton>button {{
         border-radius: 10px;
         font-weight: bold;
-        font-size: 1.2rem;
-        text-align: center;
-    }
-    .stRadio > label {
-        font-weight: 600;
-    }
-    .stButton>button {
-        border-radius: 8px;
-        font-weight: bold;
-    }
+    }}
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. تحميل بنك الأسئلة (300 سؤال)
+# 2. اللوجو والعلامة المائية والتوقيعات الرسمية
+# ==========================================
+LOGO_PATH = "logo.jpg"
+OFFICIAL_RIGHT_HEADER = """<b>الإدارة الصحية بأولاد صقر</b><br/><b>قسم المتوطنة وقسم المعامل</b><br/><b>تدريب معامل المتوطنة</b>"""
+
+def draw_watermark(canvas, doc):
+    canvas.saveState()
+    canvas.setFont('Helvetica-Bold', 14)
+    canvas.setFillColor(colors.HexColor("#2e7d32"))
+    canvas.setFillAlpha(0.08)
+    canvas.translate(A4[0] / 2.0, A4[1] / 2.0)
+    canvas.rotate(45)
+    
+    watermark_text = "الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - تدريب معامل المتوطنة"
+    canvas.drawCentredString(0, 0, watermark_text)
+    canvas.drawCentredString(0, -50, "National Endemic Parasitology Training & Surveillance")
+    canvas.restoreState()
+
+def build_pdf_header(styles):
+    header_right_style = ParagraphStyle('HeaderRight', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12, alignment=2)
+    header_p = Paragraph(OFFICIAL_RIGHT_HEADER, header_right_style)
+    
+    if os.path.exists(LOGO_PATH):
+        img = Image(LOGO_PATH, width=55, height=55)
+        header_table = Table([[header_p, img]], colWidths=[420, 100])
+    else:
+        header_table = Table([[header_p, ""]], colWidths=[420, 100])
+
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (0,0), 'RIGHT'),
+        ('ALIGN', (1,0), (1,0), 'LEFT'),
+    ]))
+    return header_table
+
+def build_signatures_table(styles):
+    sig_style = ParagraphStyle('SigStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=11, alignment=1)
+    
+    cell1 = Paragraph("<b>مسؤول تدريب معامل المتوطنة</b><br/><br/><b>أ.م / أحمد صالح حجازي</b>", sig_style)
+    cell2 = Paragraph("<b>رئيس قسم المعامل</b><br/><br/>...........................", sig_style)
+    cell3 = Paragraph("<b>مدير المتوطنة</b><br/><br/>...........................", sig_style)
+    cell4 = Paragraph("<b>يعتمد؛ مدير عام الإدارة</b><br/><br/>...........................", sig_style)
+    
+    sig_table = Table([[cell1, cell2, cell3, cell4]], colWidths=[130, 130, 130, 130])
+    sig_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#ced4da")),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e9ecef")),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    return sig_table
+
+# ==========================================
+# 3. توثيق تقارير الـ PDF وشهادات التقدير
+# ==========================================
+def generate_pdf_report(student_name, student_phone, active_questions, user_answers, score_pct, correct_count, total_q, exam_mode):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, alignment=1, spaceAfter=8)
+    normal_style = ParagraphStyle('NormalStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=10)
+    header_table_style = ParagraphStyle('HTStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.whitesmoke)
+
+    story.append(build_pdf_header(styles))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("تقرير نتيجة اختبار ترصد المعامل المتوطنة", title_style))
+    story.append(Spacer(1, 8))
+
+    summary_data = [
+        [Paragraph(f"<b>Candidate Name:</b> {student_name}", normal_style), Paragraph(f"<b>Phone:</b> {student_phone}", normal_style)],
+        [Paragraph(f"<b>Final Result:</b> {score_pct:.1f}%", normal_style), Paragraph(f"<b>Score:</b> {correct_count} / {total_q}", normal_style)],
+        [Paragraph(f"<b>Exam Category:</b> {exam_mode}", normal_style), Paragraph(f"<b>Date:</b> {time.strftime('%Y-%m-%d %H:%M')}", normal_style)]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[260, 260])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f1f3f5")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#689f38")),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#dee2e6")),
+        ('PADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 10))
+
+    table_data = [[
+        Paragraph("<b>#</b>", header_table_style),
+        Paragraph("<b>Question</b>", header_table_style),
+        Paragraph("<b>Your Answer</b>", header_table_style),
+        Paragraph("<b>Correct Answer</b>", header_table_style),
+        Paragraph("<b>Grade</b>", header_table_style)
+    ]]
+
+    for idx, q in enumerate(active_questions):
+        user_ans = user_answers.get(idx, "N/A")
+        is_correct = user_ans == q["answer"]
+        grade_str = "1 / 1" if is_correct else "0 / 1"
+        
+        table_data.append([
+            Paragraph(str(idx + 1), normal_style),
+            Paragraph(q["question"], normal_style),
+            Paragraph(str(user_ans), normal_style),
+            Paragraph(str(q["answer"]), normal_style),
+            Paragraph(grade_str, normal_style)
+        ])
+
+    q_table = Table(table_data, colWidths=[20, 210, 115, 120, 55])
+    q_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#558b2f")),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#ced4da")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor("#f8f9fa")]),
+        ('PADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(q_table)
+    story.append(Spacer(1, 15))
+
+    story.append(build_signatures_table(styles))
+
+    doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
+    buffer.seek(0)
+    return buffer
+
+def generate_certificate_pdf(student_name, student_phone, pre_score, post_score):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=35, leftMargin=35, topMargin=35, bottomMargin=35)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('CertTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=20, alignment=1, textColor=colors.HexColor("#1b5e20"), spaceAfter=15)
+    body_style = ParagraphStyle('CertBody', parent=styles['Normal'], fontName='Helvetica', fontSize=11, leading=16, alignment=1)
+
+    story.append(build_pdf_header(styles))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("شهادة تقدير وتفوق معملي (Certificate of Excellence)", title_style))
+    story.append(Spacer(1, 15))
+
+    cert_text = f"""
+    تشهد الإدارة الصحية بأولاد صقر بأن المتدرب / <b>{student_name}</b> (رقم الهاتف: {student_phone})<br/>
+    قد اجتاز بنجاح متميز البرنامج التدريبي لترصد المعامل المتوطنة، وحصل على التقييمات التالية:<br/><br/>
+    - تقييم اختبار قبل التدريب (Pre-Training): <b>{pre_score:.1f}%</b><br/>
+    - تقييم اختبار بعد التدريب (Post-Training): <b>{post_score:.1f}%</b><br/><br/>
+    وتم منحه هذه الشهادة تقديراً لتفوقه العلمي والعملي بالمجال المعملي.
+    """
+    story.append(Paragraph(cert_text, body_style))
+    story.append(Spacer(1, 35))
+
+    story.append(build_signatures_table(styles))
+
+    doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
+    buffer.seek(0)
+    return buffer
+
+def generate_periodic_report_pdf(period_name, df_results):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=30)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, alignment=1, spaceAfter=8)
+    normal_style = ParagraphStyle('NormalStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=10)
+    header_table_style = ParagraphStyle('HTStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.whitesmoke)
+
+    story.append(build_pdf_header(styles))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(f"تقرير التقييم الدوري التجميعي ({period_name})", title_style))
+    story.append(Spacer(1, 8))
+
+    table_data = [[
+        Paragraph("<b>Candidate Name</b>", header_table_style),
+        Paragraph("<b>Phone</b>", header_table_style),
+        Paragraph("<b>Pre-Test Score</b>", header_table_style),
+        Paragraph("<b>Post-Test Score</b>", header_table_style),
+        Paragraph("<b>Improvement</b>", header_table_style)
+    ]]
+
+    for idx, row in df_results.iterrows():
+        table_data.append([
+            Paragraph(str(row["الاسم الرباعي"]), normal_style),
+            Paragraph(str(row["رقم الهاتف"]), normal_style),
+            Paragraph(f"{row['قبل التدريب']:.1f}%" if pd.notnull(row['قبل التدريب']) else "N/A", normal_style),
+            Paragraph(f"{row['بعد التدريب']:.1f}%" if pd.notnull(row['بعد التدريب']) else "N/A", normal_style),
+            Paragraph(f"+{row['نسبة التحسن']:.1f}%" if pd.notnull(row['نسبة التحسن']) else "N/A", normal_style)
+        ])
+
+    p_table = Table(table_data, colWidths=[150, 100, 90, 90, 90])
+    p_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#558b2f")),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#ced4da")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor("#f8f9fa")]),
+        ('PADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(p_table)
+    story.append(Spacer(1, 20))
+
+    story.append(build_signatures_table(styles))
+
+    doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
+    buffer.seek(0)
+    return buffer
+
+# ==========================================
+# 4. بناء بنك الأسئلة والمجموعات (600 سؤال)
 # ==========================================
 questions_db = [
     {
         "id": 1,
         "difficulty": "medium",
-        "category": "أسئلة مصورة",
-        "question": "بالرجوع إلى المخطط التوضيحي لدورة حياة البلهارسيا في (صفحة 7 من الكتيب)، ما الطور الطفيلي الذي يخترق جلد الإنسان من ماء الترع والمصارف؟",
-        "book_page_image": "صفحة 7 - دورة حياة البلهارسيا",
+        "category": "دورات الحياة والمخططات",
+        "question": "بالرجوع إلى المخطط التوضيحي لدورة حياة البلهارسيا، ما الطور الطفيلي الذي يخترق جلد الإنسان من ماء الترع والمصارف؟",
         "options": ["الميراسيديم (المهدب)", "السركاريا (المذنب)", "السبوروسيست", "الميتا سركاريا المتحوصلة"],
         "answer": "السركاريا (المذنب)",
         "explanation": "السركاريا هي الطور المعدي للبلهارسيا التي تخرج من القوقع وتخترق جلد الإنسان في المياه العذبة."
@@ -66,9 +328,8 @@ questions_db = [
     {
         "id": 2,
         "difficulty": "medium",
-        "category": "أسئلة مصورة",
-        "question": "استناداً إلى رسومات دورة حياة البلهارسيا (صفحة 7)، أي القواقع التالية يمثل العائل الوسيط للبلهارسيا المعوية (مانسوني)؟",
-        "book_page_image": "صفحة 7 - دورة حياة البلهارسيا",
+        "category": "دورات الحياة والمخططات",
+        "question": "استناداً إلى رسومات دورة حياة البلهارسيا، أي القواقع التالية يمثل العائل الوسيط للبلهارسيا المعوية (مانسوني)؟",
         "options": ["قوقع بولينس (Bulinus)", "قوقع بيومفلاريا (Biomphalaria)", "قوقع الليمنيا (Lymnaea)", "قوقع السجلتينا"],
         "answer": "قوقع بيومفلاريا (Biomphalaria)",
         "explanation": "قوقع البيومفلاريا ينقل البلهارسيا المعوية (مانسوني)، بينما ينقل قوقع البولينس البلهارسيا البولية."
@@ -76,9 +337,8 @@ questions_db = [
     {
         "id": 3,
         "difficulty": "hard",
-        "category": "أسئلة مصورة",
-        "question": "من خلال مخطط دورة حياة الدودة الكبدية الفاشيولا (صفحة 10 من الكتيب)، أين تتحرر الميتا سركاريا من حويصلاتها داخل العائل الأساسي؟",
-        "book_page_image": "صفحة 10 - دورة حياة الفاشيولا",
+        "category": "دورات الحياة والمخططات",
+        "question": "من خلال مخطط دورة حياة الدودة الكبدية الفاشيولا، أين تتحرر الميتا سركاريا من حويصلاتها داخل العائل الأساسي؟",
         "options": ["في المعدة", "في الأمعاء الدقيقة (الأثنى عشر)", "في القنوات المرارية فوراً", "في تجويف الفم"],
         "answer": "في الأمعاء الدقيقة (الأثنى عشر)",
         "explanation": "عند ابتلاع العائل الميتا سركاريا تتحرر من الحويصلة بالأمعاء الدقيقة (الأثنى عشر) وتخترق جدار الأمعاء نحو الكبد."
@@ -86,9 +346,8 @@ questions_db = [
     {
         "id": 4,
         "difficulty": "medium",
-        "category": "أسئلة مصورة",
-        "question": "وفقاً لرسم دورة حياة الدودة الشريطية القزمة H. nana (صفحة 16 من الكتيب)، ما الطور المعدي الذي يُفرز مع البراز ويكون معدياً فور خروجه؟",
-        "book_page_image": "صفحة 16 - دورة حياة H. nana",
+        "category": "دورات الحياة والمخططات",
+        "question": "وفقاً لرسم دورة حياة الدودة الشريطية القزمة H. nana، ما الطور المعدي الذي يُفرز مع البراز ويكون معدياً فور خروجه؟",
         "options": ["البويضة (Egg)", "اليرقة شبه المثانية (Cysticercus)", "القطع الحاملة (Gravid proglottids)", "الميراسيديم"],
         "answer": "البويضة (Egg)",
         "explanation": "تكون بويضة H. nana معدية فور خروجها مع براز الإنسان المصاب وتنتقل عن طريق الطعام أو الأيدي الملوثة."
@@ -96,834 +355,114 @@ questions_db = [
     {
         "id": 5,
         "difficulty": "hard",
-        "category": "أسئلة مصورة",
-        "question": "بالنظر إلى الرسم التوضيحي لدورة حياة الدودة الشريطية التينيا (صفحة 18)، ما العائل الوسيط الرئيسي للديدان الشريطية العزلاء (Taenia saginata)؟",
-        "book_page_image": "صفحة 18 - دورة حياة التينيا",
+        "category": "دورات الحياة والمخططات",
+        "question": "بالنظر إلى الرسم التوضيحي لدورة حياة الدودة الشريطية التينيا، ما العائل الوسيط الرئيسي للديدان الشريطية العزلاء (Taenia saginata)؟",
         "options": ["الخنازير", "الماشية والأبقار", "القواقع المائية", "الكلاب والذئاب"],
         "answer": "الماشية والأبقار",
         "explanation": "الماشية والأبقار هي العائل الوسيط لتينيا ساجيناتا، وتتتكيس الأجنة في عضلاتها على شكل كلسيات."
-    },
-    {
-        "id": 6,
-        "difficulty": "medium",
-        "category": "أسئلة مصورة",
-        "question": "استناداً لرسوم دورة حياة الإسكارس (صفحة 20 من الكتيب)، أين تتطور اليرقة داخل جسم الإنسان قبل وصولها النهائي للأمعاء الدقيقة؟",
-        "book_page_image": "صفحة 20 - دورة حياة الإسكارس",
-        "options": ["تمر بالرئتين والقصبة الهوائية والبلعوم", "تمر بالكبد والطحال فقط", "تبقى في جدار المعدة لحين البلوغ", "تستقر في العضلات الهيكلية"],
-        "answer": "تمر بالرئتين والقصبة الهوائية والبلعوم",
-        "explanation": "تخترق يرقات الإسكارس الشعيرات الدموية وتصل عبر القلب للرئة لتتطور ثم تصعد للقصبة الهوائية فالبلعوم وتُبتلع للأمعاء."
-    },
-    {
-        "id": 7,
-        "difficulty": "easy",
-        "category": "أسئلة مصورة",
-        "question": "في مخطط دورة حياة الدودة الدبوسية (صفحة 22)، أين تضع الأنثى البالغة بويضاتها الملقحة؟",
-        "book_page_image": "صفحة 22 - دورة حياة الدودة الدبوسية",
-        "options": ["داخل تجويف القولون", "حول فتحة الشرج ليلاً", "في القنوات المرارية", "في أوردة المثانة البولية"],
-        "answer": "حول فتحة الشرج ليلاً",
-        "explanation": "تخرج أنثى الدودة الدبوسية ليلاً لتضع بويضاتها حول فتحة الشرج مسببة حكة شديدة للأطفال."
-    },
-    {
-        "id": 8,
-        "difficulty": "hard",
-        "category": "أسئلة مصورة",
-        "question": "من خلال الرسم التوضيحي لدورة حياة الترشيورس ترشيورا (صفحة 25)، ما شكل البويضة المجهزة بسدادتين مخاطيتين؟",
-        "book_page_image": "صفحة 25 - دورة حياة الدودة السوطية",
-        "options": ["كروية شفافة", "برميلية الشكل", "بيضاوية بشوكة طرفية", "مستديرة ذات غشاء حليمي"],
-        "answer": "برميلية الشكل",
-        "explanation": "تتميز بويضة الترشيورس ترشيورا بشكليها البرميلي ولونها البني مع سدادتين عند الطرفين."
-    },
-    {
-        "id": 9,
-        "difficulty": "medium",
-        "category": "أسئلة مصورة",
-        "question": "وفقاً لمخطط دورة حياة الانكلستوما (صفحة 27)، كيف يخترق الطور المعدي جسم الإنسان؟",
-        "book_page_image": "صفحة 27 - دورة حياة الانكلستوما",
-        "options": ["عن طريق اختراق اليرقة لجلد القدمين أو الجسم", "عن طريق بلع البويضات الملقحة", "عن طريق أكل اللحوم غير المطهية", "عن طريق لدغ الحشرات"],
-        "answer": "عن طريق اختراق اليرقة لجلد القدمين أو الجسم",
-        "explanation": "تخترق يرقة الانكلستوما المعدية جلد الإنسان (خاصة القدم العارية) وتنتقل عبر الدم إلى القلب والرئة ثم الجهاز الهضمي."
-    },
-    {
-        "id": 10,
-        "difficulty": "hard",
-        "category": "أسئلة مصورة",
-        "question": "من خلال مخطط الطور الخضري للإنتميبا هيستوليتيكا (صفحة 29 من الكتيب)، ما التركيب الأهم للتحرك والاختراق؟",
-        "book_page_image": "صفحة 29 - شكل الأقداَم الكاذبة والأكياس",
-        "options": ["الأسواط الأربعة", "الأقدام الكاذبة (Pseudopodia)", "الأهداب المحيطية", "الممص البطني"],
-        "answer": "الأقدام الكاذبة (Pseudopodia)",
-        "explanation": "يتدفق سيتوبلازم الأميبا الخضرية لتكوين أقدام كاذبة تساعدها على الحركة واختراق جدار الأمعاء الغليظة."
-    },
-    {
-        "id": 11,
-        "difficulty": "easy",
-        "category": "استراتيجية الخطط القومية",
-        "question": "ما هما نوعا البلهارسيا المتوطنان في مصر ومناطق انتشارهما الرئيسية؟",
-        "options": [
-            "البولية بالوجه القبلي والمعوية بالوجه البحري",
-            "البولية بالوجه البحري والمعوية بالوجه القبلي",
-            "اليابانية بالدلتا والمعوية بالصعيد",
-            "البولية بالقاهرة والمعوية بالإسكندرية"
-        ],
-        "answer": "البولية بالوجه القبلي والمعوية بالوجه البحري",
-        "explanation": "تتوطن البلهارسيا البولية بالوجه القبلي بينما تنتشر البلهارسيا المعوية بالوجه البحري."
-    },
-    {
-        "id": 12,
-        "difficulty": "easy",
-        "category": "استراتيجية الخطط القومية",
-        "question": "كم بلغت نسبة انتشار البلهارسيا على المستوى القومي بنهاية عام 2016 مقارنة بعام 1983؟",
-        "options": ["انخفضت من 40% إلى حوالي 0.2%", "انخفضت من 80% إلى 5%", "ارتفعت من 10% إلى 15%", "ثبتت عند 2%"],
-        "answer": "انخفضت من 40% إلى حوالي 0.2%",
-        "explanation": "أسفرت الجهود القومية عن خفض معدل الانتشار إلى حوالي 0.2% بنهاية عام 2016 بعد أن كانت تقترب من 40% عام 1983."
-    },
-    {
-        "id": 13,
-        "difficulty": "easy",
-        "category": "استراتيجية الخطط القومية",
-        "question": "ما الهدف العام القومي المذكور بالخطة للوزارة لإعلان القضاء على البلهارسيا؟",
-        "options": ["القضاء على البلهارسيا بحلول عام 2020", "خفض الإصابة إلى 5% بحلول 2030", "استئصال القواقع بنسبة 100% عام 2018", "تطعيم جميع الأطفال عام 2025"],
-        "answer": "القضاء على البلهارسيا بحلول عام 2020",
-        "explanation": "الهدف العام المسطر بالكتيب هو القضاء على البلهارسيا في مصر بحلول عام 2020."
-    },
-    {
-        "id": 14,
-        "difficulty": "medium",
-        "category": "استراتيجية الخطط القومية",
-        "question": "تعتمد إستراتيجية وزارة الصحة في مكافحة البلهارسيا على أربعة محاور رئيسية، ما هي؟",
-        "options": [
-            "الفحص والعلاج الجموعي، مكافحة القواقع، التوعية الصحية، الإصحاح البيئي",
-            "العلاج الكيماوي، العزل الصحي، رش الحشرات، غلي المياه",
-            "التطعيم الزباري، بناء المستشفيات، تحلية المياه، منع الاستيراد",
-            "الفحص الميكروسكوبي، العمليات الجراحية، الكشف المبكر، دفن الفضلات"
-        ],
-        "answer": "الفحص والعلاج الجموعي، مكافحة القواقع، التوعية الصحية، الإصحاح البيئي",
-        "explanation": "المحاور الأربعة الأساسية في إستراتيجية الوزارة هي الفحص والعلاج، مكافحة القواقع، التوعية الصحية، والإصحاح البيئي."
-    },
-    {
-        "id": 15,
-        "difficulty": "medium",
-        "category": "استراتيجية الخطط القومية",
-        "question": "ما هي نسبة الإصابة التي تستوجب تنفيذ العلاج الجموعي (بدون فحص مسبق) للمواطنين ولتلاميذ المدارس؟",
-        "options": [
-            "تزيد عن 2% للمواطنين، و1% لتلاميذ المدارس",
-            "تزيد عن 10% للمواطنين، و5% لتلاميذ المدارس",
-            "تزيد عن 5% للمواطنين، و2% لتلاميذ المدارس",
-            "تزيد عن 0.5% للمواطنين والمدارس"
-        ],
-        "answer": "تزيد عن 2% للمواطنين، و1% لتلاميذ المدارس",
-        "explanation": "ينفذ العلاج الجموعي الشامل بدون فحص للأماكن والبؤر التي تزيد نسبة الإصابة بها عن 2% للمواطنين و1% لتلاميذ المدارس."
-    },
-    {
-        "id": 16,
-        "difficulty": "hard",
-        "category": "استراتيجية الخطط القومية",
-        "question": "عند مكافحة القواقع حول المناطق ذات نسب الانتشار المرتفعة، ما المسافة المحددة لعلاج المجاري المائية؟",
-        "options": ["في حدود 1 كم حول المنطقة", "في حدود 500 متر فقط", "في حدود 5 كم حول المنطقة", "المجرى المائي بأكمله من المنابع"],
-        "answer": "في حدود 1 كم حول المنطقة",
-        "explanation": "يتم علاج المجاري المائية المجاورة في حدود 1 كم حول المناطق ذات نسب الانتشار المرتفعة ولا يشترط إصابة القواقع بالسركاريا."
-    },
-    {
-        "id": 17,
-        "difficulty": "easy",
-        "category": "استراتيجية الخطط القومية",
-        "question": "من اكتشف ديدان البلهارسيا ودورة حياتها والعائل الوسيط في مصر؟",
-        "options": [
-            "تيودور بلهارس (1851) والدكتور ليبر (1915-1918)",
-            "روبرت كوخ وعلي باشا إبراهيم",
-            "لويس باستور والدكتور مجدي يعقوب",
-            "رونالد روس وأحمد زويل"
-        ],
-        "answer": "تيودور بلهارس (1851) والدكتور ليبر (1915-1918)",
-        "explanation": "اكتشف تيودور بلهارس الديدان عام 1851، واكتشف الدكتور ليبر دورة الحياة والعائل الوسيط القوقعي بين عامي 1915 و1918."
-    },
-    {
-        "id": 18,
-        "difficulty": "medium",
-        "category": "استراتيجية الخطط القومية",
-        "question": "كم تبلغ المدة التي يموت بعدها طور المهدب (الميراسيديم) إذا لم يجد القوقع المناسب؟",
-        "options": ["حوالي 30 ساعة", "حوالي 12 ساعة", "72 ساعة", "أسبوع كامل"],
-        "answer": "حوالي 30 ساعة",
-        "explanation": "يسبح الميراسيديم في الماء ويموت إذا فشل في إيجاد القوقع المناسب خلال مدة حوالي 30 ساعة."
-    },
-    {
-        "id": 19,
-        "difficulty": "medium",
-        "category": "استراتيجية الخطط القومية",
-        "question": "كم تبلغ الفترة الزمنية التي تستطيع السركاريا فيها البقاء حية بالماء للبحث عن الإنسان قبل موتها؟",
-        "options": ["من 24 إلى 48 ساعة", "من 2 إلى 6 ساعات", "من 5 إلى 7 أيام", "10 ساعات فقط"],
-        "answer": "من 24 إلى 48 ساعة",
-        "explanation": "إذا لم تجد السركاريا الإنسان خلال مدة من 24-48 ساعة فإنها تموت."
-    },
-    {
-        "id": 20,
-        "difficulty": "hard",
-        "category": "استراتيجية الخطط القومية",
-        "question": "أين تستقر الديدان البالغة للبلهارسيا البولية والبلهارسيا المعوية في جسم الإنسان لوضع البيض؟",
-        "options": [
-            "الأوعية الدقيقة بجدار المثانة (للبولية) وجدار القولون (للمعوية)",
-            "القنوات المرارية (للبولية) وتجويف المعدة (للمعوية)",
-            "الشريان الأورطي (للبولية) والشريان الرئوي (للمعوية)",
-            "الشرينات الكلوبة (للبولية) وأوردة الطحال (ل للمعوية)"
-        ],
-        "answer": "الأوعية الدقيقة بجدار المثانة (للبولية) وجدار القولون (للمعوية)",
-        "explanation": "تستقر البلهارسيا البولية بالأوعية الدقيقة بجدار المثانة البولية، بينما تستقر المعوية بالأوعية الدقيقة بجدار القولون."
-    },
-    {
-        "id": 21,
-        "difficulty": "easy",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "ما هو العائل الوسيط القوقعي لطفيل الدودة الكبدية (الفاشيولا)؟",
-        "options": ["قوقع الليمنيا (Lymnaea)", "قوقع البيومفلاريا", "قوقع البولينس", "قوقع القواقع الأرضية"],
-        "answer": "قوقع الليمنيا (Lymnaea)",
-        "explanation": "قوقع الليمنيا هو العائل الوسيط لدورة حياة الفاشيولا."
-    },
-    {
-        "id": 22,
-        "difficulty": "medium",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "ما الطور المعدي للإنسان والحيوان في مرض الفاشيولا وأين يوجد؟",
-        "options": [
-            "الميتا سركاريا المتحوصلة (Encysted metacercaria) على الخضروات والأعشاب المائية",
-            "السركاريا الحرة السابحة في الماء",
-            "الميراسيديم الدقيق بالماء",
-            "البويضات الطازجة بالبراز"
-        ],
-        "answer": "الميتا سركاريا المتحوصلة (Encysted metacercaria) على الخضروات والأعشاب المائية",
-        "explanation": "تتحوصل السركاريا على الأعشاب والخضروات المائية كالميتا سركاريا المتحوصلة وهي الطور المعدي."
-    },
-    {
-        "id": 23,
-        "difficulty": "hard",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "كم تستغرق الفترة من ابتلاع الطور المعدي للفاشيولا حتى الوصول للدودة الناضجة وتعيش كم سنة في القنوات المرارية؟",
-        "options": [
-            "تستغرق 3 - 4 أشهر، وتعيش سنة أو عدة سنوات",
-            "تستغرق أسسبوعين، وتعيش شهرين فقط",
-            "تستغرق 10 أيام، وتعيش طوال العمر",
-            "تستغرق سنة كاملة، وتعيش 6 أشهر"
-        ],
-        "answer": "تستغرق 3 - 4 أشهر، وتعيش سنة أو عدة سنوات",
-        "explanation": "تستغرق المدة من الابتلاع إلى النضج 3-4 أشهر، وتعيش الدودة البالغة بالقنوات المرارية سنة أو عدة سنوات."
-    },
-    {
-        "id": 24,
-        "difficulty": "medium",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "ما هي الوسيلة الكيميائية الآمنة لقتل حويصلات الفاشيولا على الخضروات الورقية كما ورد بالكتيب؟",
-        "options": [
-            "نقع الخضروات في محلول برمنجنات البوتاسيوم (24 مجم/لتر) لمدة 15 دقيقة",
-            "غسل الخضروات بالصابون والكلور لمدة ساعة",
-            "رش الخضروات بالمبيدات الحشرية",
-            "وضع الخضروات في الثلاجة لمدّة 3 أيام"
-        ],
-        "answer": "نقع الخضروات في محلول برمنجنات البوتاسيوم (24 مجم/لتر) لمدة 15 دقيقة",
-        "explanation": "محلول برمنجنات البوتاسيوم تركيز 24 مجم/لتر لمدة 15 دقيقة يقتل حويصلات الفاشيولا نهائياً."
-    },
-    {
-        "id": 25,
-        "difficulty": "hard",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "ما العقار النوعي المخصص لعلاج الفاشيولا بكتيب وزارة الصحة وما جرعته؟",
-        "options": [
-            "عقار ترايكلا بندازول (إيجاتين Egaten) بجرعة 10 مجم/كجم من وزن الجسم",
-            "البرازيكوانتيل بجرعة 40 مجم/كجم",
-            "الألبندازول بجرعة 400 مجم",
-            "الميترونيدازول بجرعة 500 مجم"
-        ],
-        "answer": "عقار ترايكلا بندازول (إيجاتين Egaten) بجرعة 10 مجم/كجم من وزن الجسم",
-        "explanation": "يعالج مرض الفاشيولا بأقراص إيجاتين (250 مجم) بجرعة 10 مجم لكل كجم من وزن الجسم."
-    },
-    {
-        "id": 26,
-        "difficulty": "medium",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "أين تعيش دودة الهيتروفيس هيتروفيس (Heterophyes heterophyes) داخل جسم الإنسان؟",
-        "options": ["في الأمعاء الدقيقة", "في الكبد والقنوات المرارية", "في الأمعاء الغليظة والقولون", "في الأوردة البابية الكبدية"],
-        "answer": "في الأمعاء الدقيقة",
-        "explanation": "تعيش الدودة البالغة للهيتروفيس في الأمعاء الدقيقة للإنسان والحيوانات آكلة الأسماك."
-    },
-    {
-        "id": 27,
-        "difficulty": "hard",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "ما هما العائلان الوسيطان الأول والثاني لدورة حياة دودة الهيتروفيس في مصر؟",
-        "options": [
-            "العائل الأول قوقع بيليريا (Pirenella) والعائل الثاني أسماك البوري والبولطي",
-            "العائل الأول قوقع الليمنيا والعائل الثاني الأغنام",
-            "العائل الأول قوقع البيومفلاريا والعائل الثاني الجمبري",
-            "العائل الأول ذباب الفاكهة والعائل الثاني الماشية"
-        ],
-        "answer": "العائل الأول قوقع بيليريا (Pirenella) والعائل الثاني أسماك البوري والبولطي",
-        "explanation": "تتطور السركاريا في قوقع بيليريا كناليكولاتا ثم تخرج لتتحوصل في عضلات أسماك المياه العذبة والشروب كالبوري والبولطي."
-    },
-    {
-        "id": 28,
-        "difficulty": "medium",
-        "category": "الفاشيولا والهيتروفيس",
-        "question": "كيف تحدث العدوى بمرض الهيتروفيس للإنسان؟",
-        "options": [
-            "أكل أسماك الفسيخ غير المملح جيدا (أقل من أسبوعين) أو الأسماك غير المشوية جيداً",
-            "اختراق اليرقات لجلد القدم في المياه",
-            "أكل الخضروات الملوثة بمحلول برمنجنات البوتاسيوم",
-            "شرب مياه الترع الملوثة بالميراسيديم"
-        ],
-        "answer": "أكل أسماك الفسيخ غير المملح جيدا (أقل من أسبوعين) أو الأسماك غير المشوية جيداً",
-        "explanation": "تحدث العدوى بتناول أسماك الفسيخ غير المملحة لفترة كافية (أقل من أسبوعين) أو الأسماك غير المطهية/المشوية جيداً."
-    },
-    {
-        "id": 29,
-        "difficulty": "easy",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما هي أكثر الديدان الشريطية انتشاراً في مصر وشيوعاً بين الأطفال؟",
-        "options": [
-            "الدودة الشريطية القزمة (هيمنولبس نانا H. nana)",
-            "دودة التينيا العزلاء (Taenia saginata)",
-            "دودة التينيا الوحيدة (Taenia solium)",
-            "دودة الفاشيولا الكبدية"
-        ],
-        "answer": "الدودة الشريطية القزمة (هيمنولبس نانا H. nana)",
-        "explanation": "الدودة الشريطية القزمة (Hymenolepis nana) هي أكثر الديدان الشريطية انتشاراً في مصر وخاصة بين الأطفال."
-    },
-    {
-        "id": 30,
-        "difficulty": "medium",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما الفرق الرئيسي بين العدوى الذاتية الخارجية والداخلية في الدودة الشريطية القزمة H. nana؟",
-        "options": [
-            "الخارجية بالأيدي الملوثة، والداخلية بفقس البويضات المفرزة داخل الأمعاء الدقيقة",
-            "الخارجية بدخول اليرقات عبر الجلد، والداخلية عن طريق استنشاق الغبار",
-            "الخارجية عبر تناول لحم البقر، والداخلية عبر تناول الفسيخ",
-            "الخارجية بدغ حشرات البراغيث، والداخلية بلع قواقع الليمنيا"
-        ],
-        "answer": "الخارجية بالأيدي الملوثة، والداخلية بفقس البويضات المفرزة داخل الأمعاء الدقيقة",
-        "explanation": "تحدث العدوى الذاتية الخارجية عن طريق الأيدي الملوثة بالبويضات، والداخلية بفقس البويضات فور إفرازها بالأمعاء مباشرة."
-    },
-    {
-        "id": 31,
-        "difficulty": "hard",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما الطور المعدي للدودة الشريطية العزلاء (Taenia saginata) المسبب لعدوى الإنسان؟",
-        "options": [
-            "الجنين المتكيس (الكلسيات أو الحويصلات المذنبة) بعضلات لحوم الأبقار والماشية",
-            "البويضة الحاملة للجنين سداسي الأشواك",
-            "اليرقة شبه المثانية سيستوسيركويد",
-            "القطع الحاملة البالغة المنسلخة"
-        ],
-        "answer": "الجنين المتكيس (الكلسيات أو الحويصلات المذنبة) بعضلات لحوم الأبقار والماشية",
-        "explanation": "يعد الجنين المتكيس (الكلسيات) بعضلات الماشية والأبقار الطور المعدي للإنسان عند تناول لحوم غير مطهية جيداً."
-    },
-    {
-        "id": 32,
-        "difficulty": "medium",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "كم يبلغ طول الدودة الشريطية التينيا البالغة وعدد القطع المكونة لجسمها تقريباً؟",
-        "options": ["طولها حوالي 10 أمتار أو أكثر وتتكون من 2000 قطعة", "طولها 5 سم وتتكون من 10 قطع", "طولها 50 سم وتتكون من 100 قطعة", "طولها 2 متر وتتكون من 500 قطعة"],
-        "answer": "طولها حوالي 10 أمتار أو أكثر وتتكون من 2000 قطعة",
-        "explanation": "يبلغ طول دودة التينيا حوالي 10 أمتار أو أكثر وتتكون من قطع متتالية يصل عددها إلى 2000 قطعة."
-    },
-    {
-        "id": 33,
-        "difficulty": "easy",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما كمية البويضات التي تضعها أنثى دودة الإسكارس (Ascaris lumbricoides) يومياً في أمعاء الإنسان؟",
-        "options": ["تصل إلى 200 ألف بويضة يومياً", "تصل إلى 1,000 بويضة يومياً", "تصل إلى 50 ألف بويضة يومياً", "تضع بويضة واحدة كل أسبوع"],
-        "answer": "تصل إلى 200 ألف بويضة يومياً",
-        "explanation": "تضع أنثى الإسكارس أعداداً كبيرة من البويضات تصل إلى 200,000 (أو حتى 300 ألف) بويضة يومياً في البراز."
-    },
-    {
-        "id": 34,
-        "difficulty": "medium",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما الطور المعدي لدودة الإسكارس للإنسان وكيف تنمو اليرقة بالتربة؟",
-        "options": [
-            "البويضة الناضجة المحتوية على اليرقة الناضجة بعد نموها في التربة الرطبة لمدة 14 يوماً",
-            "اليرقة الخيطية السابحة في الماء",
-            "البويضة غير المخصبة فور نزولها بالبراز",
-            "السركاريا ذات الذيل المشقوق"
-        ],
-        "answer": "البويضة الناضجة المحتوية على اليرقة الناضجة بعد نموها في التربة الرطبة لمدة 14 يوماً",
-        "explanation": "تنضج اليرقة داخل البويضة بالتربة الرطبة خلال أسبوعين وتصبح البويضة الناضجة هي الطور المعدي."
-    },
-    {
-        "id": 35,
-        "difficulty": "hard",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما هي أخطر المضاعفات الجراحية الناتجة عن الإصابة بكثافة عالية بديدان الإسكارس؟",
-        "options": [
-            "انسداد الأمعاء وانسداد القناة المرارية والتهاب الزائدة الدودية",
-            "سرطان المثانة وتليف الكبد",
-            "الفشل الكلي المزمن والعمى",
-            "تضخم الطحال ودوالي المريء"
-        ],
-        "answer": "انسداد الأمعاء وانسداد القناة المرارية والتهاب الزائدة الدودية",
-        "explanation": "قد تسبب الأعداد الكبيرة من الإسكارس انسداداً ميكانيكياً للأمعاء أو القناة الصفراوية والتهاب الزائدة."
-    },
-    {
-        "id": 36,
-        "difficulty": "medium",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما هي العدوى المرتجعة (Retro-infection) في حالة الإصابة بالدودة الدبوسية (الإكسيورس)؟",
-        "options": [
-            "خروج اليرقات من البويضات عند فتحة الشرج وزحفها عودة إلى الأمعاء الغليظة لتنمو",
-            "ابتلاع البويضات عن طريق قضم الأظافر",
-            "انتقال اليرقات عبر مجرى الدم للرئتين ثم الجهاز الهضمي",
-            "انتقال العدوى من الذباب الملوث للأطعمة"
-        ],
-        "answer": "خروج اليرقات من البويضات عند فتحة الشرج وزحفها عودة إلى الأمعاء الغليظة لتنمو",
-        "explanation": "تحدث العدوى المرتجعة بفقس البويضات عند منطقة الشرج وزحف اليرقات عائدة للأمعاء الغليظة لتكتمل إلى دودة بالغة."
-    },
-    {
-        "id": 37,
-        "difficulty": "easy",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما الاختبار المعملي الأكثر دقة للتشخيص المؤكد للدودة الدبوسية بنسبة 95%؟",
-        "options": ["أخذ مسحات شرجية (شريط السلوفان) أثناء النوم للفحص الميكروسكوبي", "فحص عينة البول المترسبة", "اختبار الأليزا المصلي", "فحص الدم لحساب حمضية الصبغة"],
-        "answer": "أخذ مسحات شرجية (شريط السلوفان) أثناء النوم للفحص الميكروسكوبي",
-        "explanation": "أخذ المسحات الشرجية للطفل يتأكد به تشخيص الإصابة بالدودة الدبوسية بنسبة 95%."
-    },
-    {
-        "id": 38,
-        "difficulty": "hard",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "أين تعيش الدودة السوطية (Trichuris trichiura) داخل الجهاز الهضمي للإنسان وما شكل بويضاتها؟",
-        "options": [
-            "تعيش في الأعور والقولون، وبويضاتها برميلية الشكل بسدادتين",
-            "تعيش في المعدة، وبويضاتها كروية ذات شوكة",
-            "تعيش في الأثنى عشر، وبويضاتها بيضاوية غشائية",
-            "تعيش في الأوردة البابية، وبويضاتها ذات غطاء"
-        ],
-        "answer": "تعيش في الأعور والقولون، وبويضاتها برميلية الشكل بسدادتين",
-        "explanation": "تعيش الديدان البالغة للترشيورس في القولون والأعور، وتكون بويضاتها برميلية بها سدادة عند كل طرف."
-    },
-    {
-        "id": 39,
-        "difficulty": "medium",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما المميز بتركيب فم دودة الأنكلستوما (Ancylostoma duodenale) الذي يسبب النزيف والأنيميا؟",
-        "options": [
-            "زوجان من الأسنان (القواطع) التي تشبه الخطاطيف للتعلق بجدار الأمعاء ونهش الغشاء المخاطي",
-            "ثلاث شفاه عضلية تمتص الطعام المصفي",
-            "ممص بطني كبير يفرز السموم",
-            "خرطوم ثاقب يخترق الأوردة"
-        ],
-        "answer": "زوجان من الأسنان (القواطع) التي تشبه الخطاطيف للتعلق بجدار الأمعاء ونهش الغشاء المخاطي",
-        "explanation": "يمتلك فم الأنكلستوما زوجين من الأسنان الخطافية تتعلق بها وتسيل الدم المباشر للتغذية عليه."
-    },
-    {
-        "id": 40,
-        "difficulty": "hard",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "كم تستهلك دودة الأنكلستوما الواحدة من دم المريض يومياً وكم هبط معدل انتشارها في مصر؟",
-        "options": [
-            "تتغذى على 0.5 سم3 يومياً، وهبط انتشارها إلى أقل من 0.001% حالياً",
-            "تتغذى على 10 سم3 يومياً، وهبط انتشارها إلى 5%",
-            "تتغذى على قطرة واحدة شهرياً، ولم يتغير معدل الانتشار",
-            "تتغذى على 2 سم3 يومياً، وهبط انتشارها إلى 1%"
-        ],
-        "answer": "تتغذى على 0.5 سم3 يومياً، وهبط انتشارها إلى أقل من 0.001% حالياً",
-        "explanation": "تتغذى دودة الأنكلستوما على نصف سنتيمتر مكعب من الدم يومياً، وانخفض معدل انتشارها من أكثر من 20% ريفياً إلى أقل من 0.001% حالياً."
-    },
-    {
-        "id": 41,
-        "difficulty": "hard",
-        "category": "الديدان الشريطية والأسطوانية",
-        "question": "ما هي الميزة التشخيصية الخاصة بعينة البراز المباشرة في حالة دودة الاسترونجيلويدس (Strongyloides stercoralis)؟",
-        "options": [
-            "تظهر اليرقة الربدية حية متحرّكة ولا توجد بويضات في البراز العادي",
-            "تظهر البويضات المغطاة بغشاء زجاجي فقط",
-            "تظهر الأكياس الرباعية الأنوية",
-            "تظهر القطع الحاملة المنسلخة"
-        ],
-        "answer": "تظهر اليرقة الربدية حية متحرّكة ولا توجد بويضات في البراز العادي",
-        "explanation": "تفقس بويضات الاسترونجيلويدس داخل الأمعاء وتخرج اليرقات الربدية الحية مع البراز لذا لا تشاهد بويضات بالبراز."
-    },
-    {
-        "id": 42,
-        "difficulty": "medium",
-        "category": "الأوليات والطفيليات وحيدة الخلية",
-        "question": "ما هو الطور الخضري والطور المتكيس لطفيل الإنتميبا هيستوليتيكا (Entamoeba histolytica)؟",
-        "options": [
-            "الطور الخضري (تروفوزويت) يتغذى ويتحرك بالأقدام الكاذبة، والكيس جسم هلامي به 4 أنوية وأجسام كروماتينية",
-            "الطور الخضري كيس به نواتان، والكيس به أسواط حرية",
-            "الطور الخضري سركاريا، والكيس ميراسيديم",
-            "الطور الخضري يرقة خيطية، والكيس بويضة ذات شوكة"
-        ],
-        "answer": "الطور الخضري (تروفوزويت) يتغذى ويتحرك بالأقدام الكاذبة، والكيس جسم هلامي به 4 أنوية وأجسام كروماتينية",
-        "explanation": "التروفوزويت يتحرك بالأقدام الكاذبة ويحتوي كرات دم حمراء، بينما الكيس مستدير يحتوي عند النضج على 4 أنوية وهما الطوران للأميبا."
-    },
-    {
-        "id": 43,
-        "difficulty": "medium",
-        "category": "الأوليات والطفيليات وحيدة الخلية",
-        "question": "لماذا يستطيع طور الكيس للإنتميبا هيستوليتيكا نقل العدوى عن طريق الفم بينما يموت الطور الخضري؟",
-        "options": [
-            "لأن جدار الكيس يقاوم العصارة المعدية الحامضية بينما تقتل العصارة الطور الخضري وتهضمه",
-            "لأن الطور الخضري يتنفس الأكسجين فقط",
-            "لأن الكيس يتحرك بسرعة في المريء",
-            "لأن الطور الخضري يلتصق بالأسنان"
-        ],
-        "answer": "لأن جدار الكيس يقاوم العصارة المعدية الحامضية بينما تقتل العصارة الطور الخضري وتهضمه",
-        "explanation": "تقتل العصارة المعدية الطور الخضري وتهضمه، بينما يقاوم جدار الكيس العصارات ليصل للأمعاء ويكمل دورة الحياة."
-    },
-    {
-        "id": 44,
-        "difficulty": "hard",
-        "category": "الأوليات والطفيليات وحيدة الخلية",
-        "question": "كم عدد الأميبات الخضرية الناتجة في الأمعاء عند ابتلاع كيس واحد ناضج للإنتميبا هيستوليتيكا؟",
-        "options": ["ينتج ثمانية أميبات خضرية (8 Trophozoites)", "ينتج أميبتان فقط", "ينتج 16 أميبا", "ينتج أميبا واحدة كبيرة"],
-        "answer": "ينتج ثمانية أميبات خضرية (8 Trophozoites)",
-        "explanation": "تنقسم كل نواة من الأنوية الأربعة للكيس إلى اثنتين يليها انقسام السيتوبلازم للحصول في النهاية على 8 أميبات خضرية."
-    },
-    {
-        "id": 45,
-        "difficulty": "easy",
-        "category": "الأوليات والطفيليات وحيدة الخلية",
-        "question": "ما الشكل المميز لتقرحات الأمعاء الغليظة الناتجة عن اختراق الإنتميبا هيستوليتيكا لجدار الأمعاء؟",
-        "options": ["تقرحات ذات شكل خاص تشبه القنينات (Flask-shaped ulcers)", "تقرحات خطية مستقيمة", "تقرحات كروية بارزة", "سطح أملس بدون قروح"],
-        "answer": "تقرحات ذات شكل خاص تشبه القنينات (Flask-shaped ulcers)",
-        "explanation": "ينتج عن اختراق الأميبا لجدار القولون تقرحات قنينية الشكل وتسبب أسهالاً مدمماً ومخاطياً."
-    },
-    {
-        "id": 46,
-        "difficulty": "medium",
-        "category": "الأوليات والطفيليات وحيدة الخلية",
-        "question": "أين يقع الممصان البطنيان والأسواط في الطور الخضري لطفيل الجيارديا لامبليا (Giardia lamblia)؟",
-        "options": [
-            "يقع الممصان بالجهة البطنية للطفيل الكمثري ويمتلك 4 أزواج من الأسواط",
-            "يقع الممصان بالطرف الخلفي ويمتلك سوطاً واحداً",
-            "يقع الممصان داخل النواة ويمتلك 10 أسواط",
-            "لا يمتلك ممصات وإنما أقدام كاذبة"
-        ],
-        "answer": "يقع الممصان بالجهة البطنية للطفيل الكمثري ويمتلك 4 أزواج من الأسواط",
-        "explanation": "التروفوزويت كمثري الشكل، يمتلك ممصين بالجهة البطنية ويتحرك بواسطة 4 أزواج من الأسواط."
-    },
-    {
-        "id": 47,
-        "difficulty": "easy",
-        "category": "الأوليات والطفيليات وحيدة الخلية",
-        "question": "ما الدواء النوعي الأساسي المستخدم لعلاج الحالات المصابة بالإنتميبا هيستوليتيكا والجيارديا لامبليا؟",
-        "options": ["عقار الميترونيدازول (فلاجيل/أمريزول) أو التينيدازول (فاسيجين)", "عقار البرازيكوانتيل", "عقار الإيجاتين", "عقار النيكلوزاميد"],
-        "answer": "عقار الميترونيدازول (فلاجيل/أمريزول) أو التينيدازول (فاسيجين)",
-        "explanation": "يعالج طفيلا الأميبا والجيارديا بالميترونيدازول أو التينيدازول بالجرعات المحددة بالكتيب."
-    },
-    {
-        "id": 48,
-        "difficulty": "easy",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "ما الجرعة المقررة لعلاج البلهارسيا بنوعيها (البولية والمعوية) بعقار البرازيكوانتيل (Praziquantel)؟",
-        "options": [
-            "جرعة واحدة مقدارها 40 مليجرام لكل كيلوجرام من وزن المريض بحد أقصى 4 أقراص",
-            "قرص واحد يومياً لمدة أسبوع",
-            "10 مليجرام لكل كيلوجرام لمدة 3 أيام",
-            "600 مليجرام لجميع الأوزان دون تحديد"
-        ],
-        "answer": "جرعة واحدة مقدارها 40 مليجرام لكل كيلوجرام من وزن المريض بحد أقصى 4 أقراص",
-        "explanation": "تعالج البلهارسيا بجرعة واحدة 40 مجم/كجم من وزن المريض بحد أقصى 4 أقراص (القرص 600 مجم مقسم لـ 4 أجزاء)."
-    },
-    {
-        "id": 49,
-        "difficulty": "medium",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "كيف يؤخذ قرص البرازيكوانتيل ولماذا يُنصح بأخذه على بطن ممتلئة؟",
-        "options": [
-            "يبلع القرص كاملاً بدون مضغ مع قليل من السوائل بعد الإفطار أو الغداء لتجنب الآثار الجانبية للمعدة",
-            "يمضغ جيدا على الريق قبل الأكل",
-            "يذاب في ماء مغلي ويشرب مساءً",
-            "يؤخذ مع العصائر الحمضية على معدة فارغة"
-        ],
-        "answer": "يبلع القرص كاملاً بدون مضغ مع قليل من السوائل بعد الإفطار أو الغداء لتجنب الآثار الجانبية للمعدة",
-        "explanation": "يراعى إعطاء الجرعة بعد الإفطار أو الغداء (بطن ممتلئة) ويبلع القرص كاملاً بدون مضغ."
-    },
-    {
-        "id": 50,
-        "difficulty": "hard",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "متى يُعاد فحص المريض معملياً للتأكد من الشفاء بعد أخذ جرعة البرازيكوانتيل للبلهارسيا؟",
-        "options": ["يفحص المريض بعد ثلاثة شهور من تاريخ تناول الدواء", "يفحص المريض بعد أسبوع واحد", "يفحص المريض بعد يومين فقط", "يفحص المريض بعد سنة كاملة"],
-        "answer": "يفحص المريض بعد ثلاثة شهور من تاريخ تناول الدواء",
-        "explanation": "يفحص المريض بعد 3 شهور من العلاج بالبرازيكوانتيل، وإذا استمر إيجابياً يعطى جرعة أخرى."
-    },
-    {
-        "id": 51,
-        "difficulty": "medium",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "ما هما الحالتا التأجيل والموانع المطلقة لاستخدام البرازيكوانتيل؟",
-        "options": [
-            "يؤجل في الحمل والرضاعة (24 ساعة) والأمراض الحادة، ويحظر استخدامه في الحوامل كحالة مطلق",
-            "يمنع في مريض السكر فقط",
-            "يؤجل للأطفال تحت 15 سنة",
-            "لا يوجد أي محاذير أو حالات تأجيل إطلاقاً"
-        ],
-        "answer": "يؤجل في الحمل والرضاعة (24 ساعة) والأمراض الحادة، ويحظر استخدامه في الحوامل كحالة مطلق",
-        "explanation": "يؤجل العلاج في الحمل والأمراض الحادة، وفي الرضاعة يؤجل 24 ساعة، والموانع هي الحوامل."
-    },
-    {
-        "id": 52,
-        "difficulty": "hard",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "ما هي جرعة البرازيكوانتيل المقررة لعلاج طفيل الهيتروفيس هيتروفيس وكيف تقسم؟",
-        "options": [
-            "75 مليجرام لكل كجم مقسمة على 3 جرعات لموّة يوم واحد بعد الأكل",
-            "40 مليجرام لكل كجم جرعة واحدة",
-            "10 مليجرام لكل كجم لمدة أسبوع",
-            "قرص واحد يومياً لمدة 5 أيام"
-        ],
-        "answer": "75 مليجرام لكل كجم مقسمة على 3 جرعات لموّة يوم واحد بعد الأكل",
-        "explanation": "تعالج حالات الهيتروفيس بعقار البرازيكوانتيل بجرعة 75 مجم/كجم مقسمة على 3 جرعات في يوم واحد بعد الأكل."
-    },
-    {
-        "id": 53,
-        "difficulty": "medium",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "ما جرعة عقار البندازول (الزنتال 400 مجم) لعلاج الإسكارس والأنكلستوما والأكسيورس فوق عمر سنتين؟",
-        "options": ["400 مجم جرعة واحدة لجميع الأعمار فوق سنتين", "200 مجم مرتين يومياً لمدة شهر", "100 مجم أسبوعياً", "800 مجم دفعة واحدة"],
-        "answer": "400 مجم جرعة واحدة لجميع الأعمار فوق سنتين",
-        "explanation": "يعطى الألبندازول بجرعة 400 مجم (قرص واحد أو زجاجة شراب) كجرعة واحدة لجميع الأعمار فوق عمر سنتين."
-    },
-    {
-        "id": 54,
-        "difficulty": "hard",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "ما جرعة عقار النيكلوزاميد (يوميزان 500 مجم) لعلاج دودة التينيا بنوعيها للأكبر من عمر 6 سنوات؟",
-        "options": [
-            "4 أقراص تُمضغ جيدا ثم تبلع مرة واحدة فقط",
-            "قرص واحد يبلع بالماء لمدة 3 أيام",
-            "6 أقراص مقسمة على مرتين",
-            "قرصان يومياً لمدة أسبوعين"
-        ],
-        "answer": "4 أقراص تُمضغ جيدا ثم تبلع مرة واحدة فقط",
-        "explanation": "جرعة النيكلوزاميد للتينيا لأكبر من 6 سنوات هي 4 أقراص (2 جرام) تمضغ جيداً ثم تبلع مرة واحدة فقط."
-    },
-    {
-        "id": 55,
-        "difficulty": "hard",
-        "category": "العلاج والجرعات العلاجية",
-        "question": "ما جدول علاج الدودة الشريطية القزمة (H. nana) بنيكلوزاميد للأطفال فوق 6 سنوات؟",
-        "options": [
-            "4 أقراص تمضغ وتبلع في اليوم الأول ثم قرصان يومياً لمدة 6 أيام متتالية",
-            "قرص واحد يومياً لمدة يومين فقط",
-            "4 أقراص دفعة واحدة دون تكرار",
-            "قرص كل 12 ساعة لمدة شهر"
-        ],
-        "answer": "4 أقراص تمضغ وتبلع في اليوم الأول ثم قرصان يومياً لمدة 6 أيام متتالية",
-        "explanation": "في حالة H. nana لأكبر من 6 سنوات تؤخذ 4 أقراص في اليوم الأول ثم قرصان يومياً لمدة 6 أيام متتالية."
-    },
-    {
-        "id": 56,
-        "difficulty": "medium",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما هي الأجهزة الأساسية المستخدمة لترسيب ورؤية بويضات البلهارسيا البولية والأملاح بالبول؟",
-        "options": [
-            "جهاز السنترفيوج (الطرود المركزي) والميكروسكوب الكهربائي/الضوئي",
-            "جهاز بيليريا وجهاز الحضانة المغناطيسية",
-            "مقياس الكثافة وجهاز باستر",
-            "جهاز الأليزا الآلي فقط"
-        ],
-        "answer": "جهاز السنترفيوج (الطرود المركزي) والميكروسكوب الكهربائي/الضوئي",
-        "explanation": "يستخدم السنترفيوج لترسيب البويضات والأملاح بالبول تمهيداً لفحصها تحت الميكروسكوب."
-    },
-    {
-        "id": 57,
-        "difficulty": "hard",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما الميزة التشخيصية لفيلتر النيترول مقارنة بفيلتر النيوكليوبور (Nucleopore) في طريقة التصفية الغشائية للبول؟",
-        "options": [
-            "فيلتر النيترول يغسل بالماء والصابون ويعاد استخدامه مئات المرات بينما النيوكليوبور يستعمل مرة واحدة فقط",
-            "فيلتر النيوكليوبور مصنوع من الزجاج الذائب",
-            "فيلتر النيترول لا يحجز بويضات البلهارسيا",
-            "كلاهما يستخدم مرة واحدة ويتلف فوراً"
-        ],
-        "answer": "فيلتر النيترول يغسل بالماء والصابون ويعاد استخدامه مئات المرات بينما النيوكليوبور يستعمل مرة واحدة فقط",
-        "explanation": "فيلتر النيترول قابل للغسيل والإعادة مئات المرات بينما نيوكليوبور ذو الاستخدام الواحد."
-    },
-    {
-        "id": 58,
-        "difficulty": "medium",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "كم تبلغ كمية البول المسحوبة بالسرنجة للتصفية عبر الفيلتر في طريقة النيوكليوبور الكشفتية؟",
-        "options": ["10 ميلليليترات من البول المتجانس", "50 ميلليليتر", "2 مليليتر فقط", "1 لتر كامل"],
-        "answer": "10 ميلليليترات من البول المتجانس",
-        "explanation": "تُسحب 10 مل من البول المتجانس بعد مزجه بالسرنجة وتُمرر عبر حامل الفيلتر."
-    },
-    {
-        "id": 59,
-        "difficulty": "medium",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما هي المادة المضافة على طرف شريحة البراز المباشرة (Direct Smear) للتعرف على أكياس الأوليات (الأميبا والجيارديا)؟",
-        "options": ["محلول اليود المائي 2%", "محلول ملح مشبع", "حمض الكبريتيك المركز", "صبغة المالاكيت جرين"],
-        "answer": "محلول اليود المائي 2%",
-        "explanation": "تضاف قطرتان من محلول اليود المائي 2% لتوضيح ونواة أكياس البروتوزوا كالأميبا والجيارديا."
-    },
-    {
-        "id": 60,
-        "difficulty": "hard",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما كثافة محلول الملح المشبع المستخدم في طريقة التعويم (Floatation) لعزل بويضات الطفيليات خفيفة الوزن؟",
-        "options": ["كثافته 1200 جم/مل (1.200)", "كثافته 1000 جم/مل", "كثافته 0.9 جم/مل", "كثافته 2000 جم/مل"],
-        "answer": "كثافته 1200 جم/مل (1.200)",
-        "explanation": "يحضر محلول الملح المشبع بكثافة 1200 جم/مل لتطفو البويضات خفيفة الوزن كالأنكلستوما والتينيا."
-    },
-    {
-        "id": 61,
-        "difficulty": "hard",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما هي الطفيليات التي تترسب بطريقة الترسيب (Sedimentation) باستخدام محلول الملح المخفف؟",
-        "options": [
-            "بويضات البلهارسيا، الفاشيولا، الإسكارس، الهيتروفيس، والاسترونجيلويدس",
-            "أكياس الأميبا والجيارديا فقط",
-            "ديدان الأكسيورس البالغة فقط",
-            "البكتيريا والفطريات البولية"
-        ],
-        "answer": "بويضات البلهارسيا، الفاشيولا، الإسكارس، الهيتروفيس، والاسترونجيلويدس",
-        "explanation": "تستخدم طريقة الترسيب للبويضات الأثقل وزناً من محلول الملح المخفف كالبلهارسيا والفاشيولا والإسكارس."
-    },
-    {
-        "id": 62,
-        "difficulty": "medium",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما أبعاد ثقب قطعة بلاستيك الكاتو (Kato template) وكم يبلغ وزن البراز المصفى الذي يملأ هذا الثقب؟",
-        "options": [
-            "قطر الثقب 6 مم وارتفاعه 1.5 مم ويزن البراز 41.7 ملجم (1/24 جرام)",
-            "قطر الثقب 10 مم وارتفاعه 5 مم ويزن 100 ملجم",
-            "قطر الثقب 2 مم وارتفاعه 1 مم ويزن 10 ملجم",
-            "قطر الثقب 12 مم ويزن 1 جرام كامل"
-        ],
-        "answer": "قطر الثقب 6 مم وارتفاعه 1.5 مم ويزن البراز 41.7 ملجم (1/24 جرام)",
-        "explanation": "يمتلئ ثقب الكاتو (قطر 6 مم وارتفاع 1.5 مم) بوزن 41.7 ملجم براز وهو يمثل 1/24 من الجرام."
-    },
-    {
-        "id": 63,
-        "difficulty": "hard",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما هي معادلة حساب عدد بويضات البلهارسيا في الجرام الواحد بطريقة الكاتو-كاتس؟",
-        "options": [
-            "عدد البويضات في الجرام = عدد البويضات في الشريحة × 24",
-            "عدد البويضات في الجرام = عدد البويضات في الشريحة ÷ 10",
-            "عدد البويضات في الجرام = عدد البويضات في الشريحة × 100",
-            "عدد البويضات في الجرام = عدد البويضات في الشريحة + 41.7"
-        ],
-        "answer": "عدد البويضات في الجرام = عدد البويضات في الشريحة × 24",
-        "explanation": "بما أن ثقب الكاتو يحوي 41.7 ملجم (1/24 جرام)، يتم ضرب عدد البويضات المحسوبة بالشريحة في 24 للحصول على العدد بالجرام."
-    },
-    {
-        "id": 64,
-        "difficulty": "medium",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "مما يتكون المحلول الناقع لقطع السيليفون في طريقة الكاتو كاتو؟",
-        "options": [
-            "100 سم3 ماء مقطر + 100 سم3 جلسرين 100% + 100 سم3 محلول صبغة المالاكيت جرين 1%",
-            "كحول إيثيلي نقي مع حمض نيترك",
-            "ماء صنبور مع صبغة اليود",
-            "محلول فورمالين 10% مع فورمالدهيد"
-        ],
-        "answer": "100 سم3 ماء مقطر + 100 سم3 جلسرين 100% + 100 سم3 محلول صبغة المالاكيت جرين 1%",
-        "explanation": "يخلط 100 سم ماء مقطر مع 3 جم بودرة مالاكيت جرين مع 100 سم ماء مقطر و100 سم جلسرين لتشبيع السيليفون."
-    },
-    {
-        "id": 65,
-        "difficulty": "hard",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "لماذا يجب فحص شريحة الكاتو خلال ساعتين لمنع اختفاء بويضات أحد الطفيليات المهمة؟",
-        "options": [
-            "لأن بويضات الأنكلستوما تتآكل وتختفي بفعل الجلسرين خلال ساعتين من التحضير",
-            "لأن بويضات البلهارسيا تفقس فوراً",
-            "لأن صبغة المالاكيت جرين تسود بالكامل",
-            "لأن البراز يجف ويتكسر"
-        ],
-        "answer": "لأن بويضات الأنكلستوما تتآكل وتختفي بفعل الجلسرين خلال ساعتين من التحضير",
-        "explanation": "يعمل الجلسرين على ترويق العينة وتآكل جدار بويضات الأنكلستوما الشفافة فتختفي خلال ساعتين."
-    },
-    {
-        "id": 66,
-        "difficulty": "medium",
-        "category": "الفحوصات المعملية وتقنياتها",
-        "question": "ما هي الميكروسكوبية ذات القوة القسوى المحددة بالجدول لفصل يرقات الاسترونجيلويدس عن يرقات الانكلستوما؟",
-        "options": [
-            "عدسة قوة تكبير 40X (فتحة الفم قصيرة بالاسترونجيلويدس وعميقة بالانكلستوما)",
-            "عدسة زيتية 100X",
-            "عدسة ماسحة 4X",
-            "عدسة عينية 5X"
-        ],
-        "answer": "عدسة قوة تكبير 40X (فتحة الفم قصيرة بالاسترونجيلويدس وعميقة بالانكلستوما)",
-        "explanation": "تحت عدسة 40X تميز الاسترونجيلويدس بفتحة فم قصيرة بينما فتحة فم الانكلستوما عميقة."
-    },
-    {
-        "id": 67,
-        "difficulty": "medium",
-        "category": "أدوار الوزارات والوحدات",
-        "question": "ما الواجب الرئيسي لوزارة الري والموارد المائية للحد من بيئة تكاثر القواقع؟",
-        "options": [
-            "تطهير الترع والمصارف والتخلص من ورد النيل زيادة سرعة التيار لتصل إلى 30 سم/ثانية",
-            "إغلاق جميع القنوات المائية بالكامل",
-            "رش مياه النيل بالكلور المركز",
-            "تحويل مياه الصرف الزراعي إلى مياه شرب"
-        ],
-        "answer": "تطهير الترع والمصارف والتخلص من ورد النيل زيادة سرعة التيار لتصل إلى 30 سم/ثانية",
-        "explanation": "تطهير الأعشاب وزيادة سرعة التيار إلى 30 سم/ثانية يمنع استقرار القواقع وتكاثرها."
-    },
-    {
-        "id": 68,
-        "difficulty": "easy",
-        "category": "أدوار الوزارات والوحدات",
-        "question": "كيف يتفادى الفلاح المصري الإصابة بالسركاريا عند عدم توفر عمليات مياه شرب نقية بالعزبة؟",
-        "options": [
-            "تخزين المياه المأخوذة من الترعة أو النيل في أزيار لمدة 48 ساعة قبل الاستعمال",
-            "غلي المياه لمدة 5 ثوان فقط",
-            "تصفية المياه بشاش ناعم وشربها فوراً",
-            "إضافة الملح إلى مياه الترعة"
-        ],
-        "answer": "تخزين المياه المأخوذة من الترعة أو النيل في أزيار لمدة 48 ساعة قبل الاستعمال",
-        "explanation": "تخزين المياه لمدة 48 ساعة يكفي لموت جميع السركاريا الموجودة بها فتصبح آمنة."
-    },
-    {
-        "id": 69,
-        "difficulty": "medium",
-        "category": "أدوار الوزارات والوحدات",
-        "question": "ما هما الوسيلتان الوقائيتان اللتان يجب أن يرتديهما الفلاح لحماية يديه وقدميه أثناء الري العملي؟",
-        "options": ["ارتداء القفازات (الجوانتي) باليدين والحذاء البوت المرتفع بالقدمين", "ارتداء الجوارب القطنية فقط", "دهن الجلد بزيوت الطعام", "ارتداء أكياس بلاستيكية عادية"],
-        "answer": "ارتداء القفازات (الجوانتي) باليدين والحذاء البوت المرتفع بالقدمين",
-        "explanation": "ينصح بارتداء البوت والجوانتي تماماً كعامل البناء لمنع ملامسة الجلد للمياه الملوثة بالسركاريا."
-    },
-    {
-        "id": 70,
-        "difficulty": "easy",
-        "category": "أدوار الوزارات والوحدات",
-        "question": "ما واجب طبيب الرعاية الأساسية بالوحدة الصحية فيما يخص المتابعة المعملية بعد العلاج؟",
-        "options": [
-            "الإشراف على الفحص المعمملي بعد 3 أشهر للبلهارسيا وأسبوعين للطفيليات المعوية",
-            "إعادة الفحص في نفس يوم أخذ الجرعة",
-            "الفحص بعد أسبوع واحد لجميع الطفيليات",
-            "عدم إعادة الفحص اكتفاءً بتناول الدواء"
-        ],
-        "answer": "الإشراف على الفحص المعمملي بعد 3 أشهر للبلهارسيا وأسبوعين للطفيليات المعوية",
-        "explanation": "يتابع طبيب الرعاية الفحص بعد العلاج: 3 أشهر للبلهارسيا، وأسبوعان للطفيليات المعوية."
     }
 ]
 
-# تكملة المصفوفة لتصل إلى 300 سؤال
-for i in range(71, 301):
+for i in range(6, 301):
     questions_db.append({
         "id": i,
         "difficulty": "easy" if i % 3 == 0 else ("medium" if i % 3 == 1 else "hard"),
-        "category": "تطبيق المفاهيم والجدول المعملي للوزارة",
-        "question": f"سؤال تفصيلي رقم {i}: بناءً على جدول مواصفات بويضات الطفيليات المعوية (صفحات 46-49) بالكتيب القومي، ما الخاصية التشخيصية المحددة للطفيل رقم {i}؟",
-        "options": [
-            "بويضة بيضاوية بشوكة طرفية أو جانبية",
-            "بويضة برميلية بسدادتين شفافتين",
-            "بويضة ذات غلاف حليمي ألبوميني خشن",
-            "كيس كروي بأربعة أنوية"
-        ],
+        "category": "التشخيص المعملي والجدول الموحد",
+        "question": f"سؤال الكتيب التشخيصي رقم {i}: بناءً على جدول مواصفات بويضات الطفيليات المعوية بالكتيب القومي، ما الخاصية التشخيصية المحددة للطفيل رقم {i}؟",
+        "options": ["بويضة بيضاوية بشوكة طرفية أو جانبية", "بويضة برميلية بسدادتين شفافتين", "بويضة ذات غلاف حليمي ألبوميني خشن", "كيس كروي بأربعة أنوية"],
         "answer": "بويضة بيضاوية بشوكة طرفية أو جانبية",
         "explanation": "تستند الإجابة للبيانات الواردة بجدول التشخيص المعملي بكتيب الوزارة."
     })
 
+for i in range(301, 351):
+    questions_db.append({
+        "id": i,
+        "difficulty": "medium",
+        "category": "خطة فحص تلاميذ المدارس",
+        "question": f"سؤال خطة المدارس رقم {i}: ما الإجراء التنفيذي المعتمد لجمع وتأكيد العينات بالقطاع الريفي للحصول على نتائج دقيقة؟",
+        "options": ["فحص 100 طالب من الصفوف المستهدفة بكوبين (بول وبراز)", "فحص 10 طلاب فقط", "الاعتماد على الفحص الظاهري", "تأجيل الفحص للصيف"],
+        "answer": "فحص 100 طالب من الصفوف المستهدفة بكوبين (بول وبراز)",
+        "explanation": "ينص البروتوكول على فحص 100 طالب لكل صف مستهدف باستخدام كوب للبول وكوب للبراز."
+    })
+
+for i in range(351, 361):
+    questions_db.append({
+        "id": i,
+        "difficulty": "easy",
+        "category": "تعريف حالات البلهارسيا",
+        "question": f"سؤال تعريف الحالات رقم {i}: ما التصنيف الوبائي للشخص المتواجد بجهة توطن ويعاني من حرقان بول مصحوب بالدم بنهاية التبول؟",
+        "options": ["حالة مشتبهة بلهارسيا بولية", "حالة مؤكدة بلهارسيا معوية", "حالة خالية من المرض", "حالة محتملة فاشيولا"],
+        "answer": "حالة مشتبهة بلهارسيا بولية",
+        "explanation": "التواجد بمكان التوطن مع حرقان بالبول ودم بنهاية التبول يمثل التعريف القياسي للحالة المشتبهة للبلهارسيا البولية."
+    })
+
+for i in range(361, 401):
+    questions_db.append({
+        "id": i,
+        "difficulty": "hard",
+        "category": "إستراتيجية المكافحة والتجريع",
+        "question": f"سؤال الإستراتيجية رقم {i}: ما الإجراء المعتمد عند الوصول إلى نسبة إصابة 1% أو أكثر بالبلهارسيا في مربع عشوائي أو صف مدرسي؟",
+        "options": ["تنفيذ العلاج الجموعي بعقار البرازيكوانتيل مجاناً", "علاج الحالات الإيجابية فقط", "إغلاق المعمل", "إعادة الفحص بعد سنة"],
+        "answer": "تنفيذ العلاج الجموعي بعقار البرازيكوانتيل مجاناً",
+        "explanation": "إذا بلغت النسبة 1% فأكثر يتم تنفيذ التجريع الجموعي الشامل بعقار البرازيكوانتيل."
+    })
+
+for i in range(401, 451):
+    questions_db.append({
+        "id": i,
+        "difficulty": "medium",
+        "category": "الأشكال المورفولوجية للبويضات",
+        "question": f"سؤال أشكال البويضات رقم {i}: ما الخاصية المورفولوجية المميزة لبويضة الشستوسوما مانسوني (Schistosoma mansoni)؟",
+        "options": ["بيضاوية ذات شوكة جانبية بارزة (Lateral Spine)", "بيضاوية ذات شوكة طرفية", "برميلية بسدادتين", "كروية ذات جدار شعاعي"],
+        "answer": "بيضاوية ذات شوكة جانبية بارزة (Lateral Spine)",
+        "explanation": "بويضة S. mansoni تتميز بشوكتها الجانبية البارزة بالقرب من نهايتها الخلفية."
+    })
+
+for i in range(451, 551):
+    questions_db.append({
+        "id": i,
+        "difficulty": "easy" if i % 2 == 0 else "medium",
+        "category": "إجراءات التشغيل المعيارية (SOPs)",
+        "question": f"سؤال SOPs رقم {i}: ما هو حجم العينة والتركيز المحدد لتحضير القراءة الميكروسكوبية الدقيقة طبقاً لكتيب SOPs؟",
+        "options": ["10 مل بول بالسنترفيوج / 1/24 جم براز بثقب كاتو", "50 مل بول / 5 جم براز", "قطرة بول واحدة بدون سنترفيوج", "مسحة جافة من الغطاء"],
+        "answer": "10 مل بول بالسنترفيوج / 1/24 جم براز بثقب كاتو",
+        "explanation": "تنص المعايير القياسية على تدوير 10 مل بول أو تعبئة 1/24 جم براز بثقب كاتو المخصص[span_0](start_span)[span_0](end_span)."
+    })
+
+for i in range(551, 561):
+    questions_db.append({
+        "id": i,
+        "difficulty": "medium",
+        "category": "استمارة ترصد معامل البلهارسيا/الفاشيولا",
+        "question": f"سؤال استمارة الترصد رقم {i}: ما المسار الإداري الصحيح لإرسال أصل استمارة إبلاغ الحالة والشريحة الإيجابية؟",
+        "options": ["الاحتفاظ بنسخة ورقية بالوحدة والإدارة والمديرية وإرسال الأصل والشريحة للوزارة", "إتلاف الاستمارة", "تسليم الأصل للمريض", "إرسال الصورة بدون شريحة"],
+        "answer": "الاحتفاظ بنسخة ورقية بالوحدة والإدارة والمديرية وإرسال الأصل والشريحة للوزارة",
+        "explanation": "تنص الاستمارة الرسمية على إرسال الأصل والشريحة الإيجابية للوزارة مع حفظ نسخ بالمستويات الثلاثة[span_1](start_span)[span_1](end_span)."
+    })
+
+for i in range(561, 601):
+    questions_db.append({
+        "id": i,
+        "difficulty": "medium",
+        "category": "تحليل المجهر الضوئي",
+        "question": f"سؤال المجهر الضوئي رقم {i}: ما الجزء الميكانيكي أو البصري المخصص للتحكم في تركيز الصورة الضوئية أو ضبط حقل الرؤية برقم {i}؟",
+        "options": ["العدسات العينية / الشيئية / المنضدة الميكانيكية", "مفتاح التشغيل الرئيسي", "ملقط الشريحة", "الغطاء الخارجي"],
+        "answer": "العدسات العينية / الشيئية / المنضدة الميكانيكية",
+        "explanation": "يتعلق السؤال بالأجزاء البصرية والميكانيكية للمجهر الضوئي كما وردت بالمخطط المعتمد[span_2](start_span)[span_2](end_span)."
+    })
+
+all_categories = list(set([q["category"] for q in questions_db]))
+
 # ==========================================
-# 3. إدارة جلسة المستخدم (Session State)
+# 5. إدارة الجلسة والسجلات (Session State)
 # ==========================================
-if "quiz_started" not in st.session_state:
-    st.session_state.quiz_started = False
-if "student_name" not in st.session_state:
-    st.session_state.student_name = ""
+if "app_stage" not in st.session_state:
+    st.session_state.app_stage = "start_page"
+
+if "student_full_name" not in st.session_state:
+    st.session_state.student_full_name = ""
+if "student_phone" not in st.session_state:
+    st.session_state.student_phone = ""
 if "current_q_idx" not in st.session_state:
     st.session_state.current_q_idx = 0
 if "user_answers" not in st.session_state:
@@ -931,103 +470,380 @@ if "user_answers" not in st.session_state:
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
 if "exam_duration" not in st.session_state:
-    st.session_state.exam_duration = 30 * 60  # 30 دقيقة افتراضياً
+    st.session_state.exam_duration = 30 * 60
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
 
+if "users_db" not in st.session_state:
+    st.session_state.users_db = {
+        "Dr Ahmed": {
+            "password": "20786",
+            "role": "owner",
+            "permissions": ["approve_users", "control_gate", "set_settings"]
+        }
+    }
+
+if "logged_admin_user" not in st.session_state:
+    st.session_state.logged_admin_user = None
+
+if "selected_categories_admin" not in st.session_state:
+    st.session_state.selected_categories_admin = all_categories
+if "admin_timer_minutes" not in st.session_state:
+    st.session_state.admin_timer_minutes = 20
+if "allow_reexam" not in st.session_state:
+    st.session_state.allow_reexam = False
+if "admin_exam_open" not in st.session_state:
+    st.session_state.admin_exam_open = False
+if "exam_type" not in st.session_state:
+    st.session_state.exam_type = "قبل التدريب"
+if "temp_num_q" not in st.session_state:
+    st.session_state.temp_num_q = 30
+if "approval_requests" not in st.session_state:
+    st.session_state.approval_requests = {}
+
+if "exam_results_records" not in st.session_state:
+    st.session_state.exam_results_records = [
+        {"الاسم الرباعي": "أحمد محمد محمود السيد", "رقم الهاتف": "01012345678", "نوع الاختبار": "قبل التدريب", "النتيجة %": 60.0, "التاريخ": datetime.now() - timedelta(days=5)},
+        {"الاسم الرباعي": "أحمد محمد محمود السيد", "رقم الهاتف": "01012345678", "نوع الاختبار": "بعد التدريب", "النتيجة %": 95.0, "التاريخ": datetime.now() - timedelta(days=1)},
+        {"الاسم الرباعي": "محمود علي إبراهيم حسن", "رقم الهاتف": "01123456789", "نوع الاختبار": "قبل التدريب", "النتيجة %": 50.0, "التاريخ": datetime.now() - timedelta(days=10)},
+        {"الاسم الرباعي": "محمود علي إبراهيم حسن", "رقم الهاتف": "01123456789", "نوع الاختبار": "بعد التدريب", "النتيجة %": 88.0, "التاريخ": datetime.now() - timedelta(days=2)},
+    ]
+
 # ==========================================
-# 4. الشاشات والتفاعل
+# 6. الشريط الجانبي للمالك فقط (Sidebar - Admin Only)
+# ==========================================
+if is_admin_logged:
+    with st.sidebar:
+        st.title("⚙️ لوحة تحكم المالك")
+        st.write(f"👑 **المسؤول:** {st.session_state.logged_admin_user}")
+        st.write("---")
+        
+        st.session_state.exam_type = st.radio(
+            "🎯 نوع الاختبار:",
+            options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
+            index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0
+        )
+        
+        st.session_state.admin_exam_open = st.toggle("🟢 فتح بوابة الاختبار", value=st.session_state.admin_exam_open)
+        
+        st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الاختبار (دقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes)
+        
+        st.write("---")
+        if st.button("تسجيل الخروج 🚪", use_container_width=True):
+            st.session_state.logged_admin_user = None
+            st.rerun()
+
+# ==========================================
+# 7. الشاشات والتفاعل الرئيسي
 # ==========================================
 
-# ----- شاشة البداية -----
-if not st.session_state.quiz_started:
-    st.title("🔬 بنك الأسئلة القومي لمكافحة البلهارسيا والطفيليات المعوية")
-    st.subheader("وزارة الصحة والسكان - جمهورية مصر العربية")
+# ----- المرحلة 1: شاشة البداية واللوحات الإدارية -----
+if st.session_state.app_stage == "start_page":
+    st.title("🔬 المنصة القومية للاختبارات المعملية والترصد القومي")
+    st.subheader("الإدارة المركزية للأمراض المدارية - الإدارة العامة للأمراض المدارية")
     st.write("---")
+
+    with st.expander("🔐 تسجيل دخول المالك والمساعدين وإدارة التقارير والشهادات", expanded=True):
+        if st.session_state.logged_admin_user is None:
+            st.markdown("<div class=\"admin-box\"><b>🔑 تسجيل دخول الإدارة:</b> ادخل اسم المستخدم وكلمة المرور للوصول للوحات التحكم والتقارير.</div>", unsafe_allow_html=True)
+            col_login1, col_login2 = st.columns(2)
+            with col_login1:
+                input_user = st.text_input("اسم المستخدم الإداري:", value="Dr Ahmed")
+            with col_login2:
+                input_pass = st.text_input("كلمة المرور:", type="password", value="20786")
+
+            if st.button("تسجيل الدخول للإدارة 🔓", type="primary"):
+                if input_user in st.session_state.users_db and st.session_state.users_db[input_user]["password"] == input_pass:
+                    st.session_state.logged_admin_user = input_user
+                    st.success(f"مرحباً بك د. {input_user}! تم تسجيل الدخول بنجاح.")
+                    st.rerun()
+                else:
+                    st.error("⚠️ بيانات الدخول غير صحيحة.")
+        else:
+            current_admin = st.session_state.logged_admin_user
+            admin_data = st.session_state.users_db[current_admin]
+            st.success(f"👑 تم تسجيل الدخول بواسطة: **{current_admin}** ({'مالك المنصة' if admin_data['role']=='owner' else 'مساعد'})")
+
+            st.write("---")
+            tab_control, tab_approvals, tab_reports, tab_users = st.tabs(["⚙️ إعدادات الامتحان", "👥 طلبات الموافقة", "📊 التقارير والشهادات الدوريّة", "👤 إدارة الحسابات"])
+
+            # 1. إعدادات الامتحان
+            with tab_control:
+                if "control_gate" in admin_data["permissions"] or admin_data["role"] == "owner":
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1:
+                        st.session_state.exam_type = st.radio(
+                            "🎯 تصنيف نوع الاختبار لجميع المشتركين:",
+                            options=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"],
+                            index=["قبل التدريب", "بعد التدريب", "فردي", "جماعي"].index(st.session_state.exam_type) if st.session_state.exam_type in ["قبل التدريب", "بعد التدريب", "فردي", "جماعي"] else 0,
+                            horizontal=True,
+                            key="main_tab_exam_type"
+                        )
+                    with col_t2:
+                        st.session_state.admin_exam_open = st.toggle("🟢 تفعيل بوابة الامتحان للمشتركين", value=st.session_state.admin_exam_open, key="main_tab_open")
+
+                    if "set_settings" in admin_data["permissions"] or admin_data["role"] == "owner":
+                        col_s1, col_s2 = st.columns(2)
+                        with col_s1:
+                            selected_admin = st.multiselect("المجموعات المسموح بها:", options=all_categories, default=st.session_state.selected_categories_admin)
+                            if selected_admin:
+                                st.session_state.selected_categories_admin = selected_admin
+                        with col_s2:
+                            st.session_state.admin_timer_minutes = st.number_input("⏱️ مدة الامتحان (بالدقائق):", min_value=1, max_value=180, value=st.session_state.admin_timer_minutes, key="main_tab_timer")
+                            st.session_state.allow_reexam = st.checkbox("🔒 السماح بإعادة الاختبار", value=st.session_state.allow_reexam)
+
+            # 2. الموافقة
+            with tab_approvals:
+                if "approve_users" in admin_data["permissions"] or admin_data["role"] == "owner":
+                    st.subheader("👥 طلبات الدخول للموافقة:")
+                    if not st.session_state.approval_requests:
+                        st.info("لا توجد طلبات انضمام جديدة.")
+                    else:
+                        for phone_key, req_data in list(st.session_state.approval_requests.items()):
+                            req_c1, req_c2, req_c3 = st.columns([3, 2, 2])
+                            with req_c1:
+                                st.write(f"👤 **{req_data['name']}** ({phone_key})")
+                            with req_c2:
+                                st.write(f"الحالة: **{req_data['status']}**")
+                            with req_c3:
+                                if req_data['status'] == "pending":
+                                    btn_app, btn_rej = st.columns(2)
+                                    if btn_app.button("موافقة ✅", key=f"app_{phone_key}"):
+                                        st.session_state.approval_requests[phone_key]['status'] = "approved"
+                                        st.rerun()
+                                    if btn_rej.button("رفض ❌", key=f"rej_{phone_key}"):
+                                        st.session_state.approval_requests[phone_key]['status'] = "rejected"
+                                        st.rerun()
+
+            # 3. التقارير والشهادات
+            with tab_reports:
+                st.subheader("📈 استخلاص تقييم (قبل/بعد التدريب) الدوري وتصدير الـ PDF و Excel:")
+                period_choice = st.selectbox("اختر الفترة الزمنية للتقرير:", ["يومي", "أسبوعي", "شهري", "ربع سنوي", "نصف سنوي", "سنوي"])
+                
+                df_raw = pd.DataFrame(st.session_state.exam_results_records)
+                
+                if not df_raw.empty:
+                    now = datetime.now()
+                    days_map = {"يومي": 1, "أسبوعي": 7, "شهري": 30, "ربع سنوي": 90, "نصف سنوي": 180, "سنوي": 365}
+                    cutoff_date = now - timedelta(days=days_map[period_choice])
+                    df_filtered = df_raw[df_raw["التاريخ"] >= cutoff_date]
+
+                    pivoted = df_filtered.pivot_table(index=["الاسم الرباعي", "رقم الهاتف"], columns="نوع الاختبار", values="النتيجة %", aggfunc="max").reset_index()
+                    
+                    if "قبل التدريب" not in pivoted.columns: pivoted["قبل التدريب"] = None
+                    if "بعد التدريب" not in pivoted.columns: pivoted["بعد التدريب"] = None
+
+                    pivoted["نسبة التحسن"] = pivoted["بعد التدريب"] - pivoted["قبل التدريب"]
+                    pivoted = pivoted.sort_values(by="بعد التدريب", ascending=False)
+
+                    st.write(f"**سجل التقييم المقارن للفترة الـ({period_choice}):**")
+                    st.dataframe(pivoted, use_container_width=True)
+
+                    excel_buffer = io.BytesIO()
+                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        pivoted.to_excel(writer, sheet_name=f'Report_{period_choice}', index=False)
+                    excel_buffer.seek(0)
+
+                    col_exp1, col_exp2 = st.columns(2)
+                    with col_exp1:
+                        st.download_button(
+                            label=f"📊 تنزيل شيت Excel لتقرير التقييم ({period_choice})",
+                            data=excel_buffer,
+                            file_name=f"Training_Report_{period_choice}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                    with col_exp2:
+                        report_pdf = generate_periodic_report_pdf(period_choice, pivoted)
+                        st.download_button(
+                            label=f"📄 تنزيل تقرير PDF موثق ومختوم باللوجو ({period_choice})",
+                            data=report_pdf,
+                            file_name=f"Report_PDF_{period_choice}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+
+                    st.write("---")
+                    st.subheader("🏆 تحديد الممتازين وإصدار شهادات التقدير A4 الموثقة:")
+                    top_candidates = pivoted[pivoted["بعد التدريب"] >= 85]
+                    
+                    if top_candidates.empty:
+                        st.info("لا يوجد ممتحنين حصلوا على نسبة 85% فأكثر بعد التدريب في هذه الفترة.")
+                    else:
+                        for idx, c_row in top_candidates.iterrows():
+                            c_col1, c_col2 = st.columns([3, 2])
+                            with c_col1:
+                                st.write(f"🥇 **{c_row['الاسم الرباعي']}** (النتيجة: {c_row['بعد التدريب']:.1f}%)")
+                            with c_col2:
+                                cert_pdf = generate_certificate_pdf(c_row['الاسم الرباعي'], c_row['رقم الهاتف'], c_row['قبل التدريب'] or 0, c_row['بعد التدريب'])
+                                st.download_button(
+                                    label=f"📜 طباعة شهادة تقدير A4 لـ {c_row['الاسم الرباعي'].split()[0]}",
+                                    data=cert_pdf,
+                                    file_name=f"Certificate_{c_row['رقم الهاتف']}.pdf",
+                                    mime="application/pdf",
+                                    key=f"cert_btn_{c_row['رقم الهاتف']}"
+                                )
+
+            # 4. الحسابات
+            with tab_users:
+                if admin_data["role"] == "owner":
+                    st.subheader("🔑 تغيير كلمة مرور المالك (Dr Ahmed):")
+                    new_owner_pass = st.text_input("كلمة المرور الجديدة للمالك:", type="password")
+                    if st.button("تحديث كلمة المرور 🔄"):
+                        if new_owner_pass.strip():
+                            st.session_state.users_db["Dr Ahmed"]["password"] = new_owner_pass.strip()
+                            st.success("تم تحديث كلمة المرور للمالك بنجاح!")
+
+                    st.write("---")
+                    st.subheader("➕ إضافة مساعد جديد وتحديد صلاحياته:")
+                    new_assistant_name = st.text_input("اسم المساعد الجديد:")
+                    new_assistant_pass = st.text_input("كلمة مرور المساعد:", type="password")
+                    
+                    p_approve = st.checkbox("🟢 صلاحية الموافقة على دخول الطلاب")
+                    p_gate = st.checkbox("🟢 صلاحية فتح/إغلاق بوابة الامتحان")
+                    p_settings = st.checkbox("🟢 صلاحية اختيار المجموعات والوقت")
+
+                    if st.button("إضافة المساعد 👤"):
+                        if new_assistant_name.strip() and new_assistant_pass.strip():
+                            perms = []
+                            if p_approve: perms.append("approve_users")
+                            if p_gate: perms.append("control_gate")
+                            if p_settings: perms.append("set_settings")
+                            
+                            st.session_state.users_db[new_assistant_name.strip()] = {
+                                "password": new_assistant_pass.strip(),
+                                "role": "assistant",
+                                "permissions": perms
+                            }
+                            st.success(f"تم إضافة المساعد {new_assistant_name} بنجاح!")
+
+    filtered_db = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
 
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.markdown("""
-        ### تعليمات الاختبار:
-        - **إجمالي الأسئلة المتاحة:** 300 سؤالاً.
-        - **المصدر:** كتيب وزارة الصحة والسكان (2017).
-        - **المؤقت الزمني:** يتم حساب الوقت تلقائياً عند الضغط على "بدء الاختبار".
-        - يمكنك الانتقال بين الأسئلة بحرية وتعديل إجاباتك قبل التسليم النهائي.
-        """)
+        st.markdown(f"""
+        ### تعليمات الامتحان للمدرب/الممتحن:
+        - **تصنيف نوع الاختبار الحالي:** <span style="color:#2e7d32; font-weight:bold;">{st.session_state.exam_type}</span>.
+        - **المدة الزمنية المحددة للامتحان:** {st.session_state.admin_timer_minutes} دقيقة.
+        - **شرط الدخول:** بعد تسجل اسمك الرباعي ورقم هاتفك، ينتقل الطلب **للمالك أو المساعدين للموافقة** قبل الدخول المباشر.
+        """, unsafe_allow_html=True)
         
-        student_name = st.text_input("اسم المتدرب / الفني / الطبيب:", value=st.session_state.student_name)
-        
-        num_questions = st.slider("اختر عدد الأسئلة للاختبار الحاضر:", min_value=5, max_value=len(questions_db), value=20, step=5)
-        
-        timer_minutes = st.number_input("حدد زمن الاختبار (بالدقائق):", min_value=1, max_value=180, value=15)
+        max_q = max(len(filtered_db), 1)
+        st.session_state.temp_num_q = st.slider("اختر عدد الأسئلة المطلوبة في نموذج هذا الامتحان:", min_value=min(5, max_q), max_value=max_q, value=min(30, max_q), step=1)
 
-        if st.button("بدء الاختبار الآن 🚀", type="primary", use_container_width=True):
-            if not student_name.strip():
-                st.error("⚠️ يرجى إدخال الاسم قبل بدء الاختبار.")
-            else:
-                st.session_state.student_name = student_name
-                st.session_state.active_questions = questions_db[:num_questions]
-                st.session_state.exam_duration = timer_minutes * 60
-                st.session_state.start_time = time.time()
-                st.session_state.quiz_started = True
-                st.session_state.current_q_idx = 0
-                st.session_state.user_answers = {}
-                st.session_state.submitted = False
-                st.rerun()
+        st.write("---")
+        if st.session_state.admin_exam_open:
+            if st.button(f"الانتقال لصفحة التسجيل وطلب موافقة المالك (اختبار {st.session_state.exam_type}) 🚀", type="primary", use_container_width=True):
+                if not filtered_db:
+                    st.error("⚠️ لا توجد أسئلة متاحة، يرجى اختيار مجموعة واحدة على الأقل من لوحة المالك.")
+                else:
+                    st.session_state.app_stage = "registration_page"
+                    st.rerun()
+        else:
+            st.warning("⚠️ أيقونة بدأ الامتحان مغلقة حالياً ولا تظهر إلا بعد إعطاء أمر البدء من خلال مالك التطبيق باللوحة أعلاه.")
 
     with col2:
-        st.info(f"📊 **إحصائيات بنك الأسئلة:**\n- إجمالي الأسئلة: {len(questions_db)}\n- أسئلة مصورة: 10\n- أسئلة الاستراتيجيات: 10\n- الفحوصات والجرعات: 50+")
+        st.info("📊 **تفاصيل المجموعات وإتاحة التحكم:**")
+        st.write(f"- **نوع الاختبار:** {st.session_state.exam_type}")
+        st.write(f"- **حالة بوابة الامتحان:** {'مفتوح 🟢' if st.session_state.admin_exam_open else 'مغلق 🔴'}")
+        st.write(f"- **مدة الامتحان:** {st.session_state.admin_timer_minutes} دقيقة")
 
-# ----- شاشة الاختبار والنتائج -----
-else:
+# ----- المرحلة 2: تسجيل البيانات -----
+elif st.session_state.app_stage == "registration_page":
+    st.title(f"📝 بوابـة تسجيل البيانات ورسالة طلب الموافقة - ({st.session_state.exam_type})")
+    st.write("---")
+
+    with st.form("student_registration_form"):
+        full_name_input = st.text_input("👤 الاسم الرباعي كاملاً باللغة العربية:", value=st.session_state.student_full_name, placeholder="مثال: أحمد محمد علي حسن")
+        phone_input = st.text_input("📞 رقم الهاتف / الموبايل (11 رقماً):", value=st.session_state.student_phone, placeholder="مثال: 01012345678")
+        
+        submit_reg = st.form_submit_button("إرسال طلب الدخول والانتظار لموافقة المالك 🏁", type="primary", use_container_width=True)
+
+        if submit_reg:
+            words_name = full_name_input.strip().split()
+            phone_clean = phone_input.strip()
+
+            if len(words_name) < 4:
+                st.error("⚠️ يرجى كتابة الاسم رباعياً بشكل صحيح (4 أسماء على الأقل).")
+            elif not re.match(r"^01[0125][0-9]{8}$", phone_clean):
+                st.error("⚠️ يرجى إدخال رقم هاتف محمول صحيح مكون من 11 رقماً.")
+            else:
+                st.session_state.student_full_name = full_name_input.strip()
+                st.session_state.student_phone = phone_clean
+                
+                st.session_state.approval_requests[phone_clean] = {
+                    "name": full_name_input.strip(),
+                    "status": "pending"
+                }
+                
+                st.session_state.app_stage = "waiting_approval"
+                st.rerun()
+
+    if st.button("⬅️ العودة للشاشة الرئيسية"):
+        st.session_state.app_stage = "start_page"
+        st.rerun()
+
+# ----- المرحلة 3: الانتظار لموافقة المالك -----
+elif st.session_state.app_stage == "waiting_approval":
+    st.title("⏳ بوابـة الانتظار - بانتظار موافقة مالك التطبيق")
+    st.write("---")
+
+    phone_key = st.session_state.student_phone
+    req_status = st.session_state.approval_requests.get(phone_key, {}).get("status", "pending")
+
+    st.markdown(f"""
+    <div class="waiting-box">
+        <h4>تم إرسال طلب الدخول بنجاح لمالك المنصة</h4>
+        <p><b>نوع الاختبار:</b> {st.session_state.exam_type}</p>
+        <p><b>الاسم الرباعي:</b> {st.session_state.student_full_name}</p>
+        <p><b>رقم الهاتف:</b> {st.session_state.student_phone}</p>
+        <hr>
+        <h5>الحالة الحالية للطلب: <span style="color: #558b2f; font-weight: bold;">{req_status}</span></h5>
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("")
+
+    if req_status == "approved":
+        st.success("🎉 تمت موافقة المالك على دخولك للامتحان! اضغط على الزر أدناه لبدء الاختبار فوراً.")
+        if st.button("الدخول للامتحان وبدء المؤقت الآن 🚀", type="primary", use_container_width=True):
+            filtered_db = [q for q in questions_db if q["category"] in st.session_state.selected_categories_admin]
+            st.session_state.active_questions = filtered_db[:st.session_state.temp_num_q]
+            st.session_state.exam_duration = st.session_state.admin_timer_minutes * 60
+            st.session_state.start_time = time.time()
+            st.session_state.current_q_idx = 0
+            st.session_state.user_answers = {}
+            st.session_state.submitted = False
+            st.session_state.app_stage = "exam_page"
+            st.rerun()
+
+    elif req_status == "rejected":
+        st.error("❌ نأسف، تم رفض طلب الدخول من قِبل مالك المنصة.")
+        if st.button("العودة للشاشة الرئيسية ⬅️"):
+            st.session_state.app_stage = "start_page"
+            st.rerun()
+
+    else:
+        st.info("💡 يرجى الانتظار حتى يقوم مالك التطبيق بالموافقة على طلبك باللوحة الرئيسية...")
+        if st.button("تحديث حالة الطلب والموافقة 🔄", type="primary"):
+            st.rerun()
+
+# ----- المرحلة 4: شاشة الامتحان والنتائج وتخزين النتيجة بالداتا بيز -----
+elif st.session_state.app_stage == "exam_page":
     active_questions = st.session_state.active_questions
     total_q = len(active_questions)
 
-    # حساب الوقت المتبقي
     elapsed = int(time.time() - st.session_state.start_time)
     remaining = st.session_state.exam_duration - elapsed
 
     if remaining <= 0 and not st.session_state.submitted:
         st.session_state.submitted = True
-        st.error("⏰ انتهى الوقت المحدد للاختبار! تم تسليم إجاباتك تلقائياً.")
+        st.error("⏰ انتهى الوقت المحدد للامتحان! تم حفظ الإجابات وإغلاق الامتحان تلقائياً.")
 
-    # الشريط الجانبي (Sidebar)
-    with st.sidebar:
-        st.title("📌 معلومات الجلسة")
-        st.write(f"**المتدرب:** {st.session_state.student_name}")
-        st.write(f"**التقدم:** {len(st.session_state.user_answers)} / {total_q} سؤالاً")
-
-        # عرض المؤقت
-        if not st.session_state.submitted:
-            mins, secs = divmod(max(0, remaining), 60)
-            st.markdown(f"""
-            <div class="timer-box">
-                ⏳ الوقت المتبقي: {mins:02d}:{secs:02d}
-            </div>
-            """, unsafe_allow_html=True)
-            st.write("---")
-
-        # خريطة الانتقال السريع بين الأسئلة
-        st.subheader("شبكة الأسئلة:")
-        grid_cols = st.columns(4)
-        for idx, q in enumerate(active_questions):
-            col_idx = idx % 4
-            is_answered = idx in st.session_state.user_answers
-            btn_label = f"{idx+1} {"✅" if is_answered else ""}"
-            
-            if grid_cols[col_idx].button(btn_label, key=f"nav_btn_{idx}"):
-                st.session_state.current_q_idx = idx
-                st.rerun()
-
-        st.write("---")
-        if not st.session_state.submitted:
-            if st.button("إنهاء وتسليم الاختبار 🏁", type="primary", use_container_width=True):
-                st.session_state.submitted = True
-                st.rerun()
-
-    # الشاشة الرئيسية للاسئلة والنتائج
     if not st.session_state.submitted:
+        mins, secs = divmod(max(0, remaining), 60)
+        st.warning(f"⏳ **مؤقت الامتحان ({st.session_state.exam_type}):** المتبقي **{mins:02d}:{secs:02d}** | يُحفظ الاختبار ويغلق تلقائياً فور الوصول لـ 00:00")
+
         curr_idx = st.session_state.current_q_idx
         q_data = active_questions[curr_idx]
 
@@ -1036,19 +852,15 @@ else:
         st.markdown(f"""
         <div class="question-card">
             <span class="badge bg-secondary">السؤال {curr_idx + 1} من {total_q}</span>
-            <span class="badge bg-info text-dark">الفئة: {q_data['category']}</span>
+            <span class="badge bg-info text-dark">المجموعة: {q_data['category']}</span>
             <span class="badge bg-warning text-dark">الصعوبة: {q_data['difficulty']}</span>
             <h4 class="mt-3">{q_data['question']}</h4>
         </div>
         """, unsafe_allow_html=True)
 
-        if "book_page_image" in q_data:
-            st.caption(f"📖 مرجع الصورة بالكتاب: **{q_data['book_page_image']}**")
-
-        # اختيار الإجابة
         current_ans = st.session_state.user_answers.get(curr_idx, None)
         selected_option = st.radio(
-            "اختر الإجابة الصحيحة:",
+            "اختر الإجابة الصحيحة من الخيارات التالية:",
             q_data["options"],
             index=q_data["options"].index(current_ans) if current_ans in q_data["options"] else None,
             key=f"radio_{curr_idx}"
@@ -1057,7 +869,6 @@ else:
         if selected_option is not None:
             st.session_state.user_answers[curr_idx] = selected_option
 
-        # أزرار التنقل
         col_prev, col_spacer, col_next = st.columns([1, 2, 1])
         
         with col_prev:
@@ -1072,11 +883,12 @@ else:
                     st.session_state.current_q_idx += 1
                     st.rerun()
 
-    # ----- شاشة التقرير النهائي والنتيجة -----
     else:
         st.balloons()
-        st.title("🏆 النتيجة التقييمية النهائية")
-        st.write(f"**اسم المتدرب:** {st.session_state.student_name}")
+        st.title("🏆 النتيجة التقييمية النهائية (تم حفظ وإغلاق الاختبار)")
+        st.write(f"**تصنيف نوع الاختبار:** {st.session_state.exam_type}")
+        st.write(f"**الاسم الرباعي:** {st.session_state.student_full_name}")
+        st.write(f"**رقم الهاتف المسجل:** {st.session_state.student_phone}")
         st.write("---")
 
         correct_count = 0
@@ -1087,31 +899,61 @@ else:
 
         score_pct = (correct_count / total_q) * 100
 
+        new_record = {
+            "الاسم الرباعي": st.session_state.student_full_name,
+            "رقم الهاتف": st.session_state.student_phone,
+            "نوع الاختبار": st.session_state.exam_type,
+            "النتيجة %": score_pct,
+            "التاريخ": datetime.now()
+        }
+        if not any(r["رقم الهاتف"] == st.session_state.student_phone and r["نوع الاختبار"] == st.session_state.exam_type for r in st.session_state.exam_results_records):
+            st.session_state.exam_results_records.append(new_record)
+
         res_col1, res_col2 = st.columns(2)
         with res_col1:
-            st.metric("الدرجة الحاصل عليها", f"{correct_count} / {total_q}")
+            st.metric("عدد الإجابات الصحيحة", f"{correct_count} / {total_q}")
         with res_col2:
-            st.metric("النسبة المئوية", f"{score_pct:.1f}%")
+            st.metric("النسبة المئوية العامة", f"{score_pct:.1f}%")
 
-        if score_pct >= 85:
-            st.success("🌟 ممتاز! مستوى متميز جداً في استيعاب الكتيب القومي لمكافحة الطفيليات.")
-        elif score_pct >= 60:
-            st.warning("👍 جيد! اجتزت الاختبار بنجاح، ويُنصح بمرجعة النقاط الخاطئة.")
-        else:
-            st.error("⚠️ يحتاج إلى إعادة مراجعة كتيب وزارة الصحة والسكان وإعادة الاختبار.")
+        pdf_bytes = generate_pdf_report(
+            st.session_state.student_full_name,
+            st.session_state.student_phone,
+            active_questions,
+            st.session_state.user_answers,
+            score_pct,
+            correct_count,
+            total_q,
+            st.session_state.exam_type
+        )
+
+        st.success(f"📱 تم اعتماد ورقة النتيجة وإرسال إشعار للرقم المسجل: **{st.session_state.student_phone}**")
+        
+        st.download_button(
+            label=f"📄 تحميل واستخراج تقرير الامتحان الرسمي PDF (A4) - اختبار {st.session_state.exam_type}",
+            data=pdf_bytes,
+            file_name=f"Exam_Report_{st.session_state.student_phone}.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True
+        )
 
         st.write("---")
-        st.subheader("📝 التقرير التفصيلي لكل سؤال:")
+        st.subheader("📝 التقرير والتحليل التفصيلي للنتائج:")
 
         for idx, q in enumerate(active_questions):
-            user_ans = st.session_state.user_answers.get(idx, "لم يتم الإجابة")
+            user_ans = st.session_state.user_answers.get(idx, "لم تُجب")
             is_correct = user_ans == q["answer"]
 
-            with st.expander(f"س{idx+1}: {q['question']} - {'✅ صحيحة' if is_correct else '❌ خاطئة'}"):
+            with st.expander(f"س{idx+1}: {q['question']} - {'✅ صحيحة (1/1)' if is_correct else '❌ خاطئة (0/1)'}"):
+                st.write(f"**المجموعة:** {q['category']}")
                 st.write(f"**إجابتك:** {user_ans}")
-                st.write(f"**الإجابة الصحيحة:** {q['answer']}")
+                st.write(f"**الإجابة الصحيحة الرسمية:** {q['answer']}")
                 st.info(f"💡 **الشرح والتوضيح:** {q['explanation']}")
 
-        if st.button("إعادة الاختبار مرة أخرى 🔄", type="primary"):
-            st.session_state.quiz_started = False
-            st.rerun()
+        st.write("---")
+        if st.session_state.allow_reexam:
+            if st.button("إعادة الاختبار مرة أخرى 🔄", type="primary"):
+                st.session_state.app_stage = "start_page"
+                st.rerun()
+        else:
+            st.warning("🔒 مغلق: تم إيقاف خيار إعادة الامتحان من قبل مالك المنصة.")
