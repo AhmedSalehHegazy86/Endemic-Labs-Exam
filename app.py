@@ -700,9 +700,57 @@ def header():
     st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • اعتماد مباشر موحد • امتحانات مؤقتة • طباعة A4</div></div>',unsafe_allow_html=True)
 
 def login_page():
-    header(); a,b=st.columns(2)
-    with a:
-        st.markdown('<div class="card"><h3>🔐 دخول الإدارة / المالك</h3></div>',unsafe_allow_html=True)
+    header()
+    
+    # الجزء الأساسي: طلب الاعتماد وفحص الحالة للمتدرب
+    st.markdown('<div class="card"><h3>🧑‍🔬 طلب الاعتماد ودخول الاختبار</h3><p>سجل بياناتك لإرسال طلب اعتماده إلى مالك المنصة والدخول.</p></div>',unsafe_allow_html=True)
+    with st.form("trainee_request"):
+        facility=st.text_input("الجهة / الإدارة الصحية")
+        name=st.text_input("الاسم الرباعي")
+        phone=st.text_input("رقم الهاتف")
+        submitted = st.form_submit_button("إرسال طلب الاعتماد والدخول", use_container_width=True)
+        if submitted:
+            if facility and name:
+                existing = trainee_by_credentials(name, facility)
+                if existing:
+                    st.session_state.trainee_id = existing["id"]
+                    st.session_state.trainee_name = existing["name"]
+                    st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
+                    st.rerun()
+                else:
+                    raw = get_trainee_status_raw(name, facility)
+                    if raw:
+                        st.warning(f"حالة طلبك الحالي: ({STATUS_AR.get(raw['status'], raw['status'])}). بانتظار موافقة المالك.")
+                    else:
+                        tid = create_trainee(facility, name, phone)
+                        st.info(f"تم إرسال طلبك بنجاح برقم ({tid}). بانتظار موافقة مالك المنصة من لوحة التحكم.")
+            else:
+                st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
+    
+    # زر فحص حالة الاعتماد فقط للمتدرب
+    with st.form("check_status_only"):
+        st.write("<b>هل أرسلت طلبك ومضى وقت؟ أدخل بياناتك أدناه واضغط زر الفحص والدخول:</b>", unsafe_allow_html=True)
+        chk_name = st.text_input("الاسم الرباعي المسجل")
+        chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة")
+        if st.form_submit_button("🔍 فحص الاعتماد ودخول الامتحان"):
+            if chk_name and chk_fac:
+                tr = trainee_by_credentials(chk_name, chk_fac)
+                if tr:
+                    st.session_state.trainee_id = tr["id"]
+                    st.session_state.trainee_name = tr["name"]
+                    st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
+                    st.rerun()
+                else:
+                    raw = get_trainee_status_raw(chk_name, chk_fac)
+                    if raw:
+                        st.error(f"حالة طلبك الحالية: {STATUS_AR.get(raw['status'], raw['status'])}. يرجى الانتظار لحين اعتماد المالك.")
+                    else:
+                        st.error("لم يتم العثور على طلب بهذا الاسم والجهة. يرجى إرسال طلب الاعتماد أولاً.")
+            else:
+                st.warning("يرجى إدخال الاسم والجهة للتأكد.")
+
+    # الجزء الأخير: دخول المالك/الإدارة لا يظهر إلا بالضغط على الزر أدناه
+    with st.expander("🔐 دخول الإدارة / المالك (انقر هنا للعرض)"):
         with st.form("login"):
             u=st.text_input("اسم المستخدم")
             p=st.text_input("كلمة المرور",type="password")
@@ -712,53 +760,6 @@ def login_page():
                     st.session_state.logged_in=True;st.session_state.username=user["username"];st.session_state.role=user["role"]
                     audit("login","user",user["id"]);st.rerun()
                 st.error("بيانات الدخول غير صحيحة.")
-    with b:
-        st.markdown('<div class="card"><h3>🧑‍🔬 طلب الاعتماد ودخول الاختبار</h3><p>سجل بياناتك لإرسال طلب اعتماده إلى مالك المنصة والدخول.</p></div>',unsafe_allow_html=True)
-        with st.form("trainee_request"):
-            facility=st.text_input("الجهة / الإدارة الصحية")
-            name=st.text_input("الاسم الرباعي")
-            phone=st.text_input("رقم الهاتف")
-            submitted = st.form_submit_button("إرسال طلب الاعتماد والدخول", use_container_width=True)
-            if submitted:
-                if facility and name:
-                    existing = trainee_by_credentials(name, facility)
-                    if existing:
-                        st.session_state.trainee_id = existing["id"]
-                        st.session_state.trainee_name = existing["name"]
-                        st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
-                        st.rerun()
-                    else:
-                        raw = get_trainee_status_raw(name, facility)
-                        if raw:
-                            st.warning(f"حالة طلبك الحالي: ({STATUS_AR.get(raw['status'], raw['status'])}). بانتظار موافقة المالك.")
-                        else:
-                            tid = create_trainee(facility, name, phone)
-                            st.info(f"تم إرسال طلبك بنجاح برقم ({tid}). بانتظار موافقة مالك المنصة من لوحة التحكم.")
-                else:
-                    st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
-        
-        # زر فحص حالة الاعتماد فقط
-        st.markdown("---")
-        st.write("<b>هل أرسلت طلبك ومضى وقت؟ اضغط الزر أدناه لفحص حالتك والدخول:</b>", unsafe_allow_html=True)
-        with st.form("check_status_only"):
-            chk_name = st.text_input("أدخل اسمك الرباعي للفحص")
-            chk_fac = st.text_input("أدخل جهتك للفحص")
-            if st.form_submit_button("🔍 فحص الاعتماد ودخول الامتحان"):
-                if chk_name and chk_fac:
-                    tr = trainee_by_credentials(chk_name, chk_fac)
-                    if tr:
-                        st.session_state.trainee_id = tr["id"]
-                        st.session_state.trainee_name = tr["name"]
-                        st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
-                        st.rerun()
-                    else:
-                        raw = get_trainee_status_raw(chk_name, chk_fac)
-                        if raw:
-                            st.error(f"حالة طلبك الحالية: {STATUS_AR.get(raw['status'], raw['status'])}. يرجى الانتظار لحين اعتماد المالك.")
-                        else:
-                            st.error("لم يتم العثور على طلب بهذا الاسم والجهة. يرجى إرسال طلب الاعتماد أولاً.")
-                else:
-                    st.warning("يرجى إدخال الاسم والجهة للتأكد.")
 
 def dashboard():
     header()
