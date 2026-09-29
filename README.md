@@ -1,1 +1,7 @@
-Endemic Labs Exam
+streamlit>=1.40
+pandas>=2.0
+reportlab>=4.0
+arabic-reshaper>=3.0
+python-bidi>=0.4
+openpyxl>=3.1
+
