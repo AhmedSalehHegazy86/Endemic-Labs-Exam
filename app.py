@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة -  v2.6 ",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v2.7 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_6.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_7.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -35,6 +35,7 @@ STATUS_AR = {
 
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
+# تحسين أكواد CSS للطباعة المباشرة والنظيفة
 st.markdown("""
 <style>
 html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
@@ -49,23 +50,27 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .stButton>button{border-radius:12px;font-weight:800;min-height:46px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
+/* إعدادات الطباعة الشاملة عبر CSS لإخفاء عناصر التطبيق وإظهار محتوى الطباعة فقط */
 @media print {
-    body { background: white !important; }
-    .stApp { background: white !important; }
-    .hero, button, [data-testid="stSidebar"], .stButton, header { display: none !important; }
-    .printable-certificate, .printable-exam {
-        display: block !important;
-        width: 210mm;
-        padding: 15mm;
-        margin: 0 auto;
-        background: white;
-        box-sizing: border-box;
-        direction: rtl;
-        text-align: right;
-        font-family: "Cairo", "Tahoma", sans-serif;
+    body * {
+        visibility: hidden !important;
+    }
+    .printable-area, .printable-area * {
+        visibility: visible !important;
+    }
+    .printable-area {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: white !important;
+        padding: 20px !important;
+        margin: 0 !important;
+    }
+    .stButton, header, footer {
+        display: none !important;
     }
 }
-.printable-certificate, .printable-exam { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -221,7 +226,7 @@ def audit(action, entity=None, details=None):
                   (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
 # ============================================================
-# 3) إدارة المتدربين والتحقق من منع التكرار اليومي
+# 3) إدارة المتدربين والاختبارات
 # ============================================================
 def login_user(u, p):
     with db() as c:
@@ -267,9 +272,6 @@ def trainees_df(status=None):
         q += " ORDER BY id DESC"
         return pd.read_sql_query(q, c, params=args)
 
-# ============================================================
-# 4) إدارة الاختبارات واختيار الأسئلة
-# ============================================================
 def choose_questions(t):
     with db() as c:
         rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1").fetchall()]
@@ -279,8 +281,7 @@ def choose_questions(t):
         raise ValueError(f"عذراً، بنك الأسئلة فارغ أو عدد الأسئلة النشطة ({len(rows)}) أقل من المطلوب للاختبار ({target}). يرجى إضافة أسئلة جديدة أولاً.")
     
     random.shuffle(rows)
-    selected = rows[:target]
-    return selected
+    return rows[:target]
 
 def start_session(trainee_id, template_id):
     with db() as c:
@@ -331,7 +332,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) واجهات الطباعة والتصدير (A4 و Excel)
+# 4) دوال العرض والطباعة النظيفة المعتمدة على CSS
 # ============================================================
 def render_printable_certificate(sid):
     with db() as c:
@@ -339,36 +340,30 @@ def render_printable_certificate(sid):
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
     if not r: return
     status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
+    
     html_content = f"""
-    <div class="printable-certificate">
-        <div style="text-align:center; border: 4px solid #059669; padding: 30px; border-radius: 15px;">
-            <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
-            <hr style="border: 1px solid #059669; margin: 20px 0;">
-            <h1 style="color: #065f46; margin-bottom: 25px;">شهادة اجتياز اختبار رسمي</h1>
-            <p style="font-size: 18px; line-height: 2.2;">
-                تشهد إدارة اولاد صقر الصحية قسم المتوطنة و قسم المعامل بأن السيد/ة: <b style="font-size: 22px; color: #047857;">{esc(r["trainee_name"])}</b><br>
-                التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
-                قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
-                بالنتيجة: <b>{r["score"]} / {r["max_score"]} ({r["percent"]:.1f}%)</b><br>
-                الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
-                رقم الشهادة: <code>{r["certificate_id"]}</code><br>
-                تاريخ التسليم: {esc(r["submitted_at"])}
-            </p>
-            <br><br>
-            <div style="display: flex; justify-content: space-between; margin-top: 40px; font-weight: bold;">
-                <div>توقيع المسؤول العلمي</div>
-                <div>ختم الجهة المعتمد</div>
-            </div>
+    <div class="printable-area" style="text-align:center; border: 5px solid #059669; padding: 40px; border-radius: 20px; background: white; margin: 20px 0;">
+        <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
+        <hr style="border: 1px solid #059669; margin: 20px 0;">
+        <h1 style="color: #065f46; margin-bottom: 25px;">شهادة اجتياز اختبار رسمي</h1>
+        <p style="font-size: 20px; line-height: 2.2;">
+            تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 24px; color: #047857;">{esc(r["trainee_name"])}</b><br>
+            التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
+            قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
+            بالنتيجة النهائية: <b>{r["score"]} / {r["max_score"]} ({r["percent"]:.1f}%)</b><br>
+            الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
+            رقم الشهادة المعتمد: <code>{r["certificate_id"]}</code><br>
+            تاريخ الاعتماد والتسليم: {esc(r["submitted_at"])}
+        </p>
+        <br><br>
+        <div style="display: flex; justify-content: space-between; margin-top: 50px; font-weight: bold; font-size: 18px;">
+            <div>توقيع المسؤول العلمي</div>
+            <div>ختم الجهة المعتمد</div>
         </div>
-    </div>
-    <script>function printCert(){{window.print();}}</script>
-    <div style="text-align: center; margin: 15px 0;">
-        <button onclick="printCert()" style="background-color: #059669; color: white; padding: 12px 24px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
-            🖨️ طباعة الشهادة الرسمية (A4)
-        </button>
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
+    st.info("💡 للطباعة الفورية: اضغط على مفتاحي **Ctrl + P** (أو **Cmd + P** لنظام ماك) من لوحة المفاتيح لتظهر الشهادة منسقة وجاهزة للطباعة على ورق A4.")
 
 def render_printable_exam_paper(template_id):
     with db() as c:
@@ -380,48 +375,40 @@ def render_printable_exam_paper(template_id):
             return
     
     exam_html = f"""
-    <div class="printable-exam">
+    <div class="printable-area" style="background: white; padding: 30px; text-align: right;">
         <div style="text-align:center;">
             <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
             <h3>نموذج امتحان ورقي: {esc(t['name'])} ({esc(t['exam_type'])})</h3>
-            <p>المدة: {t['duration_minutes']} دقيقة | الدرجة الكبرى: {t['num_questions']} درجة</p>
+            <p>المدة الزمنية: {t['duration_minutes']} دقيقة | إجمالي الدرجات: {t['num_questions']} درجة</p>
             <hr style="border: 1px solid #333; margin: 15px 0;">
         </div>
-        <div style="text-align: right; line-height: 1.8;">
-            <p><b>اسم المتدرب:</b> ........................................................ | <b>الجهة:</b> ....................................</p>
+        <div style="line-height: 2;">
+            <p><b>اسم المتدرب:</b> ........................................................................ | <b>الجهة:</b> ....................................</p>
             <br>
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
-        exam_html += f"<p><b>س {idx+1}: {esc(q['question'])}</b></p><ul>"
+        exam_html += f"<p><b>س {idx+1}: {esc(q['question'])}</b></p><ul style='list-style-type: none; padding-right: 20px;'>"
         for opt in opts:
-            exam_html += f"<li>[  ] {esc(opt)}</li>"
+            exam_html += f"<li>[ &nbsp; ] {esc(opt)}</li>"
         exam_html += "</ul><br>"
         
     exam_html += """
         </div>
     </div>
-    <script>function printExam(){{window.print();}}</script>
-    <div style="text-align: center; margin: 15px 0;">
-        <button onclick="printExam()" style="background-color: #1f2937; color: white; padding: 12px 24px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
-            🖨️ طباعة النموذج ورقيًا (A4)
-        </button>
-    </div>
     """
     st.markdown(exam_html, unsafe_allow_html=True)
+    st.info("💡 للطباعة الفورية: اضغط على مفتاحي **Ctrl + P** (أو **Cmd + P** لنظام ماك) لطباعة النموذج الورقي.")
 
 # ============================================================
-# 6) Session State والتحكم بالصفحات
+# 5) Session State وإدارة المسارات
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.6 FINAL • نظام تقييم وإدارة معتمد</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.7 FINAL • نظام تقييم وإدارة معتمد</div></div>', unsafe_allow_html=True)
 
-# ============================================================
-# 7) واجهات النظام (Login & Dashboard)
-# ============================================================
 def login_portal():
     header()
     st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك لإرسال طلب الاعتماد والدخول المباشر للامتحانات بعد اعتماد الإدارة.</p></div>', unsafe_allow_html=True)
@@ -455,7 +442,7 @@ def login_portal():
         with st.form("check_status_only"):
             st.markdown("<b>فحص حالة الاعتماد المباشر</b>", unsafe_allow_html=True)
             chk_name = st.text_input("الاسم الرباعي المسجل")
-            chk_fac = st.text_input("الجهة / اسم المنشأة الصحية")
+            chk_fac = st.text_input("الجهة / الإدارة الصحية")
             if st.form_submit_button("🔍 فحص ودخول الامتحان", use_container_width=True):
                 if chk_name and chk_fac:
                     tr = trainee_by_credentials(chk_name, chk_fac)
@@ -474,7 +461,7 @@ def login_portal():
                     st.warning("أدخل الاسم والجهة للفحص.")
 
     st.markdown("---")
-    with st.expander("🔐 دخول الإدارة  (انقر هنا للعرض)"):
+    with st.expander("🔐 دخول الإدارة / المالك (انقر هنا للعرض)"):
         with st.form("admin_login_form"):
             u = st.text_input("اسم المستخدم")
             p = st.text_input("كلمة المرور", type="password")
@@ -524,7 +511,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -586,7 +573,7 @@ def admin_dashboard():
             st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("🧩 قوالب الاختبارات (قبل/بعد التدريب) وطباعة النماذج")
+        st.subheader("🧩 قوالب الاختبارات (قبل/بعد التدريب) وطباعة النماذج الورقية")
         with st.form("new_tpl"):
             st.markdown("<b>إضافة قالب اختبار جديد وتصنيفه</b>", unsafe_allow_html=True)
             t_name = st.text_input("اسم القالب")
@@ -607,7 +594,7 @@ def admin_dashboard():
         for t in tpls:
             with st.container(border=True):
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة المطلوبة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
-                if st.button(f"🖨️ طباعة امتحان ورقي ({t['name']})", key=f"prnt_exam_{t['id']}"):
+                if st.button(f"🖨️ معاينة وطباعة امتحان ورقي ({t['name']})", key=f"prnt_exam_{t['id']}"):
                     render_printable_exam_paper(t["id"])
 
     with selected_tabs[4]:
@@ -759,7 +746,7 @@ def exam_interface(session_id):
         st.rerun()
 
 # ============================================================
-# 8) موجه المسارات الرئيسي
+# 6) موجه المسارات الرئيسي
 # ============================================================
 if st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
