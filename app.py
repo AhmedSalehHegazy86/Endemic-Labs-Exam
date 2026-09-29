@@ -5,19 +5,6 @@ from urllib.request import urlopen, Request
 
 import pandas as pd
 import streamlit as st
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-
-try:
-    import arabic_reshaper
-    from bidi.algorithm import get_display
-except Exception:
-    arabic_reshaper = None
-    get_display = None
 
 # ============================================================
 # 1) إعدادات التطبيق
@@ -32,14 +19,6 @@ st.set_page_config(
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_2.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
-LOGO_PATH = os.path.join(BASE, "logo.jpg")
-FONT_PATH = os.path.join(BASE, "DejaVuSans.ttf")
-FONT_BOLD_PATH = os.path.join(BASE, "DejaVuSans-Bold.ttf")
-LEGACY_CANDIDATES = [
-    os.path.join(BASE, "app_legacy.py"),
-    os.path.join(BASE, "legacy_app.py"),
-    os.path.join(BASE, "old_app.py"),
-]
 LEGACY_URL = "https://raw.githubusercontent.com/AhmedSalehHegazy86/Endemic-Labs-Exam/main/app.py"
 
 ROLES = {
@@ -66,6 +45,28 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .timer{font-size:24px;font-weight:900;text-align:center;background:#fff3cd;border:2px solid #e0a800;padding:10px;border-radius:12px}
 .stButton>button{border-radius:12px;font-weight:800;min-height:44px}
 [data-testid="stSidebar"]{display:none !important;}
+
+/* تنسيقات الطباعة لورق A4 */
+@media print {
+    body { background: white !important; }
+    .stApp { background: white !important; }
+    .hero, button, [data-testid="stSidebar"], .stButton, header { display: none !important; }
+    .printable-certificate {
+        display: block !important;
+        width: 210mm;
+        height: 297mm;
+        padding: 20mm;
+        margin: 0 auto;
+        background: white;
+        border: 5px solid #166534;
+        box-sizing: border-box;
+        page-break-after: always;
+        direction: rtl;
+        text-align: right;
+        font-family: "Cairo", "Tahoma", sans-serif;
+    }
+}
+.printable-certificate { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -617,34 +618,46 @@ def session_result(sid):
 seed_final_questions()
 
 # ============================================================
-# 9) PDF
+# 9) قالب الطباعة A4 المباشر
 # ============================================================
-PDF_FONT=False
-try:
-    if os.path.exists(FONT_PATH):
-        pdfmetrics.registerFont(TTFont("Arabic",FONT_PATH))
-        pdfmetrics.registerFont(TTFont("Arabic-Bold",FONT_BOLD_PATH if os.path.exists(FONT_BOLD_PATH) else FONT_PATH))
-        PDF_FONT=True
-except Exception: pass
-
-def ar(text):
-    text="" if text is None else str(text)
-    if arabic_reshaper and get_display:
-        try:return html.escape(get_display(arabic_reshaper.reshape(text))).replace("\n","<br/>")
-        except:pass
-    return html.escape(text).replace("\n","<br/>")
-
-def result_pdf(sid):
-    r=session_result(sid); bio=io.BytesIO()
-    styles=getSampleStyleSheet(); font="Arabic" if PDF_FONT else "Helvetica"; bold="Arabic-Bold" if PDF_FONT else "Helvetica-Bold"
-    title=ParagraphStyle("title",parent=styles["Title"],fontName=bold,fontSize=18,leading=24,alignment=2)
-    body=ParagraphStyle("body",parent=styles["BodyText"],fontName=font,fontSize=10,leading=16,alignment=2)
-    doc=SimpleDocTemplate(bio,pagesize=A4,rightMargin=36,leftMargin=36,topMargin=36,bottomMargin=36)
-    elements=[Paragraph(ar("شهادة نتيجة اختبار معامل المتوطنة"),title),Spacer(1,15)]
-    data=[[ar("البيان"),ar("القيمة")],[ar("اسم المتدرب"),ar(r["trainee_name"])],[ar("الجهة"),ar(r["facility"])],[ar("الاختبار"),ar(r["template_name"])],[ar("النتيجة"),f'{r["score"]} / {r["max_score"]}'],[ar("النسبة"),f'{r["percent"]:.1f}%'],[ar("الحالة"),ar("ناجح" if r["passed"] else "غير مجتاز")],[ar("رقم الشهادة"),r["certificate_id"]],[ar("التاريخ"),r["submitted_at"] or ""]]
-    table=Table(data,colWidths=[170,320]);table.setStyle(TableStyle([("FONTNAME",(0,0),(-1,-1),font),("FONTNAME",(0,0),(-1,0),bold),("BACKGROUND",(0,0),(-1,0),colors.HexColor("#e8f5e9")),("GRID",(0,0),(-1,-1),0.5,colors.grey),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("ALIGN",(0,0),(-1,-1),"RIGHT"),("PADDING",(0,0),(-1,-1),7)]))
-    elements += [table,Spacer(1,20),Paragraph(ar("تم إصدار النتيجة من نظام اختبارات معامل المتوطنة."),body)]
-    doc.build(elements);return bio.getvalue()
+def render_printable_certificate(sid):
+    r = session_result(sid)
+    if not r: return
+    status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
+    html_content = f"""
+    <div class="printable-certificate">
+        <div style="text-align:center;">
+            <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
+            <hr style="border: 1px solid #166534; margin: 20px 0;">
+            <h1 style="color: #166534; margin-bottom: 30px;">شهادة اجتياز اختبار</h1>
+            <p style="font-size: 18px; line-height: 2;">
+                تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 22px; color: #14532d;">{esc(r["trainee_name"])}</b><br>
+                التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
+                قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
+                بالنتيجة: <b>{r["score"]} / {r["max_score"]} ({r["percent"]:.1f}%)</b><br>
+                الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
+                رقم الشهادة: <code>{r["certificate_id"]}</code><br>
+                تاريخ التسليم: {esc(r["submitted_at"])}
+            </p>
+            <br><br><br>
+            <div style="display: flex; justify-content: space-between; margin-top: 50px; font-weight: bold;">
+                <div>توقيع المسؤول العلمي</div>
+                <div>ختم الجهة / الاعتماد</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function printCert() {{
+            window.print();
+        }}
+    </script>
+    <div style="text-align: center; margin: 20px 0;">
+        <button onclick="printCert()" style="background-color: #166534; color: white; padding: 12px 24px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            🖨️ طباعة الشهادة (ورق A4)
+        </button>
+    </div>
+    """
+    st.markdown(html_content, unsafe_allow_html=True)
 
 # ============================================================
 # 10) Session state
@@ -656,7 +669,7 @@ for k,v in {"logged_in":False,"username":"","role":"","trainee_id":None,"trainee
 # 11) الواجهة
 # ============================================================
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • SQLite • بنك أسئلة قابل للإدارة • امتحانات مؤقتة • نتائج وشهادات PDF</div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • SQLite • بنك أسئلة قابل للإدارة • امتحانات مؤقتة • نتائج وطباعة A4</div></div>',unsafe_allow_html=True)
 
 def login_page():
     header(); a,b=st.columns(2)
@@ -853,8 +866,10 @@ def dashboard():
                 with pd.ExcelWriter(out,engine="openpyxl") as writer:view.to_excel(writer,index=False,sheet_name="Results")
                 st.download_button("📥 تصدير النتائج Excel",out.getvalue(),file_name="exam_results_v2_2.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             except Exception: pass
-            sid=st.selectbox("اختر جلسة لإصدار PDF",view.id.tolist())
-            st.download_button("📄 تحميل شهادة PDF",result_pdf(int(sid)),file_name=f"certificate_{sid}.pdf",mime="application/pdf")
+            
+            sid_print=st.selectbox("اختر جلسة لطباعة الشهادة",view.id.tolist(), key="print_sel_res")
+            if sid_print:
+                render_printable_certificate(int(sid_print))
         else:
             st.info("لا توجد نتائج بعد.")
 
@@ -945,7 +960,10 @@ def result_page(sid):
     header(); st.success("تم تسليم الاختبار بنجاح.")
     cols=st.columns(4)
     for c,l,v in zip(cols,["النتيجة","النسبة","الحالة","رقم الشهادة"],[f'{r["score"]}/{r["max_score"]}',f'{r["percent"]:.1f}%',"ناجح" if r["passed"] else "غير مجتاز",r["certificate_id"]]): c.metric(l,v)
-    if int(t["show_result"]): st.download_button("📄 تحميل شهادة النتيجة PDF",result_pdf(sid),file_name=f"certificate_{sid}.pdf",mime="application/pdf")
+    
+    if int(t["show_result"]):
+        render_printable_certificate(sid)
+
     if int(t["show_review"]):
         st.subheader("📝 مراجعة الإجابات")
         for row in session_questions(sid):
