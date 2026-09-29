@@ -483,7 +483,7 @@ def get_user_list():
     with db() as c:return c.execute("SELECT id,username,role,active,created_at,last_login FROM users ORDER BY id").fetchall()
 
 # ============================================================
-# 6) المتدربون (إرسال الطلب والاعتماد المباشر المدمج)
+# 6) المتدربون
 # ============================================================
 def create_trainee(facility, name, phone):
     with db() as c:
@@ -496,6 +496,12 @@ def create_trainee(facility, name, phone):
 def trainee_by_credentials(name, facility):
     with db() as c:
         r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active')",
+                      (normalize_text(name), normalize_text(facility))).fetchone()
+        return dict(r) if r else None
+
+def get_trainee_status_raw(name, facility):
+    with db() as c:
+        r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=?",
                       (normalize_text(name), normalize_text(facility))).fetchone()
         return dict(r) if r else None
 
@@ -707,44 +713,38 @@ def login_page():
                     audit("login","user",user["id"]);st.rerun()
                 st.error("بيانات الدخول غير صحيحة.")
     with b:
-        st.markdown('<div class="card"><h3>🧑‍🔬 طلب اعتماد ودخول الامتحان</h3><p>سجل بياناتك لإرسال طلب اعتماده إلى مالك المنصة والدخول المباشر.</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="card"><h3>🧑‍🔬 طلب الاعتماد ودخول الاختبار</h3><p>سجل بياناتك لإرسال طلب اعتماده إلى مالك المنصة والدخول.</p></div>',unsafe_allow_html=True)
         with st.form("trainee_request"):
             facility=st.text_input("الجهة / الإدارة الصحية")
             name=st.text_input("الاسم الرباعي")
             phone=st.text_input("رقم الهاتف")
-            submitted = st.form_submit_button("إرسال الطلب والدخول المباشر", use_container_width=True)
+            submitted = st.form_submit_button("إرسال طلب الاعتماد والدخول", use_container_width=True)
             if submitted:
                 if facility and name:
-                    # التحقق إذا كان المسجل موجوداً بالفعل
                     existing = trainee_by_credentials(name, facility)
                     if existing:
-                        if existing["status"] in ("approved", "active"):
-                            st.session_state.trainee_id = existing["id"]
-                            st.session_state.trainee_name = existing["name"]
-                            st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
-                            st.rerun()
-                        else:
-                            st.warning("طلبك موجود بالفعل وفي انتظار موافقة مالك المنصة.")
+                        st.session_state.trainee_id = existing["id"]
+                        st.session_state.trainee_name = existing["name"]
+                        st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
+                        st.rerun()
                     else:
-                        tid = create_trainee(facility, name, phone)
-                        # محاولة فحص الدخول المباشر إذا وافق المالك
-                        tr_check = trainee_by_credentials(name, facility)
-                        if tr_check:
-                            st.session_state.trainee_id = tr_check["id"]
-                            st.session_state.trainee_name = tr_check["name"]
-                            st.success("تم إرسال الطلب ودخولك بنجاح!")
-                            st.rerun()
+                        raw = get_trainee_status_raw(name, facility)
+                        if raw:
+                            st.warning(f"حالة طلبك الحالي: ({STATUS_AR.get(raw['status'], raw['status'])}). بانتظار موافقة المالك.")
                         else:
-                            st.info(f"تم إرسال طلبك بنجاح برقم ({tid}). يجدر بمالك المنصة الموافقة عليه من لوحة التحكم ليتم تفعيله فوراً.")
+                            tid = create_trainee(facility, name, phone)
+                            st.info(f"تم إرسال طلبك بنجاح برقم ({tid}). بانتظار موافقة مالك المنصة من لوحة التحكم.")
                 else:
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
         
-        # محاولة التحقق المباشر إذا كان قد سجل مسبقاً
-        with st.expander("فحص حالة الاعتماد والدخول مباشرة"):
-            with st.form("quick_check"):
-                chk_name = st.text_input("الاسم الرباعي المسجل")
-                chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة")
-                if st.form_submit_button("دخول الاختبار"):
+        # زر فحص حالة الاعتماد فقط
+        st.markdown("---")
+        st.write("<b>هل أرسلت طلبك ومضى وقت؟ اضغط الزر أدناه لفحص حالتك والدخول:</b>", unsafe_allow_html=True)
+        with st.form("check_status_only"):
+            chk_name = st.text_input("أدخل اسمك الرباعي للفحص")
+            chk_fac = st.text_input("أدخل جهتك للفحص")
+            if st.form_submit_button("🔍 فحص الاعتماد ودخول الامتحان"):
+                if chk_name and chk_fac:
                     tr = trainee_by_credentials(chk_name, chk_fac)
                     if tr:
                         st.session_state.trainee_id = tr["id"]
@@ -752,7 +752,13 @@ def login_page():
                         st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
                         st.rerun()
                     else:
-                        st.error("لم يتم اعتماد طلبك بعد من مالك المنصة أو البيانات غير مطابقة.")
+                        raw = get_trainee_status_raw(chk_name, chk_fac)
+                        if raw:
+                            st.error(f"حالة طلبك الحالية: {STATUS_AR.get(raw['status'], raw['status'])}. يرجى الانتظار لحين اعتماد المالك.")
+                        else:
+                            st.error("لم يتم العثور على طلب بهذا الاسم والجهة. يرجى إرسال طلب الاعتماد أولاً.")
+                else:
+                    st.warning("يرجى إدخال الاسم والجهة للتأكد.")
 
 def dashboard():
     header()
