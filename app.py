@@ -26,7 +26,7 @@ st.set_page_config(
     page_title="منصة اختبارات معامل المتوطنة - Professional v2.2 FINAL",
     page_icon="🔬",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",  # تم التعديل ليظهر فقط من السهم
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -228,7 +228,6 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_sessions_trainee ON exam_sessions(trainee_id);
         CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
         """)
-        # Lightweight migrations for databases created by v2.1.
         cols = {r["name"] for r in c.execute("PRAGMA table_info(questions)").fetchall()}
         if "quality_status" not in cols: c.execute("ALTER TABLE questions ADD COLUMN quality_status TEXT NOT NULL DEFAULT 'pending_review'")
         if "reviewer" not in cols: c.execute("ALTER TABLE questions ADD COLUMN reviewer TEXT")
@@ -269,10 +268,6 @@ init_db()
 # ============================================================
 # 4) استيراد بنك الأسئلة القديم بأمان
 # ============================================================
-# لا يتم تشغيل app.py القديم. نقرأ فقط بنية QUESTIONS_DB ونسمح بعقدة
-# محدودة من AST: literals, list/dict, range, arithmetic, ternary, f-string,
-# assignments وfor loops وappend/extend.
-
 class LegacyEvalError(Exception):
     pass
 
@@ -290,7 +285,7 @@ def safe_eval(node, env):
     if isinstance(node, ast.Dict): return {safe_eval(k, env): safe_eval(v, env) for k,v in zip(node.keys,node.values)}
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
         v=safe_eval(node.operand,env); return -v if isinstance(node.op,ast.USub) else +v
-    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add,ast.Sub,ast.Mult,ast.Mod,ast.Div,Floordiv)):
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add,ast.Sub,ast.Mult,ast.Mod,ast.Div,ast.FloorDiv)):
         a,b=safe_eval(node.left,env),safe_eval(node.right,env)
         return {ast.Add:lambda:a+b,ast.Sub:lambda:a-b,ast.Mult:lambda:a*b,ast.Mod:lambda:a%b,ast.Div:lambda:a/b,ast.FloorDiv:lambda:a//b}[type(node.op)]()
     if isinstance(node, ast.IfExp): return safe_eval(node.body,env) if safe_eval(node.test,env) else safe_eval(node.orelse,env)
@@ -324,7 +319,6 @@ def execute_legacy_block(source):
         if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="QUESTIONS_DB" for t in n.targets):
             start=i; break
     if start is None: raise LegacyEvalError("QUESTIONS_DB غير موجود")
-    # Stop before database/application code.
     nodes=[]
     for n in tree.body[start:]:
         if isinstance(n,(ast.FunctionDef,ast.ClassDef,ast.Import,ast.ImportFrom)): break
@@ -489,7 +483,7 @@ def trainees_df(status=None):
         args=[]
         if status:q+=" WHERE status=?";args=[status]
         q+=" ORDER BY id DESC"
-        return pd.read_sql_query(q,c,args=args)
+        return pd.read_sql_query(q, c, params=args)
 
 # ============================================================
 # 7) الأسئلة والقوالب
@@ -937,7 +931,6 @@ def exam_page(session):
     if st.button("تسليم الاختبار نهائياً",use_container_width=True):
         if answered<len(r):st.warning(f"لم تتم الإجابة عن {len(r)-answered} سؤال.")
         else:submit_session(sid);st.session_state.last_result_id=sid;st.session_state.exam_session_id=None;st.rerun()
-    # تحديث تلقائي بسيط دون الاعتماد على session_state للوقت
     st.caption("يتم حفظ الإجابات مباشرة في SQLite. لا تعتمد على إعادة تحميل الصفحة لحفظ الإجابة.")
 
 def result_page(sid):
