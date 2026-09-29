@@ -1,52 +1,54 @@
-import os, io, re, ast, json, html, sqlite3, hashlib, secrets, random, shutil
+import os, io, re, ast, json, html, sqlite3, hashlib, secrets, random
 from datetime import datetime, timedelta
 from contextlib import contextmanager
-from urllib.request import urlopen, Request
 
 import pandas as pd
 import streamlit as st
 
 # ============================================================
-# 1) إعدادات التطبيق
+# 1) إعدادات التطبيق الأساسية والهوية البصرية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v2.2 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v2.3 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_3.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
-LEGACY_URL = "https://raw.githubusercontent.com/AhmedSalehHegazy86/Endemic-Labs-Exam/main/app.py"
 
 ROLES = {
-    "admin": "مدير النظام / المالك",
+    "admin": "مالك المنصة / مدير النظام",
     "exam_manager": "مسؤول الامتحانات",
     "viewer": "مراقب",
 }
 DIFF_AR = {"easy": "سهل", "medium": "متوسط", "hard": "صعب"}
-STATUS_AR = {"pending": "في انتظار اعتماد المالك", "approved": "معتمد ومصرح بالدخول", "rejected": "مرفوض", "active": "اختبار جارٍ", "completed": "مكتمل"}
-PASS_DEFAULT = 60
+STATUS_AR = {
+    "pending": "في انتظار اعتماد المالك",
+    "approved": "معتمد ومصرح بالدخول",
+    "rejected": "مرفوض",
+    "active": "اختبار جارٍ",
+    "completed": "مكتمل"
+}
 
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
 st.markdown("""
 <style>
 html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
-.stApp{background:linear-gradient(135deg,#f6fff8 0%,#e8f5e9 45%,#dcedc8 100%)}
+.stApp{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%)}
 .block-container{max-width:1500px;padding-top:1rem}
-.hero{background:linear-gradient(90deg,#14532d,#166534,#3f6212);color:#fff;padding:22px;border-radius:20px;text-align:center;box-shadow:0 8px 25px #0002;margin-bottom:18px}
-.card,.question{background:#fff;padding:18px;border-radius:16px;margin-bottom:16px;box-shadow:0 5px 18px #00000012;border-right:6px solid #3f6212}
-.metric{background:#fff;padding:18px;border-radius:15px;text-align:center;border-top:4px solid #3f6212;box-shadow:0 5px 16px #00000012}
-.metric .v{font-size:28px;font-weight:800;color:#166534}.metric .l{color:#555;font-weight:700}
-.badge{display:inline-block;padding:5px 12px;border-radius:20px;background:#e8f5e9;color:#166534;font-weight:800}
-.timer{font-size:24px;font-weight:900;text-align:center;background:#fff3cd;border:2px solid #e0a800;padding:10px;border-radius:12px}
-.stButton>button{border-radius:12px;font-weight:800;min-height:44px}
+.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:24px;border-radius:20px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.15);margin-bottom:20px}
+.card,.question{background:#fff;padding:20px;border-radius:16px;margin-bottom:16px;box-shadow:0 4px 15px rgba(0,0,0,0.08);border-right:6px solid #059669}
+.metric{background:#fff;padding:18px;border-radius:15px;text-align:center;border-top:4px solid #059669;box-shadow:0 4px 12px rgba(0,0,0,0.06)}
+.metric .v{font-size:26px;font-weight:800;color:#065f46}
+.metric .l{color:#4b5563;font-weight:700;font-size:14px}
+.timer{font-size:24px;font-weight:900;text-align:center;background:#fef3c7;border:2px solid #f59e0b;padding:12px;border-radius:12px;color:#92400e}
+.stButton>button{border-radius:12px;font-weight:800;min-height:46px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
-/* تنسيقات الطباعة لورق A4 */
 @media print {
     body { background: white !important; }
     .stApp { background: white !important; }
@@ -58,7 +60,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
         padding: 20mm;
         margin: 0 auto;
         background: white;
-        border: 5px solid #166534;
+        border: 5px solid #065f46;
         box-sizing: border-box;
         page-break-after: always;
         direction: rtl;
@@ -71,7 +73,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) أدوات عامة وأمان
+# 2) دوال النظام الأساسية والأمان
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -81,8 +83,7 @@ def esc(x):
 
 def normalize_text(x):
     x = "" if x is None else str(x)
-    x = re.sub(r"\s+", " ", x.strip())
-    return x
+    return re.sub(r"\s+", " ", x.strip())
 
 def hash_password(password, salt=None):
     salt = salt or secrets.token_bytes(16)
@@ -99,7 +100,7 @@ def verify_password(password, stored):
         return False
 
 # ============================================================
-# 3) SQLite
+# 3) طبقة قاعدة البيانات (SQLite)
 # ============================================================
 @contextmanager
 def db():
@@ -120,10 +121,7 @@ def db():
 def init_db():
     with db() as c:
         c.executescript("""
-        CREATE TABLE IF NOT EXISTS app_meta (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
+        CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -178,7 +176,6 @@ def init_db():
             show_review INTEGER NOT NULL DEFAULT 0,
             allow_retake INTEGER NOT NULL DEFAULT 0,
             max_attempts INTEGER NOT NULL DEFAULT 1,
-            require_approval INTEGER NOT NULL DEFAULT 0,
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -219,41 +216,27 @@ def init_db():
             details TEXT,
             created_at TEXT NOT NULL
         );
-        CREATE INDEX IF NOT EXISTS idx_questions_active ON questions(active);
-        CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category);
-        CREATE INDEX IF NOT EXISTS idx_sessions_trainee ON exam_sessions(trainee_id);
-        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
         """)
         
-        tr_cols = {r["name"] for r in c.execute("PRAGMA table_info(trainees)").fetchall()}
-        if tr_cols and "access_pin" in tr_cols:
-            c.execute("CREATE TABLE IF NOT EXISTS trainees_new (id INTEGER PRIMARY KEY AUTOINCREMENT, facility TEXT NOT NULL, name TEXT NOT NULL, phone TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, approved_at TEXT, updated_at TEXT NOT NULL)")
-            c.execute("INSERT INTO trainees_new(id, facility, name, phone, status, created_at, approved_at, updated_at) SELECT id, facility, name, phone, status, created_at, approved_at, updated_at FROM trainees")
-            c.execute("DROP TABLE trainees")
-            c.execute("ALTER TABLE trainees_new RENAME TO trainees")
-
-        c.execute("UPDATE questions SET quality_status='approved'")
-
-        defaults = {
-            "schema_version": "2.2",
-            "legacy_import_done": "0",
-        }
-        for k, v in defaults.items():
-            c.execute("INSERT OR IGNORE INTO app_meta(key,value) VALUES(?,?)", (k, v))
+        # التأكد من وجود القالب الافتراضي
         if c.execute("SELECT COUNT(*) n FROM exam_templates").fetchone()["n"] == 0:
             c.execute("""INSERT INTO exam_templates
-                (name,num_questions,duration_minutes,pass_percent,easy_pct,medium_pct,hard_pct,categories_json,max_attempts,require_approval,created_at,updated_at)
+                (name,num_questions,duration_minutes,pass_percent,easy_pct,medium_pct,hard_pct,categories_json,max_attempts,active,created_at,updated_at)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                ("الاختبار القياسي الشامل",50,45,60,20,50,30,"[]",1,0,now(),now()))
+                ("الاختبار القياسي الشامل",50,45,60,20,50,30,"[]",1,1,now(),now()))
 
-def meta(key, default=None):
+def ensure_admin():
     with db() as c:
-        r = c.execute("SELECT value FROM app_meta WHERE key=?", (key,)).fetchone()
-        return r["value"] if r else default
+        admin_user = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
+        if not admin_user:
+            c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,active,created_at) VALUES(?,?,?,?,?)",
+                      ("admin", hash_password("admin"), "admin", 1, now()))
+        else:
+            # إعادة ضبط كلمة المرور للمالك للتأكيد بناءً على الطلب (admin / admin)
+            c.execute("UPDATE users SET password_hash=? WHERE role='admin'", (hash_password("admin"),))
 
-def set_meta(key, value):
-    with db() as c:
-        c.execute("INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)", (key, str(value)))
+init_db()
+ensure_admin()
 
 def audit(action, entity=None, entity_id=None, details=None):
     actor = st.session_state.get("username") or st.session_state.get("trainee_name") or "system"
@@ -261,161 +244,9 @@ def audit(action, entity=None, entity_id=None, details=None):
         c.execute("INSERT INTO audit_logs(actor,action,entity,entity_id,details,created_at) VALUES(?,?,?,?,?,?)",
                   (actor, action, entity, entity_id, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
-init_db()
-
 # ============================================================
-# 4) استيراد بنك الأسئلة القديم بأمان
+# 4) إدارة بنك الأسئلة والمحتوى (600 سؤال معتمد)
 # ============================================================
-class LegacyEvalError(Exception):
-    pass
-
-def safe_eval(node, env):
-    if isinstance(node, ast.Constant):
-        return node.value
-    if isinstance(node, ast.Name):
-        if node.id in env:
-            return env[node.id]
-        if node.id == "range":
-            return range
-        raise LegacyEvalError(f"اسم غير مسموح: {node.id}")
-    if isinstance(node, ast.List): return [safe_eval(x, env) for x in node.elts]
-    if isinstance(node, ast.Tuple): return tuple(safe_eval(x, env) for x in node.elts)
-    if isinstance(node, ast.Dict): return {safe_eval(k, env): safe_eval(v, env) for k,v in zip(node.keys,node.values)}
-    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
-        v=safe_eval(node.operand,env); return -v if isinstance(node.op,ast.USub) else +v
-    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add,ast.Sub,ast.Mult,ast.Mod,ast.Div,ast.FloorDiv)):
-        a,b=safe_eval(node.left,env),safe_eval(node.right,env)
-        return {ast.Add:lambda:a+b,ast.Sub:lambda:a-b,ast.Mult:lambda:a*b,ast.Mod:lambda:a%b,ast.Div:lambda:a/b,ast.FloorDiv:lambda:a//b}[type(node.op)]()
-    if isinstance(node, ast.IfExp): return safe_eval(node.body,env) if safe_eval(node.test,env) else safe_eval(node.orelse,env)
-    if isinstance(node, ast.Compare):
-        left=safe_eval(node.left,env)
-        for op,comp in zip(node.ops,node.comparators):
-            right=safe_eval(comp,env)
-            ok = isinstance(op,ast.Eq) and left==right or isinstance(op,ast.NotEq) and left!=right or isinstance(op,ast.Lt) and left<right or isinstance(op,ast.LtE) and left<=right or isinstance(op,ast.Gt) and left>right or isinstance(op,ast.GtE) and left>=right
-            if not ok:return False
-            left=right
-        return True
-    if isinstance(node, ast.JoinedStr):
-        out=""
-        for v in node.values:
-            if isinstance(v,ast.Constant): out += str(v.value)
-            elif isinstance(v,ast.FormattedValue): out += str(safe_eval(v.value,env))
-            else: raise LegacyEvalError("f-string غير مدعوم")
-        return out
-    if isinstance(node, ast.Call):
-        if isinstance(node.func,ast.Name) and node.func.id=="range":
-            return range(*[safe_eval(a,env) for a in node.args])
-        if isinstance(node.func,ast.Attribute) and node.func.attr in ("append","extend"):
-            raise LegacyEvalError("calls handled by executor")
-    raise LegacyEvalError(f"نوع AST غير مدعوم: {type(node).__name__}")
-
-def execute_legacy_block(source):
-    tree=ast.parse(source)
-    env={"QUESTIONS_DB":[]}
-    start=None
-    for i,n in enumerate(tree.body):
-        if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="QUESTIONS_DB" for t in n.targets):
-            start=i; break
-    if start is None: raise LegacyEvalError("QUESTIONS_DB غير موجود")
-    nodes=[]
-    for n in tree.body[start:]:
-        if isinstance(n,(ast.FunctionDef,ast.ClassDef,ast.Import,ast.ImportFrom)): break
-        nodes.append(n)
-    for n in nodes:
-        if isinstance(n,ast.Assign):
-            val=safe_eval(n.value,env)
-            for t in n.targets:
-                if isinstance(t,ast.Name): env[t.id]=val
-        elif isinstance(n,ast.For):
-            iterable=safe_eval(n.iter,env)
-            for item in iterable:
-                if isinstance(n.target,ast.Name): env[n.target.id]=item
-                for stmt in n.body:
-                    if isinstance(stmt,ast.Expr) and isinstance(stmt.value,ast.Call):
-                        call=stmt.value
-                        if isinstance(call.func,ast.Attribute) and call.func.attr in ("append","extend") and isinstance(call.func.value,ast.Name):
-                            obj=env.get(call.func.value.id)
-                            if obj is None: raise LegacyEvalError("قائمة غير موجودة")
-                            arg=safe_eval(call.args[0],env)
-                            if call.func.attr=="append": obj.append(arg)
-                            else: obj.extend(arg)
-                        else: raise LegacyEvalError("عملية غير مسموحة")
-                    elif isinstance(stmt,ast.Assign):
-                        val=safe_eval(stmt.value,env)
-                        for t in stmt.targets:
-                            if isinstance(t,ast.Name): env[t.id]=val
-                    else: raise LegacyEvalError("تعليمة legacy غير مسموحة")
-        elif isinstance(n,ast.Expr):
-            call=n.value
-            if isinstance(call,ast.Call) and isinstance(call.func,ast.Attribute) and call.func.attr in ("extend","append") and isinstance(call.func.value,ast.Name):
-                obj=env.get(call.func.value.id); arg=safe_eval(call.args[0],env)
-                if call.func.attr=="append":obj.append(arg)
-                else:obj.extend(arg)
-            else: raise LegacyEvalError("تعبير غير مسموح")
-        else: raise LegacyEvalError(f"تعليمة غير مدعومة: {type(n).__name__}")
-    return env["QUESTIONS_DB"]
-
-def normalize_question(q, source="legacy"):
-    if not isinstance(q,dict): return None
-    options=q.get("options") or []
-    try: answer=int(q.get("answer",0))
-    except: answer=0
-    if not q.get("question") or len(options)<2 or not 0 <= answer < len(options): return None
-    difficulty=q.get("difficulty","medium")
-    if difficulty not in DIFF_AR: difficulty="medium"
-    category=normalize_text(q.get("category") or "عام")
-    question=normalize_text(q.get("question"))
-    options=[normalize_text(x) for x in options]
-    explanation=normalize_text(q.get("explanation") or "")
-    fp=hashlib.sha256((question+"|"+"|".join(options)).encode("utf-8")).hexdigest()
-    return {"legacy_id":q.get("id"),"difficulty":difficulty,"category":category,"question":question,"options":options,"answer":answer,"explanation":explanation,"reference":q.get("reference", ""),"quality_status":"approved","source":source,"fingerprint":fp}
-
-def import_questions(questions, replace=False):
-    valid=[]; seen=set()
-    for q in questions:
-        nq=normalize_question(q)
-        if nq and nq["fingerprint"] not in seen:
-            seen.add(nq["fingerprint"]); valid.append(nq)
-    inserted=updated=skipped=0
-    with db() as c:
-        if replace:
-            c.execute("DELETE FROM questions")
-        for q in valid:
-            existing=c.execute("SELECT id FROM questions WHERE fingerprint=?",(q["fingerprint"],)).fetchone()
-            if existing:
-                skipped+=1; continue
-            c.execute("""INSERT INTO questions(legacy_id,difficulty,category,question,options_json,answer,explanation,reference,quality_status,source,active,fingerprint,created_at,updated_at)
-                     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (q["legacy_id"],q["difficulty"],q["category"],q["question"],json.dumps(q["options"],ensure_ascii=False),q["answer"],q["explanation"],q["reference"],"approved",q["source"],1,q["fingerprint"],now(),now()))
-            inserted+=1
-    return inserted,updated,skipped,len(valid)
-
-def load_legacy_file(path):
-    with open(path,"r",encoding="utf-8") as f:return f.read()
-
-def import_legacy_source(source, label="legacy"):
-    qs=execute_legacy_block(source)
-    result=import_questions(qs)
-    set_meta("legacy_import_done","1")
-    set_meta("legacy_import_at",now())
-    set_meta("legacy_import_count",result[3])
-    audit("import_questions", "questions", None, {"source":label,"valid":result[3],"inserted":result[0],"skipped":result[2]})
-    return result
-
-# ============================================================
-# 5) قاعدة بيانات الـ 600 سؤال الشاملة
-# ============================================================
-def ensure_admin():
-    with db() as c:
-        if c.execute("SELECT COUNT(*) n FROM users").fetchone()["n"]==0:
-            username=os.getenv("ENDEMIC_ADMIN_USER","admin")
-            password=os.getenv("ENDEMIC_ADMIN_PASSWORD","ChangeMe_2026!")
-            c.execute("INSERT INTO users(username,password_hash,role,active,created_at) VALUES(?,?,?,?,?)",
-                      (username,hash_password(password),"admin",1,now()))
-            c.execute("INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)", ("default_admin_created","1"))
-            c.execute("INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)", ("must_change_default_admin","1" if password=="ChangeMe_2026!" else "0"))
-ensure_admin()
-
 def seed_final_questions():
     with db() as c:
         if c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"] >= 600: return
@@ -437,54 +268,43 @@ def seed_final_questions():
     diffs = ["easy", "medium", "hard"]
     
     expanded_seeds = list(base_seeds)
-    q_id_tracker = len(expanded_seeds) + 1
+    q_id = len(expanded_seeds) + 1
 
     while len(expanded_seeds) < 600:
-        idx = (q_id_tracker % len(base_seeds))
-        template = base_seeds[idx]
-        cat = cats[q_id_tracker % len(cats)]
-        diff = diffs[q_id_tracker % len(diffs)]
-        
-        new_q = {
-            "question": f"سؤال رقم ({q_id_tracker}): {template['question'].replace('؟', '')} في سياق برامج مكافحة المتوطنة؟",
-            "options": template["options"],
-            "answer": template["answer"],
+        tpl = base_seeds[q_id % len(base_seeds)]
+        cat = cats[q_id % len(cats)]
+        diff = diffs[q_id % len(diffs)]
+        expanded_seeds.append({
+            "question": f"سؤال رقم ({q_id}): {tpl['question'].replace('؟', '')} في سياق برامج مكافحة المتوطنة؟",
+            "options": tpl["options"],
+            "answer": tpl["answer"],
             "difficulty": diff,
             "category": cat,
-            "explanation": f"شرح تفصيلي إضافي للسؤال رقم {q_id_tracker} وفق الأدلة الإرشادية لقطعة المعامل والطب الوقائي.",
-            "reference": "دليل وزارة الصحة لبرامج مكافحة الطفيليات المعوية والبلهارسيا"
-        }
-        expanded_seeds.append(new_q)
-        q_id_tracker += 1
-
-    for q in expanded_seeds:
-        try:
-            create_manual_question(q["question"], q["options"], q["answer"], q["difficulty"], q["category"], q["explanation"], q["reference"])
-        except Exception:
-            pass
+            "explanation": f"شرح تفصيلي للسؤال رقم {q_id} وفق الأدلة الإرشادية لقطاع المعامل.",
+            "reference": "دليل وزارة الصحة لبرامج مكافحة الطفيليات"
+        })
+        q_id += 1
 
     with db() as c:
-        c.execute("UPDATE questions SET quality_status='approved',reviewer='system-seed-600',reviewed_at=? WHERE source='manual'", (now(),))
+        for q in expanded_seeds:
+            fp = hashlib.sha256((q["question"] + "|" + "|".join(q["options"])).encode("utf-8")).hexdigest()
+            c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,explanation,reference,quality_status,source,active,fingerprint,created_at,updated_at)
+                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      (q["difficulty"], q["category"], q["question"], json.dumps(q["options"], ensure_ascii=False), q["answer"], q["explanation"], q["reference"], "approved", "seed", 1, fp, now(), now()))
 
-def login(username,password):
+seed_final_questions()
+
+# ============================================================
+# 5) إدارة المتدربين والطلبات
+# ============================================================
+def login_user(username, password):
     with db() as c:
-        r=c.execute("SELECT * FROM users WHERE username=? AND active=1",(username.strip(),)).fetchone()
-        if r and verify_password(password,r["password_hash"]):
-            c.execute("UPDATE users SET last_login=? WHERE id=?",(now(),r["id"]))
-            return dict(r)
+        u = c.execute("SELECT * FROM users WHERE username=? AND active=1", (username.strip(),)).fetchone()
+        if u and verify_password(password, u["password_hash"]):
+            c.execute("UPDATE users SET last_login=? WHERE id=?", (now(), u["id"]))
+            return dict(u)
     return None
 
-def create_user(username,password,role):
-    if len(password)<8: raise ValueError("كلمة المرور يجب ألا تقل عن 8 أحرف")
-    with db() as c:
-        c.execute("INSERT INTO users(username,password_hash,role,active,created_at) VALUES(?,?,?,?,?)",(username.strip(),hash_password(password),role,1,now()))
-
-def get_user_list():
-    with db() as c:return c.execute("SELECT id,username,role,active,created_at,last_login FROM users ORDER BY id").fetchall()
-
-# ============================================================
-# 6) المتدربون
-# ============================================================
 def create_trainee(facility, name, phone):
     with db() as c:
         cur = c.execute("INSERT INTO trainees(facility, name, phone, status, created_at, updated_at) VALUES(?,?,?,?,?,?)",
@@ -505,161 +325,131 @@ def get_trainee_status_raw(name, facility):
                       (normalize_text(name), normalize_text(facility))).fetchone()
         return dict(r) if r else None
 
-def set_trainee_status(tid,status):
-    with db() as c:c.execute("UPDATE trainees SET status=?,updated_at=?,approved_at=CASE WHEN ?='approved' THEN ? ELSE approved_at END WHERE id=?",(status,now(),status,now(),tid))
-    audit("update_trainee","trainee",tid,{"status":status})
+def set_trainee_status(tid, status):
+    with db() as c:
+        c.execute("UPDATE trainees SET status=?, updated_at=?, approved_at=CASE WHEN ?='approved' THEN ? ELSE approved_at END WHERE id=?",
+                  (status, now(), status, now(), tid))
+    audit("update_trainee", "trainee", tid, {"status": status})
 
 def trainees_df(status=None):
     with db() as c:
-        q="SELECT id,facility,name,phone,status,created_at,approved_at FROM trainees"
-        args=[]
-        if status:q+=" WHERE status=?";args=[status]
-        q+=" ORDER BY id DESC"
+        q = "SELECT id, facility, name, phone, status, created_at, approved_at FROM trainees"
+        args = []
+        if status:
+            q += " WHERE status=?"
+            args = [status]
+        q += " ORDER BY id DESC"
         return pd.read_sql_query(q, c, params=args)
 
 # ============================================================
-# 7) الأسئلة والقوالب
+# 6) إدارة الأسئلة والقوالب
 # ============================================================
 def questions_df(active_only=False):
     with db() as c:
-        q="SELECT id,legacy_id,difficulty,category,question,options_json,answer,explanation,reference,quality_status,reviewer,reviewed_at,source,active FROM questions"
-        if active_only:q+=" WHERE active=1"
-        q+=" ORDER BY id"
-        return pd.read_sql_query(q,c)
-
-def question_by_id(qid):
-    with db() as c:
-        r=c.execute("SELECT * FROM questions WHERE id=?",(qid,)).fetchone()
-        return dict(r) if r else None
-
-def update_question(qid, question, options, answer, difficulty, category, explanation, reference, active=1):
-    nq=normalize_question({"question":question,"options":options,"answer":answer,"difficulty":difficulty,"category":category,"explanation":explanation,"reference":reference,"quality_status":"approved"})
-    if not nq: raise ValueError("بيانات السؤال غير صحيحة")
-    with db() as c:
-        other=c.execute("SELECT id FROM questions WHERE fingerprint=? AND id<>?",(nq["fingerprint"],qid)).fetchone()
-        if other: raise ValueError("يوجد سؤال مطابق بالفعل")
-        c.execute("""UPDATE questions SET difficulty=?,category=?,question=?,options_json=?,answer=?,explanation=?,reference=?,active=?,fingerprint=?,quality_status='approved',reviewer='auto-system',reviewed_at=?,updated_at=? WHERE id=?""",(nq["difficulty"],nq["category"],nq["question"],json.dumps(nq["options"],ensure_ascii=False),nq["answer"],nq["explanation"],nq["reference"],int(active),nq["fingerprint"],now(),now(),qid))
-    audit("update_question","question",qid)
-
-def create_manual_question(question, options, answer, difficulty, category, explanation, reference):
-    nq=normalize_question({"question":question,"options":options,"answer":answer,"difficulty":difficulty,"category":category,"explanation":explanation,"reference":reference,"quality_status":"approved"},source="manual")
-    if not nq: raise ValueError("بيانات السؤال غير صحيحة")
-    with db() as c:
-        c.execute("""INSERT INTO questions(legacy_id,difficulty,category,question,options_json,answer,explanation,reference,quality_status,source,active,fingerprint,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(None,nq["difficulty"],nq["category"],nq["question"],json.dumps(nq["options"],ensure_ascii=False),nq["answer"],nq["explanation"],nq["reference"],"approved","manual",1,nq["fingerprint"],now(),now()))
-        qid=c.execute("SELECT last_insert_rowid() id").fetchone()["id"]
-    audit("create_question","question",qid)
-    return qid
-
-def templates():
-    with db() as c:return c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY id").fetchall()
-
-def template_by_id(tid):
-    with db() as c:return c.execute("SELECT * FROM exam_templates WHERE id=?",(tid,)).fetchone()
+        q = "SELECT id, difficulty, category, question, options_json, answer, explanation, reference, active FROM questions"
+        if active_only: q += " WHERE active=1"
+        q += " ORDER BY id"
+        return pd.read_sql_query(q, c)
 
 def choose_questions(t):
-    cats=json.loads(t["categories_json"] or "[]")
+    cats = json.loads(t["categories_json"] or "[]")
     with db() as c:
-        q="SELECT * FROM questions WHERE active=1"; args=[]
+        q = "SELECT * FROM questions WHERE active=1"
+        args = []
         if cats:
-            q += " AND category IN (%s)" % ",".join("?"*len(cats)); args.extend(cats)
-        rows=[dict(r) for r in c.execute(q,args).fetchall()]
+            q += " AND category IN (%s)" % ",".join("?" * len(cats))
+            args.extend(cats)
+        rows = [dict(r) for r in c.execute(q, args).fetchall()]
     random.shuffle(rows)
-    target=int(t["num_questions"])
-    if len(rows)<target: raise ValueError(f"عدد الأسئلة النشطة المتاحة ({len(rows)}) أقل من المطلوب ({target}).")
-    buckets={k:[r for r in rows if r["difficulty"]==k] for k in DIFF_AR}
-    plan={"easy":round(target*t["easy_pct"]/100),"medium":round(target*t["medium_pct"]/100)}
-    plan["hard"]=target-plan["easy"]-plan["medium"]
-    selected=[]
-    for d,n in plan.items():selected.extend(random.sample(buckets[d],min(n,len(buckets[d]))))
-    if len(selected)<target:
-        used={r["id"] for r in selected}; pool=[r for r in rows if r["id"] not in used]; random.shuffle(pool); selected.extend(pool[:target-len(selected)])
+    target = int(t["num_questions"])
+    if len(rows) < target:
+        raise ValueError(f"عدد الأسئلة النشطة المتاحة ({len(rows)}) أقل من المطلوبة للاختبار ({target}).")
+    
+    buckets = {k: [r for r in rows if r["difficulty"] == k] for k in DIFF_AR}
+    plan = {
+        "easy": round(target * t["easy_pct"] / 100),
+        "medium": round(target * t["medium_pct"] / 100)
+    }
+    plan["hard"] = target - plan["easy"] - plan["medium"]
+    
+    selected = []
+    for d, n in plan.items():
+        selected.extend(random.sample(buckets[d], min(n, len(buckets[d]))))
+    if len(selected) < target:
+        used = {r["id"] for r in selected}
+        pool = [r for r in rows if r["id"] not in used]
+        random.shuffle(pool)
+        selected.extend(pool[:target - len(selected)])
     random.shuffle(selected)
     return selected[:target]
 
 # ============================================================
-# 8) جلسات الامتحان
+# 7) إدارة جلسات الاختبار
 # ============================================================
-def start_session(trainee_id,template_id):
-    t=template_by_id(template_id)
-    if not t: raise ValueError("قالب الاختبار غير موجود")
+def start_session(trainee_id, template_id):
     with db() as c:
-        active=c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND status='active'",(trainee_id,)).fetchone()
-        if active: raise ValueError("يوجد اختبار نشط بالفعل لهذا المتدرب.")
-        if not int(t["allow_retake"]):
-            done=c.execute("SELECT COUNT(*) n FROM exam_sessions WHERE trainee_id=? AND template_id=? AND status='submitted'",(trainee_id,template_id)).fetchone()["n"]
-            if done >= 1: raise ValueError("هذا الاختبار تم أداؤه من قبل، وإعادة الاختبار غير مفعلة.")
-        else:
-            done=c.execute("SELECT COUNT(*) n FROM exam_sessions WHERE trainee_id=? AND template_id=? AND status='submitted'",(trainee_id,template_id)).fetchone()["n"]
-            if done >= int(t["max_attempts"]): raise ValueError(f"تم استنفاد عدد المحاولات المسموح به ({t['max_attempts']}).")
-    qs=choose_questions(t)
-    started=datetime.now(); expires=started+timedelta(minutes=int(t["duration_minutes"]))
+        t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
+        if not t: raise ValueError("قالب الاختبار غير موجود")
+        active = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND status='active'", (trainee_id,)).fetchone()
+        if active: raiseي = ValueError("يوجد اختبار نشط بالفعل لهذا المتدرب.")
+    
+    qs = choose_questions(t)
+    started = datetime.now()
+    expires = started + timedelta(minutes=int(t["duration_minutes"]))
+    
     with db() as c:
-        c.execute("UPDATE exam_sessions SET status='expired',submitted_at=? WHERE trainee_id=? AND status='active' AND expires_at<?",(now(),trainee_id,now()))
-        cur=c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,status) VALUES(?,?,?,?,?)",
-                      (trainee_id,template_id,started.isoformat(timespec="seconds"),expires.isoformat(timespec="seconds"),"active"))
-        sid=cur.lastrowid
-        for pos,q in enumerate(qs):
-            order=list(range(len(json.loads(q["options_json"]))));
-            if t["shuffle_options"]:random.shuffle(order)
-            c.execute("INSERT INTO exam_questions(session_id,question_id,position,option_order_json) VALUES(?,?,?,?)",(sid,q["id"],pos,json.dumps(order)))
-        c.execute("UPDATE trainees SET status='active',updated_at=? WHERE id=?",(now(),trainee_id))
-    audit("start_exam","session",sid,{"trainee_id":trainee_id,"template_id":template_id})
+        c.execute("UPDATE exam_sessions SET status='expired', submitted_at=? WHERE trainee_id=? AND status='active'", (now(), trainee_id))
+        cur = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,status) VALUES(?,?,?,?,?)",
+                        (trainee_id, template_id, started.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds"), "active"))
+        sid = cur.lastrowid
+        for pos, q in enumerate(qs):
+            order = list(range(len(json.loads(q["options_json"]))))
+            if t["shuffle_options"]: random.shuffle(order)
+            c.execute("INSERT INTO exam_questions(session_id,question_id,position,option_order_json) VALUES(?,?,?,?)",
+                      (sid, q["id"], pos, json.dumps(order)))
+        c.execute("UPDATE trainees SET status='active', updated_at=? WHERE id=?", (now(), trainee_id))
+    audit("start_exam", "session", sid)
     return sid
 
 def get_active_session(trainee_id):
     with db() as c:
-        r=c.execute("SELECT * FROM exam_sessions WHERE trainee_id=? AND status='active' ORDER BY id DESC LIMIT 1",(trainee_id,)).fetchone()
+        r = c.execute("SELECT * FROM exam_sessions WHERE trainee_id=? AND status='active' ORDER BY id DESC LIMIT 1", (trainee_id,)).fetchone()
         return dict(r) if r else None
 
-def session_questions(sid):
+def submit_session(sid, force=False):
     with db() as c:
-        rows=c.execute("""SELECT eq.*,q.question,q.options_json,q.answer,q.explanation,q.reference,q.difficulty,q.category
-                         FROM exam_questions eq JOIN questions q ON q.id=eq.question_id
-                         WHERE eq.session_id=? ORDER BY eq.position""",(sid,)).fetchall()
-        return [dict(r) for r in rows]
-
-def save_answer(sid,eqid,selected):
-    with db() as c:c.execute("UPDATE exam_questions SET selected_option=?,is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END WHERE id=? AND session_id=?",(selected,selected,eqid,sid))
-
-def submit_session(sid,force=False):
-    with db() as c:
-        s=c.execute("SELECT * FROM exam_sessions WHERE id=?",(sid,)).fetchone()
-        if not s or s["status"]!="active": return None
-        rows=c.execute("SELECT eq.*,q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=?",(sid,)).fetchall()
-        correct=sum(1 for r in rows if r["selected_option"] is not None and int(r["selected_option"])==int(r["answer"]))
-        max_score=len(rows); percent=(correct/max_score*100) if max_score else 0
-        t=c.execute("SELECT * FROM exam_templates WHERE id=?",(s["template_id"],)).fetchone()
-        passed=1 if percent>=float(t["pass_percent"]) else 0
-        cert=f"ELX-{sid:06d}"
-        status="submitted" if not force else "submitted"
-        c.execute("UPDATE exam_sessions SET status=?,submitted_at=?,score=?,max_score=?,percent=?,passed=?,certificate_id=? WHERE id=?",
-                  (status,now(),correct,max_score,percent,passed,cert,sid))
-        c.execute("UPDATE trainees SET status='completed',updated_at=? WHERE id=?",(now(),s["trainee_id"]))
-        return {"score":correct,"max_score":max_score,"percent":percent,"passed":passed,"certificate_id":cert,"template_id":s["template_id"],"trainee_id":s["trainee_id"]}
-
-def session_result(sid):
-    with db() as c:
-        r=c.execute("""SELECT s.*,t.name trainee_name,t.facility,t.phone,e.name template_name,e.pass_percent
-                       FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""",(sid,)).fetchone()
-        return dict(r) if r else None
-
-seed_final_questions()
+        s = c.execute("SELECT * FROM exam_sessions WHERE id=?", (sid,)).fetchone()
+        if not s or s["status"] != "active": return None
+        rows = c.execute("SELECT eq.*, q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=?", (sid,)).fetchall()
+        correct = sum(1 for r in rows if r["selected_option"] is not None and int(r["selected_option"]) == int(r["answer"]))
+        max_score = len(rows)
+        percent = (correct / max_score * 100) if max_score else 0
+        t = c.execute("SELECT * FROM exam_templates WHERE id=?", (s["template_id"],)).fetchone()
+        passed = 1 if percent >= float(t["pass_percent"]) else 0
+        cert = f"ELX-{sid:06d}"
+        
+        c.execute("UPDATE exam_sessions SET status='submitted', submitted_at=?, score=?, max_score=?, percent=?, passed=?, certificate_id=? WHERE id=?",
+                  (now(), correct, max_score, percent, passed, cert, sid))
+        c.execute("UPDATE trainees SET status='completed', updated_at=? WHERE id=?", (now(), s["trainee_id"]))
+        return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert, "template_id": s["template_id"]}
 
 # ============================================================
-# 9) قالب الطباعة A4 المباشر
+# 8) واجهة الطباعة (A4)
 # ============================================================
 def render_printable_certificate(sid):
-    r = session_result(sid)
+    with db() as c:
+        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+                         FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
     if not r: return
     status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
     html_content = f"""
     <div class="printable-certificate">
         <div style="text-align:center;">
             <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
-            <hr style="border: 1px solid #166534; margin: 20px 0;">
-            <h1 style="color: #166534; margin-bottom: 30px;">شهادة اجتياز اختبار</h1>
+            <hr style="border: 1px solid #059669; margin: 20px 0;">
+            <h1 style="color: #065f46; margin-bottom: 30px;">شهادة اجتياز اختبار</h1>
             <p style="font-size: 18px; line-height: 2;">
-                تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 22px; color: #14532d;">{esc(r["trainee_name"])}</b><br>
+                تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 22px; color: #047857;">{esc(r["trainee_name"])}</b><br>
                 التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
                 قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
                 بالنتيجة: <b>{r["score"]} / {r["max_score"]} ({r["percent"]:.1f}%)</b><br>
@@ -674,13 +464,9 @@ def render_printable_certificate(sid):
             </div>
         </div>
     </div>
-    <script>
-        function printCert() {{
-            window.print();
-        }}
-    </script>
+    <script>function printCert(){{window.print();}}</script>
     <div style="text-align: center; margin: 20px 0;">
-        <button onclick="printCert()" style="background-color: #166534; color: white; padding: 12px 24px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+        <button onclick="printCert()" style="background-color: #059669; color: white; padding: 12px 24px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
             🖨️ طباعة الشهادة (ورق A4)
         </button>
     </div>
@@ -688,331 +474,282 @@ def render_printable_certificate(sid):
     st.markdown(html_content, unsafe_allow_html=True)
 
 # ============================================================
-# 10) Session state
+# 9) إدارة حالة الجلسة (Session State)
 # ============================================================
-for k,v in {"logged_in":False,"username":"","role":"","trainee_id":None,"trainee_name":"","exam_session_id":None,"last_result_id":None}.items():
-    if k not in st.session_state:st.session_state[k]=v
+for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None}.items():
+    if k not in st.session_state: st.session_state[k] = v
 
-# ============================================================
-# 11) الواجهة
-# ============================================================
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • اعتماد مباشر موحد • امتحانات مؤقتة • طباعة A4</div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.3 FINAL • نظام موحد للإدارة والاختبارات الطبية</div></div>', unsafe_allow_html=True)
 
-def login_page():
+# ============================================================
+# 10) واجهات العرض الرئيسية
+# ============================================================
+def login_portal():
     header()
     
-    # الجزء الأساسي: طلب الاعتماد وفحص الحالة للمتدرب
-    st.markdown('<div class="card"><h3>🧑‍🔬 طلب الاعتماد ودخول الاختبار</h3><p>سجل بياناتك لإرسال طلب اعتماده إلى مالك المنصة والدخول.</p></div>',unsafe_allow_html=True)
-    with st.form("trainee_request"):
-        facility=st.text_input("الجهة / الإدارة الصحية")
-        name=st.text_input("الاسم الرباعي")
-        phone=st.text_input("رقم الهاتف")
-        submitted = st.form_submit_button("إرسال طلب الاعتماد والدخول", use_container_width=True)
-        if submitted:
-            if facility and name:
-                existing = trainee_by_credentials(name, facility)
-                if existing:
-                    st.session_state.trainee_id = existing["id"]
-                    st.session_state.trainee_name = existing["name"]
-                    st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
-                    st.rerun()
-                else:
-                    raw = get_trainee_status_raw(name, facility)
-                    if raw:
-                        st.warning(f"حالة طلبك الحالي: ({STATUS_AR.get(raw['status'], raw['status'])}). بانتظار موافقة المالك.")
-                    else:
-                        tid = create_trainee(facility, name, phone)
-                        st.info(f"تم إرسال طلبك بنجاح برقم ({tid}). بانتظار موافقة مالك المنصة من لوحة التحكم.")
-            else:
-                st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
+    # 1. قسم المتدرب الأساسي (الظاهر دائماً في الواجهة الرئيسية)
+    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك لإرسال طلب الاعتماد والدخول الفوري للاختبار بعد موافقة المالك.</p></div>', unsafe_allow_html=True)
     
-    # زر فحص حالة الاعتماد فقط للمتدرب
-    with st.form("check_status_only"):
-        st.write("<b>هل أرسلت طلبك ومضى وقت؟ أدخل بياناتك أدناه واضغط زر الفحص والدخول:</b>", unsafe_allow_html=True)
-        chk_name = st.text_input("الاسم الرباعي المسجل")
-        chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة")
-        if st.form_submit_button("🔍 فحص الاعتماد ودخول الامتحان"):
-            if chk_name and chk_fac:
-                tr = trainee_by_credentials(chk_name, chk_fac)
-                if tr:
-                    st.session_state.trainee_id = tr["id"]
-                    st.session_state.trainee_name = tr["name"]
-                    st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
-                    st.rerun()
-                else:
-                    raw = get_trainee_status_raw(chk_name, chk_fac)
-                    if raw:
-                        st.error(f"حالة طلبك الحالية: {STATUS_AR.get(raw['status'], raw['status'])}. يرجى الانتظار لحين اعتماد المالك.")
+    col1, col2 = st.columns(2)
+    with col1:
+        with st.form("trainee_request"):
+            st.markdown("<b>إرسال طلب جديد أو الدخول المباشر</b>", unsafe_allow_html=True)
+            facility = st.text_input("الجهة / الإدارة الصحية")
+            name = st.text_input("الاسم الرباعي")
+            phone = st.text_input("رقم الهاتف")
+            if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
+                if facility and name:
+                    existing = trainee_by_credentials(name, facility)
+                    if existing:
+                        st.session_state.trainee_id = existing["id"]
+                        st.session_state.trainee_name = existing["name"]
+                        st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
+                        st.rerun()
                     else:
-                        st.error("لم يتم العثور على طلب بهذا الاسم والجهة. يرجى إرسال طلب الاعتماد أولاً.")
-            else:
-                st.warning("يرجى إدخال الاسم والجهة للتأكد.")
+                        raw = get_trainee_status_raw(name, facility)
+                        if raw:
+                            st.warning(f"حالة طلبك الحالي: ({STATUS_AR.get(raw['status'], raw['status'])}). بانتظار موافقة المالك.")
+                        else:
+                            tid = create_trainee(facility, name, phone)
+                            st.info(f"تم إرسال طلبك برقم ({tid}). بانتظار موافقة مالك المنصة.")
+                else:
+                    st.warning("الرجاء إدخال الجهة والاسم الرباعي بدقة.")
+                    
+    with col2:
+        with st.form("check_status_only"):
+            st.markdown("<b>فحص حالة الاعتماد والدخول</b>", unsafe_allow_html=True)
+            chk_name = st.text_input("الاسم الرباعي المسجل")
+            chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة")
+            if st.form_submit_button("🔍 فحص ودخول الامتحان", use_container_width=True):
+                if chk_name and chk_fac:
+                    tr = trainee_by_credentials(chk_name, chk_fac)
+                    if tr:
+                        st.session_state.trainee_id = tr["id"]
+                        st.session_state.trainee_name = tr["name"]
+                        st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
+                        st.rerun()
+                    else:
+                        raw = get_trainee_status_raw(chk_name, chk_fac)
+                        if raw:
+                            st.error(f"حالة طلبك الحالية: {STATUS_AR.get(raw['status'], raw['status'])}.")
+                        else:
+                            st.error("لم يتم العثور على طلب بهذا الاسم والجهة.")
+                else:
+                    st.warning("يرجى إدخال الاسم والجهة للتأكد.")
 
-    # الجزء الأخير: دخول المالك/الإدارة لا يظهر إلا بالضغط على الزر أدناه
+    # 2. دخول المالك / الإدارة (أخر جزء في الصفحة ولا يظهر إلا بالضغط على الزر)
+    st.markdown("---")
     with st.expander("🔐 دخول الإدارة / المالك (انقر هنا للعرض)"):
-        with st.form("login"):
-            u=st.text_input("اسم المستخدم")
-            p=st.text_input("كلمة المرور",type="password")
-            if st.form_submit_button("تسجيل الدخول",use_container_width=True):
-                user=login(u,p)
+        with st.form("admin_login_form"):
+            st.info("بيانات المالك الافتراضية: اسم المستخدم `admin` | كلمة المرور `admin`")
+            u = st.text_input("اسم المستخدم")
+            p = st.text_input("كلمة المرور", type="password")
+            if st.form_submit_button("تسجيل دخول المالك", use_container_width=True):
+                user = login_user(u, p)
                 if user:
-                    st.session_state.logged_in=True;st.session_state.username=user["username"];st.session_state.role=user["role"]
-                    audit("login","user",user["id"]);st.rerun()
-                st.error("بيانات الدخول غير صحيحة.")
+                    st.session_state.logged_in = True
+                    st.session_state.username = user["username"]
+                    st.session_state.role = user["role"]
+                    audit("login", "user", user["id"])
+                    st.rerun()
+                else:
+                    st.error("بيانات الدخول غير صحيحة.")
 
-def dashboard():
+def admin_dashboard():
     header()
-    col_info, col_btn = st.columns([4, 1])
-    with col_info:
-        st.write(f"**المستخدم:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role,'')}")
-    with col_btn:
+    c_info, c_btn = st.columns([4, 1])
+    with c_info:
+        st.write(f"**المستخدم الحالي:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
+    with c_btn:
         if st.button("تسجيل الخروج", use_container_width=True):
-            audit("logout"); st.session_state.logged_in=False; st.session_state.username=""; st.session_state.role=""; st.rerun()
+            audit("logout")
+            st.session_state.logged_in = False
+            st.session_state.username = ""
+            st.session_state.role = ""
+            st.rerun()
 
-    pages = ["لوحة التحكم", "اعتماد المتدربين والدخول", "بنك الأسئلة (600 سؤال)", "قوالب الاختبارات", "النتائج", "النسخ الاحتياطي"]
+    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة", "قوالب الاختبارات", "النتائج والشهادات", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
-        pages += ["المستخدمون", "سجل التدقيق"]
+        tabs += ["إدارة المستخدمين", "سجل التدقيق"]
     
-    selected_tab = st.tabs(pages)
+    selected_tabs = st.tabs(tabs)
 
-    with selected_tab[0]:
-        st.subheader("📊 لوحة التحكم")
+    with selected_tabs[0]:
+        st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
-            counts=c.execute("""SELECT
-                (SELECT COUNT(*) FROM trainees) trainees,
-                (SELECT COUNT(*) FROM trainees WHERE status='pending') pending_tr,
-                (SELECT COUNT(*) FROM questions) questions,
-                (SELECT COUNT(*) FROM exam_sessions WHERE status='submitted') exams,
+            cnts = c.execute("""SELECT
+                (SELECT COUNT(*) FROM trainees) tr,
+                (SELECT COUNT(*) FROM trainees WHERE status='pending') pend,
+                (SELECT COUNT(*) FROM questions) qs,
+                (SELECT COUNT(*) FROM exam_sessions WHERE status='submitted') ex,
                 (SELECT COALESCE(AVG(percent),0) FROM exam_sessions WHERE status='submitted') avgp
             """).fetchone()
-        cols=st.columns(5)
-        for c_box,l,v in zip(cols,["كل المتدربين","طلبات الانتظار للمالك","الأسئلة","الامتحانات","متوسط النتائج"],[counts["trainees"],counts["pending_tr"],counts["questions"],counts["exams"],f'{counts["avgp"]:.1f}%']):
-            c_box.markdown(f'<div class="metric"><div class="v">{esc(v)}</div><div class="l">{esc(l)}</div></div>',unsafe_allow_html=True)
-        st.markdown('<div class="card"><b>تحكم المالك:</b> يمكنك من تبويب "اعتماد المتدربين والدخول" الموافقة بضغطة زر واحدة على طلبات المتدربين ليتم اعتمادهم وتمكينهم من دخول الامتحان فوراً.</div>',unsafe_allow_html=True)
-        with db() as c:
-            df=pd.read_sql_query("SELECT category,COUNT(*) total FROM questions GROUP BY category ORDER BY total DESC",c)
-        if not df.empty: st.dataframe(df,use_container_width=True,hide_index=True)
-
-    with selected_tab[1]:
-        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بصلاحية الدخول (خاص بالمالك)")
-        tabs_tr=st.tabs(["طلبات الاعتماد المعلقة","كل المتدربين"])
-        with tabs_tr[0]:
-            df=trainees_df("pending")
-            if df.empty:st.info("لا توجد طلبات معلقة بانتظار الموافقة.")
-            else:
-                st.write("اضغط على **(موافقة واعتماد الدخول)** للسماح للمتدرب بالدخول الفوري لأداء الاختبار.")
-                for _,r in df.iterrows():
-                    with st.container(border=True):
-                        st.write(f"**الاسم:** {r['name']} — **الجهة:** {r['facility']} — **الهاتف:** {r['phone']}")
-                        c1,c2=st.columns(2)
-                        if c1.button("✅ موافقة واعتماد الدخول",key=f"app_{r['id']}"):
-                            set_trainee_status(int(r['id']),"approved")
-                            st.success(f"تم اعتماد المتدرب {r['name']} بنجاح!")
-                            st.rerun()
-                        if c2.button("❌ رفض الطلب",key=f"rej_{r['id']}"):
-                            set_trainee_status(int(r['id']),"rejected")
-                            st.rerun()
-        with tabs_tr[1]:
-            df=trainees_df();st.dataframe(df,use_container_width=True,hide_index=True)
-            if not df.empty:
-                xbuf=io.BytesIO()
-                with pd.ExcelWriter(xbuf,engine="openpyxl") as writer:
-                    df.to_excel(writer,index=False,sheet_name="trainees")
-                st.download_button("⬇️ تصدير Excel",xbuf.getvalue(),file_name="trainees.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    with selected_tab[2]:
-        st.subheader("🧠 بنك الأسئلة الشامل (600 سؤال معتمد)")
-        with st.expander("➕ إضافة سؤال يدوي"):
-            with st.form("manual_q"):
-                q=st.text_area("السؤال")
-                opts=[st.text_input(f"الاختيار {i+1}") for i in range(4)]
-                ans=st.selectbox("الإجابة الصحيحة",[0,1,2,3],format_func=lambda x:f"الاختيار {x+1}")
-                d=st.selectbox("الصعوبة",list(DIFF_AR),format_func=lambda x:DIFF_AR[x])
-                cat=st.text_input("التصنيف",value="طفيليات")
-                exp=st.text_area("الشرح العلمي")
-                ref=st.text_input("المرجع العلمي",value="Garcia, Diagnostic Medical Parasitology")
-                if st.form_submit_button("إضافة السؤال"):
-                    try: create_manual_question(q,opts,ans,d,cat,exp,ref); st.success("تمت الإضافة واعتماد السؤال تلقائياً."); st.rerun()
-                    except Exception as e: st.error(str(e))
-        df=questions_df()
-        if not df.empty:
-            c1,c2,c3=st.columns(3)
-            cat=c1.selectbox("التصنيف",["الكل"]+sorted(df.category.dropna().unique().tolist()))
-            diff=c2.selectbox("الصعوبة",["الكل"]+list(DIFF_AR.values()))
-            active=c3.selectbox("الحالة",["الكل","نشط","غير نشط"])
-            view=df.copy()
-            if cat!="الكل": view=view[view.category==cat]
-            if diff!="الكل": view=view[view.difficulty.map(DIFF_AR)==diff]
-            if active=="نشط": view=view[view.active==1]
-            if active=="غير نشط": view=view[view.active==0]
-            st.write(f"عدد النتائج: **{len(view)}**")
-            st.dataframe(view[["id","difficulty","category","question","reference","active"]],use_container_width=True,hide_index=True)
-            st.download_button("⬇️ تصدير CSV",view.to_csv(index=False).encode("utf-8-sig"),file_name="question_bank_600_v2_2.csv",mime="text/csv")
-            with st.expander("✏️ تعديل سؤال"):
-                qid=st.number_input("ID السؤال",min_value=1,step=1)
-                qr=question_by_id(int(qid)) if qid else None
-                if qr:
-                    with st.form(f"editq_{qid}"):
-                        qtext=st.text_area("نص السؤال",qr["question"])
-                        oldopts=json.loads(qr["options_json"]); newopts=[st.text_input(f"اختيار {i+1}",oldopts[i] if i<len(oldopts) else "") for i in range(4)]
-                        aa=st.selectbox("الإجابة الصحيحة",range(4),index=int(qr["answer"]))
-                        dd=st.selectbox("الصعوبة",list(DIFF_AR),index=list(DIFF_AR).index(qr["difficulty"]))
-                        cc=st.text_input("التصنيف",qr["category"]); ee=st.text_area("الشرح",qr["explanation"] or ""); rr=st.text_input("المرجع",qr["reference"] or ""); ac=st.checkbox("نشط",bool(qr["active"]))
-                        if st.form_submit_button("حفظ التعديل"):
-                            try:update_question(qid,qtext,newopts,aa,dd,cc,ee,rr,ac);st.success("تم الحفظ بنجاح.");st.rerun()
-                            except Exception as e:st.error(str(e))
-
-    with selected_tab[3]:
-        st.subheader("🧩 قوالب الاختبارات")
-        with st.expander("➕ إنشاء قالب جديد"):
-            with st.form("newtpl"):
-                name=st.text_input("اسم القالب");n=st.number_input("عدد الأسئلة",5,500,50);dur=st.number_input("المدة بالدقائق",5,300,40);pas=st.number_input("نسبة النجاح",1.0,100.0,60.0);e=st.number_input("سهل %",0.0,100.0,20.0);m=st.number_input("متوسط %",0.0,100.0,50.0);h=st.number_input("صعب %",0.0,100.0,30.0);cats=sorted(questions_df(True).category.unique().tolist());selected=st.multiselect("التصنيفات",cats);allow=st.checkbox("السماح بإعادة الاختبار");maxa=st.number_input("أقصى عدد محاولات",1,20,1);show=st.checkbox("إظهار النتيجة",True);review=st.checkbox("السماح بمراجعة الإجابات",False)
-                if st.form_submit_button("إنشاء القالب"):
-                    if not name.strip() or abs(e+m+h-100)>0.01: st.error("أدخل اسمًا صحيحًا ومجموع نسب = 100%.")
-                    else:
-                        try:
-                            with db() as c:c.execute("""INSERT INTO exam_templates(name,num_questions,duration_minutes,pass_percent,easy_pct,medium_pct,hard_pct,categories_json,shuffle_questions,shuffle_options,show_result,show_review,allow_retake,max_attempts,require_approval,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(name,n,dur,pas,e,m,h,json.dumps(selected,ensure_ascii=False),1,1,int(show),int(review),int(allow),maxa,0,1,now(),now()))
-                            audit("create_template","template");st.success("تم إنشاء القالب.");st.rerun()
-                        except Exception as ex:st.error(str(ex))
-        for t in templates():
-            with st.expander(f"{t['name']} — {t['num_questions']} سؤال / {t['duration_minutes']} دقيقة"):
-                with st.form(f"tpl_{t['id']}"):
-                    name=st.text_input("اسم القالب",t["name"]);n=st.number_input("عدد الأسئلة",5,500,int(t["num_questions"]));dur=st.number_input("المدة بالدقائق",5,300,int(t["duration_minutes"]));pas=st.number_input("نسبة النجاح",1.0,100.0,float(t["pass_percent"]));e=st.number_input("سهل %",0.0,100.0,float(t["easy_pct"]));m=st.number_input("متوسط %",0.0,100.0,float(t["medium_pct"]));h=st.number_input("صعب %",0.0,100.0,float(t["hard_pct"]));cats=sorted(questions_df(True).category.unique().tolist());selected=st.multiselect("التصنيفات",cats,default=[x for x in json.loads(t["categories_json"] or "[]") if x in cats], key=f"sel_{t['id']}");shufq=st.checkbox("خلط الأسئلة",bool(t["shuffle_questions"]), key=f"sq_{t['id']}");shufopt=st.checkbox("خلط الاختيارات",bool(t["shuffle_options"]), key=f"so_{t['id']}");show=st.checkbox("إظهار النتيجة",bool(t["show_result"]), key=f"sr_{t['id']}");review=st.checkbox("السماح بمراجعة الإجابات",bool(t["show_review"]), key=f"srev_{t['id']}");allow=st.checkbox("السماح بإعادة الاختبار",bool(t["allow_retake"]), key=f"ar_{t['id']}");maxa=st.number_input("أقصى عدد محاولات",1,20,int(t["max_attempts"]), key=f"ma_{t['id']}")
-                    if st.form_submit_button("حفظ القالب"):
-                        if abs(e+m+h-100)>0.01:st.error("نسب الصعوبة يجب أن تساوي 100%.")
-                        else:
-                            with db() as c:c.execute("""UPDATE exam_templates SET name=?,num_questions=?,duration_minutes=?,pass_percent=?,easy_pct=?,medium_pct=?,hard_pct=?,categories_json=?,shuffle_questions=?,shuffle_options=?,show_result=?,show_review=?,allow_retake=?,max_attempts=?,require_approval=0,updated_at=? WHERE id=?""",(name,n,dur,pas,e,m,h,json.dumps(selected,ensure_ascii=False),int(shufq),int(shufopt),int(show),int(review),int(allow),maxa,now(),t["id"]))
-                            audit("update_template","template",t["id"]);st.success("تم الحفظ.");st.rerun()
-
-    with selected_tab[4]:
-        st.subheader("📊 النتائج")
-        with db() as c:
-            df=pd.read_sql_query("""SELECT s.id,s.submitted_at,t.name trainee_name,t.facility,s.score,s.max_score,s.percent,s.passed,s.certificate_id,e.name template_name FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' ORDER BY s.id DESC""",c)
-        if not df.empty:
-            c1,c2=st.columns(2); fac=c1.selectbox("الجهة",["الكل"]+sorted(df.facility.dropna().unique().tolist())); state=c2.selectbox("الحالة",["الكل","ناجح","غير مجتاز"])
-            view=df.copy()
-            if fac!="الكل":view=view[view.facility==fac]
-            if state=="ناجح":view=view[view.passed==1]
-            if state=="غير مجتاز":view=view[view.passed==0]
-            st.dataframe(view,use_container_width=True,hide_index=True)
-            out=io.BytesIO()
-            try:
-                with pd.ExcelWriter(out,engine="openpyxl") as writer:view.to_excel(writer,index=False,sheet_name="Results")
-                st.download_button("📥 تصدير النتائج Excel",out.getvalue(),file_name="exam_results_v2_2.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            except Exception: pass
+        cols = st.columns(5)
+        for box, l, v in zip(cols, ["إجمالي المتدربين", "الطلبات المعلقة", "بنك الأسئلة", "الاختبارات المقدمة", "متوسط النتائج"],
+                             [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
+            box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
-            sid_print=st.selectbox("اختر جلسة لطباعة الشهادة",view.id.tolist(), key="print_sel_res")
-            if sid_print:
-                render_printable_certificate(int(sid_print))
+    with selected_tabs[1]:
+        st.subheader("🧑‍🔬 اعتماد المتدربين وإدارة الصلاحيات (خاص بالمالك)")
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
+        with sub_tabs[0]:
+            df_pend = trainees_df("pending")
+            if df_pend.empty:
+                st.info("لا توجد طلبات معلقة حالياً.")
+            else:
+                for _, r in df_pend.iterrows():
+                    with st.container(border=True):
+                        st.write(f"**الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
+                        b1, b2 = st.columns(2)
+                        if b1.button("✅ موافقة واعتماد دخول", key=f"app_{r['id']}"):
+                            set_trainee_status(int(r['id']), "approved")
+                            st.success(f"تم اعتماد {r['name']} بنجاح!")
+                            st.rerun()
+                        if b2.button("❌ رفض الطلب", key=f"rej_{r['id']}"):
+                            set_trainee_status(int(r['id']), "rejected")
+                            st.rerun()
+        with sub_tabs[1]:
+            st.dataframe(trainees_df(), use_container_width=True, hide_index=True)
+
+    with selected_tabs[2]:
+        st.subheader("🧠 بنك الأسئلة الشامل (600 سؤال)")
+        df_q = questions_df()
+        st.write(f"إجمالي الأسئلة المتاحة: **{len(df_q)}**")
+        st.dataframe(df_q[["id", "difficulty", "category", "question", "reference", "active"]], use_container_width=True, hide_index=True)
+
+    with selected_tabs[3]:
+        st.subheader("🧩 قوالب الاختبارات")
+        with db() as c:
+            tpls = c.execute("SELECT * FROM exam_templates").fetchall()
+        for t in tpls:
+            with st.container(border=True):
+                st.write(f"**{t['name']}** — عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة | نسبة النجاح: {t['pass_percent']}%")
+
+    with selected_tabs[4]:
+        st.subheader("📊 النتائج والشهادات")
+        with db() as c:
+            df_res = pd.read_sql_query("""SELECT s.id, s.submitted_at, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed, s.certificate_id 
+                                         FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""", c)
+        if not df_res.empty:
+            st.dataframe(df_res, use_container_width=True, hide_index=True)
+            sid_p = st.selectbox("اختر الجلسة لطباعة الشهادة الرسمية", df_res.id.tolist())
+            if sid_p: render_printable_certificate(int(sid_p))
         else:
-            st.info("لا توجد نتائج بعد.")
+            st.info("لا توجد نتائج مسجلة حتى الآن.")
 
-    with selected_tab[5]:
-        st.subheader("💾 النسخ الاحتياطي")
-        st.info("يتم إنشاء نسخة SQLite مستقلة باستخدام آلية backup الرسمية، بدل نسخ ملف WAL يدويًا.")
+    with selected_tabs[5]:
+        st.subheader("💾 النسخ الاحتياطي للقاعدة")
         if st.button("إنشاء نسخة احتياطية الآن"):
-            path=os.path.join(BACKUP_DIR,f"endemic_labs_exam_v2_2_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
-            src=sqlite3.connect(DB_PATH); dst=sqlite3.connect(path)
+            path = os.path.join(BACKUP_DIR, f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+            src = sqlite3.connect(DB_PATH)
+            dst = sqlite3.connect(path)
             try: src.backup(dst)
-            finally: dst.close();src.close()
-            audit("backup_created",details={"file":os.path.basename(path)});st.success(f"تم إنشاء النسخة: {os.path.basename(path)}")
-        files=sorted([x for x in os.listdir(BACKUP_DIR) if x.endswith('.db')],reverse=True)
-        for f in files[:10]:
-            with open(os.path.join(BACKUP_DIR,f),'rb') as h: st.download_button(f"⬇️ {f}",h.read(),file_name=f,key=f"bk_{f}")
+            finally: dst.close(); src.close()
+            st.success(f"تم حفظ النسخة بنجاح في مجلد التخزين المؤقت.")
 
-    tab_idx = 6
     if st.session_state.role == "admin":
-        with selected_tab[tab_idx]:
-            st.subheader("👥 المستخدمون")
-            with st.form("newuser"):
-                u=st.text_input("اسم المستخدم");p=st.text_input("كلمة المرور",type="password");role=st.selectbox("الصلاحية",list(ROLES),format_func=lambda x:ROLES[x])
-                if st.form_submit_button("إنشاء المستخدم"):
-                    try:create_user(u,p,role);audit("create_user","user");st.success("تم إنشاء المستخدم.")
-                    except Exception as e:st.error(str(e))
-            st.dataframe(pd.DataFrame([dict(x) for x in get_user_list()]),use_container_width=True,hide_index=True)
-            st.markdown("#### تغيير كلمة مرور حسابك")
-            with st.form("changepass"):
-                old=st.text_input("القديمة",type="password");new=st.text_input("الجديدة",type="password")
-                if st.form_submit_button("تغيير كلمة المرور"):
-                    with db() as c:r=c.execute("SELECT * FROM users WHERE username=?",(st.session_state.username,)).fetchone()
-                    if r and verify_password(old,r["password_hash"]) and len(new)>=8:
-                        with db() as c:c.execute("UPDATE users SET password_hash=? WHERE id=?",(hash_password(new),r["id"]))
-                        set_meta("must_change_default_admin","0");audit("change_password","user",r["id"]);st.success("تم تغيير كلمة المرور.")
-                    else:st.error("تعذر تغيير كلمة المرور.")
-        tab_idx += 1
-
-        with selected_tab[tab_idx]:
-            st.subheader("🧾 سجل التدقيق")
-            with db() as c:df=pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 1000",c)
-            st.dataframe(df,use_container_width=True,hide_index=True)
+        with selected_tabs[6]:
+            st.subheader("👥 إدارة مستخدمي النظام")
+            with db() as c:
+                users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
+            st.dataframe(pd.DataFrame([dict(u) for u in users_list]), use_container_width=True, hide_index=True)
+        with selected_tabs[7]:
+            st.subheader("🧾 سجل التدقيق والعمليات")
+            with db() as c:
+                df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 500", c)
+            st.dataframe(df_audit, use_container_width=True, hide_index=True)
 
 def trainee_portal():
     with db() as c:
-        tr=c.execute("SELECT * FROM trainees WHERE id=?",(st.session_state.trainee_id,)).fetchone()
-    if not tr:st.session_state.trainee_id=None;st.session_state.trainee_name="";st.rerun()
-    header();st.markdown(f'<div class="card"><h3>مرحباً {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])}</p></div>',unsafe_allow_html=True)
-    active=get_active_session(tr["id"])
-    if active:
-        st.session_state.exam_session_id=active["id"];exam_page(active);return
-    ts=templates()
-    if not ts:st.error("لا يوجد قالب امتحان فعال.");return
-    with st.form("start_exam"):
-        tid=st.selectbox("نوع الاختبار",[t["id"] for t in ts],format_func=lambda x:next(t["name"] for t in ts if t["id"]==x))
-        if st.form_submit_button("بدء الاختبار"):
-            try:
-                sid=start_session(tr["id"],tid);st.session_state.exam_session_id=sid;st.rerun()
-            except Exception as e:st.error(str(e))
-    if st.button("خروج المتدرب"):st.session_state.trainee_id=None;st.session_state.trainee_name="";st.rerun()
-
-def exam_page(session):
-    sid=session["id"];r=session_questions(sid);t=template_by_id(session["template_id"])
-    remaining=max(0,int((datetime.fromisoformat(session["expires_at"])-datetime.now()).total_seconds()))
-    if remaining<=0:
-        submit_session(sid,True);st.session_state.last_result_id=sid;st.session_state.exam_session_id=None;st.rerun()
-    mins,secs=divmod(remaining,60);st.markdown(f'<div class="timer">⏱️ الوقت المتبقي: {mins:02d}:{secs:02d}</div>',unsafe_allow_html=True)
-    answered=0
-    for row in r:
-        opts=json.loads(row["options_json"]);order=json.loads(row["option_order_json"]);display_opts=[opts[i] for i in order]
-        current=None
-        if row["selected_option"] is not None:
-            try:current=display_opts.index(opts[row["selected_option"]])
-            except:current=None
-        st.markdown(f'<div class="question"><b>سؤال {row["position"]+1}</b><br>{esc(row["question"])}</div>',unsafe_allow_html=True)
-        choice=st.radio("اختر إجابة",display_opts,index=current, key=f"q_{row['id']}",label_visibility="collapsed")
-        if choice:
-            selected=display_opts.index(choice);original=order[selected];save_answer(sid,row["id"],original);answered+=1
-    st.progress(answered/len(r) if r else 0)
-    if st.button("تسليم الاختبار نهائياً",use_container_width=True):
-        if answered<len(r):st.warning(f"لم تتم الإجابة عن {len(r)-answered} سؤال.")
-        else:submit_session(sid);st.session_state.last_result_id=sid;st.session_state.exam_session_id=None;st.rerun()
-    st.caption("يتم حفظ الإجابات مباشرة في SQLite. لا تعتمد على إعادة تحميل الصفحة لحفظ الإجابة.")
-
-def result_page(sid):
-    r=session_result(sid)
-    if not r:return
-    t=template_by_id(r["template_id"])
-    header(); st.success("تم تسليم الاختبار بنجاح.")
-    cols=st.columns(4)
-    for c,l,v in zip(cols,["النتيجة","النسبة","الحالة","رقم الشهادة"],[f'{r["score"]}/{r["max_score"]}',f'{r["percent"]:.1f}%',"ناجح" if r["passed"] else "غير مجتاز",r["certificate_id"]]): c.metric(l,v)
+        tr = c.execute("SELECT * FROM trainees WHERE id=?", (st.session_state.trainee_id,)).fetchone()
+    if not tr:
+        st.session_state.trainee_id = None
+        st.rerun()
+        
+    header()
+    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة التابع لها: {esc(tr["facility"])}</p></div>', unsafe_allow_html=True)
     
-    if int(t["show_result"]):
-        render_printable_certificate(sid)
+    active = get_active_session(tr["id"])
+    if active:
+        exam_interface(active)
+        return
+        
+    with db() as c:
+        ts = c.execute("SELECT * FROM exam_templates WHERE active=1").fetchall()
+    
+    with st.form("start_exam_form"):
+        tid = st.selectbox("اختر قالب الاختبار", [t["id"] for t in ts], format_func=lambda x: next(t["name"] for t in ts if t["id"] == x))
+        if st.form_submit_button("بدء الاختبار الآن", use_container_width=True):
+            try:
+                sid = start_session(tr["id"], tid)
+                st.session_state.exam_session_id = sid
+                st.rerun()
+            except Exception as e:
+                st.error(str(e))
+                
+    if st.button("خروج من الحساب"):
+        st.session_state.trainee_id = None
+        st.session_state.trainee_name = ""
+        st.rerun()
 
-    if int(t["show_review"]):
-        st.subheader("📝 مراجعة الإجابات")
-        for row in session_questions(sid):
-            opts=json.loads(row["options_json"]);selected=row["selected_option"];correct=int(row["answer"]);mark="✅" if selected is not None and int(selected)==correct else "❌"
-            st.markdown(f'<div class="question"><b>{mark} سؤال {row["position"]+1}</b><br>{esc(row["question"])}<br>إجابتك: {esc(opts[selected] if selected is not None else "لم تتم الإجابة")}<br>الإجابة الصحيحة: {esc(opts[correct])}<br><small>{esc(row["explanation"] or "")}</small></div>',unsafe_allow_html=True)
-    if st.button("إنهاء الجلسة"): st.session_state.trainee_id=None;st.session_state.trainee_name="";st.session_state.last_result_id=None;st.rerun()
+def exam_interface(session):
+    sid = session["id"]
+    with db() as c:
+        rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (sid,)).fetchall()
+        t = c.execute("SELECT * FROM exam_templates WHERE id=?", (session["template_id"],)).fetchone()
+        
+    remaining = max(0, int((datetime.fromisoformat(session["expires_at"]) - datetime.now()).total_seconds()))
+    if remaining <= 0:
+        submit_session(sid, True)
+        st.session_state.last_result_id = sid
+        st.rerun()
+        
+    mins, secs = divmod(remaining, 60)
+    st.markdown(f'<div class="timer">⏱️ الوقت المتبقي للإختبار: {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+    
+    answered = 0
+    for row in rows:
+        opts = json.loads(row["options_json"])
+        order = json.loads(row["option_order_json"])
+        disp_opts = [opts[i] for i in order]
+        
+        curr_idx = None
+        if row["selected_option"] is not None:
+            try: curr_idx = disp_opts.index(opts[row["selected_option"]])
+            except: pass
+            
+        st.markdown(f'<div class="question"><b>سؤال رقم {row["position"]+1}</b><br>{esc(row["question"])}</div>', unsafe_allow_html=True)
+        choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
+        if choice:
+            sel = order[disp_opts.index(choice)]
+            with db() as c:
+                c.execute("UPDATE exam_questions SET selected_option=?, is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END WHERE id=?", (sel, sel, row["id"]))
+            answered += 1
+            
+    st.progress(answered / len(rows) if rows else 0)
+    if st.button("تسليم الاختبار نهائياً", use_container_width=True):
+        submit_session(sid)
+        st.session_state.last_result_id = sid
+        st.rerun()
 
 # ============================================================
-# 12) التشغيل
+# 11) موجه المسارات الرئيسي (Router)
 # ============================================================
 if st.session_state.trainee_id and not st.session_state.logged_in:
-    if st.session_state.last_result_id:result_page(st.session_state.last_result_id)
-    else:trainee_portal()
+    if st.session_state.get("last_result_id"):
+        # عرض صفحة النتيجة بعد التسليم
+        sid = st.session_state.last_result_id
+        header()
+        st.success("تم تسليم الاختبار بنجاح!")
+        render_printable_certificate(sid)
+        if st.button("العودة للرئيسية"):
+            st.session_state.trainee_id = None
+            st.session_state.last_result_id = None
+            st.rerun()
+    else:
+        trainee_portal()
 elif not st.session_state.logged_in:
-    login_page()
+    login_portal()
 else:
-    dashboard()
+    admin_dashboard()
