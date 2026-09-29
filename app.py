@@ -99,7 +99,7 @@ def verify_password(password, stored):
         return False
 
 # ============================================================
-# 3) SQLite (مع التحديث التلقائي للجداول Migration)
+# 3) SQLite
 # ============================================================
 @contextmanager
 def db():
@@ -153,7 +153,7 @@ def init_db():
             answer INTEGER NOT NULL,
             explanation TEXT,
             reference TEXT,
-            quality_status TEXT NOT NULL DEFAULT 'pending_review',
+            quality_status TEXT NOT NULL DEFAULT 'approved',
             reviewer TEXT,
             reviewed_at TEXT,
             source TEXT NOT NULL DEFAULT 'manual',
@@ -178,7 +178,7 @@ def init_db():
             show_review INTEGER NOT NULL DEFAULT 0,
             allow_retake INTEGER NOT NULL DEFAULT 0,
             max_attempts INTEGER NOT NULL DEFAULT 1,
-            require_approval INTEGER NOT NULL DEFAULT 1,
+            require_approval INTEGER NOT NULL DEFAULT 0,
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -221,12 +221,10 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_questions_active ON questions(active);
         CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category);
-        CREATE INDEX IF NOT EXISTS idx_questions_quality ON questions(quality_status);
         CREATE INDEX IF NOT EXISTS idx_sessions_trainee ON exam_sessions(trainee_id);
         CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
         """)
         
-        # ترحيل وإصلاح جدول المتدربين في حال وجود أعمدة قديمة مثل access_pin
         tr_cols = {r["name"] for r in c.execute("PRAGMA table_info(trainees)").fetchall()}
         if tr_cols and "access_pin" in tr_cols:
             c.execute("CREATE TABLE IF NOT EXISTS trainees_new (id INTEGER PRIMARY KEY AUTOINCREMENT, facility TEXT NOT NULL, name TEXT NOT NULL, phone TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, approved_at TEXT, updated_at TEXT NOT NULL)")
@@ -234,13 +232,7 @@ def init_db():
             c.execute("DROP TABLE trainees")
             c.execute("ALTER TABLE trainees_new RENAME TO trainees")
 
-        cols = {r["name"] for r in c.execute("PRAGMA table_info(questions)").fetchall()}
-        if "quality_status" not in cols: c.execute("ALTER TABLE questions ADD COLUMN quality_status TEXT NOT NULL DEFAULT 'pending_review'")
-        if "reviewer" not in cols: c.execute("ALTER TABLE questions ADD COLUMN reviewer TEXT")
-        if "reviewed_at" not in cols: c.execute("ALTER TABLE questions ADD COLUMN reviewed_at TEXT")
-        tcols = {r["name"] for r in c.execute("PRAGMA table_info(exam_templates)").fetchall()}
-        if "max_attempts" not in tcols: c.execute("ALTER TABLE exam_templates ADD COLUMN max_attempts INTEGER NOT NULL DEFAULT 1")
-        if "require_approval" not in tcols: c.execute("ALTER TABLE exam_templates ADD COLUMN require_approval INTEGER NOT NULL DEFAULT 1")
+        c.execute("UPDATE questions SET quality_status='approved'")
 
         defaults = {
             "schema_version": "2.2",
@@ -252,7 +244,7 @@ def init_db():
             c.execute("""INSERT INTO exam_templates
                 (name,num_questions,duration_minutes,pass_percent,easy_pct,medium_pct,hard_pct,categories_json,max_attempts,require_approval,created_at,updated_at)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                ("الاختبار القياسي",10,20,60,20,50,30,"[]",1,1,now(),now()))
+                ("الاختبار القياسي",10,20,60,20,50,30,"[]",1,0,now(),now()))
 
 def meta(key, default=None):
     with db() as c:
@@ -376,7 +368,7 @@ def normalize_question(q, source="legacy"):
     options=[normalize_text(x) for x in options]
     explanation=normalize_text(q.get("explanation") or "")
     fp=hashlib.sha256((question+"|"+"|".join(options)).encode("utf-8")).hexdigest()
-    return {"legacy_id":q.get("id"),"difficulty":difficulty,"category":category,"question":question,"options":options,"answer":answer,"explanation":explanation,"reference":q.get("reference", ""),"quality_status":q.get("quality_status", "pending_review"),"source":source,"fingerprint":fp}
+    return {"legacy_id":q.get("id"),"difficulty":difficulty,"category":category,"question":question,"options":options,"answer":answer,"explanation":explanation,"reference":q.get("reference", ""),"quality_status":"approved","source":source,"fingerprint":fp}
 
 def import_questions(questions, replace=False):
     valid=[]; seen=set()
@@ -394,7 +386,7 @@ def import_questions(questions, replace=False):
                 skipped+=1; continue
             c.execute("""INSERT INTO questions(legacy_id,difficulty,category,question,options_json,answer,explanation,reference,quality_status,source,active,fingerprint,created_at,updated_at)
                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (q["legacy_id"],q["difficulty"],q["category"],q["question"],json.dumps(q["options"],ensure_ascii=False),q["answer"],q["explanation"],q["reference"],q["quality_status"],q["source"],1,q["fingerprint"],now(),now()))
+                      (q["legacy_id"],q["difficulty"],q["category"],q["question"],json.dumps(q["options"],ensure_ascii=False),q["answer"],q["explanation"],q["reference"],"approved",q["source"],1,q["fingerprint"],now(),now()))
             inserted+=1
     return inserted,updated,skipped,len(valid)
 
@@ -443,7 +435,7 @@ def seed_final_questions():
         try:create_manual_question(q["question"],q["options"],q["answer"],q["difficulty"],q["category"],q["explanation"],q["reference"])
         except Exception: pass
     with db() as c:
-        c.execute("UPDATE questions SET quality_status='approved',reviewer='system-seed',reviewed_at=? WHERE source='manual' AND quality_status='pending_review'",(now(),))
+        c.execute("UPDATE questions SET quality_status='approved',reviewer='system-seed',reviewed_at=? WHERE source='manual'",(now(),))
 
 def login(username,password):
     with db() as c:
@@ -505,27 +497,20 @@ def question_by_id(qid):
         r=c.execute("SELECT * FROM questions WHERE id=?",(qid,)).fetchone()
         return dict(r) if r else None
 
-def review_question(qid, status, reference=None):
-    if status not in ("approved","rejected","pending_review"):
-        raise ValueError("حالة مراجعة غير صحيحة")
-    with db() as c:
-        c.execute("UPDATE questions SET quality_status=?,reference=COALESCE(?,reference),reviewer=?,reviewed_at=?,updated_at=? WHERE id=?",(status,reference,st.session_state.get("username"),now() if status != "pending_review" else None,now(),qid))
-    audit("review_question","question",qid,{"status":status,"reference":reference})
-
 def update_question(qid, question, options, answer, difficulty, category, explanation, reference, active=1):
-    nq=normalize_question({"question":question,"options":options,"answer":answer,"difficulty":difficulty,"category":category,"explanation":explanation,"reference":reference,"quality_status":"pending_review"})
+    nq=normalize_question({"question":question,"options":options,"answer":answer,"difficulty":difficulty,"category":category,"explanation":explanation,"reference":reference,"quality_status":"approved"})
     if not nq: raise ValueError("بيانات السؤال غير صحيحة")
     with db() as c:
         other=c.execute("SELECT id FROM questions WHERE fingerprint=? AND id<>?",(nq["fingerprint"],qid)).fetchone()
         if other: raise ValueError("يوجد سؤال مطابق بالفعل")
-        c.execute("""UPDATE questions SET difficulty=?,category=?,question=?,options_json=?,answer=?,explanation=?,reference=?,active=?,fingerprint=?,quality_status='pending_review',reviewer=NULL,reviewed_at=NULL,updated_at=? WHERE id=?""",(nq["difficulty"],nq["category"],nq["question"],json.dumps(nq["options"],ensure_ascii=False),nq["answer"],nq["explanation"],nq["reference"],int(active),nq["fingerprint"],now(),qid))
+        c.execute("""UPDATE questions SET difficulty=?,category=?,question=?,options_json=?,answer=?,explanation=?,reference=?,active=?,fingerprint=?,quality_status='approved',reviewer='auto-system',reviewed_at=?,updated_at=? WHERE id=?""",(nq["difficulty"],nq["category"],nq["question"],json.dumps(nq["options"],ensure_ascii=False),nq["answer"],nq["explanation"],nq["reference"],int(active),nq["fingerprint"],now(),now(),qid))
     audit("update_question","question",qid)
 
 def create_manual_question(question, options, answer, difficulty, category, explanation, reference):
-    nq=normalize_question({"question":question,"options":options,"answer":answer,"difficulty":difficulty,"category":category,"explanation":explanation,"reference":reference,"quality_status":"pending_review"},source="manual")
+    nq=normalize_question({"question":question,"options":options,"answer":answer,"difficulty":difficulty,"category":category,"explanation":explanation,"reference":reference,"quality_status":"approved"},source="manual")
     if not nq: raise ValueError("بيانات السؤال غير صحيحة")
     with db() as c:
-        c.execute("""INSERT INTO questions(legacy_id,difficulty,category,question,options_json,answer,explanation,reference,quality_status,source,active,fingerprint,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(None,nq["difficulty"],nq["category"],nq["question"],json.dumps(nq["options"],ensure_ascii=False),nq["answer"],nq["explanation"],nq["reference"],"pending_review","manual",1,nq["fingerprint"],now(),now()))
+        c.execute("""INSERT INTO questions(legacy_id,difficulty,category,question,options_json,answer,explanation,reference,quality_status,source,active,fingerprint,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(None,nq["difficulty"],nq["category"],nq["question"],json.dumps(nq["options"],ensure_ascii=False),nq["answer"],nq["explanation"],nq["reference"],"approved","manual",1,nq["fingerprint"],now(),now()))
         qid=c.execute("SELECT last_insert_rowid() id").fetchone()["id"]
     audit("create_question","question",qid)
     return qid
@@ -540,7 +525,6 @@ def choose_questions(t):
     cats=json.loads(t["categories_json"] or "[]")
     with db() as c:
         q="SELECT * FROM questions WHERE active=1"; args=[]
-        if int(t["require_approval"]): q += " AND quality_status='approved'"
         if cats:
             q += " AND category IN (%s)" % ",".join("?"*len(cats)); args.extend(cats)
         rows=[dict(r) for r in c.execute(q,args).fetchall()]
@@ -678,7 +662,7 @@ for k,v in {"logged_in":False,"username":"","role":"","trainee_id":None,"trainee
 # 11) الواجهة
 # ============================================================
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • SQLite • بنك أسئلة قابل للإدارة • امتحانات مؤقتة • نتائج وطباعة A4</div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • SQLite • بنك أسئلة معتمد مباشرة • امتحانات مؤقتة • نتائج وطباعة A4</div></div>',unsafe_allow_html=True)
 
 def login_page():
     header(); a,b=st.columns(2)
@@ -734,17 +718,16 @@ def dashboard():
             counts=c.execute("""SELECT
                 (SELECT COUNT(*) FROM trainees) trainees,
                 (SELECT COUNT(*) FROM questions) questions,
-                (SELECT COUNT(*) FROM questions WHERE active=1 AND quality_status='approved') approved,
-                (SELECT COUNT(*) FROM questions WHERE quality_status='pending_review') pending,
+                (SELECT COUNT(*) FROM questions WHERE active=1) active_q,
                 (SELECT COUNT(*) FROM exam_sessions WHERE status='submitted') exams,
                 (SELECT COALESCE(AVG(percent),0) FROM exam_sessions WHERE status='submitted') avgp
             """).fetchone()
-        cols=st.columns(6)
-        for c_box,l,v in zip(cols,["المتدربون","كل الأسئلة","المعتمدة","تحت المراجعة","الامتحانات","متوسط النتائج"],[counts["trainees"],counts["questions"],counts["approved"],counts["pending"],counts["exams"],f'{counts["avgp"]:.1f}%']):
+        cols=st.columns(5)
+        for c_box,l,v in zip(cols,["المتدربون","كل الأسئلة","الأسئلة النشطة","الامتحانات","متوسط النتائج"],[counts["trainees"],counts["questions"],counts["active_q"],counts["exams"],f'{counts["avgp"]:.1f}%']):
             c_box.markdown(f'<div class="metric"><div class="v">{esc(v)}</div><div class="l">{esc(l)}</div></div>',unsafe_allow_html=True)
-        st.markdown('<div class="card"><b>وضع الجودة:</b> الأسئلة غير المعتمدة لا تدخل الامتحان إذا كان القالب مضبوطًا على طلب الاعتماد العلمي.</div>',unsafe_allow_html=True)
+        st.markdown('<div class="card"><b>ملاحظة:</b> جميع الأسئلة المضافة أو المستوردة تُعتمد تلقائياً وتكون متاحة مباشرة للاختبارات.</div>',unsafe_allow_html=True)
         with db() as c:
-            df=pd.read_sql_query("SELECT category,COUNT(*) total,SUM(CASE WHEN quality_status='approved' THEN 1 ELSE 0 END) approved FROM questions GROUP BY category ORDER BY total DESC",c)
+            df=pd.read_sql_query("SELECT category,COUNT(*) total FROM questions GROUP BY category ORDER BY total DESC",c)
         if not df.empty: st.dataframe(df,use_container_width=True,hide_index=True)
 
     with selected_tab[1]:
@@ -769,9 +752,9 @@ def dashboard():
                 st.download_button("⬇️ تصدير Excel",xbuf.getvalue(),file_name="trainees.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with selected_tab[2]:
-        st.subheader("🧠 بنك الأسئلة — إدارة واعتماد علمي")
+        st.subheader("🧠 بنك الأسئلة (معتمدة تلقائياً)")
         with st.expander("⬆️ استيراد بنك الأسئلة القديم"):
-            st.write("الاستيراد يقرأ QUESTIONS_DB فقط ولا يشغّل التطبيق القديم.")
+            st.write("الاستيراد يقرأ الأسئلة ويضيفها كمعتمدة بشكل مباشر.")
             uploaded=st.file_uploader("ارفع app.py القديم",type=["py"])
             c1,c2=st.columns(2)
             if c1.button("استيراد الملف المرفوع"):
@@ -798,35 +781,26 @@ def dashboard():
                 exp=st.text_area("الشرح العلمي")
                 ref=st.text_input("المرجع العلمي",value="Garcia, Diagnostic Medical Parasitology")
                 if st.form_submit_button("إضافة السؤال"):
-                    try: create_manual_question(q,opts,ans,d,cat,exp,ref); st.success("تمت الإضافة، وحالة السؤال: مراجعة مطلوبة."); st.rerun()
+                    try: create_manual_question(q,opts,ans,d,cat,exp,ref); st.success("تمت الإضافة واعتماد السؤال تلقائياً."); st.rerun()
                     except Exception as e: st.error(str(e))
         df=questions_df()
         if not df.empty:
-            c1,c2,c3,c4=st.columns(4)
+            c1,c2,c3=st.columns(3)
             cat=c1.selectbox("التصنيف",["الكل"]+sorted(df.category.dropna().unique().tolist()))
             diff=c2.selectbox("الصعوبة",["الكل"]+list(DIFF_AR.values()))
-            quality=c3.selectbox("الجودة",["الكل","معتمد","مراجعة مطلوبة","مرفوض"])
-            active=c4.selectbox("الحالة",["الكل","نشط","غير نشط"])
+            active=c3.selectbox("الحالة",["الكل","نشط","غير نشط"])
             view=df.copy()
             if cat!="الكل": view=view[view.category==cat]
             if diff!="الكل": view=view[view.difficulty.map(DIFF_AR)==diff]
-            qmap={"معتمد":"approved","مراجعة مطلوبة":"pending_review","مرفوض":"rejected"}
-            if quality!="الكل": view=view[view.quality_status==qmap[quality]]
             if active=="نشط": view=view[view.active==1]
             if active=="غير نشط": view=view[view.active==0]
             st.write(f"عدد النتائج: **{len(view)}**")
-            st.dataframe(view[["id","difficulty","category","question","quality_status","reference","active"]],use_container_width=True,hide_index=True)
+            st.dataframe(view[["id","difficulty","category","question","reference","active"]],use_container_width=True,hide_index=True)
             st.download_button("⬇️ تصدير CSV",view.to_csv(index=False).encode("utf-8-sig"),file_name="question_bank_v2_2.csv",mime="text/csv")
-            with st.expander("🔎 مراجعة / اعتماد سؤال"):
+            with st.expander("✏️ تعديل سؤال"):
                 qid=st.number_input("ID السؤال",min_value=1,step=1)
                 qr=question_by_id(int(qid)) if qid else None
                 if qr:
-                    st.markdown(f'<div class="question"><b>{esc(qr["question"])}</b><br>الحالة: {esc(qr["quality_status"])}<br>المرجع: {esc(qr["reference"] or "غير محدد")}</div>',unsafe_allow_html=True)
-                    a,b,c=st.columns(3)
-                    ref2=st.text_input("المرجع المستخدم في الاعتماد",value=qr["reference"] or "",key=f"ref_{qid}")
-                    if a.button("✅ اعتماد السؤال"): review_question(qid,"approved",ref2);st.success("تم اعتماد السؤال.");st.rerun()
-                    if b.button("⏳ إبقاء للمراجعة"): review_question(qid,"pending_review",ref2);st.rerun()
-                    if c.button("❌ رفض السؤال"): review_question(qid,"rejected",ref2);st.rerun()
                     with st.form(f"editq_{qid}"):
                         qtext=st.text_area("نص السؤال",qr["question"])
                         oldopts=json.loads(qr["options_json"]); newopts=[st.text_input(f"اختيار {i+1}",oldopts[i] if i<len(oldopts) else "") for i in range(4)]
@@ -834,29 +808,29 @@ def dashboard():
                         dd=st.selectbox("الصعوبة",list(DIFF_AR),index=list(DIFF_AR).index(qr["difficulty"]))
                         cc=st.text_input("التصنيف",qr["category"]); ee=st.text_area("الشرح",qr["explanation"] or ""); rr=st.text_input("المرجع",qr["reference"] or ""); ac=st.checkbox("نشط",bool(qr["active"]))
                         if st.form_submit_button("حفظ التعديل"):
-                            try:update_question(qid,qtext,newopts,aa,dd,cc,ee,rr,ac);st.success("تم الحفظ، وأعيد السؤال للمراجعة.");st.rerun()
+                            try:update_question(qid,qtext,newopts,aa,dd,cc,ee,rr,ac);st.success("تم الحفظ بنجاح.");st.rerun()
                             except Exception as e:st.error(str(e))
 
     with selected_tab[3]:
         st.subheader("🧩 قوالب الاختبارات")
         with st.expander("➕ إنشاء قالب جديد"):
             with st.form("newtpl"):
-                name=st.text_input("اسم القالب");n=st.number_input("عدد الأسئلة",5,500,50);dur=st.number_input("المدة بالدقائق",5,300,40);pas=st.number_input("نسبة النجاح",1.0,100.0,60.0);e=st.number_input("سهل %",0.0,100.0,20.0);m=st.number_input("متوسط %",0.0,100.0,50.0);h=st.number_input("صعب %",0.0,100.0,30.0);cats=sorted(questions_df(True).category.unique().tolist());selected=st.multiselect("التصنيفات",cats);allow=st.checkbox("السماح بإعادة الاختبار");maxa=st.number_input("أقصى عدد محاولات",1,20,1);req=st.checkbox("يشترط اعتماد السؤال",True);show=st.checkbox("إظهار النتيجة",True);review=st.checkbox("السماح بمراجعة الإجابات",False)
+                name=st.text_input("اسم القالب");n=st.number_input("عدد الأسئلة",5,500,50);dur=st.number_input("المدة بالدقائق",5,300,40);pas=st.number_input("نسبة النجاح",1.0,100.0,60.0);e=st.number_input("سهل %",0.0,100.0,20.0);m=st.number_input("متوسط %",0.0,100.0,50.0);h=st.number_input("صعب %",0.0,100.0,30.0);cats=sorted(questions_df(True).category.unique().tolist());selected=st.multiselect("التصنيفات",cats);allow=st.checkbox("السماح بإعادة الاختبار");maxa=st.number_input("أقصى عدد محاولات",1,20,1);show=st.checkbox("إظهار النتيجة",True);review=st.checkbox("السماح بمراجعة الإجابات",False)
                 if st.form_submit_button("إنشاء القالب"):
                     if not name.strip() or abs(e+m+h-100)>0.01: st.error("أدخل اسمًا صحيحًا ومجموع نسب = 100%.")
                     else:
                         try:
-                            with db() as c:c.execute("""INSERT INTO exam_templates(name,num_questions,duration_minutes,pass_percent,easy_pct,medium_pct,hard_pct,categories_json,shuffle_questions,shuffle_options,show_result,show_review,allow_retake,max_attempts,require_approval,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(name,n,dur,pas,e,m,h,json.dumps(selected,ensure_ascii=False),1,1,int(show),int(review),int(allow),maxa,int(req),1,now(),now()))
+                            with db() as c:c.execute("""INSERT INTO exam_templates(name,num_questions,duration_minutes,pass_percent,easy_pct,medium_pct,hard_pct,categories_json,shuffle_questions,shuffle_options,show_result,show_review,allow_retake,max_attempts,require_approval,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(name,n,dur,pas,e,m,h,json.dumps(selected,ensure_ascii=False),1,1,int(show),int(review),int(allow),maxa,0,1,now(),now()))
                             audit("create_template","template");st.success("تم إنشاء القالب.");st.rerun()
                         except Exception as ex:st.error(str(ex))
         for t in templates():
             with st.expander(f"{t['name']} — {t['num_questions']} سؤال / {t['duration_minutes']} دقيقة"):
                 with st.form(f"tpl_{t['id']}"):
-                    name=st.text_input("اسم القالب",t["name"]);n=st.number_input("عدد الأسئلة",5,500,int(t["num_questions"]));dur=st.number_input("المدة بالدقائق",5,300,int(t["duration_minutes"]));pas=st.number_input("نسبة النجاح",1.0,100.0,float(t["pass_percent"]));e=st.number_input("سهل %",0.0,100.0,float(t["easy_pct"]));m=st.number_input("متوسط %",0.0,100.0,float(t["medium_pct"]));h=st.number_input("صعب %",0.0,100.0,float(t["hard_pct"]));cats=sorted(questions_df(True).category.unique().tolist());selected=st.multiselect("التصنيفات",cats,default=[x for x in json.loads(t["categories_json"] or "[]") if x in cats], key=f"sel_{t['id']}");shufq=st.checkbox("خلط الأسئلة",bool(t["shuffle_questions"]), key=f"sq_{t['id']}");shufopt=st.checkbox("خلط الاختيارات",bool(t["shuffle_options"]), key=f"so_{t['id']}");show=st.checkbox("إظهار النتيجة",bool(t["show_result"]), key=f"sr_{t['id']}");review=st.checkbox("السماح بمراجعة الإجابات",bool(t["show_review"]), key=f"srev_{t['id']}");allow=st.checkbox("السماح بإعادة الاختبار",bool(t["allow_retake"]), key=f"ar_{t['id']}");maxa=st.number_input("أقصى عدد محاولات",1,20,int(t["max_attempts"]), key=f"ma_{t['id']}");req=st.checkbox("يشترط اعتماد السؤال",bool(t["require_approval"]), key=f"req_{t['id']}")
+                    name=st.text_input("اسم القالب",t["name"]);n=st.number_input("عدد الأسئلة",5,500,int(t["num_questions"]));dur=st.number_input("المدة بالدقائق",5,300,int(t["duration_minutes"]));pas=st.number_input("نسبة النجاح",1.0,100.0,float(t["pass_percent"]));e=st.number_input("سهل %",0.0,100.0,float(t["easy_pct"]));m=st.number_input("متوسط %",0.0,100.0,float(t["medium_pct"]));h=st.number_input("صعب %",0.0,100.0,float(t["hard_pct"]));cats=sorted(questions_df(True).category.unique().tolist());selected=st.multiselect("التصنيفات",cats,default=[x for x in json.loads(t["categories_json"] or "[]") if x in cats], key=f"sel_{t['id']}");shufq=st.checkbox("خلط الأسئلة",bool(t["shuffle_questions"]), key=f"sq_{t['id']}");shufopt=st.checkbox("خلط الاختيارات",bool(t["shuffle_options"]), key=f"so_{t['id']}");show=st.checkbox("إظهار النتيجة",bool(t["show_result"]), key=f"sr_{t['id']}");review=st.checkbox("السماح بمراجعة الإجابات",bool(t["show_review"]), key=f"srev_{t['id']}");allow=st.checkbox("السماح بإعادة الاختبار",bool(t["allow_retake"]), key=f"ar_{t['id']}");maxa=st.number_input("أقصى عدد محاولات",1,20,int(t["max_attempts"]), key=f"ma_{t['id']}")
                     if st.form_submit_button("حفظ القالب"):
                         if abs(e+m+h-100)>0.01:st.error("نسب الصعوبة يجب أن تساوي 100%.")
                         else:
-                            with db() as c:c.execute("""UPDATE exam_templates SET name=?,num_questions=?,duration_minutes=?,pass_percent=?,easy_pct=?,medium_pct=?,hard_pct=?,categories_json=?,shuffle_questions=?,shuffle_options=?,show_result=?,show_review=?,allow_retake=?,max_attempts=?,require_approval=?,updated_at=? WHERE id=?""",(name,n,dur,pas,e,m,h,json.dumps(selected,ensure_ascii=False),int(shufq),int(shufopt),int(show),int(review),int(allow),maxa,int(req),now(),t["id"]))
+                            with db() as c:c.execute("""UPDATE exam_templates SET name=?,num_questions=?,duration_minutes=?,pass_percent=?,easy_pct=?,medium_pct=?,hard_pct=?,categories_json=?,shuffle_questions=?,shuffle_options=?,show_result=?,show_review=?,allow_retake=?,max_attempts=?,require_approval=0,updated_at=? WHERE id=?""",(name,n,dur,pas,e,m,h,json.dumps(selected,ensure_ascii=False),int(shufq),int(shufopt),int(show),int(review),int(allow),maxa,now(),t["id"]))
                             audit("update_template","template",t["id"]);st.success("تم الحفظ.");st.rerun()
 
     with selected_tab[4]:
