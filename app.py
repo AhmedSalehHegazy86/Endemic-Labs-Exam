@@ -22,12 +22,12 @@ BACKUP_DIR = os.path.join(BASE, "backups")
 LEGACY_URL = "https://raw.githubusercontent.com/AhmedSalehHegazy86/Endemic-Labs-Exam/main/app.py"
 
 ROLES = {
-    "admin": "مدير النظام",
+    "admin": "مدير النظام / المالك",
     "exam_manager": "مسؤول الامتحانات",
     "viewer": "مراقب",
 }
 DIFF_AR = {"easy": "سهل", "medium": "متوسط", "hard": "صعب"}
-STATUS_AR = {"pending": "في انتظار الاعتماد", "approved": "معتمد", "rejected": "مرفوض", "active": "اختبار جارٍ", "completed": "مكتمل"}
+STATUS_AR = {"pending": "في انتظار اعتماد المالك", "approved": "معتمد ومصرح بالدخول", "rejected": "مرفوض", "active": "اختبار جارٍ", "completed": "مكتمل"}
 PASS_DEFAULT = 60
 
 os.makedirs(BACKUP_DIR, exist_ok=True)
@@ -403,7 +403,7 @@ def import_legacy_source(source, label="legacy"):
     return result
 
 # ============================================================
-# 5) قاعدة بيانات بنك الـ 600 سؤال الشامل (دورات الحياة، التشخيص، الفحص المدرسي، المعايير)
+# 5) قاعدة بيانات الـ 600 سؤال الشاملة
 # ============================================================
 def ensure_admin():
     with db() as c:
@@ -420,7 +420,6 @@ def seed_final_questions():
     with db() as c:
         if c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"] >= 600: return
     
-    # توليد وتجميع قاعدة بيانات شاملة للـ 600 سؤال من الأدبيات الرسمية لمكافحة المتوطنة
     base_seeds = [
       {"question":"ما هي المرحلة المعدية للإنسان في Schistosoma mansoni؟","options":["Miracidium","Cercaria","Metacercaria","Egg"],"answer":1,"difficulty":"easy","category":"البلهارسيا","explanation":"السركاريا تخرج من القوقع وتخترق جلد الإنسان أثناء التعرض للماء الملوث.","reference":"Garcia, Diagnostic Medical Parasitology; WHO"},
       {"question":"ما هو العائل الوسيط الشائع لـ Schistosoma mansoni؟","options":["Biomphalaria","Lymnaea","Bulinus","Culex"],"answer":0,"difficulty":"easy","category":"البلهارسيا","explanation":"قواقع جنس Biomphalaria هي العائل الوسيط لـ S. mansoni.","reference":"Garcia, Diagnostic Medical Parasitology"},
@@ -434,7 +433,6 @@ def seed_final_questions():
       {"question":"في فحص مجهري، ما الإجراء الأكثر أهمية لتجنب نتيجة غير موثوقة؟","options":["قراءة أي شريحة عشوائية","التأكد من جودة العينة والتحضير والإضاءة والتركيز قبل التفسير","زيادة التكبير فقط","تجاهل الضوابط"],"answer":1,"difficulty":"medium","category":"ضبط الجودة","explanation":"جودة التحضير والإضاءة أساسية قبل التفسير المجهري.","reference":"Cheesbrough"}
     ]
 
-    # توليد وتوسيع القاعدة لتغطية الـ 600 سؤال بمختلف الفئات المعيارية والتشخيصية والمدرسية
     cats = ["البلهارسيا", "الطفيليات المعوية", "Kato-Katz", "الفاشيولا", "المجهر", "السلامة الحيوية", "الفحص المدرسي", "ضبط الجودة", "الديدان الشريطية", "الامتحان العملي"]
     diffs = ["easy", "medium", "hard"]
     
@@ -485,7 +483,7 @@ def get_user_list():
     with db() as c:return c.execute("SELECT id,username,role,active,created_at,last_login FROM users ORDER BY id").fetchall()
 
 # ============================================================
-# 6) المتدربون
+# 6) المتدربون (إرسال الطلب والاعتماد المباشر المدمج)
 # ============================================================
 def create_trainee(facility, name, phone):
     with db() as c:
@@ -693,12 +691,12 @@ for k,v in {"logged_in":False,"username":"","role":"","trainee_id":None,"trainee
 # 11) الواجهة
 # ============================================================
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • بنك 600 سؤال شامل ومعتمد • امتحانات مؤقتة • نتائج وطباعة A4</div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • اعتماد مباشر موحد • امتحانات مؤقتة • طباعة A4</div></div>',unsafe_allow_html=True)
 
 def login_page():
     header(); a,b=st.columns(2)
     with a:
-        st.markdown('<div class="card"><h3>🔐 دخول الإدارة</h3></div>',unsafe_allow_html=True)
+        st.markdown('<div class="card"><h3>🔐 دخول الإدارة / المالك</h3></div>',unsafe_allow_html=True)
         with st.form("login"):
             u=st.text_input("اسم المستخدم")
             p=st.text_input("كلمة المرور",type="password")
@@ -709,24 +707,52 @@ def login_page():
                     audit("login","user",user["id"]);st.rerun()
                 st.error("بيانات الدخول غير صحيحة.")
     with b:
-        st.markdown('<div class="card"><h3>🧑‍🔬 دخول المتدرب</h3><p>أدخل الاسم والجهة بعد اعتماد طلبك لبدء الاختبار.</p></div>',unsafe_allow_html=True)
-        with st.form("trainee_login"):
-            tname=st.text_input("الاسم الرباعي")
-            tfacility=st.text_input("الجهة / الإدارة الصحية")
-            if st.form_submit_button("دخول الاختبار",use_container_width=True):
-                tr=trainee_by_credentials(tname, tfacility)
-                if tr:
-                    st.session_state.trainee_id=tr["id"];st.session_state.trainee_name=tr["name"];st.session_state.exam_session_id=None;st.rerun()
-                st.error("البيانات غير صحيحة أو أن الحساب لم يتم اعتماده بعد.")
-        with st.expander("طلب اعتماد متدرب جديد"):
-            with st.form("register"):
-                facility=st.text_input("الجهة / الإدارة الصحية", key="reg_fac")
-                name=st.text_input("الاسم الرباعي", key="reg_name")
-                phone=st.text_input("رقم الهاتف")
-                if st.form_submit_button("إرسال طلب الاعتماد"):
-                    if facility and name:
-                        tid=create_trainee(facility,name,phone);st.success(f"تم إرسال الطلب بنجاح. رقم الطلب: {tid}")
-                    else:st.warning("أكمل الجهة والاسم.")
+        st.markdown('<div class="card"><h3>🧑‍🔬 طلب اعتماد ودخول الامتحان</h3><p>سجل بياناتك لإرسال طلب اعتماده إلى مالك المنصة والدخول المباشر.</p></div>',unsafe_allow_html=True)
+        with st.form("trainee_request"):
+            facility=st.text_input("الجهة / الإدارة الصحية")
+            name=st.text_input("الاسم الرباعي")
+            phone=st.text_input("رقم الهاتف")
+            submitted = st.form_submit_button("إرسال الطلب والدخول المباشر", use_container_width=True)
+            if submitted:
+                if facility and name:
+                    # التحقق إذا كان المسجل موجوداً بالفعل
+                    existing = trainee_by_credentials(name, facility)
+                    if existing:
+                        if existing["status"] in ("approved", "active"):
+                            st.session_state.trainee_id = existing["id"]
+                            st.session_state.trainee_name = existing["name"]
+                            st.success("تم التعرف على حسابك المعمد! جاري الدخول...")
+                            st.rerun()
+                        else:
+                            st.warning("طلبك موجود بالفعل وفي انتظار موافقة مالك المنصة.")
+                    else:
+                        tid = create_trainee(facility, name, phone)
+                        # محاولة فحص الدخول المباشر إذا وافق المالك
+                        tr_check = trainee_by_credentials(name, facility)
+                        if tr_check:
+                            st.session_state.trainee_id = tr_check["id"]
+                            st.session_state.trainee_name = tr_check["name"]
+                            st.success("تم إرسال الطلب ودخولك بنجاح!")
+                            st.rerun()
+                        else:
+                            st.info(f"تم إرسال طلبك بنجاح برقم ({tid}). يجدر بمالك المنصة الموافقة عليه من لوحة التحكم ليتم تفعيله فوراً.")
+                else:
+                    st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
+        
+        # محاولة التحقق المباشر إذا كان قد سجل مسبقاً
+        with st.expander("فحص حالة الاعتماد والدخول مباشرة"):
+            with st.form("quick_check"):
+                chk_name = st.text_input("الاسم الرباعي المسجل")
+                chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة")
+                if st.form_submit_button("دخول الاختبار"):
+                    tr = trainee_by_credentials(chk_name, chk_fac)
+                    if tr:
+                        st.session_state.trainee_id = tr["id"]
+                        st.session_state.trainee_name = tr["name"]
+                        st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
+                        st.rerun()
+                    else:
+                        st.error("لم يتم اعتماد طلبك بعد من مالك المنصة أو البيانات غير مطابقة.")
 
 def dashboard():
     header()
@@ -737,7 +763,7 @@ def dashboard():
         if st.button("تسجيل الخروج", use_container_width=True):
             audit("logout"); st.session_state.logged_in=False; st.session_state.username=""; st.session_state.role=""; st.rerun()
 
-    pages = ["لوحة التحكم", "المتدربون", "بنك الأسئلة (600 سؤال)", "قوالب الاختبارات", "النتائج", "النسخ الاحتياطي"]
+    pages = ["لوحة التحكم", "اعتماد المتدربين والدخول", "بنك الأسئلة (600 سؤال)", "قوالب الاختبارات", "النتائج", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
         pages += ["المستخدمون", "سجل التدقيق"]
     
@@ -748,32 +774,38 @@ def dashboard():
         with db() as c:
             counts=c.execute("""SELECT
                 (SELECT COUNT(*) FROM trainees) trainees,
+                (SELECT COUNT(*) FROM trainees WHERE status='pending') pending_tr,
                 (SELECT COUNT(*) FROM questions) questions,
-                (SELECT COUNT(*) FROM questions WHERE active=1) active_q,
                 (SELECT COUNT(*) FROM exam_sessions WHERE status='submitted') exams,
                 (SELECT COALESCE(AVG(percent),0) FROM exam_sessions WHERE status='submitted') avgp
             """).fetchone()
         cols=st.columns(5)
-        for c_box,l,v in zip(cols,["المتدربون","كل الأسئلة","الأسئلة النشطة","الامتحانات","متوسط النتائج"],[counts["trainees"],counts["questions"],counts["active_q"],counts["exams"],f'{counts["avgp"]:.1f}%']):
+        for c_box,l,v in zip(cols,["كل المتدربين","طلبات الانتظار للمالك","الأسئلة","الامتحانات","متوسط النتائج"],[counts["trainees"],counts["pending_tr"],counts["questions"],counts["exams"],f'{counts["avgp"]:.1f}%']):
             c_box.markdown(f'<div class="metric"><div class="v">{esc(v)}</div><div class="l">{esc(l)}</div></div>',unsafe_allow_html=True)
-        st.markdown('<div class="card"><b>حالة النظام:</b> بنك الأسئلة الشامل (600 سؤال) تم تحميله بالكامل ومعتمد تلقائياً للاستخدام الفوري.</div>',unsafe_allow_html=True)
+        st.markdown('<div class="card"><b>تحكم المالك:</b> يمكنك من تبويب "اعتماد المتدربين والدخول" الموافقة بضغطة زر واحدة على طلبات المتدربين ليتم اعتمادهم وتمكينهم من دخول الامتحان فوراً.</div>',unsafe_allow_html=True)
         with db() as c:
             df=pd.read_sql_query("SELECT category,COUNT(*) total FROM questions GROUP BY category ORDER BY total DESC",c)
         if not df.empty: st.dataframe(df,use_container_width=True,hide_index=True)
 
     with selected_tab[1]:
-        st.subheader("🧑‍🔬 إدارة المتدربين")
-        tabs_tr=st.tabs(["طلبات الاعتماد","كل المتدربين"])
+        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بصلاحية الدخول (خاص بالمالك)")
+        tabs_tr=st.tabs(["طلبات الاعتماد المعلقة","كل المتدربين"])
         with tabs_tr[0]:
             df=trainees_df("pending")
-            if df.empty:st.info("لا توجد طلبات معلقة.")
+            if df.empty:st.info("لا توجد طلبات معلقة بانتظار الموافقة.")
             else:
+                st.write("اضغط على **(موافقة واعتماد الدخول)** للسماح للمتدرب بالدخول الفوري لأداء الاختبار.")
                 for _,r in df.iterrows():
                     with st.container(border=True):
-                        st.write(f"**{r['name']}** — {r['facility']} — {r['phone']}")
+                        st.write(f"**الاسم:** {r['name']} — **الجهة:** {r['facility']} — **الهاتف:** {r['phone']}")
                         c1,c2=st.columns(2)
-                        if c1.button("اعتماد",key=f"app_{r['id']}"):set_trainee_status(int(r['id']),"approved");st.rerun()
-                        if c2.button("رفض",key=f"rej_{r['id']}"):set_trainee_status(int(r['id']),"rejected");st.rerun()
+                        if c1.button("✅ موافقة واعتماد الدخول",key=f"app_{r['id']}"):
+                            set_trainee_status(int(r['id']),"approved")
+                            st.success(f"تم اعتماد المتدرب {r['name']} بنجاح!")
+                            st.rerun()
+                        if c2.button("❌ رفض الطلب",key=f"rej_{r['id']}"):
+                            set_trainee_status(int(r['id']),"rejected")
+                            st.rerun()
         with tabs_tr[1]:
             df=trainees_df();st.dataframe(df,use_container_width=True,hide_index=True)
             if not df.empty:
