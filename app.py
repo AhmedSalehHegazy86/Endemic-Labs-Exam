@@ -99,7 +99,7 @@ def verify_password(password, stored):
         return False
 
 # ============================================================
-# 3) SQLite
+# 3) SQLite (مع التحديث التلقائي للجداول Migration)
 # ============================================================
 @contextmanager
 def db():
@@ -225,6 +225,15 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_sessions_trainee ON exam_sessions(trainee_id);
         CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
         """)
+        
+        # ترحيل وإصلاح جدول المتدربين في حال وجود أعمدة قديمة مثل access_pin
+        tr_cols = {r["name"] for r in c.execute("PRAGMA table_info(trainees)").fetchall()}
+        if tr_cols and "access_pin" in tr_cols:
+            c.execute("CREATE TABLE IF NOT EXISTS trainees_new (id INTEGER PRIMARY KEY AUTOINCREMENT, facility TEXT NOT NULL, name TEXT NOT NULL, phone TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, approved_at TEXT, updated_at TEXT NOT NULL)")
+            c.execute("INSERT INTO trainees_new(id, facility, name, phone, status, created_at, approved_at, updated_at) SELECT id, facility, name, phone, status, created_at, approved_at, updated_at FROM trainees")
+            c.execute("DROP TABLE trainees")
+            c.execute("ALTER TABLE trainees_new RENAME TO trainees")
+
         cols = {r["name"] for r in c.execute("PRAGMA table_info(questions)").fetchall()}
         if "quality_status" not in cols: c.execute("ALTER TABLE questions ADD COLUMN quality_status TEXT NOT NULL DEFAULT 'pending_review'")
         if "reviewer" not in cols: c.execute("ALTER TABLE questions ADD COLUMN reviewer TEXT")
