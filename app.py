@@ -667,7 +667,7 @@ for k,v in {"logged_in":False,"username":"","role":"","trainee_id":None,"trainee
 # 11) الواجهة
 # ============================================================
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الاحترافية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • SQLite • بنك أسئلة قابل للإدارة • امتحانات مؤقتة • نتائج وشهادات PDF</div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.2 FINAL • SQLite • بنك أسئلة قابل للإدارة • امتحانات مؤقتة • نتائج وشهادات PDF</div></div>',unsafe_allow_html=True)
 
 def login_page():
     header(); a,b=st.columns(2)
