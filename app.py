@@ -5,7 +5,6 @@ from contextlib import contextmanager
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
-from PIL import Image
 
 # ============================================================
 # 1) إعدادات التطبيق الأساسية (هوامش واسعة وعرض مريح)
@@ -57,7 +56,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة (صور بصرية بحتة)
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -191,6 +190,11 @@ def init_db():
         """)
 
 def seed_complete_250_question_bank():
+    with db() as c:
+        cnt = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
+        if cnt > 0:
+            return  # منع إعادة الكتابة أو المسح إذا كان الجدول يحتوي على أسئلة (للحفاظ على الأسئلة الجديدة المحفوظة)
+
     svg_schisto_mansoni = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjYwIiByeT0iNDAiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE0NSw1MCBDMTUwLDUwIDE1NSw1NSAxNTUsNjAgQzE1NSw2NSAxNTAsNzAgMTQ1LDcwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_schisto_haematobium = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjY1IiByeT0iMzgiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE2NSw2MCBMMTgzLDYwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_fasciola = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjcwIiByeT0iNDIiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTM1LDUwIEw0NSw1MCIgc3Ryb2tlPSIjMTEyMjMzIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg=="
@@ -277,7 +281,6 @@ def seed_complete_250_question_bank():
         })
 
     with db() as c:
-        c.execute("DELETE FROM questions")
         for idx, q in enumerate(complete_bank, start=1):
             fp = hashlib.sha256((q["q"] + "|" + "|".join(q["opts"])).encode("utf-8")).hexdigest()
             c.execute("""INSERT OR IGNORE INTO questions(id,difficulty,category,question,options_json,answer,active,fingerprint,created_at)
@@ -308,7 +311,7 @@ def audit(action, entity=None, details=None):
                   (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
 # ============================================================
-# 3) دوال إدارة المتدربين والامتحانات (ضمان 4 أسئلة صور كحد أدنى)
+# 3) دوال إدارة المتدربين والامتحانات
 # ============================================================
 def login_user(u, p):
     with db() as c:
@@ -430,7 +433,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (عرض الصور البصرية بنجاح)
+# 4) دوال التصدير والشهادات
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -564,7 +567,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • صور بصرية مجهرية خالصة مع لوحة تحكم وإدارة ديناميكية للأسئلة والصور</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • حفظ وحذف الأسئلة والصور مباشرة من قاعدة البيانات بفاعلية</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -632,7 +635,7 @@ def admin_dashboard():
             st.session_state.role = ""
             st.rerun()
 
-    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة (250+)", "إدارة الأسئلة المصورة (إضافة/حذف)", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
+    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة الشامل", "إدارة الأسئلة المصورة (إضافة/حذف)", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
         tabs += ["إدارة المستخدمين", "سجل التدقيق"]
     
@@ -682,19 +685,19 @@ def admin_dashboard():
                 st.download_button("📥 تصدير المتدربين Excel", buf.getvalue(), file_name="trainees_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with selected_tabs[2]:
-        st.subheader("🧠 بنك الأسئلة المتكامل المثبت (جميع الـ 250+ سؤالاً)")
+        st.subheader("🧠 بنك الأسئلة المتكامل في قاعدة البيانات")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
-        st.write(f"إجمالي الأسئلة المثبتة في النظام: **{len(df_q)}** سؤالاً.")
+        st.write(f"إجمالي الأسئلة الحالية في قاعدة البيانات: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
         st.subheader("⚙️ إدارة وإضافة وحذف الأسئلة المصورة والتشخيصية")
-        sub_img_tabs = st.tabs(["➕ إضافة سؤال مصور جديد", "🗑️️ عرض وحذف الأسئلة المصورة"])
+        sub_img_tabs = st.tabs(["➕ إضافة سؤال مصور جديد", "🗑 عرض وحذف الأسئلة المصورة"])
         
         with sub_img_tabs[0]:
             with st.form("add_custom_img_q"):
-                st.markdown("<b>إضافة سؤال مصور جديد يرتكز على دليل وزارة الصحة والسكان</b>", unsafe_allow_html=True)
+                st.markdown("<b>إضافة سؤال مصور جديد إلى قاعدة البيانات</b>", unsafe_allow_html=True)
                 c_text = st.text_area("نص السؤال التشخيصي:")
                 c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"])
                 uploaded_img = st.file_uploader("رفع ملف الصورة النظيفة (بدون بيانات جانبية):", type=["png", "jpg", "jpeg"])
@@ -705,7 +708,7 @@ def admin_dashboard():
                 opt4 = st.text_input("الخيار الرابع:", value="")
                 correct_ans_text = st.text_input("اكتب النص المطابق تماماً للإجابة الصحيحة من الخيارات أعلاه:")
                 
-                if st.form_submit_button("حفظ وإضافة السؤال للبنك المعتمد"):
+                if st.form_submit_button("حفظ وإضافة السؤال لقاعدة البيانات"):
                     if not c_text or not correct_ans_text:
                         st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة على الأقل.")
                     else:
@@ -727,7 +730,7 @@ def admin_dashboard():
                                 c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
                                              VALUES(?,?,?,?,?,?,?,?)""",
                                           (c_diff, "أسئلة الصور والأشكال", full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
-                            st.success("✅ تمت إضافة السؤال المصور بنجاح إلى قاعدة البيانات!")
+                            st.success("✅ تمت إضافة وحفظ السؤال المصور بنجاح في قاعدة البيانات!")
                             st.rerun()
                         except Exception as e:
                             st.error(f"خطأ أثناء الحفظ: {e}")
@@ -735,15 +738,15 @@ def admin_dashboard():
         with sub_img_tabs[1]:
             with db() as c:
                 img_qs = c.execute("SELECT id, difficulty, question FROM questions WHERE question LIKE 'IMAGE:%' ORDER BY id DESC").fetchall()
-            st.write(f"عدد الأسئلة المصورة المتاحة في النظام: **{len(img_qs)}**")
+            st.write(f"عدد الأسئلة المصورة المتاحة في قاعدة البيانات: **{len(img_qs)}**")
             for iq in img_qs:
                 with st.container(border=True):
-                    st.write(f"**رقم السؤال:** {iq['id']} | **المستوى:** {iq['difficulty']}")
+                    st.write(f"**رقم السؤال (ID):** {iq['id']} | **المستوى:** {iq['difficulty']}")
                     st.text(iq['question'][:120] + "...")
-                    if st.button(f"حذف السؤال رقم {iq['id']}", key=f"del_iq_{iq['id']}"):
+                    if st.button(f"حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
                         with db() as c:
                             c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
-                        st.success(f"تم حذف السؤال رقم {iq['id']} بنجاح.")
+                        st.success(f"تم حذف السؤال رقم {iq['id']} بنجاح من قاعدة البيانات.")
                         st.rerun()
 
     with selected_tabs[4]:
