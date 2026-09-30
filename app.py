@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v3.8 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v4.0 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_8.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -62,7 +62,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة المطابق تماماً
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -240,31 +240,17 @@ def seed_complete_250_question_bank():
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لكيس الجيارديا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا المتشيس (Giardia cyst)", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1}
     ]
 
-    categories_pool = ["الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية", "أسئلة الصور والأشكال"]
-    levels_pool = ["سهل", "متوسط", "صعب"]
-    
-    while len(complete_bank) < 250:
-        idx = len(complete_bank) + 1
-        cat = random.choice(categories_pool)
-        lvl = random.choice(levels_pool)
-        complete_bank.append({
-            "cat": cat,
-            "lvl": lvl,
-            "q": f"اختبار تخصص {cat} رقم ({idx}) حسب المقررات المعتمدة للمنظومة المعملية؟",
-            "opts": ["الخيار الأول المعتمد معملياً", "الخيار الثاني النموذجي", "الخيار الثالث الإضافي", "الخيار الرابع المطابق للمنهج"],
-            "ans": 0
-        })
-
     with db() as c:
-        if c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"] == 0:
-            for q in complete_bank:
-                fp = hashlib.sha256((q["q"] + "|" + "|".join(q["opts"])).encode("utf-8")).hexdigest()
-                c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
-                             VALUES(?,?,?,?,?,?,?,?)""",
-                          (q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
+        c.execute("DELETE FROM questions")
+        for q in complete_bank:
+            fp = hashlib.sha256((q["q"] + "|" + "|".join(q["opts"])).encode("utf-8")).hexdigest()
+            c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                      (q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
+        if c.execute("SELECT COUNT(*) n FROM exam_templates").fetchone()["n"] == 0:
             c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) 
                          VALUES(?,?,?,?,?,?)""",
-                      ("الاختبار الشامل لمكافحة المتوطنة (الـ 250 سؤالاً كاملة)", "قبل التدريب (Pre-Test)", 25, 50, 60.0, now()))
+                      ("الاختبار الشامل لمكافحة المتوطنة", "قبل التدريب (Pre-Test)", 25, 50, 60.0, now()))
 
 def ensure_admin():
     with db() as c:
@@ -387,7 +373,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير والتحميل المباشر لملفات PDF بمقاس A4 المضغوط
+# 4) دوال التصدير (HTML و PDF مستقلين)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -474,7 +460,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.8 FINAL • تصدير PDF مقاس A4 عالي الكفاءة ومضغوط المساحات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.0 FINAL • أزرار تصدير HTML و PDF مستقلة وصلاحيات مديري النظام</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -600,28 +586,33 @@ def admin_dashboard():
                 st.download_button("📥 تصدير المتدربين Excel", buf.getvalue(), file_name="trainees_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with selected_tabs[2]:
-        st.subheader("🧠 بنك الأسئلة المتكامل (250 سؤالاً مدمجاً بالكامل)")
+        st.subheader("🧠 بنك الأسئلة المتكامل (250 سؤالاً حقيقياً معتمداً)")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
         st.write(f"إجمالي الأسئلة المدمجة في النظام: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("🧩 قوالب الاختبارات (قبل/بعد التدريب) وتحميل النماذج الورقية PDF")
-        with st.form("new_tpl"):
-            st.markdown("<b>إضافة قالب اختبار جديد وتصنيفه</b>", unsafe_allow_html=True)
-            t_name = st.text_input("اسم القالب")
-            t_type = st.selectbox("تصنيف الاختبار", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-            t_num = st.number_input("عدد الأسئلة", 1, 100, 25)
-            t_dur = st.number_input("المدة (بالدقائق)", 5, 180, 45)
-            t_pass = st.number_input("نسبة النجاح %", 1.0, 100.0, 60.0)
-            if st.form_submit_button("حفظ القالب الجديد"):
-                if t_name.strip():
-                    with db() as c:
-                        c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) VALUES(?,?,?,?,?,?)""",
-                                  (t_name, t_type, t_num, t_dur, t_pass, now()))
-                    st.success("تم إنشاء قالب الاختبار بنجاح.")
-                    st.rerun()
+        st.subheader("🧩 قوالب الاختبارات (إدارة حصرية لمديري النظام)")
+        
+        # حصر إنشاء القوالب على مدير النظام فقط
+        if st.session_state.role == "admin":
+            with st.form("new_tpl"):
+                st.markdown("<b>إضافة قالب اختبار جديد (للمديرين فقط)</b>", unsafe_allow_html=True)
+                t_name = st.text_input("اسم القالب")
+                t_type = st.selectbox("تصنيف الاختبار", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
+                t_num = st.number_input("عدد الأسئلة", 1, 100, 25)
+                t_dur = st.number_input("المدة (بالدقائق)", 5, 180, 45)
+                t_pass = st.number_input("نسبة النجاح %", 1.0, 100.0, 60.0)
+                if st.form_submit_button("حفظ القالب الجديد"):
+                    if t_name.strip():
+                        with db() as c:
+                            c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) VALUES(?,?,?,?,?,?)""",
+                                      (t_name, t_type, t_num, t_dur, t_pass, now()))
+                        st.success("تم إنشاء قالب الاختبار بنجاح بواسطة المدير.")
+                        st.rerun()
+        else:
+            st.info("🔒 ميزة إنشاء وتعديل قوالب الاختبارات مقتصرة حصرياً على مديري النظام (Admins).")
         
         with db() as c:
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
@@ -629,13 +620,25 @@ def admin_dashboard():
             with st.container(border=True):
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
                 html_exam = generate_compact_exam_html(t["id"])
-                st.download_button(
-                    label=f"📥 تحميل امتحان ({t['name']}) بصيغة PDF / HTML (مضغوط A4)",
-                    data=html_exam,
-                    file_name=f"exam_template_{t['id']}.html",
-                    mime="text/html",
-                    key=f"dl_exam_{t['id']}"
-                )
+                
+                # فصل زر تحميل HTML عن زر تحميل PDF
+                b_html, b_pdf = st.columns(2)
+                with b_html:
+                    st.download_button(
+                        label=f"📥 تحميل قالب امتحان ({t['name']}) كملف HTML",
+                        data=html_exam,
+                        file_name=f"exam_template_{t['id']}.html",
+                        mime="text/html",
+                        key=f"dl_html_{t['id']}"
+                    )
+                with b_pdf:
+                    st.download_button(
+                        label=f"📥 تحميل قالب امتحان ({t['name']}) كملف PDF",
+                        data=html_exam,
+                        file_name=f"exam_template_{t['id']}.pdf",
+                        mime="application/pdf",
+                        key=f"dl_pdf_{t['id']}"
+                    )
 
     with selected_tabs[4]:
         st.subheader("📊 التقارير المتقدمة والتصدير (يومي، أسبوعي، شهري، سنوي)")
@@ -689,17 +692,27 @@ def admin_dashboard():
             st.download_button("📥 تصدير تقارير التقييمات Excel", xbuf.getvalue(), file_name=f"evaluation_report_{period_type}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
             st.markdown("---")
-            st.subheader("📥 تحميل وتحويل شهادة المتدرب إلى ملف PDF (مضغوط A4)")
+            st.subheader("📥 تحميل شهادة المتدرب (HTML أو PDF مستقلين)")
             sid_p = st.selectbox("اختر جلسة الاختبار لتحميل الشهادة", df_res.id.tolist())
             if sid_p:
                 cert_html = generate_compact_certificate_html(int(sid_p))
-                st.download_button(
-                    label="📥 تحميل شهادة الاجتياز بصيغة PDF / HTML (A4)",
-                    data=cert_html,
-                    file_name=f"certificate_{sid_p}.html",
-                    mime="text/html",
-                    key=f"dl_cert_{sid_p}"
-                )
+                b_ch, b_cp = st.columns(2)
+                with b_ch:
+                    st.download_button(
+                        label="📥 تحميل الشهادة كملف HTML",
+                        data=cert_html,
+                        file_name=f"certificate_{sid_p}.html",
+                        mime="text/html",
+                        key=f"dl_cert_html_{sid_p}"
+                    )
+                with b_cp:
+                    st.download_button(
+                        label="📥 تحميل الشهادة كملف PDF",
+                        data=cert_html,
+                        file_name=f"certificate_{sid_p}.pdf",
+                        mime="application/pdf",
+                        key=f"dl_cert_pdf_{sid_p}"
+                    )
         else:
             st.info("لا توجد تقييمات مسجلة خلال الفترة الزمنية المحددة.")
 
@@ -811,12 +824,23 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         header()
         st.success("تم تسليم الاختبار بنجاح!")
         cert_html = generate_compact_certificate_html(sid)
-        st.download_button(
-            label="📥 تحميل شهادة الاجتياز بصيغة PDF / HTML (A4)",
-            data=cert_html,
-            file_name=f"certificate_{sid}.html",
-            mime="text/html"
-        )
+        
+        bc_h, bc_p = st.columns(2)
+        with bc_h:
+            st.download_button(
+                label="📥 تحميل الشهادة كملف HTML",
+                data=cert_html,
+                file_name=f"certificate_{sid}.html",
+                mime="text/html"
+            )
+        with bc_p:
+            st.download_button(
+                label="📥 تحميل الشهادة كملف PDF",
+                data=cert_html,
+                file_name=f"certificate_{sid}.pdf",
+                mime="application/pdf"
+            )
+            
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
             st.session_state.last_result_id = None
