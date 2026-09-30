@@ -7,17 +7,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية
+# 1) إعدادات التطبيق الأساسية (هوامش واسعة وعرض مريح)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v5.6 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v5.8 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v5_6.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v5_8.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,22 +40,23 @@ st.markdown("""
 <style>
 html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
 .stApp{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%)}
-.block-container{max-width:1600px;padding-top:0.5rem;padding-bottom:0.5rem}
-.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:10px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:8px}
-.card,.question{background:#fff;padding:8px 12px;border-radius:8px;margin-bottom:6px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:4px solid #059669}
-.metric{background:#fff;padding:8px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
-.metric .v{font-size:20px;font-weight:800;color:#065f46}
-.metric .l{color:#4b5563;font-weight:700;font-size:11px}
+/* توسيع هوامش وعرض الشاشة لتوفير مساحة أوسع وأريحية كاملة */
+.block-container{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:1rem;padding-bottom:1rem}
+.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:10px}
+.card,.question{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669}
+.metric{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.metric .v{font-size:22px;font-weight:800;color:#065f46}
+.metric .l{color:#4b5563;font-weight:700;font-size:12px}
 .timer{font-size:18px;font-weight:900;text-align:center;background:#fef3c7;border:1px solid #f59e0b;padding:6px;border-radius:8px;color:#92400e;margin-bottom:8px}
-.img-box{background:#f8fafc;border:1px dashed #059669;padding:6px;border-radius:6px;text-align:center;margin-bottom:6px}
+.img-box{background:#f8fafc;border:2px dashed #059669;padding:8px;border-radius:8px;text-align:center;margin-bottom:8px}
 .img-box img{max-width:240px;height:auto;border-radius:6px;border:1px solid #cbd5e1;box-shadow:0 2px 5px rgba(0,0,0,0.08);background:#fff}
-.stButton>button{border-radius:6px;font-weight:800;min-height:32px;padding:2px 10px;transition:all 0.2s ease}
+.stButton>button{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease}
 [data-testid="stSidebar"]{display:none !important;}
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة (روابط صور مضمونة ومستقرة)
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة (صور مجهرية حقيقية موثوقة)
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -190,17 +191,17 @@ def init_db():
 
 def seed_complete_250_question_bank():
     complete_bank = [
-        # --- بنك أسئلة الصور المجهرية الموثوقة والمطورة ---
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/e/e9/Schistosoma_mansoni_egg_01.jpg\n\nتعرف على الشكل الظاهر في الصورة المجهرية وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية (Schistosoma mansoni)"], "ans": 3},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/5/5a/Schistosoma_haematobium_egg_01.jpg\n\nتعرف على الشكل الظاهر في الصورة المجهرية وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية ذات الشوكة الطرفية (Schistosoma haematobium)", "الهتروفيس"], "ans": 2},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/8/8c/Fasciola_hepatica_egg.jpg\n\nتعرف على الشكل الظاهر في الصورة المجهرية وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا الكبدية ذات الغطاء (Fasciola hepatica)", "التينيا"], "ans": 2},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/5/5a/Giardia_lamblia_cyst_01.jpg\n\nتعرف على الشكل الظاهر في الصورة المجهرية وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا المتشيس (Giardia cyst)", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/3/3b/Ascaris_lumbricoides_egg.jpg\n\nتعرف على بيضة الإسكارس الظاهرة في الصورة المجهرية:", "opts": ["بيضة إسكارس لومبريكويدس (Ascaris lumbricoides)", "بيضة أنكلستوما", "بيضة أوكسيورس", "بيضة تريكوريس"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/0/0c/Ancylostoma_duodenale_egg.jpg\n\nتعرف على الطفيل الظاهر في الصورة المجهرية:", "opts": ["بيضة الإسكارس", "بيضة الأنكلستوما (Ancylostoma)", "بيضة الفاشيولا", "بيضة الهيمينولبس"], "ans": 1},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/4/44/Hymenolepis_nana_egg.jpg\n\nتعرف على بيضة الهيمينولبس نانا الظاهرة في الصورة:", "opts": ["بيضة الهيمينولبس نانا (Hymenolepis nana)", "بيضة التينيا", "بيضة الهتروفيس", "بيضة البلهارسيا"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/9/92/Entamoeba_histolytica_cyst.jpg\n\nتعرف على كيس الأميبا الظاهر في الصورة المجهرية:", "opts": ["كيس إنتاميبا هستوليتيكا (Entamoeba histolytica cyst)", "كيس الجيارديا", "تروفوزويت الملاريا", "بويضة الإسكارس"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/1/18/Trichostrongylus_spp._egg.png\n\nتعرف على بويضة ديدان التريكوسترنجيلس (Trichostrongylus spp.) الظاهرة في الصورة المجهرية:", "opts": ["بيضة تريكوسترنجيلس (Trichostrongylus spp.)", "بيضة الأنكلستوما", "بيضة الإسكارس", "بيضة التينيا"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/9/93/Trichuris_trichiura_egg.jpg\n\nتعرف على بويضة الدودة السوطية (تريكوريس) الظاهرة في الصورة:", "opts": ["بيضة تريكوريس تريكيورا (Trichuris trichiura)", "بيضة الفاشيولا", "بيضة البلهارسيا", "بيضة التينيا"], "ans": 0},
+        # --- بنك أسئلة الصور المجهرية الحقيقية والمستقرة ---
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Schistosoma_mansoni_01.jpg/320px-Schistosoma_mansoni_01.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية (Schistosoma mansoni)"], "ans": 3},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Schistosoma_haematobium_01.jpg/320px-Schistosoma_haematobium_01.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية ذات الشوكة الطرفية", "الهتروفيس"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Fasciola_hepatica_egg.jpg/320px-Fasciola_hepatica_egg.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا الكبدية ذات الغطاء", "التينيا"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Giardia_lamblia_cyst_01.jpg/320px-Giardia_lamblia_cyst_01.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا المتشيس", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Ascaris_lumbricoides_egg.jpg/320px-Ascaris_lumbricoides_egg.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة إسكارس لومبريكويدس", "بيضة أنكلستوما", "بيضة أوكسيورس", "بيضة تريكوريس"], "ans": 0},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Ancylostoma_duodenale_egg.jpg/320px-Ancylostoma_duodenale_egg.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة الإسكارس", "بيضة الأنكلستوما", "بيضة الفاشيولا", "بيضة الهيمينولبس"], "ans": 1},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Hymenolepis_nana_egg.jpg/320px-Hymenolepis_nana_egg.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة الهيمينولبس نانا", "بيضة التينيا", "بيضة الهتروفيس", "بيضة البلهارسيا"], "ans": 0},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Entamoeba_histolytica_cyst.jpg/320px-Entamoeba_histolytica_cyst.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["كيس إنتاميبا هستوليتيكا", "كيس الجيارديا", "تروفوزويت الملاريا", "بويضة الإسكارس"], "ans": 0},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Trichuris_trichiura_egg.jpg/320px-Trichuris_trichiura_egg.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة تريكوريس تريكيورا ذات السدادات", "بيضة الفاشيولا", "بيضة البلهارسيا", "بيضة التينيا"], "ans": 0},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "IMAGE:https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Taenia_egg.jpg/320px-Taenia_egg.jpg\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة ديدان التينيا الشريطية", "بيضة الهيمينولبس", "بيضة الإسكارس", "بيضة الهتروفيس"], "ans": 0},
 
         # --- بقية بنك الأسئلة الشامل (250 سؤالاً دون مساس) ---
         {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا البولية ؟", "opts": ["بولينس (Bulinus)", "بيرينلا كونيكا", "بيومفلاريا", "ليمنيا"], "ans": 0},
@@ -424,7 +425,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (مع الترويسة، التوقيعات، وعرض الصور بوضوح)
+# 4) دوال التصدير (مع الترويسة، التوقيعات، وعرض الصور المجهرية)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -444,9 +445,9 @@ def generate_compact_certificate_html(sid):
         <meta charset="UTF-8">
         <style>
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; text-align: center; background: #fff; padding: 20px; direction: rtl; }}
-            .cert {{ border: 4px solid #059669; padding: 20px; border-radius: 12px; width: 100%; max-width: 700px; margin: auto; background: #fdfbf7; position: relative; }}
+            .cert {{ border: 4px solid #059669; padding: 25px; border-radius: 12px; width: 100%; max-width: 750px; margin: auto; background: #fdfbf7; position: relative; }}
             .header-top {{ position: absolute; top: 15px; right: 20px; text-align: right; font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
-            .footer-bottom {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 15px; }}
+            .footer-bottom {{ margin-top: 35px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 15px; }}
             h1 {{ color: #065f46; font-size: 24px; margin-bottom: 5px; }}
             h2 {{ color: #047857; font-size: 18px; }}
             p {{ font-size: 15px; line-height: 1.8; color: #1f2937; }}
@@ -494,20 +495,20 @@ def generate_compact_exam_html(template_id):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4; margin: 5mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 5px; font-size: 8pt; color: #111; line-height: 1.15; }}
-            .top-right-header {{ float: right; text-align: right; font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.2; margin-bottom: 5px; }}
-            .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 4px; margin-bottom: 6px; }}
+            @page {{ size: A4; margin: 8mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 5px; font-size: 8pt; color: #111; line-height: 1.2; }}
+            .top-right-header {{ float: right; text-align: right; font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; margin-bottom: 5px; }}
+            .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 8px; }}
             .exam-title-area h2 {{ font-size: 11pt; margin: 0 0 2px 0; color: #065f46; }}
             .exam-title-area h3 {{ font-size: 9.5pt; margin: 0 0 2px 0; }}
             .exam-title-area p {{ font-size: 7.5pt; margin: 0; }}
-            .exam-container {{ column-count: 2; column-gap: 8mm; }}
-            .q-box {{ margin-bottom: 5px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #94a3b8; padding: 5px; border-radius: 4px; background: #fff; }}
-            .img-box {{ background: #f1f5f9; border: 1px dashed #059669; padding: 4px; border-radius: 3px; text-align: center; margin-bottom: 3px; }}
+            .exam-container {{ column-count: 2; column-gap: 10mm; }}
+            .q-box {{ margin-bottom: 6px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
+            .img-box {{ background: #f1f5f9; border: 1px dashed #059669; padding: 4px; border-radius: 3px; text-align: center; margin-bottom: 4px; }}
             .img-box img {{ max-width: 140px; height: auto; border-radius: 3px; background: #fff; display: inline-block; }}
             ul {{ list-style-type: none; padding-right: 12px; margin: 2px 0; }}
-            li {{ margin-bottom: 2px; font-size: 7pt; }}
-            .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
+            li {{ margin-bottom: 2px; font-size: 7.5pt; }}
+            .exam-footer {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -558,11 +559,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v5.6 FINAL • إصلاح وضمان ظهور الصور المجهرية في البرنامج والطباعة</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v5.8 FINAL • صور مجهرية حقيقية ومستقرة مع هوامش واسعة ومريحة</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -648,7 +649,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -907,10 +908,10 @@ def exam_interface(session_id):
             parts = q_raw.split("\n\n", 1)
             img_url = parts[0].replace("IMAGE:", "").strip()
             actual_q = parts[1] if len(parts) > 1 else "تعرف على الصورة المجهرية وحدد الإجابة الصحيحة:"
-            st.markdown(f'<div class="question" style="padding:6px 10px; margin-bottom:6px;"><b>س ({row["position"]+1})</b><div class="img-box" style="padding:4px; margin-bottom:4px; text-align:center;"><img src="{img_url}" style="max-width:220px; border-radius:4px;" alt="عينة"></div><p style="margin:2px 0; font-weight:bold;">{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question" style="padding:10px 14px; margin-bottom:10px;"><b>س ({row["position"]+1})</b><div class="img-box" style="padding:6px; margin-bottom:6px; text-align:center;"><img src="{img_url}" style="max-width:220px; border-radius:4px;" alt="عينة مجهرية"></div><p style="margin:2px 0; font-weight:bold;">{actual_q}</p></div>', unsafe_allow_html=True)
         else:
             cleaned_q = clean_question_text(q_raw)
-            st.markdown(f'<div class="question" style="padding:6px 10px; margin-bottom:6px;"><b>س ({row["position"]+1})</b>: {cleaned_q}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question" style="padding:10px 14px; margin-bottom:10px;"><b>س ({row["position"]+1})</b>: {cleaned_q}</div>', unsafe_allow_html=True)
 
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
