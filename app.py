@@ -500,7 +500,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير والشهادات
+# 4) دوال التصدير والشهادات وتقارير الفترة
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -558,6 +558,70 @@ def generate_compact_certificate_html(sid):
     </body>
     </html>
     """
+
+def generate_report_html_document(df, title_desc):
+    html_doc = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; color: #111; }}
+            h2 {{ color: #065f46; text-align: center; margin-bottom: 5px; }}
+            p {{ text-align: center; font-size: 11pt; color: #4b5563; margin-top: 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: right; }}
+            th {{ background-color: #065f46; color: #fff; }}
+            tr:nth-child(even) {{ background-color: #f8fafc; }}
+            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 15px; }}
+        </style>
+    </head>
+    <body>
+        <h2>🔬 تقرير أداء متدربي معامل المتوطنة</h2>
+        <p>{title_desc}</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الجلسة</th>
+                    <th>اسم المتدرب</th>
+                    <th>جهة العمل</th>
+                    <th>اسم الاختبار</th>
+                    <th>تصنيف التقييم</th>
+                    <th>الدرجة</th>
+                    <th>النسبة %</th>
+                    <th>الحالة</th>
+                    <th>تاريخ التسليم</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    for _, row in df.iterrows():
+        html_doc += f"""
+                <tr>
+                    <td>{row['رقم الجلسة']}</td>
+                    <td>{esc(row['اسم المتدرب'])}</td>
+                    <td>{esc(row['جهة العمل'])}</td>
+                    <td>{esc(row['اسم الاختبار'])}</td>
+                    <td>{esc(row['تصنيف التقييم'])}</td>
+                    <td>{row['الدرجة']} / {row['الدرجة الكلية']}</td>
+                    <td>{row['النسبة المئوية %']:.1f}%</td>
+                    <td>{esc(row['حالة الاجتياز'])}</td>
+                    <td>{esc(row['تاريخ ووقت التسليم'])}</td>
+                </tr>
+        """
+    html_doc += """
+            </tbody>
+        </table>
+        <div class="footer">
+            <div>مسؤل تدريب معامل المتوطنة</div>
+            <div>رئيس قسم المعامل</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الادارة</div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_doc
 
 def generate_compact_exam_html(template_id):
     with db() as c:
@@ -643,11 +707,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • تقارير الفترة الزمنية المخصصة (من تاريخ إلى تاريخ) مع التصنيف وربط التقييمات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • تقارير فردية وفترة زمنية مع خيارات التصدير (Excel, HTML, طباعة PDF)</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -983,19 +1047,26 @@ def admin_dashboard():
                             st.rerun()
 
     with selected_tabs[5]:
-        st.subheader("📊 تقارير الفترة الزمنية المخصصة (من تاريخ إلى تاريخ)")
-        st.markdown("حدد الفترة الزمنية المطلوبة بدقة لعرض تقارير المتدربين والتقييمات وربطها بأنواع الاختبارات (قبل التدريب، بعد التدريب، تقييم شامل):", unsafe_allow_html=True)
+        st.subheader("📊 تقارير قياس المستويات (من تاريخ إلى تاريخ - شامل أو فردي)")
         
-        c_date1, c_date2 = st.columns(2)
-        d_start = c_date1.date_input("من تاريخ", date.today() - timedelta(days=30))
-        d_end = c_date2.date_input("إلى تاريخ", date.today())
+        # اختيار المتدربين المتاحين
+        with db() as c:
+            all_trainees = c.execute("SELECT id, name, facility FROM trainees ORDER BY name ASC").fetchall()
         
+        trainee_options = ["الكل (جميع المتدربين)"] + [f"{tr['name']} ({tr['facility']} - ID: {tr['id']})" for tr in all_trainees]
+        
+        c_filter1, c_filter2, c_filter3 = st.columns(3)
+        d_start = c_filter1.date_input("من تاريخ", date.today() - timedelta(days=30))
+        d_end = c_filter2.date_input("إلى تاريخ", date.today())
+        selected_trainee_choice = c_filter3.selectbox("فلترة حسب المتدرب (فردي أو الكل)", trainee_options)
+
         start_dt_str = datetime.combine(d_start, datetime.min.time()).isoformat()
         end_dt_str = datetime.combine(d_end, datetime.max.time()).isoformat()
 
         with db() as c:
             query = """SELECT 
                            s.id AS 'رقم الجلسة',
+                           t.id AS 'trainee_id',
                            t.name AS 'اسم المتدرب',
                            t.facility AS 'جهة العمل',
                            et.name AS 'اسم الاختبار',
@@ -1011,21 +1082,65 @@ def admin_dashboard():
                        JOIN exam_templates et ON et.id = s.template_id 
                        WHERE s.status = 'submitted' 
                          AND s.submitted_at >= ? 
-                         AND s.submitted_at <= ? 
-                       ORDER BY s.submitted_at DESC"""
-            df_res = pd.read_sql_query(query, c, params=[start_dt_str, end_dt_str])
+                         AND s.submitted_at <= ?"""
+            params = [start_dt_str, end_dt_str]
+            
+            if selected_trainee_choice != "الكل (جميع المتدربين)":
+                # استخراج الـ ID من النص المختار
+                t_id_extracted = int(selected_trainee_choice.split("ID: ")[1].replace(")", ""))
+                query += " AND t.id = ?"
+                params.append(t_id_extracted)
+                
+            query += " ORDER BY s.submitted_at DESC"
+            df_res = pd.read_sql_query(query, c, params=params)
 
         if not df_res.empty:
-            st.success(f"✅ تم العثور على **{len(df_res)}** تقييم مسجل ضمن الفترة الزمنية المحددة.")
-            st.dataframe(df_res, use_container_width=True, hide_index=True)
+            st.success(f"✅ تم العثور على **{len(df_res)}** تقييم مسجل ضمن الفترة والفلتر المحدد.")
             
-            xbuf = io.BytesIO()
-            with pd.ExcelWriter(xbuf, engine="openpyxl") as writer:
-                df_res.to_excel(writer, index=False, sheet_name="Filtered_Reports")
-            st.download_button("📥 تصدير تقارير الفترة المحددة Excel", xbuf.getvalue(), file_name=f"evaluation_report_{d_start}_to_{d_end}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            # إخفاء عمود المعرف الداخلي قبل العرض
+            display_df = df_res.drop(columns=['trainee_id'])
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+            # تجهيز محتوى HTML للتقرير للتصدير والطباعة
+            html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end} - {selected_trainee_choice}")
+            report_bytes = html_report_str.encode("utf-8")
+            
+            # أزرار التصدير والطباعة الثلاثة المطلوبة
+            b_ex, b_ht, b_pr = st.columns(3)
+            
+            with b_ex:
+                xbuf = io.BytesIO()
+                with pd.ExcelWriter(xbuf, engine="openpyxl") as writer:
+                    display_df.to_excel(writer, index=False, sheet_name="Filtered_Reports")
+                st.download_button(
+                    label="📥 تصدير Excel",
+                    data=xbuf.getvalue(),
+                    file_name=f"evaluation_report_{d_start}_to_{d_end}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            with b_ht:
+                st.download_button(
+                    label="📥 تصدير HTML",
+                    data=report_bytes,
+                    file_name=f"evaluation_report_{d_start}_to_{d_end}.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+            with b_pr:
+                if st.button("🖨️ طباعة التقرير PDF", use_container_width=True):
+                    components.html(f"""
+                    <script>
+                        var win = window.open('', '_blank');
+                        win.document.write(`{html_report_str}`);
+                        win.document.close();
+                        win.focus();
+                        setTimeout(function(){{ win.print(); }}, 500);
+                    </script>
+                    """, height=0)
             
             st.markdown("---")
-            st.subheader("📥 معاينة وتحميل أو طباعة شهادة المتدرب ضمن النتائج")
+            st.subheader("📥 معاينة وتحميل أو طباعة شهادة متدرب فردي ضمن النتائج")
             sid_p = st.selectbox("اختر رقم جلسة الاختبار لعرض شهادتها المعتمدة", df_res['رقم الجلسة'].tolist())
             if sid_p:
                 cert_html = generate_compact_certificate_html(int(sid_p))
@@ -1051,7 +1166,7 @@ def admin_dashboard():
                         </script>
                         """, height=0)
         else:
-            st.info("⚠️ لا توجد تقييمات مسجلة ضمن هذه الفترة الزمنية المحددة. جرب اختيار نطاق تاريخ آخر.")
+            st.info("⚠️ لا توجد تقييمات مسجلة ضمن نطاق التاريخ أو المتدرب المحدد. جرب تغيير خيارات البحث.")
 
     with selected_tabs[6]:
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
