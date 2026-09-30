@@ -268,7 +268,7 @@ def init_db():
 def get_facilities():
     with db() as c:
         rows = c.execute("SELECT name FROM facilities_list ORDER BY id ASC").fetchall()
-        return [r["name"] for r in rows] if rows else ["الإدارة الصحية بأولاد صقر"]
+        return [r["name"] for r in rows] if rows else []
 
 def add_facility_db(fac_name):
     norm = normalize_text(fac_name)
@@ -858,18 +858,26 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     return html_out
 
 def render_print_button_only(html_content, label_prefix=""):
-    if st.button(f"🖨️ طباعة / حفظ PDF ({label_prefix})", key=f"print_btn_{hash(html_content)}", use_container_width=True):
-        components.html(f"""
-            <script>
-                var win = window.open('', '_blank', 'height=700,width=1000');
-                win.document.write(`{html_content}`);
+    encoded_html = json.dumps(html_content)
+    btn_key = f"print_btn_{hash(html_content)}"
+    components.html(f"""
+        <div style="margin: 4px 0;">
+            <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
+                🖨️ طباعة / حفظ PDF ({label_prefix})
+            </button>
+        </div>
+        <script>
+            function printDoc() {{
+                var win = window.open('', '_blank');
+                win.document.write({encoded_html});
                 win.document.close();
                 win.focus();
                 setTimeout(function(){{ 
                     win.print(); 
-                }}, 600);
-            </script>
-        """, height=0)
+                }}, 500);
+            }}
+        </script>
+    """, height=50)
 
 # ============================================================
 # 6) المسارات والشاشات
@@ -884,16 +892,14 @@ def login_portal():
     header()
     st.markdown("<b>إرسال طلب جديد ودخول المتدربين</b>", unsafe_allow_html=True)
     
-    facs_available = get_facilities()
-    
     with st.form("trainee_request"):
-        facility = st.selectbox("الجهة / الإدارة الصحية (اختر من القائمة أو أضف من لوحة المالك):", facs_available)
+        facility = st.text_input("الجهة / الإدارة الصحية / الوحدة التابع لها:")
         name = st.text_input("الاسم الرباعي")
         phone = st.text_input("رقم الهاتف")
         assigned_exam = st.selectbox("تحديد نوع الاختبار الأولي عند التسجيل:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)"])
         
         if st.form_submit_button("إرسال الطلب والدخول للمتدرب", use_container_width=True):
-            if facility and name:
+            if facility.strip() and name.strip():
                 existing = trainee_by_credentials(name, facility)
                 if existing:
                     st.session_state.trainee_id = existing["id"]
@@ -904,7 +910,7 @@ def login_portal():
                     tid = create_trainee(facility, name, phone, assigned_exam)
                     st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
             else:
-                st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
+                st.warning("الرجاء إدخال اسم الجهة والاسم الرباعي بدقة.")
 
     with st.expander("🔐 تسجيل دخول مالك المنصة / الإدارة العليا"):
         with st.form("admin_login_form_hidden"):
@@ -963,7 +969,7 @@ def admin_dashboard():
                 if new_fac_input.strip():
                     success = add_facility_db(new_fac_input)
                     if success:
-                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح لتظهر للمتحنين والمالك!")
+                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح!")
                         st.rerun()
                     else:
                         st.warning("هذه المنشأة موجودة مسبقاً أو أن الاسم غير صالح.")
@@ -973,16 +979,16 @@ def admin_dashboard():
         st.markdown("---")
         st.markdown("#### قائمة المنشآت المسجلة حالياً:")
         current_facs = get_facilities()
-        for fac in current_facs:
-            col_f1, col_f2 = st.columns([4, 1])
-            col_f1.write(f"🔹 {fac}")
-            if col_f2.button("🗑️ حذف", key=f"del_fac_{fac}"):
-                if len(current_facs) > 1:
+        if not current_facs:
+            st.info("لا توجد منشآت مسجلة حالياً.")
+        else:
+            for fac in current_facs:
+                col_f1, col_f2 = st.columns([4, 1])
+                col_f1.write(f"🔹 {fac}")
+                if col_f2.button("🗑️ حذف", key=f"del_fac_{fac}"):
                     delete_facility_db(fac)
                     st.success(f"تم حذف المنشأة ({fac}) بنجاح.")
                     st.rerun()
-                else:
-                    st.error("لا يمكن حذف آخر منشأة متبقية في النظام.")
             
     with selected_tabs[2]:
         st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
@@ -1150,7 +1156,7 @@ def admin_dashboard():
         with db() as c:
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
         
-        facilities_list = get_facilities()
+        facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
 
         for t in tpls:
             with st.container(border=True):
@@ -1182,7 +1188,7 @@ def admin_dashboard():
 
     with selected_tabs[6]:
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
-        facilities_list = get_facilities()
+        facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
         with st.form("manual_score_form"):
             m_trainee_name = st.text_input("اسم المتدرب الرباعي:")
             m_facility_name = st.selectbox("جهة العمل / المنشأة:", facilities_list)
