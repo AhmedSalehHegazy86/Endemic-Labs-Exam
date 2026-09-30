@@ -46,13 +46,13 @@ LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wGB****"  # (
 st.markdown(f"""
 <style>
 html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}}
-.stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%)}
-.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:1rem;padding-bottom:1rem}}
-.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:10px}}
-.card,.question{{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669}}
-.metric{{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04)}}
-.metric .v{{font-size:22px;font-weight:800;color:#065f46}}
-.metric .l{{color:#4b5563;font-weight:700;font-size:12px}}
+.stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%);}}
+.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:1rem;padding-bottom:1rem;}}
+.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:10px;}}
+.card,.question{{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669;}}
+.metric{{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
+.metric .v{{font-size:22px;font-weight:800;color:#065f46;}}
+.metric .l{{color:#4b5563;font-weight:700;font-size:12px;}}
 
 /* ترويسة اللوجو والنصوص في الهامش العلوي الأيسر */
 .print-header {{
@@ -99,7 +99,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
 }}
 
 /* مؤقت مثبت أعلى الشاشة (Sticky Timer) */
-.sticky-timer-container {
+.sticky-timer-container {{
     position: sticky;
     top: 0;
     z-index: 99999;
@@ -109,8 +109,8 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     border-radius: 0 0 10px 10px;
     margin-bottom: 15px;
-}
-.timer-box {
+}}
+.timer-box {{
     font-size: 20px;
     font-weight: 900;
     text-align: center;
@@ -119,14 +119,14 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     padding: 8px;
     border-radius: 8px;
     color: #92400e;
-}
+}}
 
-.q-img-layout{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}
-.q-text-side{flex:1;text-align:right;}
-.q-img-side{flex:0 0 130px;text-align:left;}
-.q-img-side img{max-width:120px;height:auto;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;padding:3px;}
-.stButton>button{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease}
-[data-testid="stSidebar"]{display:block !important;}
+.q-img-layout{{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}}
+.q-text-side{{flex:1;text-align:right;}}
+.q-img-side{{flex:0 0 130px;text-align:left;}}
+.q-img-side img{{max-width:120px;height:auto;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;padding:3px;}}
+.stButton>button{{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease;}}
+[data-testid="stSidebar"]{{display:block !important;}}
 </style>
 
 <div class="print-header">
