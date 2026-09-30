@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v3.7 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v3.8 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_7.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_8.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -57,13 +57,12 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 @media print {
     body { font-size: 11pt; color: #000; background: #fff; }
     .stButton, header, footer, .stMarkdown hr { display: none !important; }
-    .compact-print-box { border: 1px solid #ccc; padding: 10px; margin-bottom: 8px; page-break-inside: avoid; }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة (250 سؤالاً)
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة المطابق تماماً
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -251,7 +250,7 @@ def seed_complete_250_question_bank():
         complete_bank.append({
             "cat": cat,
             "lvl": lvl,
-            "q": f"سؤال تقييمي تكميلي رقم ({idx}) في تخصص {cat} وفق المعايير المعملية المعتمدة؟",
+            "q": f"اختبار تخصص {cat} رقم ({idx}) حسب المقررات المعتمدة للمنظومة المعملية؟",
             "opts": ["الخيار الأول المعتمد معملياً", "الخيار الثاني النموذجي", "الخيار الثالث الإضافي", "الخيار الرابع المطابق للمنهج"],
             "ans": 0
         })
@@ -439,7 +438,8 @@ def generate_compact_exam_html(template_id):
     <head><meta charset="UTF-8"><style>
         body {{ font-family: 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; font-size: 11pt; }}
         .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }}
-        .q-box {{ margin-bottom: 10px; page-break-inside: avoid; }}
+        .q-box {{ margin-bottom: 10px; page-break-inside: avoid; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; }}
+        .img-box {{ background: #f8fafc; border: 2px dashed #059669; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 8px; font-weight: bold; color: #065f46; }}
         ul {{ list-style-type: none; padding-right: 15px; margin: 5px 0; }}
         li {{ margin-bottom: 3px; }}
     </style></head>
@@ -451,7 +451,15 @@ def generate_compact_exam_html(template_id):
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
-        html_out += f"<div class='q-box'><b>س {idx+1}: {esc(q['question'])}</b><ul>"
+        q_text = esc(q["question"])
+        if "📷" in q_text:
+            parts = q_text.split("\n\n", 1)
+            img_title = parts[0]
+            actual_q = parts[1] if len(parts) > 1 else ""
+            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>{img_title}</div><p>{actual_q}</p><ul>"
+        else:
+            html_out += f"<div class='q-box'><b>س {idx+1}: {q_text}</b><ul>"
+            
         for opt in opts:
             html_out += f"<li>[ &nbsp; ] {esc(opt)}</li>"
         html_out += "</ul></div>"
@@ -466,7 +474,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.7 FINAL • تصدير PDF مقاس A4 عالي الكفاءة ومضغوط المساحات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.8 FINAL • تصدير PDF مقاس A4 عالي الكفاءة ومضغوط المساحات</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -622,7 +630,7 @@ def admin_dashboard():
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
                 html_exam = generate_compact_exam_html(t["id"])
                 st.download_button(
-                    label=f"📥 تحميل امتحان ({t['name']}) بصيغة HTML/PDF (مضغوط A4)",
+                    label=f"📥 تحميل امتحان ({t['name']}) بصيغة PDF / HTML (مضغوط A4)",
                     data=html_exam,
                     file_name=f"exam_template_{t['id']}.html",
                     mime="text/html",
@@ -686,7 +694,7 @@ def admin_dashboard():
             if sid_p:
                 cert_html = generate_compact_certificate_html(int(sid_p))
                 st.download_button(
-                    label="📥 تحميل شهادة الاجتياز بصيغة PDF (A4)",
+                    label="📥 تحميل شهادة الاجتياز بصيغة PDF / HTML (A4)",
                     data=cert_html,
                     file_name=f"certificate_{sid_p}.html",
                     mime="text/html",
@@ -804,7 +812,7 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         st.success("تم تسليم الاختبار بنجاح!")
         cert_html = generate_compact_certificate_html(sid)
         st.download_button(
-            label="📥 تحميل شهادة الاجتياز بصيغة PDF (A4)",
+            label="📥 تحميل شهادة الاجتياز بصيغة PDF / HTML (A4)",
             data=cert_html,
             file_name=f"certificate_{sid}.html",
             mime="text/html"
