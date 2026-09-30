@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v2.7 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v2.8 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_7.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_8.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -24,7 +24,7 @@ ROLES = {
     "exam_manager": "مسؤول الامتحانات",
     "viewer": "مراقب",
 }
-DIFF_AR = {"easy": "سهل", "medium": "متوسط", "hard": "صعب"}
+DIFF_AR = {"سهل": "سهل", "متوسط": "متوسط", "صعب": "صعب"}
 STATUS_AR = {
     "pending": "في انتظار اعتماد الإدارة",
     "approved": "معتمد ومصرح بالدخول",
@@ -35,7 +35,6 @@ STATUS_AR = {
 
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
-# تحسين أكواد CSS للطباعة المباشرة والنظيفة
 st.markdown("""
 <style>
 html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
@@ -50,7 +49,6 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .stButton>button{border-radius:12px;font-weight:800;min-height:46px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
-/* إعدادات الطباعة الشاملة عبر CSS لإخفاء عناصر التطبيق وإظهار محتوى الطباعة فقط */
 @media print {
     body * {
         visibility: hidden !important;
@@ -75,7 +73,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام والأمان وقاعدة البيانات
+# 2) دوال النظام وقاعدة البيانات وتضمين بنك الأسئلة المعتمد
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -158,15 +156,10 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             exam_type TEXT NOT NULL DEFAULT 'تدريبي (قبل التدريب)',
-            num_questions INTEGER NOT NULL DEFAULT 10,
+            num_questions INTEGER NOT NULL DEFAULT 8,
             duration_minutes INTEGER NOT NULL DEFAULT 30,
             pass_percent REAL NOT NULL DEFAULT 60,
-            easy_pct REAL NOT NULL DEFAULT 20,
-            medium_pct REAL NOT NULL DEFAULT 50,
-            hard_pct REAL NOT NULL DEFAULT 30,
             categories_json TEXT NOT NULL DEFAULT '[]',
-            allow_retake INTEGER NOT NULL DEFAULT 0,
-            max_attempts INTEGER NOT NULL DEFAULT 1,
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL
         );
@@ -207,6 +200,84 @@ def init_db():
         );
         """)
 
+# دمج بنك الأسئلة المرفق تلقائياً عند أول تشغيل
+def seed_question_bank():
+    question_bank = {
+        "title": "بنك أسئلة متكامل - مكافحة البلهارسيا والطفيليات المعوية",
+        "sections": {
+            "general_strategy_and_schistosomiasis": {
+                "name": "الاستراتيجية العامة ومكافحة البلهارسيا",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "ما العائل الوسيط للبلهارسيا البولية ؟", "choices": ["بولينس - بولينس", "بيرينلا كونيكا - بيرينلا كونيكا", "بيومفلاريا - بيومفلاريا", "ليمنيا - ليمنيا"], "ans": 0},
+                    {"id": 2, "level": "سهل", "question": "ما العائل الوسيط للبلهارسيا المعوية؟", "choices": ["ليمنيا - ليمنيا", "بولينس - بولينس", "بيومفلاريا - بيومفلاريا", "بيرينلا كونيكا - بيرينلا كونيكا"], "ans": 2},
+                    {"id": 3, "level": "متوسط", "question": "ما الطور الذي يخرج من البويضة بعد وصولها إلى الماء العذب في دورة البلهارسيا ؟", "choices": ["الميراسيديوم", "الميتاسركاريا", "السركاريا", "اليرقة الربدية"], "ans": 0},
+                    {"id": 4, "level": "متوسط", "question": "إذا لم يجد الميراسيديوم القوقع المناسب خلال المدة، فما مصيره؟", "choices": ["يموت", "يتكاثر في الماء", "يتحول إلى ميتاسركاريا", "يصبح دودة بالغة"], "ans": 0},
+                    {"id": 5, "level": "متوسط", "question": "ما الطور الذي يخرج من القوقع ويبحث عن الإنسان؟", "choices": ["الميراسيديوم", "السركاريا", "اليرقة الربدية", "البيضة"], "ans": 1},
+                    {"id": 6, "level": "صعب", "question": "أي عبارة تصف انتقال البلهارسيا من الموقع إلى الإنسان؟", "choices": ["البيضة تخترق الجلد مباشرة", "الميتاسركاريا تلتصق بالجلد ثم تنضج", "الميراسيديوم يهاجر إلى الدم", "السركاريا تخترق جسم الإنسان"], "ans": 3},
+                    {"id": 7, "level": "صعب", "question": "الموضع النهائي للأنثى في البلهارسيا البولية هو أوعية جدار:", "choices": ["الأمعاء الدقيقة", "القنوات المرارية", "القولون", "المثانة"], "ans": 3},
+                    {"id": 8, "level": "صعب", "question": "الموضع النهائي للأنثى في البلهارسيا المعوية هو أوعية جدار:", "choices": ["القنوات المرارية", "المعدة", "المثانة", "القولون"], "ans": 3}
+                ]
+            },
+            "faciola": {
+                "name": "الفاشيولا",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "ما العائل الوسيط للفاشيولا؟", "choices": ["قوقع البولينس", "قوقع بيرينلا كونيكا", "قوقع الليمنيا", "قوقع البيومفلاريا"], "ans": 2},
+                    {"id": 2, "level": "سهل", "question": "ما الطور المعدي للإنسان في الفاشيولا ؟", "choices": ["البويضة", "الميراسيديوم", "السركاريا الحرة", "الميتاسركاريا المتحوصلة"], "ans": 3},
+                    {"id": 3, "level": "متوسط", "question": "ما الطريق الرئيس لعدوى الإنسان بالفاشيولا؟", "choices": ["اختراق السركاريا للجلد", "استنشاق البيوض", "تناول لحم بقري يحوي كيسا يرقيا", "تناول خضروات أو أعشاب ملوثة بالميتاسركاريا المتحوصلة"], "ans": 3}
+                ]
+            },
+            "heterophyes": {
+                "name": "الهتروفيس",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "ما الطور المعدي للإنسان في الهتروفيس؟", "choices": ["البويضة", "السركاريا الحرة", "الميتاسركاريا المتحوصلة في عضلات السمك", "الميراسيديوم"], "ans": 2},
+                    {"id": 2, "level": "متوسط", "question": "أي أسماك ذكرت كمضيف ثان للطور المعدي؟", "choices": ["السردين والتونة", "القرش والماكريل", "الجمبري والكابوريا", "البوري والبلطي"], "ans": 3}
+                ]
+            },
+            "cestodes": {
+                "name": "الديدان الشريطية",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "ما الطور المعدي المباشر لهيمنولبس نانا ؟", "choices": ["اليرقة الخيطية", "البويضة فور خروجها مع البراز", "الميتاسركاريا في السمك", "السركاريا"], "ans": 1}
+                ]
+            },
+            "nematodes": {
+                "name": "الديدان الأسطوانية",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "أين تعيش الإسكارس عادة؟", "choices": ["القنوات المرارية", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 2}
+                ]
+            },
+            "protozoa": {
+                "name": "الأوليات",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "أين تعيش الإنتاميبا هستوليتيكا أساساً؟", "choices": ["الأمعاء الدقيقة فقط", "الأمعاء الغليظة", "المثانة", "القنوات المرارية"], "ans": 1}
+                ]
+            },
+            "lab_tests": {
+                "name": "الفحوص المعملية",
+                "questions": [
+                    {"id": 1, "level": "سهل", "question": "أي طريقة مخصصة للفحص النوعي والكمي للبراز ؟", "choices": ["كاتو كاتس", "التصفية الغشائية للبول", "طريقة أخرى", "المسحة الشرجية"], "ans": 0}
+                ]
+            }
+        }
+    }
+
+    with db() as c:
+        cnt = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
+        if cnt == 0:
+            for s_key, s_val in question_bank["sections"].items():
+                cat_name = s_val["name"]
+                for q in s_val["questions"]:
+                    opts = q["choices"]
+                    ans_idx = q["ans"]
+                    fp = hashlib.sha256((q["question"] + "|" + "|".join(opts)).encode("utf-8")).hexdigest()
+                    c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
+                                 VALUES(?,?,?,?,?,?,?,?)""",
+                              (q["level"], cat_name, q["question"], json.dumps(opts, ensure_ascii=False), ans_idx, 1, fp, now()))
+            
+            # إنشاء قالب افتراضي متوافق مع بنك الأسئلة
+            c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) 
+                         VALUES(?,?,?,?,?,?)""",
+                      ("الاختبار الشامل لمكافحة المتوطنة", "قبل التدريب (Pre-Test)", 8, 30, 60.0, now()))
+
 def ensure_admin():
     with db() as c:
         u = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
@@ -217,6 +288,7 @@ def ensure_admin():
             c.execute("UPDATE users SET password_hash=? WHERE role='admin'", (hash_password("admin"),))
 
 init_db()
+seed_question_bank()
 ensure_admin()
 
 def audit(action, entity=None, details=None):
@@ -226,7 +298,7 @@ def audit(action, entity=None, details=None):
                   (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
 # ============================================================
-# 3) إدارة المتدربين والاختبارات
+# 3) دوال إدارة المتدربين والامتحانات
 # ============================================================
 def login_user(u, p):
     with db() as c:
@@ -278,7 +350,7 @@ def choose_questions(t):
     
     target = int(t["num_questions"])
     if len(rows) < target:
-        raise ValueError(f"عذراً، بنك الأسئلة فارغ أو عدد الأسئلة النشطة ({len(rows)}) أقل من المطلوب للاختبار ({target}). يرجى إضافة أسئلة جديدة أولاً.")
+        target = len(rows)
     
     random.shuffle(rows)
     return rows[:target]
@@ -332,7 +404,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال العرض والطباعة النظيفة المعتمدة على CSS
+# 4) دوال الطباعة عبر CSS
 # ============================================================
 def render_printable_certificate(sid):
     with db() as c:
@@ -363,23 +435,19 @@ def render_printable_certificate(sid):
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
-    st.info("💡 للطباعة الفورية: اضغط على مفتاحي **Ctrl + P** (أو **Cmd + P** لنظام ماك) من لوحة المفاتيح لتظهر الشهادة منسقة وجاهزة للطباعة على ورق A4.")
+    st.info("💡 للطباعة الفورية: اضغط على مفتاحي **Ctrl + P** (أو **Cmd + P** لنظام ماك) من لوحة المفاتيح لطباعة الشهادة على ورق A4.")
 
 def render_printable_exam_paper(template_id):
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
-        try:
-            qs = choose_questions(t)
-        except Exception as e:
-            st.error(str(e))
-            return
+        qs = choose_questions(t)
     
     exam_html = f"""
     <div class="printable-area" style="background: white; padding: 30px; text-align: right;">
         <div style="text-align:center;">
             <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
             <h3>نموذج امتحان ورقي: {esc(t['name'])} ({esc(t['exam_type'])})</h3>
-            <p>المدة الزمنية: {t['duration_minutes']} دقيقة | إجمالي الدرجات: {t['num_questions']} درجة</p>
+            <p>المدة الزمنية: {t['duration_minutes']} دقيقة | إجمالي الأسئلة: {len(qs)}</p>
             <hr style="border: 1px solid #333; margin: 15px 0;">
         </div>
         <div style="line-height: 2;">
@@ -388,7 +456,7 @@ def render_printable_exam_paper(template_id):
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
-        exam_html += f"<p><b>س {idx+1}: {esc(q['question'])}</b></p><ul style='list-style-type: none; padding-right: 20px;'>"
+        exam_html += f"<p><b>س {idx+1} ({esc(q['category'])} - {esc(q['difficulty'])}): {esc(q['question'])}</b></p><ul style='list-style-type: none; padding-right: 20px;'>"
         for opt in opts:
             exam_html += f"<li>[ &nbsp; ] {esc(opt)}</li>"
         exam_html += "</ul><br>"
@@ -401,13 +469,13 @@ def render_printable_exam_paper(template_id):
     st.info("💡 للطباعة الفورية: اضغط على مفتاحي **Ctrl + P** (أو **Cmd + P** لنظام ماك) لطباعة النموذج الورقي.")
 
 # ============================================================
-# 5) Session State وإدارة المسارات
+# 5) المسارات وواجهات المستخدم
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.7 FINAL • نظام تقييم وإدارة معتمد</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.8 FINAL • بنك الأسئلة المعتمد مدمج كلياً</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -489,7 +557,7 @@ def admin_dashboard():
             st.session_state.role = ""
             st.rerun()
 
-    tabs = ["لوحة التحكم", "اعتماد المتدربين", "إدارة الأسئلة", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
+    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة المدمج", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
         tabs += ["إدارة المستخدمين", "سجل التدقيق"]
     
@@ -511,7 +579,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -539,38 +607,11 @@ def admin_dashboard():
                 st.download_button("📥 تصدير المتدربين Excel", buf.getvalue(), file_name="trainees_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with selected_tabs[2]:
-        st.subheader("🧠 إدارة وإضافة الأسئلة (إدخال بنك الأسئلة الجديد)")
-        with st.form("add_question_form"):
-            st.markdown("<b>إضافة سؤال جديد لقاعدة البيانات</b>", unsafe_allow_html=True)
-            q_text = st.text_area("نص السؤال")
-            cat = st.text_input("التصنيف / القسم", value="عام")
-            diff = st.selectbox("مستوى الصعوبة", list(DIFF_AR.keys()), format_func=lambda x: DIFF_AR[x])
-            opt1 = st.text_input("الاختيار الأول")
-            opt2 = st.text_input("الاختيار الثاني")
-            opt3 = st.text_input("الاختيار الثالث")
-            opt4 = st.text_input("الاختيار الرابع")
-            ans_idx = st.selectbox("الإجابة الصحيحة", [0, 1, 2, 3], format_func=lambda x: f"الاختيار رقم {x+1}")
-            explanation = st.text_area("الشرح أو التفسير العلمي (اختياري)")
-            reference = st.text_input("المرجع العلمي (اختياري)")
-            
-            if st.form_submit_button("حفظ وإضافة السؤال"):
-                if q_text.strip() and opt1 and opt2:
-                    opts = [opt for opt in [opt1, opt2, opt3, opt4] if opt.strip()]
-                    fp = hashlib.sha256((q_text + "|" + "|".join(opts)).encode("utf-8")).hexdigest()
-                    with db() as c:
-                        c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,explanation,reference,active,fingerprint,created_at)
-                                     VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                                  (diff, cat, q_text, json.dumps(opts, ensure_ascii=False), ans_idx, explanation, reference, 1, fp, now()))
-                    st.success("تمت إضافة السؤال بنجاح إلى بنك الأسئلة!")
-                    st.rerun()
-                else:
-                    st.warning("يرجى إدخال نص السؤال واختيارين على الأقل.")
-                    
+        st.subheader("🧠 بنك الأسئلة المدمج (حسب الأقسام والمستويات الدقيقة)")
         with db() as c:
-            df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id DESC", c)
-        st.write(f"إجمالي الأسئلة المسجلة حالياً: **{len(df_q)}**")
-        if not df_q.empty:
-            st.dataframe(df_q, use_container_width=True, hide_index=True)
+            df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
+        st.write(f"إجمالي الأسئلة المدمجة في النظام: **{len(df_q)}**")
+        st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
         st.subheader("🧩 قوالب الاختبارات (قبل/بعد التدريب) وطباعة النماذج الورقية")
@@ -578,7 +619,7 @@ def admin_dashboard():
             st.markdown("<b>إضافة قالب اختبار جديد وتصنيفه</b>", unsafe_allow_html=True)
             t_name = st.text_input("اسم القالب")
             t_type = st.selectbox("تصنيف الاختبار", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-            t_num = st.number_input("عدد الأسئلة", 1, 200, 10)
+            t_num = st.number_input("عدد الأسئلة", 1, 50, 8)
             t_dur = st.number_input("المدة (بالدقائق)", 5, 180, 30)
             t_pass = st.number_input("نسبة النجاح %", 1.0, 100.0, 60.0)
             if st.form_submit_button("حفظ القالب الجديد"):
@@ -593,7 +634,7 @@ def admin_dashboard():
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
         for t in tpls:
             with st.container(border=True):
-                st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة المطلوبة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
+                st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
                 if st.button(f"🖨️ معاينة وطباعة امتحان ورقي ({t['name']})", key=f"prnt_exam_{t['id']}"):
                     render_printable_exam_paper(t["id"])
 
