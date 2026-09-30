@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v3.2 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v3.3 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_3.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -46,6 +46,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .metric .v{font-size:26px;font-weight:800;color:#065f46}
 .metric .l{color:#4b5563;font-weight:700;font-size:14px}
 .timer{font-size:24px;font-weight:900;text-align:center;background:#fef3c7;border:2px solid #f59e0b;padding:12px;border-radius:12px;color:#92400e}
+.img-box{background:#f8fafc;border:2px dashed #059669;padding:15px;border-radius:12px;text-align:center;margin-bottom:12px;font-weight:bold;color:#065f46}
 .stButton>button{border-radius:12px;font-weight:800;min-height:46px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
@@ -194,7 +195,7 @@ def init_db():
         );
         """)
 
-# دمج الـ 250 سؤالاً بالكامل والمستخرجة من المصدر المرفق[span_1](start_span)[span_1](end_span)
+# دمج الـ 250 سؤالاً بالكامل والمستخرجة من المصدر المرفق[span_0](start_span)[span_0](end_span)
 def seed_complete_250_question_bank():
     complete_bank = [
         {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا البولية ؟", "opts": ["بولينس - بولينس", "بيرينلا كونيكا - بيرينلا كونيكا", "بيومفلاريا - بيومفلاريا", "ليمنيا - ليمنيا"], "ans": 0},
@@ -247,8 +248,15 @@ def seed_complete_250_question_bank():
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بموقع بيومفلاريا. (صح أم خطأ)", "opts": ["صح", "خطأ"], "ans": 0},
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في البلهارسيا. (صح أم خطأ)", "opts": ["صح", "خطأ"], "ans": 0},
 
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "سؤال الصورة: بيضة البلهارسيا المعوية - تعرف على الشكل الظاهر وحدد الطفيل:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية"], "ans": 3},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "سؤال الصورة: بيضة البلهارسيا البولية - تعرف على الشكل الظاهر وحدد الطفيل:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية", "الهتروفيس"], "ans": 2}
+        # أسئلة الصور والأشكال مع تضمين إشارة ورسم بصري توضيحي[span_1](start_span)[span_1](end_span)
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا المعوية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية"], "ans": 3},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا البولية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية", "الهتروفيس"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا اليابانية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "البلهارسيا اليابانية", "البلهارسيا البولية", "الإسكارس"], "ans": 1},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة الفاشيولا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا", "التينيا"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة الإسكارس]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["الإسكارس", "التريكوريس", "التينيا", "الهيمينولبس نانا"], "ans": 0},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة التريكوريس]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["الإسكارس", "الهيمينولبس ديمينوتا", "التريكوريس", "الأنكلستوما"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لكيس الجيارديا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لتروفوزويت الجيارديا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["يرقة الاسترونجيلويدس", "تروفوزويت الجيارديا", "كيس الجيارديا", "تروفوزويت الأميبا"], "ans": 1}
     ]
 
     categories_pool = ["الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية", "أسئلة الصور والأشكال"]
@@ -398,7 +406,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال الطباعة ومعاينة اختيار نوع الطابعة من الجهاز
+# 4) دوال الطباعة والتحكم المحلي بالطابعات
 # ============================================================
 def render_printable_certificate(sid):
     with db() as c:
@@ -430,19 +438,11 @@ def render_printable_certificate(sid):
     """
     st.markdown(html_content, unsafe_allow_html=True)
     
-    # زر اختيار نوع الطابعة من على الجهاز المستخدم مباشرة بعد عرض وطباعة الشهادة[span_2](start_span)[span_2](end_span)
     st.markdown("---")
-    st.markdown("🖨️ **خيارات إعدادات الطابعة المحلية:**")
-    printer_choice = st.selectbox("اختر الطابعة المتصلة بجهازك:", ["الطابعة الافتراضية للنظام (Default)", "Microsoft Print to PDF", "طابعة الشبكة المحلية (Network Printer)", "إدارة وخصائص الطابعات..."], key=f"printer_sel_{sid}")
-    
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        if st.button("طباعة باستخدام الطابعة المحددة (Ctrl+P)", use_container_width=True, key=f"btn_print_act_{sid}"):
-            st.info(f"تم توجيه أمر الطباعة إلى: **{printer_choice}**. يرجى تأكيد الطباعة من نافذة المتصفح التي ستفتح حالاً.")
-            st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
-    with col_p2:
-        if st.button("🔧 فتح نافذة خصائص الطابعات ونوعها", use_container_width=True, key=f"btn_printer_props_{sid}"):
-            st.warning("💡 نصيحة: يمكنك النقر فوق الزر أعلاه ثم الضغط على **Ctrl + P** واختيار الطابعة المطلوبة من قائمة طابعات جهازك.")
+    st.markdown("🖨️ **خيارات الطباعة المحلية وتحديد الطابعة:**")
+    if st.button("🖨️ طباعة الشهادة عبر طابعة النظام (Ctrl+P)", use_container_width=True, key=f"print_cert_{sid}"):
+        st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
+        st.success("تم فتح نافذة الطباعة الخاصة بجهازك. اختر الطابعة المناسبة واضغط طباعة.")
 
 def render_printable_exam_paper(template_id):
     with db() as c:
@@ -463,7 +463,7 @@ def render_printable_exam_paper(template_id):
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
-        exam_html += f"<p><b>س {idx+1} ({esc(q['category'])} - {esc(q['difficulty'])}): {esc(q['question'])}</b></p><ul style='list-style-type: none; padding-right: 20px;'>"
+        exam_html += f"<p><b>س {idx+1}: {esc(q['question'])}</b></p><ul style='list-style-type: none; padding-right: 20px;'>"
         for opt in opts:
             exam_html += f"<li>[ &nbsp; ] {esc(opt)}</li>"
         exam_html += "</ul><br>"
@@ -474,19 +474,11 @@ def render_printable_exam_paper(template_id):
     """
     st.markdown(exam_html, unsafe_allow_html=True)
     
-    # زر اختيار نوع الطابعة ونظام الطباعة للنموذج الورقي[span_3](start_span)[span_3](end_span)
     st.markdown("---")
-    st.markdown("🖨️ **خيارات إعدادات الطابعة المحلية:**")
-    printer_choice_ex = st.selectbox("اختر الطابعة المتصلة بجهازك للامتحان الورقي:", ["الطابعة الافتراضية للنظام (Default)", "Microsoft Print to PDF", "طابعة الشبكة المحلية (Network Printer)", "إدارة وخصائص الطابعات..."], key=f"printer_sel_ex_{template_id}")
-    
-    col_e1, col_e2 = st.columns(2)
-    with col_e1:
-        if st.button("طباعة النموذج باستخدام الطابعة المحددة (Ctrl+P)", use_container_width=True, key=f"btn_print_ex_act_{template_id}"):
-            st.info(f"تم توجيه أمر الطباعة للنموذج إلى: **{printer_choice_ex}**.")
-            st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
-    with col_e2:
-        if st.button("🔧 خصائص طابعات المستندات الورقية", use_container_width=True, key=f"btn_ex_props_{template_id}"):
-            st.warning("💡 نصيحة: اضغط على **Ctrl + P** لتحديد الطابعة المفضلة لطباعة الاختبارات الورقية.")
+    st.markdown("🖨️ **خيارات الطباعة المحلية وتحديد الطابعة:**")
+    if st.button("🖨️ طباعة النموذج الورقي عبر طابعة النظام (Ctrl+P)", use_container_width=True, key=f"print_exam_{template_id}"):
+        st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
+        st.success("تم فتح نافذة الطباعة للامتحان الورقي.")
 
 # ============================================================
 # 5) المسارات وواجهات المستخدم
@@ -495,7 +487,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.2 FINAL • نظام الطباعة المتقدم وتحديد الطابعات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.3 FINAL • واجهة محسنة وبنك 250 سؤالاً</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -527,12 +519,12 @@ def login_portal():
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
                     
     with col2:
-        # أيقونة فحص الاعتماد المستقلة بالاسم والجهة[span_4](start_span)[span_4](end_span)
+        # زر فحص الاعتماد المستقل تماماً بناءً على التسجيل الأول (رسالة فقط بدون إعادة تسجيل)[span_2](start_span)[span_2](end_span)
         with st.container(border=True):
             st.markdown("<b>🔍 أيقونة فحص حالة الاعتماد الفوري</b>", unsafe_allow_html=True)
-            chk_name = st.text_input("الاسم الرباعي للمتدرب", key="check_name_input")
-            chk_fac = st.text_input("الجهة / الإدارة الصحية", key="check_fac_input")
-            if st.button("استعلام عن حالة الاعتماد", use_container_width=True):
+            chk_name = st.text_input("الاسم الرباعي للمتدرب المسجل", key="check_name_input")
+            chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة", key="check_fac_input")
+            if st.button("التحقق من حالة الاعتماد", use_container_width=True):
                 if chk_name and chk_fac:
                     raw = get_trainee_status_raw(chk_name, chk_fac)
                     if raw:
@@ -594,7 +586,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -787,7 +779,16 @@ def exam_interface(session_id):
             try: curr_idx = disp_opts.index(opts[row["selected_option"]])
             except: pass
             
-        st.markdown(f'<div class="question"><b>سؤال {row["position"]+1}</b><br>{esc(row["question"])}</div>', unsafe_allow_html=True)
+        # عرض نظيف للسؤال للممتحن خالي من أي تقسيمات أو مستويات أو أرقام بنك الأسئلة
+        q_text = esc(row["question"])
+        if "📷" in q_text:
+            parts = q_text.split("\n\n", 1)
+            img_title = parts[0]
+            actual_q = parts[1] if len(parts) > 1 else ""
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">{img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br>{q_text}</div>', unsafe_allow_html=True)
+
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
             sel = order[disp_opts.index(choice)]
