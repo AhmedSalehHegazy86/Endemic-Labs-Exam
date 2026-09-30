@@ -48,8 +48,10 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .metric .v{font-size:22px;font-weight:800;color:#065f46}
 .metric .l{color:#4b5563;font-weight:700;font-size:12px}
 .timer{font-size:18px;font-weight:900;text-align:center;background:#fef3c7;border:1px solid #f59e0b;padding:6px;border-radius:8px;color:#92400e;margin-bottom:8px}
-.img-box{background:#f8fafc;border:2px dashed #059669;padding:8px;border-radius:8px;text-align:center;margin-bottom:8px}
-.img-box img{max-width:200px;height:auto;border-radius:6px;border:1px solid #cbd5e1;box-shadow:0 2px 5px rgba(0,0,0,0.08);background:#fff}
+.q-img-layout{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}
+.q-text-side{flex:1;text-align:right;}
+.q-img-side{flex:0 0 130px;text-align:left;}
+.q-img-side img{max-width:120px;height:auto;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;padding:3px;}
 .stButton>button{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease}
 [data-testid="stSidebar"]{display:none !important;}
 </style>
@@ -190,7 +192,6 @@ def init_db():
         """)
 
 def reorder_question_ids():
-    """إعادة ترتيب معرفات (IDs) الأسئلة تلقائياً بشكل متسلسل ودقيق"""
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
         rows = c.execute("SELECT * FROM questions ORDER BY id ASC").fetchall()
@@ -554,8 +555,10 @@ def generate_compact_exam_html(template_id):
             .exam-title-area p {{ font-size: 7.5pt; margin: 0; }}
             .exam-container {{ column-count: 2; column-gap: 10mm; }}
             .q-box {{ margin-bottom: 6px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
-            .img-box {{ background: #f1f5f9; border: 1px dashed #059669; padding: 4px; border-radius: 3px; text-align: center; margin-bottom: 4px; }}
-            .img-box img {{ max-width: 140px; height: auto; border-radius: 3px; background: #fff; display: inline-block; }}
+            .q-img-layout-print {{ display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }}
+            .q-text-print {{ flex: 1; text-align: right; font-weight: bold; font-size: 8pt; }}
+            .q-img-print {{ flex: 0 0 75px; text-align: left; }}
+            .q-img-print img {{ max-width: 70px; height: auto; border-radius: 3px; background: #fff; border: 1px solid #cbd5e1; }}
             ul {{ list-style-type: none; padding-right: 12px; margin: 2px 0; }}
             li {{ margin-bottom: 2px; font-size: 7.5pt; }}
             .exam-footer {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
@@ -581,7 +584,14 @@ def generate_compact_exam_html(template_id):
             parts = q_raw.split("\n\n", 1)
             img_data = parts[0].replace("IMAGE:", "").strip()
             actual_q = parts[1] if len(parts) > 1 else "تعرف على الصورة المجهرية وحدد الإجابة الصحيحة:"
-            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'><img src='{img_data}' alt='عينة مجهرية' crossorigin='anonymous'></div><p style='margin:2px 0; font-weight:bold;'>{esc(actual_q)}</p><ul>"
+            html_out += f"""
+            <div class='q-box'>
+                <div class='q-img-layout-print'>
+                    <div class='q-text-print'><b>س {idx+1}:</b> {esc(actual_q)}</div>
+                    <div class='q-img-print'><img src='{img_data}' alt='عينة مجهرية' crossorigin='anonymous'></div>
+                </div>
+                <ul>
+            """
         else:
             cleaned_q = clean_question_text(q_raw)
             html_out += f"<div class='q-box'><b>س {idx+1}: {cleaned_q}</b><ul>"
@@ -609,7 +619,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • رسائل تأكيد فورية والانتقال التلقائي للعمليات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • عرض الصور بجوار الأسئلة في الجانب الأيسر بتناسق تام</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -944,7 +954,7 @@ def admin_dashboard():
                         if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
                             with db() as c:
                                 c.execute("DELETE FROM exam_templates WHERE id=?", (t["id"],))
-                            st.success(f"🗑️ تم حذف القالب ({t['name']}) بنجاح.")
+                            st.success(f"🗑️️ تم حذف القالب ({t['name']}) بنجاح.")
                             st.rerun()
 
     with selected_tabs[5]:
@@ -1107,7 +1117,14 @@ def exam_interface(session_id):
             parts = q_raw.split("\n\n", 1)
             img_data = parts[0].replace("IMAGE:", "").strip()
             actual_q = parts[1] if len(parts) > 1 else "تعرف على الصورة المجهرية وحدد الإجابة الصحيحة:"
-            st.markdown(f'<div class="question" style="padding:10px 14px; margin-bottom:10px;"><b>س ({row["position"]+1})</b><div class="img-box" style="padding:6px; margin-bottom:6px; text-align:center;"><img src="{img_data}" style="max-width:200px; border-radius:4px;" alt="عينة مجهرية"></div><p style="margin:2px 0; font-weight:bold;">{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="question">
+                <div class="q-img-layout">
+                    <div class="q-text-side"><b>س ({row["position"]+1}):</b> {esc(actual_q)}</div>
+                    <div class="q-img-side"><img src="{img_data}" alt="عينة مجهرية"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             cleaned_q = clean_question_text(q_raw)
             st.markdown(f'<div class="question" style="padding:10px 14px; margin-bottom:10px;"><b>س ({row["position"]+1})</b>: {cleaned_q}</div>', unsafe_allow_html=True)
