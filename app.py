@@ -131,7 +131,7 @@ def init_db():
             updated_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS questions (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             difficulty TEXT NOT NULL,
             category TEXT NOT NULL,
             question TEXT NOT NULL,
@@ -179,7 +179,7 @@ def init_db():
             selected_option INTEGER,
             is_correct INTEGER,
             FOREIGN KEY(session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
-            FOREIGN KEY(question_id) REFERENCES questions(id)
+            FOREIGN KEY(question_id) REFERENCES questions(id) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,6 +192,7 @@ def init_db():
         """)
 
 def reorder_question_ids():
+    """إعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية دون فجوات عند الإضافة أو الحذف"""
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
         rows = c.execute("SELECT * FROM questions ORDER BY id ASC").fetchall()
@@ -203,7 +204,7 @@ def reorder_question_ids():
         c.execute("DROP TABLE IF EXISTS questions_temp")
         c.execute("""
             CREATE TABLE questions_temp (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 difficulty TEXT NOT NULL,
                 category TEXT NOT NULL,
                 question TEXT NOT NULL,
@@ -326,9 +327,9 @@ def seed_complete_250_question_bank():
     with db() as c:
         for idx, q in enumerate(complete_bank, start=1):
             fp = hashlib.sha256((q["q"] + "|" + "|".join(q["opts"])).encode("utf-8")).hexdigest()
-            c.execute("""INSERT OR IGNORE INTO questions(id,difficulty,category,question,options_json,answer,active,fingerprint,created_at)
-                         VALUES(?,?,?,?,?,?,?,?,?)""",
-                      (idx, q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
+            c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                      (q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
         if c.execute("SELECT COUNT(*) n FROM exam_templates").fetchone()["n"] == 0:
             c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
                          VALUES(?,?,?,?,?,?,?)""",
@@ -345,6 +346,7 @@ def ensure_admin():
 
 init_db()
 seed_complete_250_question_bank()
+reorder_question_ids() # ضمان تسلسل الـ IDs من 1 حتى النهاية عند بدء التطبيق
 ensure_admin()
 
 def audit(action, entity=None, details=None):
@@ -619,11 +621,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • عرض الصور بجوار الأسئلة في الجانب الأيسر بتناسق تام</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • إعادة الترتيب التلقائي المتسلسل للـ IDs (1 إلى النهاية) بدقة</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -802,8 +804,8 @@ def admin_dashboard():
                                              VALUES(?,?,?,?,?,?,?,?)""",
                                           (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                             
-                            reorder_question_ids()
-                            st.session_state.add_success_msg = "✅ تم حفظ وإضافة السؤال الجديد بنجاح وتم إعادة ترقيم الـ IDs تلقائياً. يمكنك إضافة سؤال آخر الآن."
+                            reorder_question_ids() # إعادة الترتيب التسلسلي فوراً
+                            st.session_state.add_success_msg = "✅ تم حفظ وإضافة السؤال الجديد بنجاح وإعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية."
                             st.session_state.form_key += 1
                             st.rerun()
                         except Exception as e:
@@ -869,6 +871,7 @@ def admin_dashboard():
                                         c.execute("""UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?""",
                                                   (new_diff, new_cat, final_updated_q, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, fp, q_id_to_edit))
                                     
+                                    reorder_question_ids()
                                     st.session_state.edit_success_msg = f"✅ تم تحديث وتعديل بيانات السؤال رقم ({q_id_to_edit}) بنجاح!"
                                     st.rerun()
                                 except Exception as ex:
@@ -889,8 +892,8 @@ def admin_dashboard():
                     if st.button(f"🗑️ حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
                         with db() as c:
                             c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
-                        reorder_question_ids()
-                        st.session_state.del_success_msg = f"🗑️ تم حذف السؤال وإعادة ترتيب معرّفات الأسئلة (IDs) تلقائياً بنجاح!"
+                        reorder_question_ids() # إعادة الترتيب التسلسلي (1 إلى النهاية) فوراً بعد الحذف
+                        st.session_state.del_success_msg = f"🗑️ تم حذف السؤال وإعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية بنجاح!"
                         st.rerun()
 
     with selected_tabs[4]:
@@ -954,7 +957,7 @@ def admin_dashboard():
                         if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
                             with db() as c:
                                 c.execute("DELETE FROM exam_templates WHERE id=?", (t["id"],))
-                            st.success(f"🗑️️ تم حذف القالب ({t['name']}) بنجاح.")
+                            st.success(f"🗑 تم حذف القالب ({t['name']}) بنجاح.")
                             st.rerun()
 
     with selected_tabs[5]:
