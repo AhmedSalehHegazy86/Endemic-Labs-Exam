@@ -494,7 +494,6 @@ def choose_questions(t):
             seen_texts.add(q_txt)
             unique_list.append(q)
             
-    # إذا لم تكفِ القائمة الفريدة، يتم سحب بقية الأسئلة الفريدة من القاعدة مباشرة بدون تكرار
     if len(unique_list) < target:
         with db() as c:
             all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
@@ -904,7 +903,7 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) المسارات والشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": ""}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": "", "tpl_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
@@ -912,10 +911,10 @@ def header():
 
 def login_portal():
     header()
-    st.markdown("<b>إرسال طلب جديد ودخول المتدربين</b>", unsafe_allow_html=True)
+    st.markdown("<b>تسجيل وإرسال طلب المتدربين (بدون اختيار مسبق للمنشآت)</b>", unsafe_allow_html=True)
     
     with st.form("trainee_request"):
-        facility = st.text_input("الجهة / الإدارة الصحية / الوحدة التابع لها:")
+        facility = st.text_input("اسم جهة العمل أو المنشأة التابع لها (كتابة يدوية حرة):")
         name = st.text_input("الاسم الرباعي")
         phone = st.text_input("رقم الهاتف")
         assigned_exam = st.selectbox("تحديد نوع الاختبار الأولي عند التسجيل:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)"])
@@ -1174,39 +1173,76 @@ def admin_dashboard():
                     st.rerun()
 
     with selected_tabs[5]:
-        st.subheader("🧩 قوالب الامتحانات، محاضر التدريب، وحذف القوالب")
-        with db() as c:
-            tpls = c.execute("SELECT * FROM exam_templates").fetchall()
+        st.subheader("🧩 قوالب ومحاضر التدريب وإضافة قالب جديد")
+        sub_tpl_tabs = st.tabs(["📋 قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"])
         
-        facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
+        with sub_tpl_tabs[0]:
+            with db() as c:
+                tpls = c.execute("SELECT * FROM exam_templates").fetchall()
+            
+            facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
 
-        for t in tpls:
-            with st.container(border=True):
-                st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | المعرف: `{t['id']}`")
-                col_m1, col_m2 = st.columns(2)
-                with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
-                with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
+            if not tpls:
+                st.info("لا توجد قوالب امتحانات مسجلة.")
+            else:
+                for t in tpls:
+                    with st.container(border=True):
+                        st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: `{t['num_questions']}` | المعرف: `{t['id']}`")
+                        col_m1, col_m2 = st.columns(2)
+                        with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
+                        with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
+                        
+                        minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, "تقرير أداء المعامل والإشراف الفني المعتمد")
+                        html_exam = generate_compact_exam_html(t["id"], "تقرير أداء المعامل والإشراف الفني المعتمد")
+                        
+                        b1, b2, b3 = st.columns(3)
+                        with b1:
+                            st.download_button("📥 تحميل المحضر .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
+                            render_print_button_only(minutes_html, f"محضر التدريب {t['id']}")
+                        with b2:
+                            st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
+                            render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
+                        with b3:
+                            st.write("")
+                            if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
+                                with db() as c:
+                                    c.execute("PRAGMA foreign_keys=OFF;")
+                                    c.execute("DELETE FROM exam_templates WHERE id=?", (t['id'],))
+                                    c.execute("PRAGMA foreign_keys=ON;")
+                                audit("delete_exam_template", "exam_template", {"id": t['id'], "name": t['name']})
+                                st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
+                                st.rerun()
+
+        with sub_tpl_tabs[1]:
+            st.subheader("➕ إنشاء وإضافة قالب امتحان جديد (للمالك فقط)")
+            if st.session_state.tpl_success_msg:
+                st.success(st.session_state.tpl_success_msg)
+                st.session_state.tpl_success_msg = ""
+            
+            categories_pool_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
+            
+            with st.form("create_new_exam_template_form"):
+                new_tpl_name = st.text_input("اسم قالب الاختبار الجديد (مثال: اختبار المتابعة المتقدم):")
+                new_tpl_type = st.selectbox("تصنيف الاختبار (يتم ربطه تلقائياً للممتَحَن بناءً على هذا التصنيف):", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
+                new_tpl_num_q = st.number_input("عدد الأسئلة في الاختبار:", min_value=5, max_value=100, value=25)
+                new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=45)
+                new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
+                new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب (اختر الأقسام أو اتركه فارغاً ليشمل كل البنك):", categories_pool_opts)
                 
-                minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, "تقرير أداء المعامل والإشراف الفني المعتمد")
-                html_exam = generate_compact_exam_html(t["id"], "تقرير أداء المعامل والإشراف الفني المعتمد")
-                
-                b1, b2, b3 = st.columns(3)
-                with b1:
-                    st.download_button("📥 تحميل المحضر .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
-                    render_print_button_only(minutes_html, f"محضر التدريب {t['id']}")
-                with b2:
-                    st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
-                    render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
-                with b3:
-                    st.write("")
-                    if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
+                if st.form_submit_button("💾 حفظ وإنشاء قالب الاختبار الجديد", use_container_width=True):
+                    if not new_tpl_name.strip():
+                        st.error("الرجاء إدخال اسم قالب الاختبار.")
+                    else:
+                        cats_json_str = json.dumps(new_tpl_cats, ensure_ascii=False)
                         with db() as c:
-                            c.execute("PRAGMA foreign_keys=OFF;")
-                            c.execute("DELETE FROM exam_templates WHERE id=?", (t['id'],))
-                            c.execute("PRAGMA foreign_keys=ON;")
-                        audit("delete_exam_template", "exam_template", {"id": t['id'], "name": t['name']})
-                        st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
-                        st.rerun()
+                            try:
+                                c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
+                                             VALUES(?,?,?,?,?,?,?)""",
+                                          (normalize_text(new_tpl_name), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
+                                st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح!"
+                                st.rerun()
+                            except sqlite3.IntegrityError:
+                                st.error("اسم القالب موجود مسبقاً، يرجى استخدام اسم مختلف.")
 
     with selected_tabs[6]:
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
@@ -1313,13 +1349,16 @@ def trainee_portal():
         st.rerun()
     header()
     assigned_type = tr["assigned_exam_type"] or "قبل التدريب (Pre-Test)"
-    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | نوع الاختبار: <b>{esc(assigned_type)}</b></p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | نوع الاختبار المحدد لك: <b>{esc(assigned_type)}</b></p></div>', unsafe_allow_html=True)
     
     with db() as c:
         matching_template = c.execute("SELECT * FROM exam_templates WHERE exam_type=? AND active=1", (assigned_type,)).fetchone()
         if not matching_template: matching_template = c.execute("SELECT * FROM exam_templates WHERE active=1 LIMIT 1").fetchone()
 
-    if st.button("بدء الاختبار المخصص الآن", use_container_width=True):
+    if matching_template:
+        st.info(f"📌 قالب الاختبار المعين لك تلقائياً: **{matching_template['name']}** (عدد الأسئلة: {matching_template['num_questions']} | المدة: {matching_template['duration_minutes']} دقيقة)")
+
+    if st.button("بدء الاختبار المخصص تلقائياً الآن", use_container_width=True):
         try:
             sid = start_session(tr["id"], matching_template["id"])
             st.session_state.exam_session_id = sid
