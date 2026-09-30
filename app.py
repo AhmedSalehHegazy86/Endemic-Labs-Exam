@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v4.8 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v5.1 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_8.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v5_1.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,25 +40,16 @@ st.markdown("""
 <style>
 html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
 .stApp{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%)}
-.block-container{max-width:1500px;padding-top:1rem}
-.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:20px;border-radius:15px;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,0.12);margin-bottom:15px}
-.card,.question{background:#fff;padding:18px;border-radius:14px;margin-bottom:14px;box-shadow:0 3px 12px rgba(0,0,0,0.06);border-right:5px solid #059669}
-.metric{background:#fff;padding:15px;border-radius:12px;text-align:center;border-top:4px solid #059669;box-shadow:0 3px 10px rgba(0,0,0,0.05)}
-.metric .v{font-size:24px;font-weight:800;color:#065f46}
-.metric .l{color:#4b5563;font-weight:700;font-size:13px}
-.timer{font-size:22px;font-weight:900;text-align:center;background:#fef3c7;border:2px solid #f59e0b;padding:10px;border-radius:10px;color:#92400e}
-.img-box{background:#f8fafc;border:2px dashed #059669;padding:14px;border-radius:10px;text-align:center;margin-bottom:12px;font-weight:bold;color:#065f46;font-size:16px;box-shadow: 0 2px 5px rgba(0,0,0,0.05)}
-.stButton>button{border-radius:10px;font-weight:800;min-height:42px;transition:all 0.3s ease}
+.block-container{max-width:1600px;padding-top:0.5rem;padding-bottom:0.5rem}
+.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:10px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:8px}
+.card,.question{background:#fff;padding:8px 12px;border-radius:8px;margin-bottom:6px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:4px solid #059669}
+.metric{background:#fff;padding:8px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.metric .v{font-size:20px;font-weight:800;color:#065f46}
+.metric .l{color:#4b5563;font-weight:700;font-size:11px}
+.timer{font-size:18px;font-weight:900;text-align:center;background:#fef3c7;border:1px solid #f59e0b;padding:6px;border-radius:8px;color:#92400e;margin-bottom:8px}
+.img-box{background:#f8fafc;border:1px dashed #059669;padding:6px;border-radius:6px;text-align:center;margin-bottom:6px;font-weight:bold;color:#065f46;font-size:13px}
+.stButton>button{border-radius:6px;font-weight:800;min-height:32px;padding:2px 10px;transition:all 0.2s ease}
 [data-testid="stSidebar"]{display:none !important;}
-
-@page {
-    size: A4;
-    margin: 10mm;
-}
-@media print {
-    body { font-size: 11pt; color: #000; background: #fff; }
-    .stButton, header, footer, .stMarkdown hr { display: none !important; }
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -75,10 +66,8 @@ def esc(x):
     return html.escape("" if x is None else str(x))
 
 def clean_question_text(q_text):
-    """إزالة أي تفاصيل إدارية أو أرقام معملية مطبوعة من نص السؤال للممتحن والملفات"""
     if not q_text:
         return ""
-    # إزالة (نموذج معملي معتمد رقم ...)
     cleaned = re.sub(r"\(نموذج معملي معتمد رقم \d+\)", "", q_text)
     return normalize_text(cleaned)
 
@@ -304,7 +293,7 @@ def audit(action, entity=None, details=None):
                   (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
 # ============================================================
-# 3) دوال إدارة المتدربين والامتحانات
+# 3) دوال إدارة المتدربين والامتحانات (مع ضمان 4 أسئلة صور كحد أدنى)
 # ============================================================
 def login_user(u, p):
     with db() as c:
@@ -351,16 +340,33 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     cats = json.loads(t["categories_json"]) if t["categories_json"] else []
+    target = int(t["num_questions"])
+    
     with db() as c:
         if cats:
             placeholders = ",".join(["?"] * len(cats))
-            rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders})", cats).fetchall()]
+            img_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND question LIKE '%📷%' AND category IN ({placeholders})", cats).fetchall()]
+            other_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND question NOT LIKE '%📷%' AND category IN ({placeholders})", cats).fetchall()]
         else:
-            rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1").fetchall()]
-    target = int(t["num_questions"])
-    if len(rows) < target: target = len(rows)
-    random.shuffle(rows)
-    return rows[:target]
+            img_rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 AND question LIKE '%📷%'").fetchall()]
+            other_rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 AND question NOT LIKE '%📷%'").fetchall()]
+
+    random.shuffle(img_rows)
+    random.shuffle(other_rows)
+    
+    num_img_needed = min(4, len(img_rows))
+    selected_img = img_rows[:num_img_needed]
+    
+    remaining_slots = max(0, target - len(selected_img))
+    selected_other = other_rows[:remaining_slots]
+    
+    final_list = selected_img + selected_other
+    if len(final_list) < target and len(img_rows) > num_img_needed:
+        extra_img = img_rows[num_img_needed : num_img_needed + (target - len(final_list))]
+        final_list.extend(extra_img)
+        
+    random.shuffle(final_list)
+    return final_list[:target]
 
 def start_session(trainee_id, template_id):
     with db() as c:
@@ -409,7 +415,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (HTML والطباعة المباشرة نظيفة وخالية من الأكواد والأسماء المعملية)
+# 4) دوال التصدير (مع الترويسة والتوقيعات الرسمية وأعمدة مزدوجة)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -428,26 +434,41 @@ def generate_compact_certificate_html(sid):
     <head>
         <meta charset="UTF-8">
         <style>
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; text-align: center; background: #fff; padding: 30px; direction: rtl; }}
-            .cert {{ border: 6px solid #059669; padding: 40px; border-radius: 16px; width: 100%; max-width: 800px; margin: auto; background: #fdfbf7; }}
-            h1 {{ color: #065f46; font-size: 28px; margin-bottom: 10px; }}
-            h2 {{ color: #047857; font-size: 22px; }}
-            p {{ font-size: 18px; line-height: 2.2; color: #1f2937; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; text-align: center; background: #fff; padding: 20px; direction: rtl; }}
+            .cert {{ border: 4px solid #059669; padding: 20px; border-radius: 12px; width: 100%; max-width: 700px; margin: auto; background: #fdfbf7; position: relative; }}
+            .header-top {{ position: absolute; top: 15px; right: 20px; text-align: right; font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+            .footer-bottom {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 15px; }}
+            h1 {{ color: #065f46; font-size: 24px; margin-bottom: 5px; }}
+            h2 {{ color: #047857; font-size: 18px; }}
+            p {{ font-size: 15px; line-height: 1.8; color: #1f2937; }}
         </style>
     </head>
     <body>
         <div class="cert">
-            <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
-            <hr style="border: 1px solid #059669; margin: 20px 0;">
-            <h1>شهادة اجتياز اختبار رسمي معتمدة</h1>
-            <p>
-                تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 22px; color: #047857;">{esc(r["trainee_name"])}</b><br>
-                التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
-                قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
-                النتيجة النهائية: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b><br>
-                الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
-                رقم الشهادة: <code>{r["certificate_id"]}</code> | التاريخ: {esc(r["submitted_at"])}
-            </p>
+            <div class="header-top">
+                الإدارة الصحية باولاد صقر<br>
+                قسم المتوطنة و قسم المعامل<br>
+                وحدة تدريب معامل المتوطنة
+            </div>
+            <div style="margin-top: 40px;">
+                <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
+                <hr style="border: 1px solid #059669; margin: 10px 0;">
+                <h1>شهادة اجتياز اختبار رسمي معتمدة</h1>
+                <p>
+                    تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 18px; color: #047857;">{esc(r["trainee_name"])}</b><br>
+                    التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
+                    قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
+                    النتيجة النهائية: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b><br>
+                    الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
+                    رقم الشهادة: <code>{r["certificate_id"]}</code> | التاريخ: {esc(r["submitted_at"])}
+                </p>
+            </div>
+            <div class="footer-bottom">
+                <div>مسؤل تدريب معامل المتوطنة</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>يعتمد مدير عام الادارة</div>
+            </div>
         </div>
     </body>
     </html>
@@ -464,20 +485,33 @@ def generate_compact_exam_html(template_id):
     <head>
         <meta charset="UTF-8">
         <style>
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 20px; font-size: 12pt; color: #111; }}
-            .header {{ text-align: center; border-bottom: 3px solid #065f46; padding-bottom: 12px; margin-bottom: 20px; }}
-            .q-box {{ margin-bottom: 15px; page-break-inside: avoid; border: 1px solid #cbd5e1; padding: 14px; border-radius: 10px; background: #fff; }}
-            .img-box {{ background: #f1f5f9; border: 2px dashed #059669; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; font-weight: bold; color: #065f46; font-size: 14px; }}
-            ul {{ list-style-type: none; padding-right: 20px; margin: 8px 0; }}
-            li {{ margin-bottom: 6px; font-size: 11pt; }}
+            @page {{ size: A4; margin: 5mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 5px; font-size: 8pt; color: #111; line-height: 1.15; }}
+            .top-right-header {{ float: right; text-align: right; font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.2; margin-bottom: 5px; }}
+            .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 4px; margin-bottom: 6px; }}
+            .exam-title-area h2 {{ font-size: 11pt; margin: 0 0 2px 0; color: #065f46; }}
+            .exam-title-area h3 {{ font-size: 9.5pt; margin: 0 0 2px 0; }}
+            .exam-title-area p {{ font-size: 7.5pt; margin: 0; }}
+            .exam-container {{ column-count: 2; column-gap: 8mm; }}
+            .q-box {{ margin-bottom: 5px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #94a3b8; padding: 5px; border-radius: 4px; background: #fff; }}
+            .img-box {{ background: #f1f5f9; border: 1px dashed #059669; padding: 3px; border-radius: 3px; text-align: center; margin-bottom: 3px; font-weight: bold; color: #065f46; font-size: 8pt; }}
+            ul {{ list-style-type: none; padding-right: 12px; margin: 2px 0; }}
+            li {{ margin-bottom: 2px; font-size: 7pt; }}
+            .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
         </style>
     </head>
     <body>
-        <div class="header">
+        <div class="top-right-header">
+            الإدارة الصحية باولاد صقر<br>
+            قسم المتوطنة و قسم المعامل<br>
+            وحدة تدريب معامل المتوطنة
+        </div>
+        <div class="exam-title-area">
             <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
             <h3>نموذج امتحان: {esc(t['name'])}</h3>
-            <p>المدة: {t['duration_minutes']} دقيقة | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................................ | الجهة: ........................</p>
+            <p>المدة: {t['duration_minutes']}د | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................................ | الجهة: ........................</p>
         </div>
+        <div class="exam-container">
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
@@ -486,7 +520,7 @@ def generate_compact_exam_html(template_id):
             parts = cleaned_q.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>🖼️ {img_title}</div><p>{actual_q}</p><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>🖼️ {img_title}</div><p style='margin:2px 0;'>{actual_q}</p><ul>"
         else:
             html_out += f"<div class='q-box'><b>س {idx+1}: {cleaned_q}</b><ul>"
             
@@ -494,7 +528,16 @@ def generate_compact_exam_html(template_id):
             html_out += f"<li>[ &nbsp; ] {esc(opt)}</li>"
         html_out += "</ul></div>"
         
-    html_out += "</body></html>"
+    html_out += f"""
+        </div>
+        <div class="exam-footer">
+            <div>مسؤل تدريب معامل المتوطنة</div>
+            <div>رئيس قسم المعامل</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الادارة</div>
+        </div>
+    </body></html>
+    """
     return html_out
 
 # ============================================================
@@ -504,7 +547,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.8 FINAL • واجهة نظيفة وخالية من المعرفات المعملية للممتحنين</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v5.1 FINAL • إضافة الترويسة والتوقيعات الرسمية في الصفحات الورقية</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -639,7 +682,7 @@ def admin_dashboard():
                 st.markdown("<b>إضافة قالب اختبار جديد وتخصيص الأقسام (للمديرين فقط)</b>", unsafe_allow_html=True)
                 t_name = st.text_input("اسم القالب")
                 t_type = st.selectbox("تصنيف الاختبار", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-                t_num = st.number_input("عدد الأسئلة", 1, 100, 25)
+                t_num = st.number_input("عدد الأسئلة", 4, 100, 25)
                 t_dur = st.number_input("المدة (بالدقائق)", 5, 180, 45)
                 t_pass = st.number_input("نسبة النجاح %", 1.0, 100.0, 60.0)
                 selected_cats = st.multiselect("اختر الأقسام المطلوبة لهذا القالب (اتركها فارغة لتشمل كافة الأقسام)", all_cats, default=all_cats)
@@ -853,9 +896,9 @@ def exam_interface(session_id):
             parts = cleaned_q.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question" style="padding:6px 10px; margin-bottom:6px;"><b>س ({row["position"]+1})</b><div class="img-box" style="padding:4px; margin-bottom:4px;">🖼️ {img_title}</div><p style="margin:2px 0;">{actual_q}</p></div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br>{cleaned_q}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question" style="padding:6px 10px; margin-bottom:6px;"><b>س ({row["position"]+1})</b>: {cleaned_q}</div>', unsafe_allow_html=True)
 
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
