@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v4.7 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v4.8 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_7.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_8.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -73,6 +73,14 @@ def today_date():
 
 def esc(x):
     return html.escape("" if x is None else str(x))
+
+def clean_question_text(q_text):
+    """إزالة أي تفاصيل إدارية أو أرقام معملية مطبوعة من نص السؤال للممتحن والملفات"""
+    if not q_text:
+        return ""
+    # إزالة (نموذج معملي معتمد رقم ...)
+    cleaned = re.sub(r"\(نموذج معملي معتمد رقم \d+\)", "", q_text)
+    return normalize_text(cleaned)
 
 def normalize_text(x):
     x = "" if x is None else str(x)
@@ -401,7 +409,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (HTML والطباعة المباشرة)
+# 4) دوال التصدير (HTML والطباعة المباشرة نظيفة وخالية من الأكواد والأسماء المعملية)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -473,14 +481,14 @@ def generate_compact_exam_html(template_id):
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
-        q_text = esc(q["question"])
-        if "📷" in q_text:
-            parts = q_text.split("\n\n", 1)
+        cleaned_q = clean_question_text(q["question"])
+        if "📷" in cleaned_q:
+            parts = cleaned_q.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            html_out += f"<div class='q-box'><b>س {idx+1} [ID: {q['id']}]:</b><div class='img-box'>🖼️ {img_title}</div><p>{actual_q}</p><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>🖼️ {img_title}</div><p>{actual_q}</p><ul>"
         else:
-            html_out += f"<div class='q-box'><b>س {idx+1} [ID: {q['id']}]: {q_text}</b><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1}: {cleaned_q}</b><ul>"
             
         for opt in opts:
             html_out += f"<li>[ &nbsp; ] {esc(opt)}</li>"
@@ -496,11 +504,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.7 FINAL • إدارة القوالب وبنك الأسئلة المتقدم</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.8 FINAL • واجهة نظيفة وخالية من المعرفات المعملية للممتحنين</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -586,7 +594,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -818,7 +826,7 @@ def trainee_portal():
 def exam_interface(session_id):
     with db() as c:
         session = c.execute("SELECT * FROM exam_sessions WHERE id=?", (session_id,)).fetchone()
-        rows = c.execute("""SELECT eq.*, q.id q_orig_id, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
+        rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
         
     remaining = max(0, int((datetime.fromisoformat(session["expires_at"]) - datetime.now()).total_seconds()))
     if remaining <= 0:
@@ -840,15 +848,14 @@ def exam_interface(session_id):
             try: curr_idx = disp_opts.index(opts[row["selected_option"]])
             except: pass
             
-        q_text = esc(row["question"])
-        q_display_id = row["q_orig_id"]
-        if "📷" in q_text:
-            parts = q_text.split("\n\n", 1)
+        cleaned_q = clean_question_text(row["question"])
+        if "📷" in cleaned_q:
+            parts = cleaned_q.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1}) [ID: {q_display_id}]</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1}) [ID: {q_display_id}]</b><br>{q_text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br>{cleaned_q}</div>', unsafe_allow_html=True)
 
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
