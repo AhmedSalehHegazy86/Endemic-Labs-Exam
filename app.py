@@ -129,7 +129,7 @@ def init_db():
             updated_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS questions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY,
             difficulty TEXT NOT NULL,
             category TEXT NOT NULL,
             question TEXT NOT NULL,
@@ -194,10 +194,15 @@ def reorder_question_ids():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
         rows = c.execute("SELECT * FROM questions ORDER BY id ASC").fetchall()
+        
+        id_mapping = {}
+        for idx, r in enumerate(rows, start=1):
+            id_mapping[r["id"]] = idx
+
         c.execute("DROP TABLE IF EXISTS questions_temp")
         c.execute("""
             CREATE TABLE questions_temp (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id INTEGER PRIMARY KEY,
                 difficulty TEXT NOT NULL,
                 category TEXT NOT NULL,
                 question TEXT NOT NULL,
@@ -210,22 +215,20 @@ def reorder_question_ids():
                 created_at TEXT NOT NULL
             )
         """)
-        id_mapping = {}
+        
         for idx, r in enumerate(rows, start=1):
-            old_id = r["id"]
-            id_mapping[old_id] = idx
             c.execute("""
-                INSERT INTO questions_temp(id,difficulty,category,question,options_json,answer,explanation,reference,active,fingerprint,created_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO questions_temp(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (idx, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
         
         c.execute("DROP TABLE questions")
         c.execute("ALTER TABLE questions_temp RENAME TO questions")
         
-        eq_rows = c.execute("SELECT id, question_id FROM exam_questions").fetchall()
-        for eq in eq_rows:
-            if eq["question_id"] in id_mapping:
-                c.execute("UPDATE exam_questions SET question_id=? WHERE id=?", (id_mapping[eq["question_id"]], eq["id"]))
+        for old_id, new_id in id_mapping.items():
+            if old_id != new_id:
+                c.execute("UPDATE exam_questions SET question_id=? WHERE question_id=?", (new_id, old_id))
+                
         c.execute("PRAGMA foreign_keys=ON;")
 
 def seed_complete_250_question_bank():
@@ -290,7 +293,7 @@ def seed_complete_250_question_bank():
         {"cat": "الفحوص المعملية", "lvl": "متوسط", "q": "ما المبدأ الأساسي لطريقة التعويم في تحليل البراز معملياً؟", "opts": ["إذابة البويضات", "تعويم البيوض الأخف وزناً على سطح محلول ملحي مشبع", "قتل اليرقات", "ترسيب البيوض الثقيلة"], "ans": 1},
 
         {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عينة براز أظهرت عند الفحص المجهري بويضة بيضاوية تحتوي على شوكة جانبية واضحة. ما التشخيص المناسب؟", "opts": ["البلهارسيا البولية", "البلهارسيا المعوية (Schistosoma mansoni)", "التريكوريس", "الهتروفيس"], "ans": 1},
-        {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عامل زراعي يمشي hافي القدمين على تربة رطبة وظهرت عليه أعراض فقر دم وطفح جلدي موضعي. ما الطفيل الأرجح؟", "opts": ["الهيمينولبس", "الأنكلستوما (Ancylostoma)", "الهتروفيس", "الجيارديا"], "ans": 1},
+        {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عامل زراعي يمشي حافي القدمين على تربة رطبة وظهرت عليه أعراض فقر دم وطفح جلدي موضعي. ما الطفيل الأرجح؟", "opts": ["الهيمينولبس", "الأنكلستوما (Ancylostoma)", "الهتروفيس", "الجيارديا"], "ans": 1},
 
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بقوقع بيومفلاريا كوسيط.", "opts": ["صح", "خطأ"], "ans": 0},
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في دورة البلهارسيا.", "opts": ["صح", "خطأ"], "ans": 0}
@@ -602,15 +605,15 @@ def generate_compact_exam_html(template_id):
 # ============================================================
 # 5) المسارات وواجهات المستخدم
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • حفظ، إضافة الأقسام، الانتقال التلقائي، وإعادة ترقيم الـ IDs بدقة</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • رسائل تأكيد فورية والانتقال التلقائي للعمليات</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -674,7 +677,7 @@ def admin_dashboard():
             st.session_state.role = ""
             st.rerun()
 
-    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة الشامل", "إدارة الأسئلة المصورة (إضافة/حذف)", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
+    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة الشامل", "إدارة الأسئلة (إضافة/تعديل/حذف)", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
         tabs += ["إدارة المستخدمين", "سجل التدقيق"]
     
@@ -731,29 +734,34 @@ def admin_dashboard():
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("⚙️ إدارة وإضافة وحذف الأسئلة المصورة والتشخيصية")
-        sub_img_tabs = st.tabs(["➕ إضافة سؤال مصور جديد", "🗑 عرض وحذف الأسئلة المصورة"])
+        st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
+        sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         
+        categories_list_opts = [
+            "أسئلة الصور والأشكال",
+            "الاستراتيجية العامة ومكافحة البلهارسيا",
+            "الفاشيولا",
+            "الهتروفيس",
+            "الديدان الشريطية",
+            "الديدان الأسطوانية",
+            "الأوليات",
+            "الفحوص المعملية",
+            "الحالات التطبيقية",
+            "أسئلة الصح والخطأ"
+        ]
+
+        # 1) إضافة سؤال جديد
         with sub_img_tabs[0]:
-            categories_list_opts = [
-                "أسئلة الصور والأشكال",
-                "الاستراتيجية العامة ومكافحة البلهارسيا",
-                "الفاشيولا",
-                "الهتروفيس",
-                "الديدان الشريطية",
-                "الديدان الأسطوانية",
-                "الأوليات",
-                "الفحوص المعملية",
-                "الحالات التطبيقية",
-                "أسئلة الصح والخطأ"
-            ]
-            
+            if st.session_state.add_success_msg:
+                st.success(st.session_state.add_success_msg)
+                st.session_state.add_success_msg = ""
+                
             with st.form(key=f"add_custom_img_q_form_{st.session_state.form_key}"):
-                st.markdown("<b>إضافة سؤال مصور جديد وتحديد القسم التابع له</b>", unsafe_allow_html=True)
+                st.markdown("<b>إضافة سؤال جديد وتحديد القسم التابع له</b>", unsafe_allow_html=True)
                 selected_cat = st.selectbox("اختر القسم:", categories_list_opts)
                 c_text = st.text_area("نص السؤال التشخيصي:")
                 c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"])
-                uploaded_img = st.file_uploader("رفع ملف الصورة النظيفة (بدون بيانات جانبية):", type=["png", "jpg", "jpeg"])
+                uploaded_img = st.file_uploader("رفع ملف الصورة (اختياري):", type=["png", "jpg", "jpeg"])
                 
                 opt1 = st.text_input("الخيار الأول (الإجابة الصحيحة مثلاً):", value="")
                 opt2 = st.text_input("الخيار الثاني:", value="")
@@ -784,26 +792,95 @@ def admin_dashboard():
                                              VALUES(?,?,?,?,?,?,?,?)""",
                                           (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                             
-                            reorder_question_ids() # إعادة ترتيب المعرفات تلقائياً
-                            st.success("✅ تم حفظ السؤال بنجاح! جاري الانتقال لإدخال سؤال جديد...")
+                            reorder_question_ids()
+                            st.session_state.add_success_msg = "✅ تم حفظ وإضافة السؤال الجديد بنجاح وتم إعادة ترقيم الـ IDs تلقائياً. يمكنك إضافة سؤال آخر الآن."
                             st.session_state.form_key += 1
                             st.rerun()
                         except Exception as e:
                             st.error(f"خطأ أثناء الحفظ: {e}")
 
+        # 2) تعديل سؤال موجود
         with sub_img_tabs[1]:
+            st.markdown("<b>✏️ تعديل بيانات السؤال برقم الـ ID الخاص به</b>", unsafe_allow_html=True)
+            if st.session_state.edit_success_msg:
+                st.success(st.session_state.edit_success_msg)
+                st.session_state.edit_success_msg = ""
+                
             with db() as c:
-                img_qs = c.execute("SELECT id, difficulty, category, question FROM questions WHERE question LIKE 'IMAGE:%' ORDER BY id ASC").fetchall()
-            st.write(f"عدد الأسئلة المصورة المتاحة في قاعدة البيانات: **{len(img_qs)}**")
+                all_qs_edit = c.execute("SELECT id, category, difficulty FROM questions ORDER BY id ASC").fetchall()
+            
+            if not all_qs_edit:
+                st.info("لا توجد أسئلة متاحة للتعديل.")
+            else:
+                q_id_to_edit = st.selectbox("اختر رقم السؤال (ID) المراد تعديله:", [q["id"] for q in all_qs_edit], format_func=lambda x: f"رقم السؤال: {x}")
+                
+                with db() as c:
+                    target_q = c.execute("SELECT * FROM questions WHERE id=?", (q_id_to_edit,)).fetchone()
+                
+                if target_q:
+                    old_opts = json.loads(target_q["options_json"])
+                    old_cat = target_q["category"]
+                    old_diff = target_q["difficulty"]
+                    
+                    raw_q_text = target_q["question"]
+                    extracted_text = raw_q_text
+                    if raw_q_text.startswith("IMAGE:"):
+                        parts = raw_q_text.split("\n\n", 1)
+                        extracted_text = parts[1] if len(parts) > 1 else ""
+                    
+                    with st.form(key=f"edit_q_form_{q_id_to_edit}"):
+                        new_cat = st.selectbox("تعديل القسم:", categories_list_opts, index=categories_list_opts.index(old_cat) if old_cat in categories_list_opts else 0)
+                        new_diff = st.selectbox("تعديل المستوى:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(old_diff) if old_diff in ["سهل", "متوسط", "صعب"] else 0)
+                        new_text = st.text_area("تعديل نص السؤال:", value=extracted_text)
+                        
+                        st.write("تعديل الخيارات المتاحة:")
+                        e_opt1 = st.text_input("الخيار 1", value=old_opts[0] if len(old_opts) > 0 else "")
+                        e_opt2 = st.text_input("الخيار 2", value=old_opts[1] if len(old_opts) > 1 else "")
+                        e_opt3 = st.text_input("الخيار 3", value=old_opts[2] if len(old_opts) > 2 else "")
+                        e_opt4 = st.text_input("الخيار 4", value=old_opts[3] if len(old_opts) > 3 else "")
+                        
+                        current_correct_ans = old_opts[target_q["answer"]] if target_q["answer"] < len(old_opts) else ""
+                        new_correct_text = st.text_input("اكتب نص الإجابة الصحيحة المطابق لأحد الخيارات أعلاه:", value=current_correct_ans)
+                        
+                        if st.form_submit_button("حفظ التعديلات وتحديث السؤال"):
+                            if not new_text or not new_correct_text:
+                                st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
+                            else:
+                                updated_opts = [o for o in [e_opt1, e_opt2, e_opt3, e_opt4] if o.strip() != ""]
+                                if new_correct_text not in updated_opts:
+                                    updated_opts.append(new_correct_text)
+                                try:
+                                    new_ans_idx = updated_opts.index(new_correct_text)
+                                    prefix = raw_q_text.split("\n\n", 1)[0] if raw_q_text.startswith("IMAGE:") else ""
+                                    final_updated_q = f"{prefix}\n\n{new_text}" if prefix else new_text
+                                    fp = hashlib.sha256((final_updated_q + "|" + "|".join(updated_opts)).encode("utf-8")).hexdigest()
+                                    
+                                    with db() as c:
+                                        c.execute("""UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?""",
+                                                  (new_diff, new_cat, final_updated_q, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, fp, q_id_to_edit))
+                                    
+                                    st.session_state.edit_success_msg = f"✅ تم تحديث وتعديل بيانات السؤال رقم ({q_id_to_edit}) بنجاح!"
+                                    st.rerun()
+                                except Exception as ex:
+                                    st.error(f"خطأ أثناء التعديل: {ex}")
+
+        # 3) حذف سؤال
+        with sub_img_tabs[2]:
+            if st.session_state.del_success_msg:
+                st.success(st.session_state.del_success_msg)
+                st.session_state.del_success_msg = ""
+                
+            with db() as c:
+                img_qs = c.execute("SELECT id, difficulty, category FROM questions ORDER BY id ASC").fetchall()
+            st.write(f"عدد الأسئلة الإجمالي المتاح في قاعدة البيانات: **{len(img_qs)}**")
             for iq in img_qs:
                 with st.container(border=True):
-                    st.write(f"**رقم السؤال (ID):** {iq['id']} | **القسم:** {iq['category']} | **المستوى:** {iq['difficulty']}")
-                    st.text(iq['question'][:120] + "...")
-                    if st.button(f"حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
+                    st.write(f"📌 **رقم السؤال (ID): {iq['id']}** | القسم: {iq['category']} | المستوى: {iq['difficulty']}")
+                    if st.button(f"🗑️ حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
                         with db() as c:
                             c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
-                        reorder_question_ids() # إعادة ترتيب المعرفات تلقائياً
-                        st.success(f"🗑️ تم الحذف وإعادة ترتيب معرّفات الأسئلة (IDs) تلقائياً بنجاح!")
+                        reorder_question_ids()
+                        st.session_state.del_success_msg = f"🗑️ تم حذف السؤال وإعادة ترتيب معرّفات الأسئلة (IDs) تلقائياً بنجاح!"
                         st.rerun()
 
     with selected_tabs[4]:
@@ -826,7 +903,7 @@ def admin_dashboard():
                         with db() as c:
                             c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) VALUES(?,?,?,?,?,?,?)""",
                                       (t_name, t_type, t_num, t_dur, t_pass, json.dumps(selected_cats, ensure_ascii=False), now()))
-                        st.success("تم إنشاء قالب الاختبار وتخصيص أقسامه بنجاح بواسطة المدير.")
+                        st.success("✅ تم إنشاء قالب الاختبار وتخصيص أقسامه بنجاح بواسطة المدير.")
                         st.rerun()
         else:
             st.info("🔒 ميزة إنشاء وتعديل قوالب الاختبارات مقتصرة حصرياً على مديري النظام (Admins).")
@@ -867,7 +944,7 @@ def admin_dashboard():
                         if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
                             with db() as c:
                                 c.execute("DELETE FROM exam_templates WHERE id=?", (t["id"],))
-                            st.success(f"تم حذف القالب ({t['name']}) بنجاح.")
+                            st.success(f"🗑️ تم حذف القالب ({t['name']}) بنجاح.")
                             st.rerun()
 
     with selected_tabs[5]:
@@ -958,7 +1035,7 @@ def admin_dashboard():
             dst = sqlite3.connect(path)
             try: src.backup(dst)
             finally: dst.close(); src.close()
-            st.success("تم إنشاء النسخة الاحتياطية بنجاح.")
+            st.success("✅ تم إنشاء النسخة الاحتياطية بنجاح.")
 
     if st.session_state.role == "admin":
         with selected_tabs[7]:
