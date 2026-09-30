@@ -189,11 +189,49 @@ def init_db():
         );
         """)
 
+def reorder_question_ids():
+    """إعادة ترتيب معرفات (IDs) الأسئلة تلقائياً وتحديث الجداول المرتبطة"""
+    with db() as c:
+        rows = c.execute("SELECT * FROM questions ORDER BY id ASC").fetchall()
+        c.execute("DROP TABLE IF EXISTS questions_temp")
+        c.execute("""
+            CREATE TABLE questions_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                difficulty TEXT NOT NULL,
+                category TEXT NOT NULL,
+                question TEXT NOT NULL,
+                options_json TEXT NOT NULL,
+                answer INTEGER NOT NULL,
+                explanation TEXT,
+                reference TEXT,
+                active INTEGER NOT NULL DEFAULT 1,
+                fingerprint TEXT UNIQUE,
+                created_at TEXT NOT NULL
+            )
+        """)
+        id_mapping = {}
+        for idx, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            id_mapping[old_id] = idx
+            c.execute("""
+                INSERT INTO questions_temp(id,difficulty,category,question,options_json,answer,explanation,reference,active,fingerprint,created_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)
+            """, (idx, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
+        
+        c.execute("DROP TABLE questions")
+        c.execute("ALTER TABLE questions_temp RENAME TO questions")
+        
+        # تحديث الجداول المرتبطة (exam_questions) إذا كانت مرتبطة بـ question_id القديم
+        eq_rows = c.execute("SELECT id, question_id FROM exam_questions").fetchall()
+        for eq in eq_rows:
+            if eq["question_id"] in id_mapping:
+                c.execute("UPDATE exam_questions SET question_id=? WHERE id=?", (id_mapping[eq["question_id"]], eq["id"]))
+
 def seed_complete_250_question_bank():
     with db() as c:
         cnt = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
         if cnt > 0:
-            return  # منع إعادة الكتابة أو المسح إذا كان الجدول يحتوي على أسئلة (للحفاظ على الأسئلة الجديدة المحفوظة)
+            return
 
     svg_schisto_mansoni = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjYwIiByeT0iNDAiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE0NSw1MCBDMTUwLDUwIDE1NSw1NSAxNTUsNjAgQzE1NSw2NSAxNTAsNzAgMTQ1LDcwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_schisto_haematobium = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjY1IiByeT0iMzgiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE2NSw2MCBMMTgzLDYwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
@@ -563,11 +601,11 @@ def generate_compact_exam_html(template_id):
 # ============================================================
 # 5) المسارات وواجهات المستخدم
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • حفظ وحذف الأسئلة والصور مباشرة من قاعدة البيانات بفاعلية</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • إضافة الأسئلة بالأقسام، حفظ فوري، وانتقال تلقائي مع إعادة ترقيم الـ IDs</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -692,12 +730,26 @@ def admin_dashboard():
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("⚙️ إدارة وإضافة وحذف الأسئلة المصورة والتشخيصية")
+        st.subheader("⚙️️ إدارة وإضافة وحذف الأسئلة المصورة والتشخيصية")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال مصور جديد", "🗑 عرض وحذف الأسئلة المصورة"])
         
         with sub_img_tabs[0]:
-            with st.form("add_custom_img_q"):
-                st.markdown("<b>إضافة سؤال مصور جديد إلى قاعدة البيانات</b>", unsafe_allow_html=True)
+            categories_list_opts = [
+                "أسئلة الصور والأشكال",
+                "الاستراتيجية العامة ومكافحة البلهارسيا",
+                "الفاشيولا",
+                "الهتروفيس",
+                "الديدان الشريطية",
+                "الديدان الأسطوانية",
+                "الأوليات",
+                "الفحوص المعملية",
+                "الحالات التطبيقية",
+                "أسئلة الصح والخطأ"
+            ]
+            
+            with st.form(key=f"add_custom_img_q_form_{st.session_state.form_key}"):
+                st.markdown("<b>إضافة سؤال مصور جديد وتحديد القسم التابع له</b>", unsafe_allow_html=True)
+                selected_cat = st.selectbox("اختر القسم:", categories_list_opts)
                 c_text = st.text_area("نص السؤال التشخيصي:")
                 c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"])
                 uploaded_img = st.file_uploader("رفع ملف الصورة النظيفة (بدون بيانات جانبية):", type=["png", "jpg", "jpeg"])
@@ -708,7 +760,7 @@ def admin_dashboard():
                 opt4 = st.text_input("الخيار الرابع:", value="")
                 correct_ans_text = st.text_input("اكتب النص المطابق تماماً للإجابة الصحيحة من الخيارات أعلاه:")
                 
-                if st.form_submit_button("حفظ وإضافة السؤال لقاعدة البيانات"):
+                if st.form_submit_button("حفظ وإضافة السؤال الجديد"):
                     if not c_text or not correct_ans_text:
                         st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة على الأقل.")
                     else:
@@ -729,24 +781,28 @@ def admin_dashboard():
                             with db() as c:
                                 c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
                                              VALUES(?,?,?,?,?,?,?,?)""",
-                                          (c_diff, "أسئلة الصور والأشكال", full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
-                            st.success("✅ تمت إضافة وحفظ السؤال المصور بنجاح في قاعدة البيانات!")
+                                          (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
+                            
+                            reorder_question_ids() # إعادة ترتيب المعرفات تلقائياً
+                            st.success("✅ تم حفظ السؤال بنجاح! جاري الانتقال لإدخال سؤال جديد...")
+                            st.session_state.form_key += 1
                             st.rerun()
                         except Exception as e:
                             st.error(f"خطأ أثناء الحفظ: {e}")
 
         with sub_img_tabs[1]:
             with db() as c:
-                img_qs = c.execute("SELECT id, difficulty, question FROM questions WHERE question LIKE 'IMAGE:%' ORDER BY id DESC").fetchall()
+                img_qs = c.execute("SELECT id, difficulty, category, question FROM questions WHERE question LIKE 'IMAGE:%' ORDER BY id ASC").fetchall()
             st.write(f"عدد الأسئلة المصورة المتاحة في قاعدة البيانات: **{len(img_qs)}**")
             for iq in img_qs:
                 with st.container(border=True):
-                    st.write(f"**رقم السؤال (ID):** {iq['id']} | **المستوى:** {iq['difficulty']}")
+                    st.write(f"**رقم السؤال (ID):** {iq['id']} | **القسم:** {iq['category']} | **المستوى:** {iq['difficulty']}")
                     st.text(iq['question'][:120] + "...")
                     if st.button(f"حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
                         with db() as c:
                             c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
-                        st.success(f"تم حذف السؤال رقم {iq['id']} بنجاح من قاعدة البيانات.")
+                        reorder_question_ids() # إعادة ترتيب المعرفات تلقائياً بعد الحذف
+                        st.success(f"🗑️ تم حذف السؤال وإعادة ترتيب معرّفات الأسئلة (IDs) تلقائياً بنجاح!")
                         st.rerun()
 
     with selected_tabs[4]:
