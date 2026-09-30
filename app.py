@@ -47,7 +47,30 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .metric{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
 .metric .v{font-size:22px;font-weight:800;color:#065f46}
 .metric .l{color:#4b5563;font-weight:700;font-size:12px}
-.timer{font-size:18px;font-weight:900;text-align:center;background:#fef3c7;border:1px solid #f59e0b;padding:6px;border-radius:8px;color:#92400e;margin-bottom:8px}
+
+/* مؤقت مثبت أعلى الشاشة (Sticky Timer) */
+.sticky-timer-container {
+    position: sticky;
+    top: 0;
+    z-index: 99999;
+    background: #ffffff;
+    padding: 8px 15px;
+    border-bottom: 3px solid #f59e0b;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 0 0 10px 10px;
+    margin-bottom: 15px;
+}
+.timer-box {
+    font-size: 20px;
+    font-weight: 900;
+    text-align: center;
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    padding: 8px;
+    border-radius: 8px;
+    color: #92400e;
+}
+
 .q-img-layout{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}
 .q-text-side{flex:1;text-align:right;}
 .q-img-side{flex:0 0 130px;text-align:left;}
@@ -192,7 +215,6 @@ def init_db():
         """)
 
 def reorder_question_ids():
-    """إعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية دون فجوات عند الإضافة أو الحذف"""
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
         rows = c.execute("SELECT * FROM questions ORDER BY id ASC").fetchall()
@@ -346,7 +368,7 @@ def ensure_admin():
 
 init_db()
 seed_complete_250_question_bank()
-reorder_question_ids() # ضمان تسلسل الـ IDs من 1 حتى النهاية عند بدء التطبيق
+reorder_question_ids()
 ensure_admin()
 
 def audit(action, entity=None, details=None):
@@ -621,7 +643,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • إعادة الترتيب التلقائي المتسلسل للـ IDs (1 إلى النهاية) بدقة</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • مؤقت تنازلي (ساعات ودقائق وثوانٍ) مثبت أعلى صفحة الامتحان ومتزامن بدقة</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -804,7 +826,7 @@ def admin_dashboard():
                                              VALUES(?,?,?,?,?,?,?,?)""",
                                           (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                             
-                            reorder_question_ids() # إعادة الترتيب التسلسلي فوراً
+                            reorder_question_ids()
                             st.session_state.add_success_msg = "✅ تم حفظ وإضافة السؤال الجديد بنجاح وإعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية."
                             st.session_state.form_key += 1
                             st.rerun()
@@ -892,7 +914,7 @@ def admin_dashboard():
                     if st.button(f"🗑️ حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
                         with db() as c:
                             c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
-                        reorder_question_ids() # إعادة الترتيب التسلسلي (1 إلى النهاية) فوراً بعد الحذف
+                        reorder_question_ids()
                         st.session_state.del_success_msg = f"🗑️ تم حذف السؤال وإعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية بنجاح!"
                         st.rerun()
 
@@ -1095,14 +1117,47 @@ def exam_interface(session_id):
         session = c.execute("SELECT * FROM exam_sessions WHERE id=?", (session_id,)).fetchone()
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
         
-    remaining = max(0, int((datetime.fromisoformat(session["expires_at"]) - datetime.now()).total_seconds()))
-    if remaining <= 0:
-        submit_session(session_id)
-        st.session_state.last_result_id = session_id
-        st.rerun()
+    expires_str = session["expires_at"]
+    
+    # مؤقت تنازلي (ساعات ودقائق وثوانٍ) متزامن وثابت أعلى الصفحة باستخدام JavaScript
+    timer_html = f"""
+    <div class="sticky-timer-container">
+        <div class="timer-box" id="exam-timer-display">⏱️ جاري مزامنة الوقت وتحديث العد التنازلي...</div>
+    </div>
+    <script>
+    (function() {{
+        const expiresTime = new Date("{expires_str}").getTime();
         
-    mins, secs = divmod(remaining, 60)
-    st.markdown(f'<div class="timer">⏱️ الوقت المتبقي: {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+        function updateTimer() {{
+            const now = new Date().getTime();
+            const distance = expiresTime - now;
+            
+            const timerEl = document.getElementById("exam-timer-display");
+            if (!timerEl) return;
+            
+            if (distance <= 0) {{
+                timerEl.innerHTML = "⏰ انتهى وقت الاختبار!";
+                window.location.reload();
+                return;
+            }}
+            
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            const hStr = String(hours).padStart(2, '0');
+            const mStr = String(minutes).padStart(2, '0');
+            const sStr = String(seconds).padStart(2, '0');
+            
+            timerEl.innerHTML = "⏱️ الوقت المتبقي للاختبار: " + hStr + " ساعة : " + mStr + " دقيقة : " + sStr + " ثانية";
+        }}
+        
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    }})();
+    </script>
+    """
+    components.html(timer_html, height=75)
     
     answered = 0
     for row in rows:
