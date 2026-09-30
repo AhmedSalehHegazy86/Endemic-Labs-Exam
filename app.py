@@ -281,8 +281,9 @@ def add_facility_db(fac_name):
             return False
 
 def delete_facility_db(fac_name):
+    norm = normalize_text(fac_name)
     with db() as c:
-        c.execute("DELETE FROM facilities_list WHERE name=?", (fac_name,))
+        c.execute("DELETE FROM facilities_list WHERE name=? OR TRIM(name)=TRIM(?)", (fac_name, fac_name))
 
 def reorder_question_ids():
     with db() as c:
@@ -475,20 +476,42 @@ def choose_questions(t):
     combined_selected = selected_img + selected_other
     random.shuffle(combined_selected)
     
-    # منع التكرار المطلق بناءً على المعرف (ID) والبصمة الرقمية للمحتوى (Fingerprint)
+    # فحص ثلاثي صارم لمنع تكرار أي سؤال نهائياً بناءً على (ID + Fingerprint + Cleaned Text)
     unique_list = []
     seen_ids = set()
     seen_fingerprints = set()
+    seen_texts = set()
     
     for q in combined_selected:
         q_id = q["id"]
         q_fp = q.get("fingerprint")
-        if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints):
+        q_txt = normalize_text(q["question"])
+        
+        if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
             seen_ids.add(q_id)
             if q_fp:
                 seen_fingerprints.add(q_fp)
+            seen_texts.add(q_txt)
             unique_list.append(q)
             
+    # إذا لم تكفِ القائمة الفريدة، يتم سحب بقية الأسئلة الفريدة من القاعدة مباشرة بدون تكرار
+    if len(unique_list) < target:
+        with db() as c:
+            all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
+        for q in all_db_qs:
+            if len(unique_list) >= target:
+                break
+            q_id = q["id"]
+            q_fp = q.get("fingerprint")
+            q_txt = normalize_text(q["question"])
+            if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
+                seen_ids.add(q_id)
+                if q_fp:
+                    seen_fingerprints.add(q_fp)
+                seen_texts.add(q_txt)
+                unique_list.append(q)
+
+    random.shuffle(unique_list)
     return unique_list[:target]
 
 def start_session(trainee_id, template_id):
@@ -859,7 +882,6 @@ def generate_compact_exam_html(template_id, custom_notes=""):
 
 def render_print_button_only(html_content, label_prefix=""):
     encoded_html = json.dumps(html_content)
-    btn_key = f"print_btn_{hash(html_content)}"
     components.html(f"""
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
