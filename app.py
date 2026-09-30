@@ -818,7 +818,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     """
     return html_out
 
-# دالة زر الطباعة المباشر أسفل زر التحميل مباشرة (بدون معاينة)
+# دالة زر الطباعة المباشر أسفل زر التحميل مباشرة
 def render_print_button_only(html_content, label_prefix=""):
     if st.button(f"🖨️ طباعة مباشرة ({label_prefix})", key=f"print_btn_{hash(html_content)}", use_container_width=True):
         components.html(f"""
@@ -1033,7 +1033,7 @@ def admin_dashboard():
                         st.rerun()
 
     with selected_tabs[5]:
-        st.subheader("📊 تقارير قياس المستويات")
+        st.subheader("📊 تقارير قياس المستويات وطباعة الشهادات الإدارية")
         d_start = st.date_input("من تاريخ", date.today() - timedelta(days=30))
         d_end = st.date_input("إلى تاريخ", date.today())
         start_dt_str = datetime.combine(d_start, datetime.min.time()).isoformat()
@@ -1044,6 +1044,26 @@ def admin_dashboard():
 
         if not df_res.empty:
             st.dataframe(df_res, use_container_width=True, hide_index=True)
+            
+            # قسم طباعة شهادة متدرب معين من قبل المالك
+            st.markdown("---")
+            st.markdown("#### 🎓 طباعة شهادة متدرب معتمدة من الإدارة:")
+            with db() as c:
+                submitted_sessions = c.execute("""SELECT s.id, t.name, t.facility, s.certificate_id FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""").fetchall()
+            
+            if submitted_sessions:
+                session_options = {f"جلسة رقم {row['id']} - المتدرب: {row['name']} ({row['facility']}) - شهادة: {row['certificate_id']}": row['id'] for row in submitted_sessions}
+                selected_sess_label = st.selectbox("اختر المتدرب لاستعراض أو طباعة شهادته:", list(session_options.keys()))
+                selected_sid = session_options[selected_sess_label]
+                
+                col_cert_b1, col_cert_b2 = st.columns(2)
+                cert_html_admin = generate_compact_certificate_html(selected_sid, "شهادة معتمدة ومصدرة من لوحة إشراف المالك")
+                with col_cert_b1:
+                    st.download_button("📥 تحميل شهادة المتدرب .html", data=cert_html_admin.encode("utf-8"), file_name=f"certificate_session_{selected_sid}.html", mime="text/html", use_container_width=True)
+                with col_cert_b2:
+                    render_print_button_only(cert_html_admin, f"شهادة متدرب رقم {selected_sid}")
+
+            st.markdown("---")
             html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end}", "تقرير أداء المعامل والإشراف الفني المعتمد")
             st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
             render_print_button_only(html_report_str, "التقرير الشامل")
