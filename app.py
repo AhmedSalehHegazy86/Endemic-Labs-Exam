@@ -4,19 +4,20 @@ from contextlib import contextmanager
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ============================================================
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v4.5 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v4.6 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_5.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_6.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -395,7 +396,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (PDF عالي الدقة و HTML مدعومين بالعربية بالكامل)
+# 4) دوال التصدير (HTML والطباعة المباشرة لفتح نافذة خيارات الطباعة)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -498,7 +499,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.5 FINAL • تصدير مستندات دقيقة وداعمة للغة العربية 100%</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.6 FINAL • أزرار مخترة وتفعيل خيارات الطباعة المباشرة</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -588,7 +589,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -654,20 +655,23 @@ def admin_dashboard():
                 b_html, b_pdf = st.columns(2)
                 with b_html:
                     st.download_button(
-                        label=f"📥 تحميل قالب امتحان ({t['name']}) كملف HTML",
+                        label="📥 تحميل .html",
                         data=html_bytes,
                         file_name=f"exam_template_{t['id']}.html",
                         mime="text/html",
                         key=f"dl_html_{t['id']}"
                     )
                 with b_pdf:
-                    st.download_button(
-                        label=f"🖨️ تحميل قالب امتحان ({t['name']}) كملف PDF عالي الدقة",
-                        data=html_bytes,
-                        file_name=f"exam_template_{t['id']}.pdf",
-                        mime="application/pdf",
-                        key=f"dl_pdf_{t['id']}"
-                    )
+                    if st.button(f"🖨️ طباعة .pdf", key=f"print_pdf_{t['id']}", use_container_width=True):
+                        components.html(f"""
+                        <script>
+                            var win = window.open('', '_blank');
+                            win.document.write(`{html_exam}`);
+                            win.document.close();
+                            win.focus();
+                            setTimeout(function(){{ win.print(); }}, 500);
+                        </script>
+                        """, height=0)
 
     with selected_tabs[4]:
         st.subheader("📊 التقارير المتقدمة والتصدير (يومي، أسبوعي، شهري، سنوي)")
@@ -721,28 +725,31 @@ def admin_dashboard():
             st.download_button("📥 تصدير تقارير التقييمات Excel", xbuf.getvalue(), file_name=f"evaluation_report_{period_type}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
             st.markdown("---")
-            st.subheader("📥 تحميل شهادة المتدرب (HTML أو PDF)")
-            sid_p = st.selectbox("اختر جلسة الاختبار لتحميل الشهادة", df_res.id.tolist())
+            st.subheader("📥 تحميل أو طباعة الشهادة")
+            sid_p = st.selectbox("اختر جلسة الاختبار لخيارات الشهادة", df_res.id.tolist())
             if sid_p:
                 cert_html = generate_compact_certificate_html(int(sid_p))
                 cert_bytes = cert_html.encode("utf-8")
                 b_ch, b_cp = st.columns(2)
                 with b_ch:
                     st.download_button(
-                        label="📥 تحميل الشهادة كملف HTML",
+                        label="📥 تحميل .html",
                         data=cert_bytes,
                         file_name=f"certificate_{sid_p}.html",
                         mime="text/html",
                         key=f"dl_cert_html_{sid_p}"
                     )
                 with b_cp:
-                    st.download_button(
-                        label="🖨️ تحميل الشهادة كملف PDF عالي الدقة",
-                        data=cert_bytes,
-                        file_name=f"certificate_{sid_p}.pdf",
-                        mime="application/pdf",
-                        key=f"dl_cert_pdf_{sid_p}"
-                    )
+                    if st.button(f"🖨️ طباعة .pdf", key=f"print_cert_pdf_{sid_p}", use_container_width=True):
+                        components.html(f"""
+                        <script>
+                            var win = window.open('', '_blank');
+                            win.document.write(`{cert_html}`);
+                            win.document.close();
+                            win.focus();
+                            setTimeout(function(){{ win.print(); }}, 500);
+                        </script>
+                        """, height=0)
         else:
             st.info("لا توجد تقييمات مسجلة خلال الفترة الزمنية المحددة.")
 
@@ -859,18 +866,22 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         bc_h, bc_p = st.columns(2)
         with bc_h:
             st.download_button(
-                label="📥 تحميل الشهادة كملف HTML",
+                label="📥 تحميل .html",
                 data=cert_bytes,
                 file_name=f"certificate_{sid}.html",
                 mime="text/html"
             )
         with bc_p:
-            st.download_button(
-                label="🖨️ تحميل الشهادة كملف PDF عالي الدقة",
-                data=cert_bytes,
-                file_name=f"certificate_{sid}.pdf",
-                mime="application/pdf"
-            )
+            if st.button(f"🖨️ طباعة .pdf", key=f"print_res_{sid}", use_container_width=True):
+                components.html(f"""
+                <script>
+                    var win = window.open('', '_blank');
+                    win.document.write(`{cert_html}`);
+                    win.document.close();
+                    win.focus();
+                    setTimeout(function(){{ win.print(); }}, 500);
+                </script>
+                """, height=0)
             
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
