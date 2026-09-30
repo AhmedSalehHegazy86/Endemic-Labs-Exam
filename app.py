@@ -1,25 +1,122 @@
-import cv2
+import streamlit as st
+from PIL import Image
 import os
 
-def crop_parasite_image(input_path, output_path, crop_box):
-    """
-    يقوم بقص الصورة بناءً على الإحداثيات المحددة وإزالة أي نصوص أو بيانات جانبية.
-    crop_box: (ymin, xmin, ymax, xmax) بالنسبة المئوية أو بالبكسل
-    """
-    image = cv2.imread(input_path)
-    if image is None:
-        print(f"Error loading image: {input_path}")
-        return
-    
-    h, w, _ = image.shape
-    ymin, xmin, ymax, xmax = crop_box
-    
-    # حساب الإحداثيات الفعلية للقص
-    crop_img = image[int(ymin*h):int(ymax*h), int(xmin*w):int(xmax*w)]
-    
-    # حفظ الصورة النظيفة (بدون بيانات أو عناوين قديمة)
-    cv2.imwrite(output_path, crop_img)
-    print(f"Successfully cropped and saved: {output_path}")
+# إعدادات صفحة التطبيق
+st.set_page_config(
+    page_title="بنك أسئلة الأمراض المتوطنة",
+    page_icon="🔬",
+    layout="wide"
+)
 
-# مثال على تشغيل الدالة لصور دورات الحياة والبويضات من الكتاب
-# crop_parasite_image("book_page_12.jpg", "app_assets/parasites/schistosoma_ova.jpg", (0.15, 0.10, 0.50, 0.90))
+st.title("🔬 نظام اختبارات وتشخيص الطفيليات والأمراض المتوطنة")
+st.markdown("مرحباً بك في المنصة الموحدة لاختبارات الإدارة الصحية. هذا النظام يضم بنك الأسئلة الأساسي (250 سؤالاً) بالإضافة إلى الأسئلة والتدريبات التشخيصية المصورة الجديدة.")
+
+# --- 1. بنك الأسئلة الأساسي (1 إلى 250) - (تم تمثيله كقائمة مبسطة وقابلة للتوسع) ---
+base_questions = [
+    {
+        "id": 1,
+        "question": "ما هو الطور المعدي للبلهارسيا للإنسان؟",
+        "options": ["الميراسيديم", "السركاريا", "البويضة", "اليرقة الرابدية"],
+        "answer": "السركاريا"
+    },
+    {
+        "id": 2,
+        "question": "ما هو العائل الوسيط للبلهارسيا البولية في مصر؟",
+        "options": ["قوقع بولينس", "قوقع بيومفالريا", "قوقع ليمنيا", "قوقع بلانوربيوس"],
+        "answer": "قوقع بولينس"
+    },
+    {
+        "id": 3,
+        "question": "ما هو العائل الوسيط للبلهارسيا المعوية (مانسوني)؟",
+        "options": ["قوقع بولينس", "قوقع بيومفالريا", "قوقع ليمنيا", "قوقع ميلاانيا"],
+        "answer": "قوقع بيومفالريا"
+    },
+    {
+        "id": 4,
+        "question": "ما هو الطور المعدي لدودة الفاشيوال (الكبدية) للإنسان والحيوان؟",
+        "options": ["الميتا سركاريا المتحوصلة", "السركاريا الحرة", "الميراسيديم", "السبوروسيست"],
+        "answer": "الميتا سركاريا المتحوصلة"
+    },
+    {
+        "id": 5,
+        "question": "ما هو وزن البراز المصفى في ثقب قالب الكاتو-كاتس القياسي؟",
+        "options": ["20 ملجم", "41.7 ملجم", "100 ملجم", "10 ملجم"],
+        "answer": "41.7 ملجم"
+    }
+    # (يمكنك استكمال أو ربط الـ 250 سؤالاً الأساسية هنا أو تحميلها من ملف خارجي)
+]
+
+# --- 2. بنك الأسئلة الجديد الإضافي للصور المقصوصة (من 251 إلى 300) ---
+extended_questions = [
+    {
+        "id": 251,
+        "question": "بالإشارة إلى الصورة المعروضة للبويضة المقصوصة من دليل الأمراض المتوطنة، ما هي العلامة التشخيصية المميزة لها؟",
+        "image_path": "assets/schistosoma_haematobium.jpg", # ضع مسار الصورة النظيفة هنا
+        "options": ["شوكة طرفية واضحة", "شوكة جانبية", "شكل برميلي بسدادتين", "خالية من الشوكة بيضاوية تماماً"],
+        "answer": "شوكة طرفية واضحة"
+    },
+    {
+        "id": 252,
+        "question": "من خلال مخطط دورة الحياة المقصوص المرفق، ماذا يمثل الطور الخارج من قوقع الليمنيا؟",
+        "image_path": "assets/fasciola_lifecycle.jpg",
+        "options": ["الميتا سركاريا", "الميراسيديم", "البويضة غير الناضجة", "الديدان البالغة"],
+        "answer": "الميتا سركاريا"
+    },
+    {
+        "id": 253,
+        "question": "يوضح الشكل معالجة شريحة فحص بويضات البلهارسيا بطريقة كاتو-كاتس. ما فائدة صبغة المالاكيت جرين في هذه الشريحة؟",
+        "image_path": "assets/kato_katz_slide.jpg",
+        "options": ["ترويق العينة وإبراز قشور البويضات بوضوح", "قتل اليرقات الحية فقط", "تثبيت الغشاء الخلوي للبراز", "تلوين الشوكة بلون أحمر داكن"],
+        "answer": "ترويق العينة وإبراز قشور البويضات بوضوح"
+    }
+]
+
+# دمج البنكين معاً مع الحفاظ على ترتيب الأرقام الأساسية
+all_questions = base_questions + extended_questions
+
+# --- واجهة التطبيق عبر ستريمليت ---
+st.sidebar.header("لوحة التحكم والتحضير")
+section_choice = st.sidebar.radio("اختر القسم:", ["بنك الأسئلة الشامل (1-300)", "الاختبار التفاعلي المصور"])
+
+if section_choice == "بنك الأسئلة الشامل (1-300)":
+    st.subheader("استعراض بنك الأسئلة والتدريبات المعملية")
+    search_query = st.text_input("ابحث عن سؤال أو كلمة مفتاحية:")
+    
+    for q in all_questions:
+        if not search_query or search_query in q["question"]:
+            with st.expander(f"سؤال رقم {q['id']}: {q['question']}"):
+                if "image_path" in q and os.path.exists(q["image_path"]):
+                    try:
+                        img = Image.open(q["image_path"])
+                        st.image(img, caption=f"صورة توضيحية للسؤال {q['id']}", width=400)
+                    except Exception:
+                        st.info("الصورة التوضيحية غير متوفرة حالياً في المسار المرفق.")
+                
+                st.write("**الخيارات:**")
+                for opt in q["options"]:
+                    st.write(f"- {opt}")
+                st.success(f"**الإجابة الصحيحة:** {q['answer']}")
+
+elif section_choice == "الاختبار التفاعلي المصور":
+    st.subheader("اختبار تقييمي قصير من بنك الأسئلة المحدث")
+    
+    score = 0
+    for i, q in enumerate(extended_questions):
+        st.markdown(f"**س {q['id']}: {q['question']}**")
+        if "image_path" in q and os.path.exists(q["image_path"]):
+            try:
+                st.image(Image.open(q["image_path"]), width=350)
+            except:
+                pass
+                
+        user_ans = st.radio(f"اختر الإجابة المناسبة للسؤال {q['id']}:", q["options"], key=f"q_{i}")
+        if user_ans == q["answer"]:
+            st.success("إجابة صحيحة!")
+            score += 1
+        else:
+            st.warning(f"إجابة خاطئة. الإجابة الصحيحة هي: {q['answer']}")
+        st.markdown("---")
+    
+    if st.button("إظهار النتيجة النهائية"):
+        st.info(f"لقد أتممت الاختبار بنجاح. درجاتك هي: {score} من {len(extended_questions)}")
