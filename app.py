@@ -818,24 +818,31 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     """
     return html_out
 
+# دالة مساعدة لعرض معاينة وزر طباعة مباشر تحت الـ HTML
+def render_html_preview_and_print_button(html_content, label_prefix=""):
+    with st.expander(f"👁️ معاينة المستند المباشرة ({label_prefix})"):
+        components.html(html_content, height=450, scrolling=True)
+    
+    # زر الطباعة المباشر أسفل زر التحميل مباشرة
+    if st.button(f"🖨️ طباعة مباشرة ({label_prefix})", key=f"print_btn_{hash(html_content)}", use_container_width=True):
+        components.html(f"""
+            <script>
+                var win = window.open('', '', 'height=700,width=1000');
+                win.document.write(`{html_content}`);
+                win.document.close();
+                win.focus();
+                setTimeout(function(){{ win.print(); }}, 500);
+            </script>
+        """, height=0)
+
 # ============================================================
-# 6) المسارات والشاشات (مع زر طباعة الصفحة المباشر)
+# 6) المسارات والشاشات
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
     st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
-    
-    # زر طباعة الصفحة المباشر في رأس الصفحة
-    c_p1, c_p2 = st.columns([6, 1])
-    with c_p2:
-        if st.button("🖨️️ طباعة الصفحة", use_container_width=True):
-            components.html("""
-                <script>
-                    window.print();
-                </script>
-            """, height=0)
 
 def login_portal():
     header()
@@ -1016,8 +1023,10 @@ def admin_dashboard():
                 b1, b2 = st.columns(2)
                 with b1:
                     st.download_button("📥 تحميل محضر التدريب .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
+                    render_html_preview_and_print_button(minutes_html, f"محضر تدريب {t['id']}")
                 with b2:
                     st.download_button("📥 تحميل نموذج الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
+                    render_html_preview_and_print_button(html_exam, f"نموذج امتحان {t['id']}")
 
     with selected_tabs[5]:
         st.subheader("📊 تقارير قياس المستويات")
@@ -1033,6 +1042,7 @@ def admin_dashboard():
             st.dataframe(df_res, use_container_width=True, hide_index=True)
             html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end}", "تقرير أداء المعامل والإشراف الفني المعتمد")
             st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
+            render_html_preview_and_print_button(html_report_str, "التقرير الشامل")
 
     with selected_tabs[6]:
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
@@ -1125,6 +1135,7 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
         cert_html = generate_compact_certificate_html(sid, "تقرير أداء المعامل والإشراف الفني المعتمد")
         st.download_button("📥 تحميل شهادة الاجتياز المعتمدة .html", data=cert_html.encode("utf-8"), file_name=f"certificate_{sid}.html", mime="text/html")
+        render_html_preview_and_print_button(cert_html, f"الشهادة المعتمدة {sid}")
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
             st.session_state.last_result_id = None
