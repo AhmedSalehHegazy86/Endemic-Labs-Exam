@@ -1174,8 +1174,7 @@ def admin_dashboard():
     with selected_tabs[5]:
         st.subheader("🧩 قوالب ومحاضر التدريب وإضافة قالب جديد")
         
-        # استخدام st.radio كبديل للتبويبات الفرعية لمنع اختفاء البيانات أو إعادة التعيين الخاطئ
-        sub_tpl_mode = st.radio("اختر القسم المطلوبة:", ["📋 قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"], horizontal=True)
+        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"], horizontal=True)
         
         if sub_tpl_mode == "📋 قوالب الامتحانات الحالية وتوليد المحاضر":
             with db() as c:
@@ -1222,28 +1221,27 @@ def admin_dashboard():
             
             categories_pool_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
             
-            with st.form("create_new_exam_template_form"):
-                new_tpl_name = st.text_input("اسم قالب الاختبار الجديد (مثال: اختبار المتابعة المتقدم):")
-                new_tpl_type = st.selectbox("تصنيف الاختبار (يتم ربطه تلقائياً للممتَحَن بناءً على هذا التصنيف):", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-                new_tpl_num_q = st.number_input("عدد الأسئلة في الاختبار:", min_value=5, max_value=100, value=25)
-                new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=45)
-                new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
-                new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب (اختر الأقسام أو اتركه فارغاً ليشمل كل البنك):", categories_pool_opts)
-                
-                if st.form_submit_button("💾 حفظ وإنشاء قالب الاختبار الجديد", use_container_width=True):
-                    if not new_tpl_name.strip():
-                        st.error("الرجاء إدخال اسم قالب الاختبار.")
-                    else:
-                        cats_json_str = json.dumps(new_tpl_cats, ensure_ascii=False)
-                        with db() as c:
-                            try:
-                                c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
-                                             VALUES(?,?,?,?,?,?,?)""",
-                                          (normalize_text(new_tpl_name), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
-                                st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح!"
-                                st.rerun()
-                            except sqlite3.IntegrityError:
-                                st.error("اسم القالب موجود مسبقاً، يرجى استخدام اسم مختلف.")
+            new_tpl_name = st.text_input("اسم قالب الاختبار الجديد (مثال: اختبار المتابعة المتقدم):", key="input_new_tpl_name")
+            new_tpl_type = st.selectbox("تصنيف الاختبار (يتم ربطه تلقائياً للممتَحَن بناءً على هذا التصنيف):", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"], key="input_new_tpl_type")
+            new_tpl_num_q = st.number_input("عدد الأسئلة في الاختبار:", min_value=5, max_value=100, value=25, key="input_new_tpl_num")
+            new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=45, key="input_new_tpl_dur")
+            new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0, key="input_new_tpl_pass")
+            new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب (اختر الأقسام أو اتركه فارغاً ليشمل كل البنك):", categories_pool_opts, key="input_new_tpl_cats")
+            
+            if st.button("💾 حفظ وإنشاء قالب الاختبار الجديد مباشرة", use_container_width=True):
+                if not new_tpl_name.strip():
+                    st.error("الرجاء إدخال اسم قالب الاختبار.")
+                else:
+                    cats_json_str = json.dumps(new_tpl_cats, ensure_ascii=False)
+                    with db() as c:
+                        try:
+                            c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
+                                         VALUES(?,?,?,?,?,?,?)""",
+                                      (normalize_text(new_tpl_name), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
+                            st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح وتم إضافته للقائمة!"
+                            st.rerun()
+                        except sqlite3.IntegrityError:
+                            st.error("اسم القالب موجود مسبقاً، يرجى استخدام اسم مختلف.")
 
     with selected_tabs[6]:
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
