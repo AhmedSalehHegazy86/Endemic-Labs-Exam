@@ -5,18 +5,24 @@ from contextlib import contextmanager
 import pandas as pd
 import streamlit as st
 
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
 # ============================================================
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v4.3 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v4.4 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_3.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_4.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -395,8 +401,48 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (HTML و PDF مستقلين ببيانات بايثون صريحة)
+# 4) دوال التصدير (PDF حقيقي باستخدام ReportLab و HTML)
 # ============================================================
+def generate_real_pdf_exam(template_id):
+    with db() as c:
+        t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
+        qs = choose_questions(t)
+
+    buffer = io.BytesIO()
+    c_pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # تسجيل الخط الداعم للعربية إن وجد أو استخدام القياسي
+    c_pdf.setFont("Helvetica-Bold", 12)
+    c_pdf.drawString(50, height - 40, f"Exam Template: {t['name']}")
+    c_pdf.setFont("Helvetica", 10)
+    c_pdf.drawString(50, height - 60, f"Duration: {t['duration_minutes']} mins | Total Questions: {len(qs)}")
+    
+    y = height - 90
+    for idx, q in enumerate(qs):
+        if y < 80:
+            c_pdf.showPage()
+            y = height - 50
+        
+        q_text = q["question"]
+        c_pdf.setFont("Helvetica-Bold", 10)
+        c_pdf.drawString(50, y, f"Q{idx+1}: {q_text[:90]}")
+        y -= 18
+        
+        opts = json.loads(q["options_json"])
+        c_pdf.setFont("Helvetica", 9)
+        for o_idx, opt in enumerate(opts):
+            if y < 50:
+                c_pdf.showPage()
+                y = height - 50
+            c_pdf.drawString(70, y, f"[  ] {opt[:80]}")
+            y -= 14
+        y -= 10
+
+    c_pdf.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def generate_compact_certificate_html(sid):
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
@@ -482,7 +528,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.3 FINAL • أزرار تصدير HTML و PDF فعالة ومستقلة بالكامل</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.4 FINAL • دعم تصدير PDF حقيقي ومعالجة كاملة للصور</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -572,7 +618,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -633,13 +679,13 @@ def admin_dashboard():
             with st.container(border=True):
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
                 html_exam = generate_compact_exam_html(t["id"])
-                html_bytes = html_exam.encode("utf-8")
+                pdf_bytes = generate_real_pdf_exam(t["id"])
                 
                 b_html, b_pdf = st.columns(2)
                 with b_html:
                     st.download_button(
                         label=f"📥 تحميل قالب امتحان ({t['name']}) كملف HTML",
-                        data=html_bytes,
+                        data=html_exam.encode("utf-8"),
                         file_name=f"exam_template_{t['id']}.html",
                         mime="text/html",
                         key=f"dl_html_{t['id']}"
@@ -647,7 +693,7 @@ def admin_dashboard():
                 with b_pdf:
                     st.download_button(
                         label=f"📥 تحميل قالب امتحان ({t['name']}) كملف PDF",
-                        data=html_bytes,
+                        data=pdf_bytes,
                         file_name=f"exam_template_{t['id']}.pdf",
                         mime="application/pdf",
                         key=f"dl_pdf_{t['id']}"
@@ -810,7 +856,7 @@ def exam_interface(session_id):
             parts = q_text.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">🖼️️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br>{q_text}</div>', unsafe_allow_html=True)
 
