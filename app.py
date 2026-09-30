@@ -476,7 +476,6 @@ def choose_questions(t):
     combined_selected = selected_img + selected_other
     random.shuffle(combined_selected)
     
-    # فحص ثلاثي صارم لمنع تكرار أي سؤال نهائياً بناءً على (ID + Fingerprint + Cleaned Text)
     unique_list = []
     seen_ids = set()
     seen_fingerprints = set()
@@ -749,7 +748,7 @@ def generate_report_html_document(df, title_desc, custom_notes=""):
             th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: right; }}
             th {{ background-color: #065f46; color: #fff; }}
             .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px; margin-bottom: 10px; font-weight: bold; color: #065f46; }}
-            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 15px; }}
+            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #065f46; padding-top: 15px; }}
         </style>
     </head>
     <body>
@@ -903,7 +902,7 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) المسارات والشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": "", "tpl_success_msg": ""}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": "", "tpl_success_msg": "", "active_tpl_tab": 0}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
@@ -1174,11 +1173,13 @@ def admin_dashboard():
 
     with selected_tabs[5]:
         st.subheader("🧩 قوالب ومحاضر التدريب وإضافة قالب جديد")
-        sub_tpl_tabs = st.tabs(["📋 قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"])
         
-        with sub_tpl_tabs[0]:
+        # استخدام st.radio كبديل للتبويبات الفرعية لمنع اختفاء البيانات أو إعادة التعيين الخاطئ
+        sub_tpl_mode = st.radio("اختر القسم المطلوبة:", ["📋 قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"], horizontal=True)
+        
+        if sub_tpl_mode == "📋 قوالب الامتحانات الحالية وتوليد المحاضر":
             with db() as c:
-                tpls = c.execute("SELECT * FROM exam_templates").fetchall()
+                tpls = c.execute("SELECT * FROM exam_templates ORDER BY id DESC").fetchall()
             
             facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
 
@@ -1213,7 +1214,7 @@ def admin_dashboard():
                                 st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
                                 st.rerun()
 
-        with sub_tpl_tabs[1]:
+        else:
             st.subheader("➕ إنشاء وإضافة قالب امتحان جديد (للمالك فقط)")
             if st.session_state.tpl_success_msg:
                 st.success(st.session_state.tpl_success_msg)
