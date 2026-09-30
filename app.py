@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v3.6 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v3.7 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_6.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_7.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -50,7 +50,6 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .stButton>button{border-radius:10px;font-weight:800;min-height:42px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
-/* تنسيق مضغوط ومخصص لطباعة واحتواء المساحات في أقل عدد ورقات A4 */
 @page {
     size: A4;
     margin: 10mm;
@@ -398,6 +397,10 @@ def generate_compact_certificate_html(sid):
     if not r: return ""
     status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
     
+    score_val = r["score"] if r["score"] is not None else 0
+    max_score_val = r["max_score"] if r["max_score"] is not None else 0
+    percent_val = r["percent"] if r["percent"] is not None else 0.0
+    
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -416,7 +419,7 @@ def generate_compact_certificate_html(sid):
                 تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 20px; color: #047857;">{esc(r["trainee_name"])}</b><br>
                 التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
                 قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
-                النتيجة النهائية: <b>{r["score"]} / {r["max_score']} ({r["percent"]:.1f}%)</b><br>
+                النتيجة النهائية: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b><br>
                 الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
                 رقم الشهادة: <code>{r["certificate_id"]}</code> | التاريخ: {esc(r["submitted_at"])}
             </p>
@@ -463,7 +466,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.6 FINAL • تصدير PDF مقاس A4 عالي الكفاءة ومضغوط المساحات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.7 FINAL • تصدير PDF مقاس A4 عالي الكفاءة ومضغوط المساحات</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
