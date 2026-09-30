@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v2.8 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v2.9 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_8.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v2_9.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -50,12 +50,8 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 [data-testid="stSidebar"]{display:none !important;}
 
 @media print {
-    body * {
-        visibility: hidden !important;
-    }
-    .printable-area, .printable-area * {
-        visibility: visible !important;
-    }
+    body * { visibility: hidden !important; }
+    .printable-area, .printable-area * { visibility: visible !important; }
     .printable-area {
         position: absolute !important;
         left: 0 !important;
@@ -65,15 +61,13 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
         padding: 20px !important;
         margin: 0 !important;
     }
-    .stButton, header, footer {
-        display: none !important;
-    }
+    .stButton, header, footer { display: none !important; }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وتضمين بنك الأسئلة المعتمد
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -200,10 +194,8 @@ def init_db():
         );
         """)
 
-# دمج بنك الأسئلة المرفق تلقائياً عند أول تشغيل
 def seed_question_bank():
     question_bank = {
-        "title": "بنك أسئلة متكامل - مكافحة البلهارسيا والطفيليات المعوية",
         "sections": {
             "general_strategy_and_schistosomiasis": {
                 "name": "الاستراتيجية العامة ومكافحة البلهارسيا",
@@ -217,53 +209,12 @@ def seed_question_bank():
                     {"id": 7, "level": "صعب", "question": "الموضع النهائي للأنثى في البلهارسيا البولية هو أوعية جدار:", "choices": ["الأمعاء الدقيقة", "القنوات المرارية", "القولون", "المثانة"], "ans": 3},
                     {"id": 8, "level": "صعب", "question": "الموضع النهائي للأنثى في البلهارسيا المعوية هو أوعية جدار:", "choices": ["القنوات المرارية", "المعدة", "المثانة", "القولون"], "ans": 3}
                 ]
-            },
-            "faciola": {
-                "name": "الفاشيولا",
-                "questions": [
-                    {"id": 1, "level": "سهل", "question": "ما العائل الوسيط للفاشيولا؟", "choices": ["قوقع البولينس", "قوقع بيرينلا كونيكا", "قوقع الليمنيا", "قوقع البيومفلاريا"], "ans": 2},
-                    {"id": 2, "level": "سهل", "question": "ما الطور المعدي للإنسان في الفاشيولا ؟", "choices": ["البويضة", "الميراسيديوم", "السركاريا الحرة", "الميتاسركاريا المتحوصلة"], "ans": 3},
-                    {"id": 3, "level": "متوسط", "question": "ما الطريق الرئيس لعدوى الإنسان بالفاشيولا؟", "choices": ["اختراق السركاريا للجلد", "استنشاق البيوض", "تناول لحم بقري يحوي كيسا يرقيا", "تناول خضروات أو أعشاب ملوثة بالميتاسركاريا المتحوصلة"], "ans": 3}
-                ]
-            },
-            "heterophyes": {
-                "name": "الهتروفيس",
-                "questions": [
-                    {"id": 1, "level": "سهل", "question": "ما الطور المعدي للإنسان في الهتروفيس؟", "choices": ["البويضة", "السركاريا الحرة", "الميتاسركاريا المتحوصلة في عضلات السمك", "الميراسيديوم"], "ans": 2},
-                    {"id": 2, "level": "متوسط", "question": "أي أسماك ذكرت كمضيف ثان للطور المعدي؟", "choices": ["السردين والتونة", "القرش والماكريل", "الجمبري والكابوريا", "البوري والبلطي"], "ans": 3}
-                ]
-            },
-            "cestodes": {
-                "name": "الديدان الشريطية",
-                "questions": [
-                    {"id": 1, "level": "سهل", "question": "ما الطور المعدي المباشر لهيمنولبس نانا ؟", "choices": ["اليرقة الخيطية", "البويضة فور خروجها مع البراز", "الميتاسركاريا في السمك", "السركاريا"], "ans": 1}
-                ]
-            },
-            "nematodes": {
-                "name": "الديدان الأسطوانية",
-                "questions": [
-                    {"id": 1, "level": "سهل", "question": "أين تعيش الإسكارس عادة؟", "choices": ["القنوات المرارية", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 2}
-                ]
-            },
-            "protozoa": {
-                "name": "الأوليات",
-                "questions": [
-                    {"id": 1, "level": "سهل", "question": "أين تعيش الإنتاميبا هستوليتيكا أساساً؟", "choices": ["الأمعاء الدقيقة فقط", "الأمعاء الغليظة", "المثانة", "القنوات المرارية"], "ans": 1}
-                ]
-            },
-            "lab_tests": {
-                "name": "الفحوص المعملية",
-                "questions": [
-                    {"id": 1, "level": "سهل", "question": "أي طريقة مخصصة للفحص النوعي والكمي للبراز ؟", "choices": ["كاتو كاتس", "التصفية الغشائية للبول", "طريقة أخرى", "المسحة الشرجية"], "ans": 0}
-                ]
             }
         }
     }
-
     with db() as c:
-        cnt = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
-        if cnt == 0:
-            for s_key, s_val in question_bank["sections"].items():
+        if c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"] == 0:
+            for s_val in question_bank["sections"].values():
                 cat_name = s_val["name"]
                 for q in s_val["questions"]:
                     opts = q["choices"]
@@ -272,8 +223,6 @@ def seed_question_bank():
                     c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
                                  VALUES(?,?,?,?,?,?,?,?)""",
                               (q["level"], cat_name, q["question"], json.dumps(opts, ensure_ascii=False), ans_idx, 1, fp, now()))
-            
-            # إنشاء قالب افتراضي متوافق مع بنك الأسئلة
             c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) 
                          VALUES(?,?,?,?,?,?)""",
                       ("الاختبار الشامل لمكافحة المتوطنة", "قبل التدريب (Pre-Test)", 8, 30, 60.0, now()))
@@ -347,11 +296,8 @@ def trainees_df(status=None):
 def choose_questions(t):
     with db() as c:
         rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1").fetchall()]
-    
     target = int(t["num_questions"])
-    if len(rows) < target:
-        target = len(rows)
-    
+    if len(rows) < target: target = len(rows)
     random.shuffle(rows)
     return rows[:target]
 
@@ -362,10 +308,8 @@ def start_session(trainee_id, template_id):
                                     (trainee_id, template_id, today_start)).fetchone()
         if completed_today:
             raise ValueError("عذراً، لا يمكنك أداء هذا الاختبار أكثر من مرة في نفس اليوم.")
-        
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         if not t: raise ValueError("قالب الاختبار غير موجود.")
-        
         active = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND status='active'", (trainee_id,)).fetchone()
         if active: raise ValueError("لديك اختبار نشط بالفعل.")
 
@@ -475,11 +419,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.8 FINAL • بنك الأسئلة المعتمد مدمج كلياً</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v2.9 FINAL • نظام تقييم وإدارة معتمد</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك لإرسال طلب الاعتماد والدخول المباشر للامتحانات بعد اعتماد الإدارة.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -507,26 +451,21 @@ def login_portal():
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
                     
     with col2:
-        with st.form("check_status_only"):
-            st.markdown("<b>فحص حالة الاعتماد المباشر</b>", unsafe_allow_html=True)
-            chk_name = st.text_input("الاسم الرباعي المسجل")
-            chk_fac = st.text_input("الجهة / الإدارة الصحية")
-            if st.form_submit_button("🔍 فحص ودخول الامتحان", use_container_width=True):
+        # إيقونة فحص الاعتماد بناءً على بيانات التسجيل الأول فقط مع إرجاع رسالة فقط عند الضغط
+        with st.form("check_status_icon_form"):
+            st.markdown("<b>🔍 فحص حالة الاعتماد</b>", unsafe_allow_html=True)
+            chk_name = st.text_input("الاسم الرباعي المسجل للتسجيل الأول")
+            chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة")
+            if st.form_submit_button("إظهار حالة الاعتماد", use_container_width=True):
                 if chk_name and chk_fac:
-                    tr = trainee_by_credentials(chk_name, chk_fac)
-                    if tr:
-                        st.session_state.trainee_id = tr["id"]
-                        st.session_state.trainee_name = tr["name"]
-                        st.success("تم الاعتماد بنجاح! يتم نقلك للاختبار...")
-                        st.rerun()
+                    raw = get_trainee_status_raw(chk_name, chk_fac)
+                    if raw:
+                        status_msg = STATUS_AR.get(raw['status'], raw['status'])
+                        st.info(f"📋 حالة الاعتماد للـمتدرب (<b>{chk_name}</b> - {chk_fac}): <b>{status_msg}</b>")
                     else:
-                        raw = get_trainee_status_raw(chk_name, chk_fac)
-                        if raw:
-                            st.error(f"حالة طلبك الحالية: {STATUS_AR.get(raw['status'], raw['status'])}.")
-                        else:
-                            st.error("لم يتم العثور على طلب مسجل بهذا الاسم والجهة.")
+                        st.warning("⚠️ لم يتم العثور على أي تسجيل بهذا الاسم والجهة في سجلات المنصة.")
                 else:
-                    st.warning("أدخل الاسم والجهة للفحص.")
+                    st.warning("الرجاء إدخال الاسم الرباعي والجهة لفحص حالة الاعتماد.")
 
     st.markdown("---")
     with st.expander("🔐 دخول الإدارة / المالك (انقر هنا للعرض)"):
