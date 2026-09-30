@@ -7,7 +7,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (هوامش واسعة وعرض مريح)
+# 1) إعدادات التطبيق الأساسية (هوامش علوية وسفلية أوسع قليلاً)
 # ============================================================
 st.set_page_config(
     page_title="منصة اختبارات معامل المتوطنة - Professional v6.0 FINAL",
@@ -41,18 +41,23 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wGB****"  # (استبدلها بكود اللوجو الكامل لديك)
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) وترويسة الشعار في الهامش العلوي الأيسر
+# 2) حقن التنسيقات (CSS) وتوسيع الهوامش العلوية والسفلية
 # ============================================================
 st.markdown(f"""
 <style>
 html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}}
 .stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%);}}
-.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:1rem;padding-bottom:1rem;}}
-.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:10px;}}
+.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:2rem !important;padding-bottom:2rem !important;}}
+.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:15px;}}
 .card,.question{{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669;}}
 .metric{{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
 .metric .v{{font-size:22px;font-weight:800;color:#065f46;}}
 .metric .l{{color:#4b5563;font-weight:700;font-size:12px;}}
+
+/* إخفاء الشريط الجانبي نهائياً من الواجهة */
+[data-testid="stSidebar"], [data-testid="collapsedControl"] {{
+    display: none !important;
+}}
 
 /* ترويسة اللوجو والنصوص في الهامش العلوي الأيسر */
 .print-header {{
@@ -60,7 +65,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     justify-content: space-between;
     align-items: center;
     padding: 12px 18px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     border-bottom: 2px solid #006633;
     background-color: #ffffff;
     border-radius: 8px;
@@ -98,35 +103,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     }}
 }}
 
-/* مؤقت مثبت أعلى الشاشة (Sticky Timer) */
-.sticky-timer-container {{
-    position: sticky;
-    top: 0;
-    z-index: 99999;
-    background: #ffffff;
-    padding: 8px 15px;
-    border-bottom: 3px solid #f59e0b;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-radius: 0 0 10px 10px;
-    margin-bottom: 15px;
-}}
-.timer-box {{
-    font-size: 20px;
-    font-weight: 900;
-    text-align: center;
-    background: #fef3c7;
-    border: 2px solid #f59e0b;
-    padding: 8px;
-    border-radius: 8px;
-    color: #92400e;
-}}
-
-.q-img-layout{{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}}
-.q-text-side{{flex:1;text-align:right;}}
-.q-img-side{{flex:0 0 130px;text-align:left;}}
-.q-img-side img{{max-width:120px;height:auto;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;padding:3px;}}
 .stButton>button{{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease;}}
-[data-testid="stSidebar"]{{display:block !important;}}
 </style>
 
 <div class="print-header">
@@ -523,7 +500,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال التصدير والشهادات ومحاضر التدريب (شاملة اللوجو والكلمات)
+# 5) دوال التصدير والشهادات (A4 عرضي وتوسيط تام رأسياً وأفقياً)
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     with db() as c:
@@ -543,39 +520,105 @@ def generate_compact_certificate_html(sid, custom_notes=""):
     <head>
         <meta charset="UTF-8">
         <style>
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; text-align: center; background: #fff; padding: 20px; direction: rtl; }}
-            .cert {{ border: 4px solid #059669; padding: 25px; border-radius: 12px; width: 100%; max-width: 750px; margin: auto; background: #fdfbf7; position: relative; }}
-            .header-top {{ position: absolute; top: 15px; left: 15px; text-align: left; }}
-            .header-top img {{ width: 65px; height: 65px; object-fit: contain; }}
-            .footer-bottom {{ margin-top: 35px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 15px; }}
-            h1 {{ color: #065f46; font-size: 24px; margin-bottom: 5px; }}
-            h2 {{ color: #047857; font-size: 18px; }}
-            p {{ font-size: 15px; line-height: 1.8; color: #1f2937; }}
-            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px; margin-top: 15px; font-weight: bold; color: #065f46; }}
+            @page {{
+                size: A4 landscape;
+                margin: 0;
+            }}
+            body {{
+                font-family: 'Cairo', 'Tahoma', sans-serif;
+                background: #fdfbf7;
+                margin: 0;
+                padding: 0;
+                width: 297mm;
+                height: 210mm;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                direction: rtl;
+                -webkit-print-color-adjust: exact;
+            }}
+            .cert-wrapper {{
+                width: 275mm;
+                height: 188mm;
+                border: 5px solid #059669;
+                border-radius: 15px;
+                background: #ffffff;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20mm 25mm;
+                box-sizing: border-box;
+                position: relative;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            }}
+            .header-top {{
+                position: absolute;
+                top: 15mm;
+                left: 20mm;
+                text-align: left;
+            }}
+            .header-top img {{
+                width: 75px;
+                height: 75px;
+                object-fit: contain;
+            }}
+            .header-right {{
+                position: absolute;
+                top: 15mm;
+                right: 20mm;
+                text-align: right;
+                font-size: 12pt;
+                font-weight: bold;
+                color: #065f46;
+                line-height: 1.4;
+            }}
+            .cert-body {{
+                text-align: center;
+                margin-top: 15mm;
+                width: 100%;
+            }}
+            h2 {{ color: #047857; font-size: 22pt; margin-bottom: 5px; }}
+            h1 {{ color: #065f46; font-size: 32pt; margin: 15px 0; font-weight: 900; }}
+            p {{ font-size: 14pt; line-height: 1.8; color: #1f2937; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px 20px; margin: 15px auto; width: 80%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 12pt; }}
+            .footer-bottom {{
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                font-size: 11pt;
+                font-weight: bold;
+                text-align: center;
+                border-top: 2px dashed #059669;
+                padding-top: 15px;
+                margin-top: 10mm;
+            }}
         </style>
     </head>
     <body>
-        <div class="cert">
-            <div class="header-top">
-                <img src="{LOGO_BASE64}" alt="Logo">
-            </div>
-            <div style="text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.4;">
+        <div class="cert-wrapper">
+            <div class="header-right">
                 جمهورية مصر العربية - وزارة الصحة والسكان<br>
                 مديرية الشئون الصحية بالشرقية<br>
                 الإدارة الصحية بأولاد صقر
             </div>
-            <div style="margin-top: 30px;">
+            <div class="header-top">
+                <img src="{LOGO_BASE64}" alt="Logo">
+            </div>
+            
+            <div class="cert-body">
                 <h2>شهادة اجتياز اختبار رسمي معتمدة</h2>
-                <hr style="border: 1px solid #059669; margin: 10px 0;">
+                <hr style="width: 50%; border: 1px solid #059669; margin: 10px auto;">
                 <h1>{esc(r["trainee_name"])}</h1>
                 <p>
-                    الجهة: <b>{esc(r["facility"])}</b><br>
-                    اجتاز اختبار: <b>{esc(tpl_name)}</b><br>
-                    النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b><br>
-                    الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b> | رقم الشهادة: <code>{r["certificate_id"]}</code>
+                    الجهة: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
+                    النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
+                    الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
+                    رقم التحقق والشهادة: <code>{r["certificate_id"]}</code>
                 </p>
                 {f'<div class="notes-box">ملاحظات إضافية: {esc(custom_notes)}</div>' if custom_notes else ''}
             </div>
+
             <div class="footer-bottom">
                 <div>مسؤول التدريب</div>
                 <div>رئيس قسم المعامل</div>
@@ -776,7 +819,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     return html_out
 
 # ============================================================
-# 6) المسارات والشريط الجانبي (إضافة الكلمات وزر التنفيذ للطباعة والتحميل)
+# 6) المسارات والشاشات (بدون شريط جانبي)
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -784,21 +827,8 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
 def header():
     st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
-# الشريط الجانبي: مكان لإضافة الكلمات/الملاحظات واللوجو وزر التشغيل الفعلي للطباعة والتحميل على جميع الصفحات
-st.sidebar.header("🖨️ أدوات الطباعة والتقارير الشاملة")
-custom_print_notes = st.sidebar.text_input("أضف كلمات أو ملاحظات إضافية لتظهر بالهامش وعند الطباعة:", "تقرير أداء المعامل والإشراف الفني المعتمد")
-
-if st.sidebar.button("🖨️ تنفيذ الطباعة أو التحميل لجميع الصفحات", type="primary"):
-    components.html("""
-        <script>
-            window.print();
-        </script>
-    """, height=0)
-
 def login_portal():
     header()
-    st.markdown(f'<div class="card"><h3>ملاحظات التقرير الحالية:</h3><p style="color: #065f46; font-weight: bold;">{custom_print_notes}</p></div>', unsafe_allow_html=True)
-    
     col1, col2 = st.columns(2)
     with col1:
         with st.form("trainee_request"):
@@ -842,7 +872,7 @@ def admin_dashboard():
     header()
     c_info, c_btn = st.columns([4, 1])
     with c_info:
-        st.write(f"**المستخدم:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')} | **ملاحظات الطباعة:** {custom_print_notes}")
+        st.write(f"**المستخدم:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
     with c_btn:
         if st.button("تسجيل الخروج", use_container_width=True):
             audit("logout")
@@ -959,7 +989,6 @@ def admin_dashboard():
     with selected_tabs[4]:
         st.subheader("🧩 قوالب الامتحانات وإنشاء محاضر التدريب الرسمية")
         with db() as c:
-            all_cats = [r["category"] for r in c.execute("SELECT DISTINCT category FROM questions").fetchall()]
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
         
         facilities_list = ["الإدارة الصحية بأولاد صقر", "وحدة طب الأسرة", "مستشفى أولاد صقر المركزي"]
@@ -971,8 +1000,8 @@ def admin_dashboard():
                 with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
                 with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
                 
-                minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, custom_print_notes)
-                html_exam = generate_compact_exam_html(t["id"], custom_print_notes)
+                minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, "تقرير أداء المعامل والإشراف الفني المعتمد")
+                html_exam = generate_compact_exam_html(t["id"], "تقرير أداء المعامل والإشراف الفني المعتمد")
                 
                 b1, b2 = st.columns(2)
                 with b1:
@@ -992,7 +1021,7 @@ def admin_dashboard():
 
         if not df_res.empty:
             st.dataframe(df_res, use_container_width=True, hide_index=True)
-            html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end}", custom_print_notes)
+            html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end}", "تقرير أداء المعامل والإشراف الفني المعتمد")
             st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
 
     with selected_tabs[6]:
@@ -1066,7 +1095,6 @@ def exam_interface(session_id):
 
     st.progress(answered / len(rows) if rows else 0)
     
-    # إصلاح مشكلة شاشة الشكر والانتهاء للممتحن عند تسليم الامتحان
     if st.button("تسليم الاختبار نهائياً", use_container_width=True):
         res = submit_session(session_id)
         if res:
@@ -1085,7 +1113,7 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         sid = st.session_state.last_result_id
         header()
         st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
-        cert_html = generate_compact_certificate_html(sid, custom_print_notes)
+        cert_html = generate_compact_certificate_html(sid, "تقرير أداء المعامل والإشراف الفني المعتمد")
         st.download_button("📥 تحميل شهادة الاجتياز المعتمدة .html", data=cert_html.encode("utf-8"), file_name=f"certificate_{sid}.html", mime="text/html")
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
