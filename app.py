@@ -472,9 +472,24 @@ def choose_questions(t):
     remaining_slots = max(0, target - len(selected_img))
     selected_other = other_rows[:remaining_slots]
     
-    final_list = selected_img + selected_other
-    random.shuffle(final_list)
-    return final_list[:target]
+    combined_selected = selected_img + selected_other
+    random.shuffle(combined_selected)
+    
+    # ضمان منع التكرار المطلق بناءً على معرف السؤال (ID) وبصمة المحتوى (Fingerprint)
+    unique_list = []
+    seen_ids = set()
+    seen_fingerprints = set()
+    
+    for q in combined_selected:
+        q_id = q["id"]
+        q_fp = q.get("fingerprint")
+        if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints):
+            seen_ids.add(q_id)
+            if q_fp:
+                seen_fingerprints.add(q_fp)
+            unique_list.append(q)
+            
+    return unique_list[:target]
 
 def start_session(trainee_id, template_id):
     with db() as c:
@@ -1158,7 +1173,9 @@ def admin_dashboard():
                     st.write("")
                     if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
                         with db() as c:
+                            c.execute("PRAGMA foreign_keys=OFF;")
                             c.execute("DELETE FROM exam_templates WHERE id=?", (t['id'],))
+                            c.execute("PRAGMA foreign_keys=ON;")
                         audit("delete_exam_template", "exam_template", {"id": t['id'], "name": t['name']})
                         st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
                         st.rerun()
