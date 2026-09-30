@@ -37,8 +37,8 @@ STATUS_AR = {
 os.makedirs(BACKUP_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 
-# اللوجو الرسمي (محافظة الشرقية - وزارة الصحة والسكان) بصيغة Base64
-LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wGB****"  # (استبدلها بكود اللوجو الكامل لديك)
+# اللوجو المعتمد (مديرية الشئون الصحية بالشرقية) بصيغة Base64
+LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
 # 2) حقن التنسيقات (CSS) وتوسيع الهوامش العلوية والسفلية
@@ -117,7 +117,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة (كامل الـ 250 سؤالاً)
+# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -179,6 +179,11 @@ def init_db():
             created_at TEXT NOT NULL,
             last_login TEXT
         );
+        CREATE TABLE IF NOT EXISTS facilities_list (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS trainees (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             facility TEXT NOT NULL,
@@ -217,7 +222,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS exam_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             trainee_id INTEGER NOT NULL,
-            template_id INTEGER NOT NULL,
+            template_id INTEGER,
             started_at TEXT NOT NULL,
             expires_at TEXT NOT NULL,
             submitted_at TEXT,
@@ -250,10 +255,34 @@ def init_db():
             created_at TEXT NOT NULL
         );
         """)
+        
+        default_facs = ["الإدارة الصحية بأولاد صقر", "وحدة طب الأسرة بأولاد صقر", "مستشفى أولاد صقر المركزي", "وحدة الشوافين الصحية", "وحدة تلراك الصحية"]
+        for f in default_facs:
+            c.execute("INSERT OR IGNORE INTO facilities_list(name, created_at) VALUES(?, ?)", (f, now()))
+
         cursor = c.execute("PRAGMA table_info(trainees)")
         columns = [col[1] for col in cursor.fetchall()]
         if "assigned_exam_type" not in columns:
             c.execute("ALTER TABLE trainees ADD COLUMN assigned_exam_type TEXT DEFAULT 'قبل التدريب (Pre-Test)'")
+
+def get_facilities():
+    with db() as c:
+        rows = c.execute("SELECT name FROM facilities_list ORDER BY id ASC").fetchall()
+        return [r["name"] for r in rows] if rows else ["الإدارة الصحية بأولاد صقر"]
+
+def add_facility_db(fac_name):
+    norm = normalize_text(fac_name)
+    if not norm: return False
+    with db() as c:
+        try:
+            c.execute("INSERT INTO facilities_list(name, created_at) VALUES(?, ?)", (norm, now()))
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def delete_facility_db(fac_name):
+    with db() as c:
+        c.execute("DELETE FROM facilities_list WHERE name=?", (fac_name,))
 
 def reorder_question_ids():
     with db() as c:
@@ -400,11 +429,6 @@ def trainee_by_credentials(name, facility):
     with db() as c:
         r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active')",
                       (normalize_text(name), normalize_text(facility))).fetchone()
-        return dict(r) if r else None
-
-def get_trainee_status_raw_by_id(tid):
-    with db() as c:
-        r = c.execute("SELECT * FROM trainees WHERE id=?", (tid,)).fetchone()
         return dict(r) if r else None
 
 def set_trainee_status_and_exam(tid, status, assigned_exam_type):
@@ -761,7 +785,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
             .top-right-header {{ float: right; text-align: right; font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
             .top-left-logo {{ float: left; text-align: left; }}
             .top-left-logo img {{ width: 55px; height: 55px; object-fit: contain; }}
-            .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 8px; }}
+            .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 8mm; }}
             .exam-container {{ column-count: 2; column-gap: 10mm; }}
             .q-box {{ margin-bottom: 6px; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
             .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6px; margin-bottom: 8px; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
@@ -818,16 +842,17 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     """
     return html_out
 
-# دالة زر الطباعة المباشر أسفل زر التحميل مباشرة
 def render_print_button_only(html_content, label_prefix=""):
-    if st.button(f"🖨️ طباعة مباشرة ({label_prefix})", key=f"print_btn_{hash(html_content)}", use_container_width=True):
+    if st.button(f"🖨️ طباعة / حفظ PDF ({label_prefix})", key=f"print_btn_{hash(html_content)}", use_container_width=True):
         components.html(f"""
             <script>
-                var win = window.open('', '', 'height=700,width=1000');
+                var win = window.open('', '_blank', 'height=700,width=1000');
                 win.document.write(`{html_content}`);
                 win.document.close();
                 win.focus();
-                setTimeout(function(){{ win.print(); }}, 500);
+                setTimeout(function(){{ 
+                    win.print(); 
+                }}, 600);
             </script>
         """, height=0)
 
@@ -842,44 +867,44 @@ def header():
 
 def login_portal():
     header()
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.form("trainee_request"):
-            st.markdown("<b>إرسال طلب جديد ودخول المتدربين</b>", unsafe_allow_html=True)
-            facility = st.text_input("الجهة / الإدارة الصحية")
-            name = st.text_input("الاسم الرباعي")
-            phone = st.text_input("رقم الهاتف")
-            assigned_exam = st.selectbox("تحديد نوع الاختبار الأولي عند التسجيل:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)"])
-            if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
-                if facility and name:
-                    existing = trainee_by_credentials(name, facility)
-                    if existing:
-                        st.session_state.trainee_id = existing["id"]
-                        st.session_state.trainee_name = existing["name"]
-                        st.success("تم التعرف على حسابك! جاري الدخول...")
-                        st.rerun()
-                    else:
-                        tid = create_trainee(facility, name, phone, assigned_exam)
-                        st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
+    st.markdown("<b>إرسال طلب جديد ودخول المتدربين</b>", unsafe_allow_html=True)
+    
+    facs_available = get_facilities()
+    
+    with st.form("trainee_request"):
+        facility = st.selectbox("الجهة / الإدارة الصحية (اختر من القائمة أو أضف من لوحة المالك):", facs_available)
+        name = st.text_input("الاسم الرباعي")
+        phone = st.text_input("رقم الهاتف")
+        assigned_exam = st.selectbox("تحديد نوع الاختبار الأولي عند التسجيل:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)"])
+        
+        if st.form_submit_button("إرسال الطلب والدخول للمتدرب", use_container_width=True):
+            if facility and name:
+                existing = trainee_by_credentials(name, facility)
+                if existing:
+                    st.session_state.trainee_id = existing["id"]
+                    st.session_state.trainee_name = existing["name"]
+                    st.success("تم التعرف على حسابك! جاري الدخول...")
+                    st.rerun()
                 else:
-                    st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
-                    
-    with col2:
-        with st.container(border=True):
-            st.markdown("<b>🔐 دخول الإدارة / المالك</b>", unsafe_allow_html=True)
-            with st.form("admin_login_form"):
-                u = st.text_input("اسم المستخدم")
-                p = st.text_input("كلمة المرور", type="password")
-                if st.form_submit_button("تسجيل دخول الإدارة", use_container_width=True):
-                    user = login_user(u, p)
-                    if user:
-                        st.session_state.logged_in = True
-                        st.session_state.username = user["username"]
-                        st.session_state.role = user["role"]
-                        audit("login", "user", {"username": user["username"]})
-                        st.rerun()
-                    else:
-                        st.error("بيانات الدخول غير صحيحة.")
+                    tid = create_trainee(facility, name, phone, assigned_exam)
+                    st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
+            else:
+                st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
+
+    with st.expander("🔐 تسجيل دخول مالك المنصة / الإدارة العليا"):
+        with st.form("admin_login_form_hidden"):
+            u = st.text_input("اسم المستخدم الإداري")
+            p = st.text_input("كلمة المرور الإدارية", type="password")
+            if st.form_submit_button("دخول لوحة التحكم الإدارية", use_container_width=True):
+                user = login_user(u, p)
+                if user:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user["username"]
+                    st.session_state.role = user["role"]
+                    audit("login", "user", {"username": user["username"]})
+                    st.rerun()
+                else:
+                    st.error("بيانات الدخول الإدارية غير صحيحة.")
 
 def admin_dashboard():
     header()
@@ -894,7 +919,7 @@ def admin_dashboard():
             st.session_state.role = ""
             st.rerun()
 
-    tabs = ["لوحة التحكم", "اعتماد المتدربين وتحديد الاختبار", "بنك الأسئلة الشامل", "إدارة الأسئلة (إضافة/تعديل/حذف)", "قوالب ومحاضر التدريب", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
+    tabs = ["لوحة التحكم", "🏥 إدارة المنشآت", "اعتماد المتدربين وتحديد الاختبار", "بنك الأسئلة الشامل", "إدارة الأسئلة", "قوالب ومحاضر التدريب", "✍️ تسجيل نتيجة يدوي", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
         tabs += ["إدارة المستخدمين", "سجل التدقيق"]
     
@@ -914,8 +939,37 @@ def admin_dashboard():
         for box, l, v in zip(cols, ["إجمالي المتدربين", "الطلبات المعلقة", "بنك الأسئلة", "الاختبارات المقدمة", "متوسط النتائج"],
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
-            
+
     with selected_tabs[1]:
+        st.subheader("🏥 إضافة وإدارة المنشآت الصحية يدوياً")
+        with st.form("add_facility_form"):
+            new_fac_input = st.text_input("اسم المنشأة الجديدة (مستشفى، وحدة صحية، إدارة...):")
+            if st.form_submit_button("إضافة المنشأة لقائمة الاختيار", use_container_width=True):
+                if new_fac_input.strip():
+                    success = add_facility_db(new_fac_input)
+                    if success:
+                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح لتظهر للمتحنين والمالك!")
+                        st.rerun()
+                    else:
+                        st.warning("هذه المنشأة موجودة مسبقاً أو أن الاسم غير صالح.")
+                else:
+                    st.error("الرجاء كتابة اسم المنشأة.")
+        
+        st.markdown("---")
+        st.markdown("#### قائمة المنشآت المسجلة حالياً:")
+        current_facs = get_facilities()
+        for fac in current_facs:
+            col_f1, col_f2 = st.columns([4, 1])
+            col_f1.write(f"🔹 {fac}")
+            if col_f2.button("🗑️ حذف", key=f"del_fac_{fac}"):
+                if len(current_facs) > 1:
+                    delete_facility_db(fac)
+                    st.success(f"تم حذف المنشأة ({fac}) بنجاح.")
+                    st.rerun()
+                else:
+                    st.error("لا يمكن حذف آخر منشأة متبقية في النظام.")
+            
+    with selected_tabs[2]:
         st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         exam_type_options = ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"]
@@ -947,14 +1001,14 @@ def admin_dashboard():
             df_tr = trainees_df()
             st.dataframe(df_tr, use_container_width=True, hide_index=True)
 
-    with selected_tabs[2]:
+    with selected_tabs[3]:
         st.subheader("🧠 بنك الأسئلة المتكامل في قاعدة البيانات")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
         st.write(f"إجمالي الأسئلة الحالية في قاعدة البيانات: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
-    with selected_tabs[3]:
+    with selected_tabs[4]:
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
@@ -995,16 +1049,93 @@ def admin_dashboard():
                         st.rerun()
 
         with sub_img_tabs[1]:
-            st.write("تعديل الأسئلة المتاحة في النظام.")
-        with sub_img_tabs[2]:
-            st.write("حذف الأسئلة.")
+            st.subheader("✏️ تعديل سؤال موجود")
+            with db() as c:
+                all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
+            
+            if not all_questions:
+                st.info("لا توجد أسئلة متاحة للتعديل.")
+            else:
+                q_options_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions}
+                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box")
+                selected_q_id = q_options_map[selected_q_label]
+                
+                with db() as c:
+                    q_data = c.execute("SELECT * FROM questions WHERE id=?", (selected_q_id,)).fetchone()
+                
+                if q_data:
+                    current_opts = json.loads(q_data["options_json"])
+                    while len(current_opts) < 4:
+                        current_opts.append("")
+                    correct_idx = q_data["answer"] if 0 <= q_data["answer"] < len(current_opts) else 0
+                    current_correct_text = current_opts[correct_idx] if current_opts else ""
+                    
+                    with st.form("edit_question_form"):
+                        e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
+                        e_diff = st.selectbox("مستوى الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
+                        
+                        raw_q_db = q_data["question"]
+                        actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
+                        e_text = st.text_area("نص السؤال:", value=actual_text_editable)
+                        
+                        e_opt1 = st.text_input("الخيار الأول:", value=current_opts[0])
+                        e_opt2 = st.text_input("الخيار الثاني:", value=current_opts[1])
+                        e_opt3 = st.text_input("الخيار الثالث:", value=current_opts[2])
+                        e_opt4 = st.text_input("الخيار الرابع:", value=current_opts[3])
+                        
+                        e_correct_text = st.text_input("نص الإجابة الصحيحة (يجب أن تطابق أحد الخيارات أعلاه تماماً):", value=current_correct_text)
+                        
+                        if st.form_submit_button("💾 حفظ التعديلات وتحديث السؤال", use_container_width=True):
+                            if not e_text or not e_correct_text:
+                                st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
+                            else:
+                                updated_opts = [o for o in [e_opt1, e_opt2, e_opt3, e_opt4] if o.strip() != ""]
+                                if e_correct_text not in updated_opts:
+                                    updated_opts.append(e_correct_text)
+                                new_ans_idx = updated_opts.index(e_correct_text)
+                                
+                                prefix_img = ""
+                                if "IMAGE:" in raw_q_db:
+                                    parts_img = raw_q_db.split("\n\n")
+                                    if len(parts_img) > 0 and parts_img[0].startswith("IMAGE:"):
+                                        prefix_img = parts_img[0] + "\n\n"
+                                
+                                final_updated_q_str = prefix_img + e_text
+                                new_fp = hashlib.sha256((final_updated_q_str + "|" + "|".join(updated_opts)).encode("utf-8")).hexdigest()
+                                
+                                with db() as c:
+                                    c.execute("""UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?""",
+                                              (e_diff, e_cat, final_updated_q_str, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, new_fp, selected_q_id))
+                                
+                                st.success(f"✅ تم تحديث وتعديل السؤال رقم {selected_q_id} بنجاح!")
+                                st.rerun()
 
-    with selected_tabs[4]:
+        with sub_img_tabs[2]:
+            st.subheader("🗑 حذف سؤال من النظام")
+            with db() as c:
+                all_questions_del = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
+            
+            if not all_questions_del:
+                st.info("لا توجد أسئلة متاحة للحذف.")
+            else:
+                q_del_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions_del}
+                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box")
+                selected_del_id = q_del_map[selected_del_label]
+                
+                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn", use_container_width=True):
+                    with db() as c:
+                        c.execute("DELETE FROM questions WHERE id=?", (selected_del_id,))
+                    reorder_question_ids()
+                    audit("delete_question", "question", {"id": selected_del_id})
+                    st.success(f"✅ تم حذف السؤال رقم {selected_del_id} بنجاح وإعادة ترتيب أرقام بنك الأسئلة!")
+                    st.rerun()
+
+    with selected_tabs[5]:
         st.subheader("🧩 قوالب الامتحانات، محاضر التدريب، وحذف القوالب")
         with db() as c:
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
         
-        facilities_list = ["الإدارة الصحية بأولاد صقر", "وحدة طب الأسرة", "مستشفى أولاد صقر المركزي"]
+        facilities_list = get_facilities()
 
         for t in tpls:
             with st.container(border=True):
@@ -1024,7 +1155,7 @@ def admin_dashboard():
                     st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
                     render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
                 with b3:
-                    st.write("") # فاصل محاذاة
+                    st.write("")
                     if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
                         with db() as c:
                             c.execute("DELETE FROM exam_templates WHERE id=?", (t['id'],))
@@ -1032,7 +1163,49 @@ def admin_dashboard():
                         st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
                         st.rerun()
 
-    with selected_tabs[5]:
+    with selected_tabs[6]:
+        st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
+        facilities_list = get_facilities()
+        with st.form("manual_score_form"):
+            m_trainee_name = st.text_input("اسم المتدرب الرباعي:")
+            m_facility_name = st.selectbox("جهة العمل / المنشأة:", facilities_list)
+            with db() as c:
+                all_tpls = c.execute("SELECT id, name FROM exam_templates").fetchall()
+            tpl_choices = {row["name"]: row["id"] for row in all_tpls}
+            selected_tpl_name = st.selectbox("اختر قالب الاختبار المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
+            
+            col_sc1, col_sc2 = st.columns(2)
+            with col_sc1:
+                manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=100, value=20)
+            with col_sc2:
+                manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=100, value=25)
+                
+            manual_passed = st.radio("حالة الاجتياز:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
+            manual_notes = st.text_input("ملاحظات إضافية للشهادة:", "تم اجتياز التدريب العملي والنظري بنجاح بمعامل المتوطنة")
+            
+            if st.form_submit_button("💾 حفظ وتسجيل النتيجة يدوياً وإصدار الشهادة", use_container_width=True):
+                if not m_trainee_name:
+                    st.error("الرجاء إدخال اسم المتدرب.")
+                else:
+                    with db() as c:
+                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_exam_type,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                                           (normalize_text(m_facility_name), normalize_text(m_trainee_name), "0000000000", "completed", "قبل التدريب (Pre-Test)", now(), now()))
+                        new_tid = cur_tr.lastrowid
+                        
+                        tpl_id_val = tpl_choices.get(selected_tpl_name) if tpl_choices else None
+                        pct_val = (manual_score / manual_max) * 100 if manual_max > 0 else 0
+                        passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
+                        
+                        cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                             (new_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, pct_val, passed_flag))
+                        new_sid = cur_sess.lastrowid
+                        cert_code = f"ELX-{new_sid:06d}"
+                        c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
+                    
+                    audit("manual_score_entry", "session", {"session_id": new_sid, "trainee": m_trainee_name, "score": manual_score})
+                    st.success(f"✅ تم تسجيل النتيجة بنجاح للمتدرب {m_trainee_name}! برقم شهادة معتمد: **{cert_code}**")
+
+    with selected_tabs[7]:
         st.subheader("📊 تقارير قياس المستويات وطباعة الشهادات الإدارية")
         d_start = st.date_input("من تاريخ", date.today() - timedelta(days=30))
         d_end = st.date_input("إلى تاريخ", date.today())
@@ -1045,15 +1218,14 @@ def admin_dashboard():
         if not df_res.empty:
             st.dataframe(df_res, use_container_width=True, hide_index=True)
             
-            # قسم طباعة شهادة متدرب معين من قبل المالك
             st.markdown("---")
-            st.markdown("#### 🎓 طباعة شهادة متدرب معتمدة من الإدارة:")
+            st.markdown("#### 🎓 طباعة أو حفظ شهادة متدرب كـ PDF من الإدارة:")
             with db() as c:
                 submitted_sessions = c.execute("""SELECT s.id, t.name, t.facility, s.certificate_id FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""").fetchall()
             
             if submitted_sessions:
                 session_options = {f"جلسة رقم {row['id']} - المتدرب: {row['name']} ({row['facility']}) - شهادة: {row['certificate_id']}": row['id'] for row in submitted_sessions}
-                selected_sess_label = st.selectbox("اختر المتدرب لاستعراض أو طباعة شهادته:", list(session_options.keys()))
+                selected_sess_label = st.selectbox("اختر المتدرب لطباعة أو حفظ شهادته كـ PDF:", list(session_options.keys()))
                 selected_sid = session_options[selected_sess_label]
                 
                 col_cert_b1, col_cert_b2 = st.columns(2)
@@ -1068,7 +1240,7 @@ def admin_dashboard():
             st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
             render_print_button_only(html_report_str, "التقرير الشامل")
 
-    with selected_tabs[6]:
+    with selected_tabs[8]:
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
         if st.button("إنشاء نسخة احتياطية الآن"):
             path = os.path.join(BACKUP_DIR, f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
@@ -1079,11 +1251,11 @@ def admin_dashboard():
             st.success("✅ تم النسخ الاحتياطي بنجاح.")
 
     if st.session_state.role == "admin":
-        with selected_tabs[7]:
+        with selected_tabs[9]:
             st.subheader("👥 إدارة المستخدمين")
             with db() as c: users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
             st.dataframe(pd.DataFrame([dict(u) for u in users_list]), use_container_width=True, hide_index=True)
-        with selected_tabs[8]:
+        with selected_tabs[10]:
             st.subheader("🧾 سجل التدقيق")
             with db() as c: df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100", c)
             st.dataframe(df_audit, use_container_width=True, hide_index=True)
