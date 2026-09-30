@@ -475,7 +475,7 @@ def choose_questions(t):
     combined_selected = selected_img + selected_other
     random.shuffle(combined_selected)
     
-    # ضمان منع التكرار المطلق بناءً على معرف السؤال (ID) وبصمة المحتوى (Fingerprint)
+    # منع التكرار المطلق بناءً على المعرف (ID) والبصمة الرقمية للمحتوى (Fingerprint)
     unique_list = []
     seen_ids = set()
     seen_fingerprints = set()
@@ -539,7 +539,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال التصدير والشهادات (A4 عرضي وتوسيط تام رأسياً وأفقياً)
+# 5) دوال التصدير والشهادات (A4 عرضي بهامش واسع وتوسيط تام)
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     with db() as c:
@@ -577,60 +577,60 @@ def generate_compact_certificate_html(sid, custom_notes=""):
                 -webkit-print-color-adjust: exact;
             }}
             .cert-wrapper {{
-                width: 275mm;
-                height: 188mm;
-                border: 5px solid #059669;
-                border-radius: 15px;
+                width: 265mm;
+                height: 178mm;
+                border: 6px double #059669;
+                border-radius: 18px;
                 background: #ffffff;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
                 align-items: center;
-                padding: 20mm 25mm;
+                padding: 22mm 30mm;
                 box-sizing: border-box;
                 position: relative;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.06);
             }}
             .header-top {{
                 position: absolute;
                 top: 15mm;
-                left: 20mm;
+                left: 22mm;
                 text-align: left;
             }}
             .header-top img {{
-                width: 75px;
-                height: 75px;
+                width: 70px;
+                height: 70px;
                 object-fit: contain;
             }}
             .header-right {{
                 position: absolute;
                 top: 15mm;
-                right: 20mm;
+                right: 22mm;
                 text-align: right;
-                font-size: 12pt;
+                font-size: 11pt;
                 font-weight: bold;
                 color: #065f46;
                 line-height: 1.4;
             }}
             .cert-body {{
                 text-align: center;
-                margin-top: 15mm;
+                margin-top: 18mm;
                 width: 100%;
             }}
-            h2 {{ color: #047857; font-size: 22pt; margin-bottom: 5px; }}
-            h1 {{ color: #065f46; font-size: 32pt; margin: 15px 0; font-weight: 900; }}
-            p {{ font-size: 14pt; line-height: 1.8; color: #1f2937; }}
-            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px 20px; margin: 15px auto; width: 80%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 12pt; }}
+            h2 {{ color: #047857; font-size: 20pt; margin-bottom: 5px; }}
+            h1 {{ color: #065f46; font-size: 30pt; margin: 12px 0; font-weight: 900; }}
+            p {{ font-size: 13pt; line-height: 1.8; color: #1f2937; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px 20px; margin: 12px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 11pt; }}
             .footer-bottom {{
                 width: 100%;
                 display: flex;
                 justify-content: space-between;
-                font-size: 11pt;
+                font-size: 10.5pt;
                 font-weight: bold;
                 text-align: center;
                 border-top: 2px dashed #059669;
                 padding-top: 15px;
-                margin-top: 10mm;
+                margin-top: 8mm;
             }}
         </style>
     </head>
@@ -646,8 +646,8 @@ def generate_compact_certificate_html(sid, custom_notes=""):
             </div>
             
             <div class="cert-body">
-                <h2>شهادة اجتياز اختبار رسمي معتمدة</h2>
-                <hr style="width: 50%; border: 1px solid #059669; margin: 10px auto;">
+                <h2>شهادة اجتياز اختبار معتمدة</h2>
+                <hr style="width: 45%; border: 1px solid #059669; margin: 8px auto;">
                 <h1>{esc(r["trainee_name"])}</h1>
                 <p>
                     الجهة: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
