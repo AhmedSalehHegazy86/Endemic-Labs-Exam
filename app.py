@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v3.3 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v3.4 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_3.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_4.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -195,7 +195,7 @@ def init_db():
         );
         """)
 
-# دمج الـ 250 سؤالاً بالكامل والمستخرجة من المصدر المرفق[span_0](start_span)[span_0](end_span)
+# دمج الـ 250 سؤالاً بالكامل والمستخرجة من المصدر المرفق
 def seed_complete_250_question_bank():
     complete_bank = [
         {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا البولية ؟", "opts": ["بولينس - بولينس", "بيرينلا كونيكا - بيرينلا كونيكا", "بيومفلاريا - بيومفلاريا", "ليمنيا - ليمنيا"], "ans": 0},
@@ -248,7 +248,7 @@ def seed_complete_250_question_bank():
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بموقع بيومفلاريا. (صح أم خطأ)", "opts": ["صح", "خطأ"], "ans": 0},
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في البلهارسيا. (صح أم خطأ)", "opts": ["صح", "خطأ"], "ans": 0},
 
-        # أسئلة الصور والأشكال مع تضمين إشارة ورسم بصري توضيحي[span_1](start_span)[span_1](end_span)
+        # أسئلة الصور والأشكال مع تضمين إشارة ورسم بصري توضيحي
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا المعوية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية"], "ans": 3},
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا البولية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية", "الهتروفيس"], "ans": 2},
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا اليابانية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "البلهارسيا اليابانية", "البلهارسيا البولية", "الإسكارس"], "ans": 1},
@@ -406,7 +406,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال الطباعة والتحكم المحلي بالطابعات
+# 4) دوال طباعة متوافقة مع كافة المتصفحات والأجهزة (Windows, Android, macOS)
 # ============================================================
 def render_printable_certificate(sid):
     with db() as c:
@@ -439,10 +439,10 @@ def render_printable_certificate(sid):
     st.markdown(html_content, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("🖨️ **خيارات الطباعة المحلية وتحديد الطابعة:**")
-    if st.button("🖨️ طباعة الشهادة عبر طابعة النظام (Ctrl+P)", use_container_width=True, key=f"print_cert_{sid}"):
+    st.markdown("🖨️ **خيارات الطباعة عبر نظام جهازك:**")
+    st.info("💡 بالنقر على زر الطباعة أدناه، ستفتح نافذة طابعات نظامك والمتصفح (تلقائياً لويندوز، أندرويد، أو ماك) لتحديد طاعتك المفضلة.")
+    if st.button("🖨️ فتح نافذة طابعات الجهاز وطباعة الشهادة", use_container_width=True, key=f"print_cert_v4_{sid}"):
         st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
-        st.success("تم فتح نافذة الطباعة الخاصة بجهازك. اختر الطابعة المناسبة واضغط طباعة.")
 
 def render_printable_exam_paper(template_id):
     with db() as c:
@@ -475,10 +475,9 @@ def render_printable_exam_paper(template_id):
     st.markdown(exam_html, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("🖨️ **خيارات الطباعة المحلية وتحديد الطابعة:**")
-    if st.button("🖨️ طباعة النموذج الورقي عبر طابعة النظام (Ctrl+P)", use_container_width=True, key=f"print_exam_{template_id}"):
+    st.markdown("🖨️ **خيارات الطباعة عبر نظام جهازك:**")
+    if st.button("🖨️ طباعة النموذج الورقي عبر طابعات النظام", use_container_width=True, key=f"print_exam_v4_{template_id}"):
         st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
-        st.success("تم فتح نافذة الطباعة للامتحان الورقي.")
 
 # ============================================================
 # 5) المسارات وواجهات المستخدم
@@ -487,7 +486,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.3 FINAL • واجهة محسنة وبنك 250 سؤالاً</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.4 FINAL • نظام الطباعة المتوافق مع جميع الأجهزة</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -519,7 +518,7 @@ def login_portal():
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
                     
     with col2:
-        # زر فحص الاعتماد المستقل تماماً بناءً على التسجيل الأول (رسالة فقط بدون إعادة تسجيل)[span_2](start_span)[span_2](end_span)
+        # أيقونة فحص الاعتماد المستقلة بناءً على التسجيل الأول (رسالة فقط بدون إعادة تسجيل)
         with st.container(border=True):
             st.markdown("<b>🔍 أيقونة فحص حالة الاعتماد الفوري</b>", unsafe_allow_html=True)
             chk_name = st.text_input("الاسم الرباعي للمتدرب المسجل", key="check_name_input")
@@ -586,7 +585,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -779,7 +778,6 @@ def exam_interface(session_id):
             try: curr_idx = disp_opts.index(opts[row["selected_option"]])
             except: pass
             
-        # عرض نظيف للسؤال للممتحن خالي من أي تقسيمات أو مستويات أو أرقام بنك الأسئلة
         q_text = esc(row["question"])
         if "📷" in q_text:
             parts = q_text.split("\n\n", 1)
