@@ -37,7 +37,6 @@ STATUS_AR = {
 os.makedirs(BACKUP_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 
-# اللوجو المعتمد (مديرية الشئون الصحية بالشرقية) بصيغة Base64
 LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
@@ -54,12 +53,10 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
 .metric .v{{font-size:22px;font-weight:800;color:#065f46;}}
 .metric .l{{color:#4b5563;font-weight:700;font-size:12px;}}
 
-/* إخفاء الشريط الجانبي نهائياً من الواجهة */
 [data-testid="stSidebar"], [data-testid="collapsedControl"] {{
     display: none !important;
 }}
 
-/* ترويسة اللوجو والنصوص في الهامش العلوي الأيسر */
 .print-header {{
     display: flex;
     justify-content: space-between;
@@ -84,7 +81,6 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     line-height: 1.5;
 }}
 
-/* إعدادات الطباعة والتحميل المخصصة */
 @media print {{
     #MainMenu, header, footer, .stButton {{ visibility: hidden; }}
     body {{ direction: rtl; }}
@@ -288,6 +284,12 @@ def add_facility_db(fac_name):
 def delete_facility_db_by_id(fac_id):
     with db() as c:
         c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
+
+def delete_template_db_by_id(tpl_id):
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        c.execute("DELETE FROM exam_templates WHERE id=?", (tpl_id,))
+        c.execute("PRAGMA foreign_keys=ON;")
 
 def reorder_question_ids():
     with db() as c:
@@ -1020,7 +1022,7 @@ def admin_dashboard():
             for fac_item in fac_list_records:
                 col_f1, col_f2 = st.columns([4, 1])
                 col_f1.write(f"🔹 {fac_item['name']}")
-                if col_f2.button("🗑️ حذف", key=f"del_fac_id_{fac_item['id']}"):
+                if col_f2.button("🗑️ حذف", key=f"del_fac_db_{fac_item['id']}"):
                     delete_facility_db_by_id(fac_item['id'])
                     st.success(f"تم حذف المنشأة ({fac_item['name']}) بنجاح.")
                     st.rerun()
@@ -1219,11 +1221,8 @@ def admin_dashboard():
                             render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
                         with b3:
                             st.write("")
-                            if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
-                                with db() as c:
-                                    c.execute("PRAGMA foreign_keys=OFF;")
-                                    c.execute("DELETE FROM exam_templates WHERE id=?", (t['id'],))
-                                    c.execute("PRAGMA foreign_keys=ON;")
+                            if st.button(f"🗑️ حذف القالب", key=f"del_tpl_db_{t['id']}", use_container_width=True):
+                                delete_template_db_by_id(t['id'])
                                 audit("delete_exam_template", "exam_template", {"id": t['id'], "name": t['name']})
                                 st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
                                 st.rerun()
