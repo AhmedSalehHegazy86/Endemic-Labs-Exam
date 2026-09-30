@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v4.6 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v4.7 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_6.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_7.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -63,7 +63,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة الكامل (250 سؤالاً)
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة المثبت (250 سؤالاً)
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -266,15 +266,15 @@ def seed_complete_250_question_bank():
 
     with db() as c:
         c.execute("DELETE FROM questions")
-        for q in complete_bank:
+        for idx, q in enumerate(complete_bank, start=1):
             fp = hashlib.sha256((q["q"] + "|" + "|".join(q["opts"])).encode("utf-8")).hexdigest()
-            c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
-                         VALUES(?,?,?,?,?,?,?,?)""",
-                      (q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
+            c.execute("""INSERT OR IGNORE INTO questions(id,difficulty,category,question,options_json,answer,active,fingerprint,created_at)
+                         VALUES(?,?,?,?,?,?,?,?,?)""",
+                      (idx, q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
         if c.execute("SELECT COUNT(*) n FROM exam_templates").fetchone()["n"] == 0:
-            c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) 
-                         VALUES(?,?,?,?,?,?)""",
-                      ("الاختبار الشامل لمكافحة المتوطنة (الـ 250 سؤالاً)", "قبل التدريب (Pre-Test)", 25, 50, 60.0, now()))
+            c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
+                         VALUES(?,?,?,?,?,?,?)""",
+                      ("الاختبار الشامل لمكافحة المتوطنة (الـ 250 سؤالاً)", "قبل التدريب (Pre-Test)", 25, 50, 60.0, json.dumps(categories_pool, ensure_ascii=False), now()))
 
 def ensure_admin():
     with db() as c:
@@ -342,8 +342,13 @@ def trainees_df(status=None):
         return pd.read_sql_query(q, c, params=args)
 
 def choose_questions(t):
+    cats = json.loads(t["categories_json"]) if t["categories_json"] else []
     with db() as c:
-        rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1").fetchall()]
+        if cats:
+            placeholders = ",".join(["?"] * len(cats))
+            rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders})", cats).fetchall()]
+        else:
+            rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1").fetchall()]
     target = int(t["num_questions"])
     if len(rows) < target: target = len(rows)
     random.shuffle(rows)
@@ -396,7 +401,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (HTML والطباعة المباشرة لفتح نافذة خيارات الطباعة)
+# 4) دوال التصدير (HTML والطباعة المباشرة)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -420,10 +425,6 @@ def generate_compact_certificate_html(sid):
             h1 {{ color: #065f46; font-size: 28px; margin-bottom: 10px; }}
             h2 {{ color: #047857; font-size: 22px; }}
             p {{ font-size: 18px; line-height: 2.2; color: #1f2937; }}
-            @media print {{
-                body {{ background: #fff; padding: 0; }}
-                .cert {{ border: 4px solid #000; box-shadow: none; width: 100%; }}
-            }}
         </style>
     </head>
     <body>
@@ -461,10 +462,6 @@ def generate_compact_exam_html(template_id):
             .img-box {{ background: #f1f5f9; border: 2px dashed #059669; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; font-weight: bold; color: #065f46; font-size: 14px; }}
             ul {{ list-style-type: none; padding-right: 20px; margin: 8px 0; }}
             li {{ margin-bottom: 6px; font-size: 11pt; }}
-            @media print {{
-                body {{ padding: 0; }}
-                .q-box {{ border: 1px solid #999; box-shadow: none; }}
-            }}
         </style>
     </head>
     <body>
@@ -481,9 +478,9 @@ def generate_compact_exam_html(template_id):
             parts = q_text.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>🖼️ {img_title}</div><p>{actual_q}</p><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1} [ID: {q['id']}]:</b><div class='img-box'>🖼️ {img_title}</div><p>{actual_q}</p><ul>"
         else:
-            html_out += f"<div class='q-box'><b>س {idx+1}: {q_text}</b><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1} [ID: {q['id']}]: {q_text}</b><ul>"
             
         for opt in opts:
             html_out += f"<li>[ &nbsp; ] {esc(opt)}</li>"
@@ -499,11 +496,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.6 FINAL • أزرار مخترة وتفعيل خيارات الطباعة المباشرة</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.7 FINAL • إدارة القوالب وبنك الأسئلة المتقدم</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h3>🧑‍‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر.</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -522,7 +519,7 @@ def login_portal():
                         st.rerun()
                     else:
                         tid = create_trainee(facility, name, phone)
-                        st.info(f"تم إرسال طلبك برقم تسلسلي ({tid}). احتفظ بهذا الرقم للاستعلام الفوري. بانتظار موافقة الإدارة.")
+                        st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**. يرجى الاحتفاظ به للاستعلام الفوري وبانتظار اعتماد الإدارة.")
                 else:
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
                     
@@ -567,7 +564,7 @@ def admin_dashboard():
             st.session_state.role = ""
             st.rerun()
 
-    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة (250 سؤالاً)", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
+    tabs = ["لوحة التحكم", "اعتماد المتدربين", "بنك الأسئلة (250 سؤالاً مثبتاً)", "قوالب وامتحانات ورقية", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
     if st.session_state.role == "admin":
         tabs += ["إدارة المستخدمين", "سجل التدقيق"]
     
@@ -589,7 +586,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
             
     with selected_tabs[1]:
-        st.subheader("🧑‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين والتحكم بالصلاحيات")
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -598,7 +595,7 @@ def admin_dashboard():
             else:
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
-                        st.write(f"**رقم التسجيل:** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
+                        st.write(f"**رقم التسجيل (ID):** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
                         b1, b2 = st.columns(2)
                         if b1.button("✅ موافقة واعتماد", key=f"app_{r['id']}"):
                             set_trainee_status(int(r['id']), "approved")
@@ -617,29 +614,34 @@ def admin_dashboard():
                 st.download_button("📥 تصدير المتدربين Excel", buf.getvalue(), file_name="trainees_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with selected_tabs[2]:
-        st.subheader("🧠 بنك الأسئلة المتكامل (250 سؤالاً حقيقياً معتمداً بالكامل)")
+        st.subheader("🧠 بنك الأسئلة المتكامل المثبت (معرفات دائمة لجميع الـ 250 سؤالاً)")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
-        st.write(f"إجمالي الأسئلة المدمجة في النظام: **{len(df_q)}** سؤالاً.")
+        st.write(f"إجمالي الأسئلة المثبتة في النظام: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("🧩 قوالب الاختبارات (إدارة حصرية لمديري النظام)")
+        st.subheader("🧩 قوالب الاختبارات وإدارة الأقسام")
         
+        with db() as c:
+            all_cats = [r["category"] for r in c.execute("SELECT DISTINCT category FROM questions").fetchall()]
+
         if st.session_state.role == "admin":
             with st.form("new_tpl"):
-                st.markdown("<b>إضافة قالب اختبار جديد (للمديرين فقط)</b>", unsafe_allow_html=True)
+                st.markdown("<b>إضافة قالب اختبار جديد وتخصيص الأقسام (للمديرين فقط)</b>", unsafe_allow_html=True)
                 t_name = st.text_input("اسم القالب")
                 t_type = st.selectbox("تصنيف الاختبار", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
                 t_num = st.number_input("عدد الأسئلة", 1, 100, 25)
                 t_dur = st.number_input("المدة (بالدقائق)", 5, 180, 45)
                 t_pass = st.number_input("نسبة النجاح %", 1.0, 100.0, 60.0)
+                selected_cats = st.multiselect("اختر الأقسام المطلوبة لهذا القالب (اتركها فارغة لتشمل كافة الأقسام)", all_cats, default=all_cats)
+                
                 if st.form_submit_button("حفظ القالب الجديد"):
                     if t_name.strip():
                         with db() as c:
-                            c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,created_at) VALUES(?,?,?,?,?,?)""",
-                                      (t_name, t_type, t_num, t_dur, t_pass, now()))
-                        st.success("تم إنشاء قالب الاختبار بنجاح بواسطة المدير.")
+                            c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) VALUES(?,?,?,?,?,?,?)""",
+                                      (t_name, t_type, t_num, t_dur, t_pass, json.dumps(selected_cats, ensure_ascii=False), now()))
+                        st.success("تم إنشاء قالب الاختبار وتخصيص أقسامه بنجاح بواسطة المدير.")
                         st.rerun()
         else:
             st.info("🔒 ميزة إنشاء وتعديل قوالب الاختبارات مقتصرة حصرياً على مديري النظام (Admins).")
@@ -648,11 +650,14 @@ def admin_dashboard():
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
         for t in tpls:
             with st.container(border=True):
+                cats_list = ", ".join(json.loads(t["categories_json"])) if t["categories_json"] else "جميع الأقسام"
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
+                st.write(f"📌 **الأقسام المخصصة:** {cats_list}")
+                
                 html_exam = generate_compact_exam_html(t["id"])
                 html_bytes = html_exam.encode("utf-8")
                 
-                b_html, b_pdf = st.columns(2)
+                b_html, b_pdf, b_del = st.columns(3)
                 with b_html:
                     st.download_button(
                         label="📥 تحميل .html",
@@ -672,6 +677,13 @@ def admin_dashboard():
                             setTimeout(function(){{ win.print(); }}, 500);
                         </script>
                         """, height=0)
+                with b_del:
+                    if st.session_state.role == "admin":
+                        if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
+                            with db() as c:
+                                c.execute("DELETE FROM exam_templates WHERE id=?", (t["id"],))
+                            st.success(f"تم حذف القالب ({t['name']}) بنجاح.")
+                            st.rerun()
 
     with selected_tabs[4]:
         st.subheader("📊 التقارير المتقدمة والتصدير (يومي، أسبوعي، شهري، سنوي)")
@@ -783,13 +795,13 @@ def trainee_portal():
         st.rerun()
         
     header()
-    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])}</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | رقم التسجيل (ID): <b>{tr["id"]}</b></p></div>', unsafe_allow_html=True)
     
     with db() as c:
         ts = c.execute("SELECT * FROM exam_templates WHERE active=1").fetchall()
     
     with st.form("start_exam_form"):
-        tid = st.selectbox("اختر قالب الاختبار (قبل/بعد التدريب)", [t["id"] for t in ts], format_func=lambda x: next(f"{t['name']} ({t['exam_type']})" for t in ts if t["id"] == x))
+        tid = st.selectbox("اختر قالب الاختبار المخصص", [t["id"] for t in ts], format_func=lambda x: next(f"{t['name']} ({t['exam_type']})" for t in ts if t["id"] == x))
         if st.form_submit_button("بدء الاختبار الآن", use_container_width=True):
             try:
                 sid = start_session(tr["id"], tid)
@@ -806,7 +818,7 @@ def trainee_portal():
 def exam_interface(session_id):
     with db() as c:
         session = c.execute("SELECT * FROM exam_sessions WHERE id=?", (session_id,)).fetchone()
-        rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
+        rows = c.execute("""SELECT eq.*, q.id q_orig_id, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
         
     remaining = max(0, int((datetime.fromisoformat(session["expires_at"]) - datetime.now()).total_seconds()))
     if remaining <= 0:
@@ -829,13 +841,14 @@ def exam_interface(session_id):
             except: pass
             
         q_text = esc(row["question"])
+        q_display_id = row["q_orig_id"]
         if "📷" in q_text:
             parts = q_text.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1}) [ID: {q_display_id}]</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br>{q_text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1}) [ID: {q_display_id}]</b><br>{q_text}</div>', unsafe_allow_html=True)
 
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
