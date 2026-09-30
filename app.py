@@ -169,7 +169,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS exam_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
-            exam_type TEXT NOT NULL DEFAULT 'تدريبي (قبل التدريب)',
+            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب (Pre-Test)',
             num_questions INTEGER NOT NULL DEFAULT 25,
             duration_minutes INTEGER NOT NULL DEFAULT 45,
             pass_percent REAL NOT NULL DEFAULT 60,
@@ -643,7 +643,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • مؤقت تنازلي (ساعات ودقائق وثوانٍ) مثبت أعلى صفحة الامتحان ومتزامن بدقة</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • تقارير الفترة الزمنية المخصصة (من تاريخ إلى تاريخ) مع التصنيف وربط التقييمات</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -983,73 +983,64 @@ def admin_dashboard():
                             st.rerun()
 
     with selected_tabs[5]:
-        st.subheader("📊 التقارير المتقدمة والتصدير (يومي، أسبوعي، شهري، سنوي)")
+        st.subheader("📊 تقارير الفترة الزمنية المخصصة (من تاريخ إلى تاريخ)")
+        st.markdown("حدد الفترة الزمنية المطلوبة بدقة لعرض تقارير المتدربين والتقييمات وربطها بأنواع الاختبارات (قبل التدريب، بعد التدريب، تقييم شامل):", unsafe_allow_html=True)
         
-        c_p1, c_p2 = st.columns(2)
-        period_type = c_p1.selectbox("اختر الفترة الزمنية للتقرير", ["الكل", "يومي", "أسبوعي", "شهري", "كل 3 أشهر", "نصف سنوي", "سنوي", "فترة مخصصة"])
+        c_date1, c_date2 = st.columns(2)
+        d_start = c_date1.date_input("من تاريخ", date.today() - timedelta(days=30))
+        d_end = c_date2.date_input("إلى تاريخ", date.today())
         
-        start_filter = None
-        end_filter = datetime.now()
-        
-        if period_type == "يومي":
-            start_filter = datetime.now() - timedelta(days=1)
-        elif period_type == "أسبوعي":
-            start_filter = datetime.now() - timedelta(weeks=1)
-        elif period_type == "شهري":
-            start_filter = datetime.now() - timedelta(days=30)
-        elif period_type == "كل 3 أشهر":
-            start_filter = datetime.now() - timedelta(days=90)
-        elif period_type == "نصف سنوي":
-            start_filter = datetime.now() - timedelta(days=180)
-        elif period_type == "سنوي":
-            start_filter = datetime.now() - timedelta(days=365)
-        elif period_type == "فترة مخصصة":
-            d_start = c_p2.date_input("من تاريخ", date.today() - timedelta(days=30))
-            d_end = c_p2.date_input("إلى تاريخ", date.today())
-            start_filter = datetime.combine(d_start, datetime.min.time())
-            end_filter = datetime.combine(d_end, datetime.max.time())
+        start_dt_str = datetime.combine(d_start, datetime.min.time()).isoformat()
+        end_dt_str = datetime.combine(d_end, datetime.max.time()).isoformat()
 
         with db() as c:
-            query = """SELECT s.id, s.submitted_at, t.name trainee_name, t.facility, et.name template_name, et.exam_type, s.score, s.max_score, s.percent, s.passed, s.certificate_id 
+            query = """SELECT 
+                           s.id AS 'رقم الجلسة',
+                           t.name AS 'اسم المتدرب',
+                           t.facility AS 'جهة العمل',
+                           et.name AS 'اسم الاختبار',
+                           et.exam_type AS 'تصنيف التقييم',
+                           s.score AS 'الدرجة',
+                           s.max_score AS 'الدرجة الكلية',
+                           s.percent AS 'النسبة المئوية %',
+                           CASE WHEN s.passed = 1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'حالة الاجتياز',
+                           s.certificate_id AS 'رقم الشهادة',
+                           s.submitted_at AS 'تاريخ ووقت التسليم'
                        FROM exam_sessions s 
-                       JOIN trainees t ON t.id=s.trainee_id 
-                       JOIN exam_templates et ON et.id=s.template_id 
-                       WHERE s.status='submitted'"""
-            params = []
-            if start_filter and period_type != "الكل":
-                query += " AND s.submitted_at >= ?"
-                params.append(start_filter.isoformat())
-                query += " AND s.submitted_at <= ?"
-                params.append(end_filter.isoformat())
-            query += " ORDER BY s.id DESC"
-            df_res = pd.read_sql_query(query, c, params=params)
+                       JOIN trainees t ON t.id = s.trainee_id 
+                       JOIN exam_templates et ON et.id = s.template_id 
+                       WHERE s.status = 'submitted' 
+                         AND s.submitted_at >= ? 
+                         AND s.submitted_at <= ? 
+                       ORDER BY s.submitted_at DESC"""
+            df_res = pd.read_sql_query(query, c, params=[start_dt_str, end_dt_str])
 
         if not df_res.empty:
-            st.write(f"عدد النتائج ضمن الفترة المحددة: **{len(df_res)}**")
+            st.success(f"✅ تم العثور على **{len(df_res)}** تقييم مسجل ضمن الفترة الزمنية المحددة.")
             st.dataframe(df_res, use_container_width=True, hide_index=True)
             
             xbuf = io.BytesIO()
             with pd.ExcelWriter(xbuf, engine="openpyxl") as writer:
-                df_res.to_excel(writer, index=False, sheet_name="Exam_Reports")
-            st.download_button("📥 تصدير تقارير التقييمات Excel", xbuf.getvalue(), file_name=f"evaluation_report_{period_type}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                df_res.to_excel(writer, index=False, sheet_name="Filtered_Reports")
+            st.download_button("📥 تصدير تقارير الفترة المحددة Excel", xbuf.getvalue(), file_name=f"evaluation_report_{d_start}_to_{d_end}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
             st.markdown("---")
-            st.subheader("📥 تحميل أو طباعة الشهادة")
-            sid_p = st.selectbox("اختر جلسة الاختبار لخيارات الشهادة", df_res.id.tolist())
+            st.subheader("📥 معاينة وتحميل أو طباعة شهادة المتدرب ضمن النتائج")
+            sid_p = st.selectbox("اختر رقم جلسة الاختبار لعرض شهادتها المعتمدة", df_res['رقم الجلسة'].tolist())
             if sid_p:
                 cert_html = generate_compact_certificate_html(int(sid_p))
                 cert_bytes = cert_html.encode("utf-8")
                 b_ch, b_cp = st.columns(2)
                 with b_ch:
                     st.download_button(
-                        label="📥 تحميل .html",
+                        label="📥 تحميل الشهادة .html",
                         data=cert_bytes,
                         file_name=f"certificate_{sid_p}.html",
                         mime="text/html",
                         key=f"dl_cert_html_{sid_p}"
                     )
                 with b_cp:
-                    if st.button(f"🖨️ طباعة .pdf", key=f"print_cert_pdf_{sid_p}", use_container_width=True):
+                    if st.button(f"🖨️ طباعة الشهادة .pdf", key=f"print_cert_pdf_{sid_p}", use_container_width=True):
                         components.html(f"""
                         <script>
                             var win = window.open('', '_blank');
@@ -1060,7 +1051,7 @@ def admin_dashboard():
                         </script>
                         """, height=0)
         else:
-            st.info("لا توجد تقييمات مسجلة خلال الفترة الزمنية المحددة.")
+            st.info("⚠️ لا توجد تقييمات مسجلة ضمن هذه الفترة الزمنية المحددة. جرب اختيار نطاق تاريخ آخر.")
 
     with selected_tabs[6]:
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
@@ -1119,7 +1110,6 @@ def exam_interface(session_id):
         
     expires_str = session["expires_at"]
     
-    # مؤقت تنازلي (ساعات ودقائق وثوانٍ) متزامن وثابت أعلى الصفحة باستخدام JavaScript
     timer_html = f"""
     <div class="sticky-timer-container">
         <div class="timer-box" id="exam-timer-display">⏱️ جاري مزامنة الوقت وتحديث العد التنازلي...</div>
