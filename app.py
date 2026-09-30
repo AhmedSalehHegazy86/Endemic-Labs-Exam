@@ -818,12 +818,8 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     """
     return html_out
 
-# دالة مساعدة لعرض معاينة وزر طباعة مباشر تحت الـ HTML
-def render_html_preview_and_print_button(html_content, label_prefix=""):
-    with st.expander(f"👁️ معاينة المستند المباشرة ({label_prefix})"):
-        components.html(html_content, height=450, scrolling=True)
-    
-    # زر الطباعة المباشر أسفل زر التحميل مباشرة
+# دالة زر الطباعة المباشر أسفل زر التحميل مباشرة (بدون معاينة)
+def render_print_button_only(html_content, label_prefix=""):
     if st.button(f"🖨️ طباعة مباشرة ({label_prefix})", key=f"print_btn_{hash(html_content)}", use_container_width=True):
         components.html(f"""
             <script>
@@ -1004,7 +1000,7 @@ def admin_dashboard():
             st.write("حذف الأسئلة.")
 
     with selected_tabs[4]:
-        st.subheader("🧩 قوالب الامتحانات وإنشاء محاضر التدريب الرسمية")
+        st.subheader("🧩 قوالب الامتحانات، محاضر التدريب، وحذف القوالب")
         with db() as c:
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
         
@@ -1012,7 +1008,7 @@ def admin_dashboard():
 
         for t in tpls:
             with st.container(border=True):
-                st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}`")
+                st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | المعرف: `{t['id']}`")
                 col_m1, col_m2 = st.columns(2)
                 with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
                 with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
@@ -1020,13 +1016,21 @@ def admin_dashboard():
                 minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, "تقرير أداء المعامل والإشراف الفني المعتمد")
                 html_exam = generate_compact_exam_html(t["id"], "تقرير أداء المعامل والإشراف الفني المعتمد")
                 
-                b1, b2 = st.columns(2)
+                b1, b2, b3 = st.columns(3)
                 with b1:
-                    st.download_button("📥 تحميل محضر التدريب .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
-                    render_html_preview_and_print_button(minutes_html, f"محضر تدريب {t['id']}")
+                    st.download_button("📥 تحميل المحضر .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
+                    render_print_button_only(minutes_html, f"محضر التدريب {t['id']}")
                 with b2:
-                    st.download_button("📥 تحميل نموذج الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
-                    render_html_preview_and_print_button(html_exam, f"نموذج امتحان {t['id']}")
+                    st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
+                    render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
+                with b3:
+                    st.write("") # فاصل محاذاة
+                    if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
+                        with db() as c:
+                            c.execute("DELETE FROM exam_templates WHERE id=?", (t['id'],))
+                        audit("delete_exam_template", "exam_template", {"id": t['id'], "name": t['name']})
+                        st.success(f"✅ تم حذف القالب ({t['name']}) بنجاح!")
+                        st.rerun()
 
     with selected_tabs[5]:
         st.subheader("📊 تقارير قياس المستويات")
@@ -1042,7 +1046,7 @@ def admin_dashboard():
             st.dataframe(df_res, use_container_width=True, hide_index=True)
             html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end}", "تقرير أداء المعامل والإشراف الفني المعتمد")
             st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
-            render_html_preview_and_print_button(html_report_str, "التقرير الشامل")
+            render_print_button_only(html_report_str, "التقرير الشامل")
 
     with selected_tabs[6]:
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
@@ -1135,7 +1139,7 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
         cert_html = generate_compact_certificate_html(sid, "تقرير أداء المعامل والإشراف الفني المعتمد")
         st.download_button("📥 تحميل شهادة الاجتياز المعتمدة .html", data=cert_html.encode("utf-8"), file_name=f"certificate_{sid}.html", mime="text/html")
-        render_html_preview_and_print_button(cert_html, f"الشهادة المعتمدة {sid}")
+        render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
             st.session_state.last_result_id = None
