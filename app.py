@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v3.5 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v3.6 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_5.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v3_6.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,42 +40,31 @@ st.markdown("""
 html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
 .stApp{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%)}
 .block-container{max-width:1500px;padding-top:1rem}
-.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:24px;border-radius:20px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.15);margin-bottom:20px}
-.card,.question{background:#fff;padding:20px;border-radius:16px;margin-bottom:16px;box-shadow:0 4px 15px rgba(0,0,0,0.08);border-right:6px solid #059669}
-.metric{background:#fff;padding:18px;border-radius:15px;text-align:center;border-top:4px solid #059669;box-shadow:0 4px 12px rgba(0,0,0,0.06)}
-.metric .v{font-size:26px;font-weight:800;color:#065f46}
-.metric .l{color:#4b5563;font-weight:700;font-size:14px}
-.timer{font-size:24px;font-weight:900;text-align:center;background:#fef3c7;border:2px solid #f59e0b;padding:12px;border-radius:12px;color:#92400e}
-.img-box{background:#f8fafc;border:2px dashed #059669;padding:15px;border-radius:12px;text-align:center;margin-bottom:12px;font-weight:bold;color:#065f46}
-.stButton>button{border-radius:12px;font-weight:800;min-height:46px;transition:all 0.3s ease}
+.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:20px;border-radius:15px;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,0.12);margin-bottom:15px}
+.card,.question{background:#fff;padding:18px;border-radius:14px;margin-bottom:14px;box-shadow:0 3px 12px rgba(0,0,0,0.06);border-right:5px solid #059669}
+.metric{background:#fff;padding:15px;border-radius:12px;text-align:center;border-top:4px solid #059669;box-shadow:0 3px 10px rgba(0,0,0,0.05)}
+.metric .v{font-size:24px;font-weight:800;color:#065f46}
+.metric .l{color:#4b5563;font-weight:700;font-size:13px}
+.timer{font-size:22px;font-weight:900;text-align:center;background:#fef3c7;border:2px solid #f59e0b;padding:10px;border-radius:10px;color:#92400e}
+.img-box{background:#f8fafc;border:2px dashed #059669;padding:12px;border-radius:10px;text-align:center;margin-bottom:10px;font-weight:bold;color:#065f46;font-size:14px}
+.stButton>button{border-radius:10px;font-weight:800;min-height:42px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
+/* تنسيق مضغوط ومخصص لطباعة واحتواء المساحات في أقل عدد ورقات A4 */
 @page {
     size: A4;
-    margin: 15mm;
+    margin: 10mm;
 }
-
 @media print {
-    body * { visibility: hidden !important; }
-    .printable-area, .printable-area * { visibility: visible !important; }
-    .printable-area {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        background: white !important;
-        padding: 10px !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-        border: none !important;
-    }
+    body { font-size: 11pt; color: #000; background: #fff; }
     .stButton, header, footer, .stMarkdown hr { display: none !important; }
+    .compact-print-box { border: 1px solid #ccc; padding: 10px; margin-bottom: 8px; page-break-inside: avoid; }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وتضمين بنك الأسئلة بالكامل ودقيق
+# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة (250 سؤالاً)
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -202,7 +191,6 @@ def init_db():
         );
         """)
 
-# بنك الأسئلة المراجع بدقة مطابقة تامة للخيارات والإجابات الصحيحة
 def seed_complete_250_question_bank():
     complete_bank = [
         {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا البولية ؟", "opts": ["بولينس (Bulinus)", "بيرينلا كونيكا", "بيومفلاريا", "ليمنيا"], "ans": 0},
@@ -248,7 +236,6 @@ def seed_complete_250_question_bank():
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بقوقع بيومفلاريا كوسيط.", "opts": ["صح", "خطأ"], "ans": 0},
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في دورة البلهارسيا.", "opts": ["صح", "خطأ"], "ans": 0},
 
-        # أسئلة الصور والأشكال بدقة متناهية
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا المعوية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية (Schistosoma mansoni)"], "ans": 3},
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا البولية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية ذات الشوكة الطرفية (Schistosoma haematobium)", "الهتروفيس"], "ans": 2},
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة الفاشيولا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا الكبدية ذات الغطاء (Fasciola hepatica)", "التينيا"], "ans": 2},
@@ -402,77 +389,72 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير والطباعة بمقاس A4 المتوافق
+# 4) دوال التصدير والتحميل المباشر لملفات PDF بمقاس A4 المضغوط
 # ============================================================
-def render_printable_certificate(sid):
+def generate_compact_certificate_html(sid):
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
-    if not r: return
+    if not r: return ""
     status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
     
-    html_content = f"""
-    <div class="printable-area" style="text-align:center; border: 4px solid #059669; padding: 30px; border-radius: 15px; background: white; margin: 10px auto; width: 100%; max-width: 800px;">
-        <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
-        <hr style="border: 1px solid #059669; margin: 15px 0;">
-        <h1 style="color: #065f46; margin-bottom: 20px;">شهادة اجتياز اختبار رسمي</h1>
-        <p style="font-size: 18px; line-height: 2;">
-            تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 22px; color: #047857;">{esc(r["trainee_name"])}</b><br>
-            التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
-            قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
-            بالنتيجة النهائية: <b>{r["score"]} / {r["max_score"]} ({r["percent"]:.1f}%)</b><br>
-            الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
-            رقم الشهادة المعتمد: <code>{r["certificate_id"]}</code><br>
-            تاريخ الاعتماد والتسليم: {esc(r["submitted_at"])}
-        </p>
-        <br>
-        <div style="display: flex; justify-content: space-between; margin-top: 40px; font-weight: bold; font-size: 16px;">
-            <div>توقيع المسؤول العلمي</div>
-            <div>ختم الجهة المعتمد</div>
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head><meta charset="UTF-8"><style>
+        body {{ font-family: 'Tahoma', sans-serif; text-align: center; background: #fff; padding: 20px; }}
+        .cert {{ border: 4px solid #059669; padding: 30px; border-radius: 12px; width: 100%; max-width: 700px; margin: auto; }}
+        h1 {{ color: #065f46; }}
+        p {{ font-size: 16px; line-height: 1.8; }}
+    </style></head>
+    <body>
+        <div class="cert">
+            <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
+            <hr style="border: 1px solid #059669;">
+            <h1>شهادة اجتياز اختبار رسمي</h1>
+            <p>
+                تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 20px; color: #047857;">{esc(r["trainee_name"])}</b><br>
+                التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
+                قد أتم/ت بنجاح اختبار: <b>{esc(r["template_name"])}</b><br>
+                النتيجة النهائية: <b>{r["score"]} / {r["max_score']} ({r["percent"]:.1f}%)</b><br>
+                الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
+                رقم الشهادة: <code>{r["certificate_id"]}</code> | التاريخ: {esc(r["submitted_at"])}
+            </p>
         </div>
-    </div>
+    </body>
+    </html>
     """
-    st.markdown(html_content, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("🖨️ **خيارات الطباعة والتصدير بمقاس A4:**")
-    if st.button("🖨️ طباعة الشهادة أو حفظ كملف PDF (A4)", use_container_width=True, key=f"print_cert_v5_{sid}"):
-        st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
 
-def render_printable_exam_paper(template_id):
+def generate_compact_exam_html(template_id):
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         qs = choose_questions(t)
     
-    exam_html = f"""
-    <div class="printable-area" style="background: white; padding: 20px; text-align: right; width: 100%; max-width: 800px; margin: 0 auto;">
-        <div style="text-align:center;">
-            <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
-            <h3>نموذج امتحان ورقي: {esc(t['name'])}</h3>
-            <p>المدة الزمنية: {t['duration_minutes']} دقيقة | إجمالي الأسئلة: {len(qs)}</p>
-            <hr style="border: 1px solid #333; margin: 10px 0;">
+    html_out = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head><meta charset="UTF-8"><style>
+        body {{ font-family: 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; font-size: 11pt; }}
+        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }}
+        .q-box {{ margin-bottom: 10px; page-break-inside: avoid; }}
+        ul {{ list-style-type: none; padding-right: 15px; margin: 5px 0; }}
+        li {{ margin-bottom: 3px; }}
+    </style></head>
+    <body>
+        <div class="header">
+            <h3>🔬 المنصة الرقمية لاختبارات معامل المتوطنة - نموذج امتحان: {esc(t['name'])}</h3>
+            <p>المدة: {t['duration_minutes']} دقيقة | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................................ | الجهة: ........................</p>
         </div>
-        <div style="line-height: 1.8; font-size: 15px;">
-            <p><b>اسم المتدرب:</b> ........................................................................ | <b>الجهة:</b> ....................................</p>
-            <br>
     """
     for idx, q in enumerate(qs):
         opts = json.loads(q["options_json"])
-        exam_html += f"<p><b>س {idx+1}: {esc(q['question'])}</b></p><ul style='list-style-type: none; padding-right: 15px;'>"
+        html_out += f"<div class='q-box'><b>س {idx+1}: {esc(q['question'])}</b><ul>"
         for opt in opts:
-            exam_html += f"<li>[ &nbsp; ] {esc(opt)}</li>"
-        exam_html += "</ul><br>"
+            html_out += f"<li>[ &nbsp; ] {esc(opt)}</li>"
+        html_out += "</ul></div>"
         
-    exam_html += """
-        </div>
-    </div>
-    """
-    st.markdown(exam_html, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("🖨️ **خيارات الطباعة والتصدير بمقاس A4:**")
-    if st.button("🖨️ طباعة النموذج الورقي أو حفظ كملف PDF (A4)", use_container_width=True, key=f"print_exam_v5_{template_id}"):
-        st.markdown('<script>window.print();</script>', unsafe_allow_html=True)
+    html_out += "</body></html>"
+    return html_out
 
 # ============================================================
 # 5) المسارات وواجهات المستخدم
@@ -481,7 +463,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.5 FINAL • دقة مطابقة بنك الأسئلة والطباعة القياسية A4</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v3.6 FINAL • تصدير PDF مقاس A4 عالي الكفاءة ومضغوط المساحات</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -614,7 +596,7 @@ def admin_dashboard():
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("🧩 قوالب الاختبارات (قبل/بعد التدريب) وطباعة النماذج الورقية")
+        st.subheader("🧩 قوالب الاختبارات (قبل/بعد التدريب) وتحميل النماذج الورقية PDF")
         with st.form("new_tpl"):
             st.markdown("<b>إضافة قالب اختبار جديد وتصنيفه</b>", unsafe_allow_html=True)
             t_name = st.text_input("اسم القالب")
@@ -635,8 +617,14 @@ def admin_dashboard():
         for t in tpls:
             with st.container(border=True):
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
-                if st.button(f"🖨️ معاينة وطباعة امتحان ورقي ({t['name']})", key=f"prnt_exam_{t['id']}"):
-                    render_printable_exam_paper(t["id"])
+                html_exam = generate_compact_exam_html(t["id"])
+                st.download_button(
+                    label=f"📥 تحميل امتحان ({t['name']}) بصيغة HTML/PDF (مضغوط A4)",
+                    data=html_exam,
+                    file_name=f"exam_template_{t['id']}.html",
+                    mime="text/html",
+                    key=f"dl_exam_{t['id']}"
+                )
 
     with selected_tabs[4]:
         st.subheader("📊 التقارير المتقدمة والتصدير (يومي، أسبوعي، شهري، سنوي)")
@@ -690,10 +678,17 @@ def admin_dashboard():
             st.download_button("📥 تصدير تقارير التقييمات Excel", xbuf.getvalue(), file_name=f"evaluation_report_{period_type}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
             st.markdown("---")
-            st.subheader("🖨️ طباعة الشهادة الرسمية للمتدرب")
-            sid_p = st.selectbox("اختر جلسة الاختبار لطباعة الشهادة", df_res.id.tolist())
+            st.subheader("📥 تحميل وتحويل شهادة المتدرب إلى ملف PDF (مضغوط A4)")
+            sid_p = st.selectbox("اختر جلسة الاختبار لتحميل الشهادة", df_res.id.tolist())
             if sid_p:
-                render_printable_certificate(int(sid_p))
+                cert_html = generate_compact_certificate_html(int(sid_p))
+                st.download_button(
+                    label="📥 تحميل شهادة الاجتياز بصيغة PDF (A4)",
+                    data=cert_html,
+                    file_name=f"certificate_{sid_p}.html",
+                    mime="text/html",
+                    key=f"dl_cert_{sid_p}"
+                )
         else:
             st.info("لا توجد تقييمات مسجلة خلال الفترة الزمنية المحددة.")
 
@@ -804,7 +799,13 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         sid = st.session_state.last_result_id
         header()
         st.success("تم تسليم الاختبار بنجاح!")
-        render_printable_certificate(sid)
+        cert_html = generate_compact_certificate_html(sid)
+        st.download_button(
+            label="📥 تحميل شهادة الاجتياز بصيغة PDF (A4)",
+            data=cert_html,
+            file_name=f"certificate_{sid}.html",
+            mime="text/html"
+        )
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
             st.session_state.last_result_id = None
