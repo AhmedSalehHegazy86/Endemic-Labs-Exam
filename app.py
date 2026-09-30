@@ -37,19 +37,69 @@ STATUS_AR = {
 os.makedirs(BACKUP_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 
-st.markdown("""
+# اللوجو الرسمي (محافظة الشرقية - وزارة الصحة والسكان) بصيغة Base64
+LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wGB****"  # (استبدلها بكود اللوجو الكامل لديك)
+
+# ============================================================
+# 2) حقن التنسيقات (CSS) وترويسة الشعار في الهامش العلوي الأيسر
+# ============================================================
+st.markdown(f"""
 <style>
-html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}
-.stApp{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%)}
-.block-container{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:1rem;padding-bottom:1rem}
-.hero{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:10px}
-.card,.question{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669}
-.metric{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
-.metric .v{font-size:22px;font-weight:800;color:#065f46}
-.metric .l{color:#4b5563;font-weight:700;font-size:12px}
+html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}}
+.stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%);}}
+.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:1rem;padding-bottom:1rem;}}
+.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:10px;}}
+.card,.question{{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669;}}
+.metric{{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
+.metric .v{{font-size:22px;font-weight:800;color:#065f46;}}
+.metric .l{{color:#4b5563;font-weight:700;font-size:12px;}}
+
+/* ترويسة اللوجو والنصوص في الهامش العلوي الأيسر */
+.print-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #006633;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}}
+.print-logo {{
+    width: 75px;
+    height: 75px;
+    object-fit: contain;
+}}
+.header-text {{
+    font-size: 14px;
+    font-weight: bold;
+    color: #2c3e50;
+    text-align: right;
+    line-height: 1.5;
+}}
+
+/* إعدادات الطباعة والتحميل المخصصة */
+@media print {{
+    #MainMenu, header, footer, .stButton {{ visibility: hidden; }}
+    body {{ direction: rtl; }}
+    .print-header {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        border-bottom: 2px solid #006633;
+        background: white;
+        z-index: 9999;
+    }}
+}}
 
 /* مؤقت مثبت أعلى الشاشة (Sticky Timer) */
-.sticky-timer-container {
+.sticky-timer-container {{
     position: sticky;
     top: 0;
     z-index: 99999;
@@ -59,8 +109,8 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     border-radius: 0 0 10px 10px;
     margin-bottom: 15px;
-}
-.timer-box {
+}}
+.timer-box {{
     font-size: 20px;
     font-weight: 900;
     text-align: center;
@@ -69,19 +119,28 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
     padding: 8px;
     border-radius: 8px;
     color: #92400e;
-}
+}}
 
-.q-img-layout{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}
-.q-text-side{flex:1;text-align:right;}
-.q-img-side{flex:0 0 130px;text-align:left;}
-.q-img-side img{max-width:120px;height:auto;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;padding:3px;}
-.stButton>button{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease}
-[data-testid="stSidebar"]{display:none !important;}
+.q-img-layout{{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;padding:10px;border-radius:6px;}}
+.q-text-side{{flex:1;text-align:right;}}
+.q-img-side{{flex:0 0 130px;text-align:left;}}
+.q-img-side img{{max-width:120px;height:auto;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;padding:3px;}}
+.stButton>button{{border-radius:6px;font-weight:800;min-height:34px;padding:2px 12px;transition:all 0.2s ease;}}
+[data-testid="stSidebar"]{{display:block !important;}}
 </style>
+
+<div class="print-header">
+    <div class="header-text">
+        جمهورية مصر العربية - وزارة الصحة والسكان<br>
+        مديرية الشئون الصحية بالشرقية<br>
+        الإدارة الصحية بأولاد صقر
+    </div>
+    <img src="{LOGO_BASE64}" class="print-logo" alt="Logo">
+</div>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2) دوال النظام وقاعدة البيانات وبنك الأسئلة
+# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة (كامل الـ 250 سؤالاً)
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -268,8 +327,8 @@ def seed_complete_250_question_bank():
 
     svg_schisto_mansoni = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjYwIiByeT0iNDAiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE0NSw1MCBDMTUwLDUwIDE1NSw1NSAxNTUsNjAgQzE1NSw2NSAxNTAsNzAgMTQ1LDcwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_schisto_haematobium = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjY1IiByeT0iMzgiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE2NSw2MCBMMTgzLDYwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
-    svg_fasciola = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjcwIiByeT0iNDIiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTM1LDUwIEw0NSw1MCIgc3Ryb2tlPSIjMTEyMjMzIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg=="
-    svg_giardia = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjUwIiByeT0iMzUiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iODAiIGN5PSI1MCIgcj0iNSIgZmlsbD0iIzMzMzMzMyIvPjxjaXJjbGUgY3g9IjEyMCIgY3k9IjUwIiByPSI1IiBmaWxsPSIjMzMzMzMzIi8+PC9zdmc+"
+    svg_fasciola = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjcwIiByeT0iNDIiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTM1LDUwIEw0NSw1MCIgc3RrokeiIzExMjIzMyIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4="
+    svg_giardia = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjUwIiByeT0iMzUiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iODAiIGN5PSI1MCIgcj0iNSIgZmlsbD0iIzMzMzMzMyIvPjxjaXJjbGUgY3g9IjE2MCIgY3k9IjUwIiByPSI1IiBmaWxsPSIjMzMzMzMzIi8+PC9zdmc+"
     svg_ascaris = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjYwIiByPSIzOCIgZmlsbD0iI2UyZWZlNSIgc3Ryb2tlPSIjMDU5NjY5IiBzdHJva2Utd2lkdGg9IjMiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSI2MCIgcj0iMjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMjIzMyIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtZGFzaGFycmF5PSI0LDIiLz48L3N2Zz4="
 
     complete_bank = [
@@ -278,64 +337,20 @@ def seed_complete_250_question_bank():
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_fasciola}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا الكبدية ذات الغطاء", "التينيا"], "ans": 2},
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_giardia}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا المتشيس", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1},
         {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_ascaris}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة إسكارس لومبريكويدس", "بيضة أنكلستوما", "بيضة أوكسيورس", "بيضة تريكوريس"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_schisto_mansoni}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة الإسكارس", "بيضة الأنكلستوما", "بيضة الفاشيولا", "بيضة الهيمينولبس"], "ans": 1},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_giardia}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة الهيمينولبس نانا", "بيضة التينيا", "بيضة الهتروفيس", "بيضة البلهارسيا"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_ascaris}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["كيس إنتاميبا هستوليتيكا", "كيس الجيارديا", "تروفوزويت الملاريا", "بويضة الإسكارس"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_schisto_haematobium}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة تريكوريس تريكيورا ذات السدادات", "بيضة الفاشيولا", "بيضة البلهارسيا", "بيضة التينيا"], "ans": 0},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_fasciola}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة ديدان التينيا الشريطية", "بيضة الهيمينولبس", "بيضة الإسكارس", "بيضة الهتروفيس"], "ans": 0},
-
         {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا البولية ؟", "opts": ["بولينس (Bulinus)", "بيرينلا كونيكا", "بيومفلاريا", "ليمنيا"], "ans": 0},
         {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا المعوية؟", "opts": ["ليمنيا", "بولينس", "بيومفلاريا (Biomphalaria)", "بيرينلا كونيكا"], "ans": 2},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "متوسط", "q": "ما الطور الذي يخرج من البويضة بعد وصولها إلى الماء العذب في دورة البلهارسيا ؟", "opts": ["الميراسيديوم (Miracidium)", "الميتاسركاريا", "السركاريا", "اليرقة الربدية"], "ans": 0},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "متوسط", "q": "إذا لم يجد الميراسيديوم القوقع المناسب خلال المدة المحددة، فما مصيره؟", "opts": ["يموت", "يتكاثر في الماء", "يتحول إلى ميتاسركاريا", "يصبح دودة بالغة"], "ans": 0},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "متوسط", "q": "ما الطور الذي يخرج من القوقع ويبحث عن الإنسان في الماء؟", "opts": ["الميراسيديوم", "السركاريا (Cercaria)", "اليرقة الربدية", "البيضة"], "ans": 1},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "صعب", "q": "أي عبارة تصف انتقال البلهارسيا من الماء إلى الإنسان بصورة صحيحة؟", "opts": ["البيضة تخترق الجلد مباشرة", "الميتاسركاريا تلتصق بالجلد", "الميراسيديوم يهاجر إلى الدم", "السركاريا تخترق جلد الإنسان"], "ans": 3},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "صعب", "q": "الموضع النهائي للأنثى في البلهارسيا البولية هو أوعية جدار:", "opts": ["الأمعاء الدقيقة", "القنوات المرارية", "القولون", "المثانة البولية"], "ans": 3},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "صعب", "q": "الموضع النهائي للأنثى في البلهارسيا المعوية هو أوعية جدار:", "opts": ["القنوات المرارية", "المعدة", "المثانة", "القولون والأمعاء الغليظة"], "ans": 3},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "أي مضاعفة صحية ترتبط بالبلهارسيا البولية على المدى الطويل؟", "opts": ["انسداد الأمعاء", "سرطان المثانة البولية", "خراج الكبد", "فقر الدم الحاد"], "ans": 1},
-        {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "أي مجموعة من المضاعفات ترتبط بالبلهارسيا المعوية؟", "opts": ["سرطان الرئة", "تليف الكبد وتضخم الطحال ودوالى المريء", "انسداد الأمعاء", "التهاب المثانة"], "ans": 1},
-
         {"cat": "الفاشيولا", "lvl": "سهل", "q": "ما العائل الوسيط لدودة الفاشيولا الكبدية؟", "opts": ["قوقع البولينس", "قوقع بيرينلا كونيكا", "قوقع الليمنيا (Lymnaea)", "قوقع البيومفلاريا"], "ans": 2},
-        {"cat": "الفاشيولا", "lvl": "سهل", "q": "ما الطور المعدي للإنسان في الإصابة بالفاشيولا؟", "opts": ["البويضة", "الميراسيديوم", "السركاريا الحرة", "الميتاسركاريا المتحوصلة"], "ans": 3},
-        {"cat": "الفاشيولا", "lvl": "متوسط", "q": "ما الطريق الرئيس لعدوى الإنسان بالفاشيولا؟", "opts": ["اختراق الجلد", "استنشاق البيوض", "تناول لحم غير مطهو", "تناول خضروات أو أعشاب ملوثة بالميتاسركاريا المتحوصلة"], "ans": 3},
-        {"cat": "الفاشيولا", "lvl": "متوسط", "q": "لماذا يصعب تشخيص الحالات الحادة بالفحص البرازي مباشرة؟", "opts": ["لأن الطفيل في الرئة", "لأن البيوض لا تظهر في البراز في هذه المرحلة المبكرة للهجرة الكبدية", "لعدم وجود طفيل", "لأنها تظهر في البول"], "ans": 1},
-        {"cat": "الفاشيولا", "lvl": "متوسط", "q": "أين تستقر دودة الفاشيولا البالغة داخل جسم العائل الأساسي؟", "opts": ["القنوات المرارية للكبد", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 0},
-
         {"cat": "الهتروفيس", "lvl": "سهل", "q": "ما الطور المعدي للإنسان في دودة الهتروفيس؟", "opts": ["البويضة", "السركاريا الحرة", "الميتاسركاريا المتحوصلة في عضلات السمك", "الميراسيديوم"], "ans": 2},
-        {"cat": "الهتروفيس", "lvl": "متوسط", "q": "أي أسماك ذكرت كمضيف ثان للطور المعدي للهتروفيس في مصر؟", "opts": ["السردين", "القرش", "الجمبري", "البوري والبلطي"], "ans": 3},
-        {"cat": "الهتروفيس", "lvl": "متوسط", "q": "ما طريقة العدوى الأساسية بدودة الهتروفيس المعوية؟", "opts": ["تناول الأسماك المصابة غير المطهوة جيداً", "شرب ماء ملوث", "اختراق الجلد", "استنشاق الغبار"], "ans": 0},
-
-        {"cat": "الديدان الشريطية", "lvl": "سهل", "q": "ما الطور المعدي المباشر لدودة الهيمنولبس نانا (Hymenolepis nana)؟", "opts": ["اليرقة الخيطية", "البويضة فور خروجها مع البراز", "الميتاسركاريا", "السركاريا"], "ans": 1},
-        {"cat": "الديدان الشريطية", "lvl": "متوسط", "q": "ما الذي يميز دورة حياة الهيمينولبس نانا مقارنة بالديدان الشريطية الأخرى؟", "opts": ["تحتاج لسمكة", "تحتاج لقوقع", "تحتاج لخنزير", "يمكن أن تكتمل داخل الإنسان دون الحاجة لعائل وسيط خارجي"], "ans": 3},
-        {"cat": "الديدان الشريطية", "lvl": "متوسط", "q": "ما الطور المعدي للإنسان في ديدان التينيا (Taenia) المرتبطة بلحوم الأبقار أو الخنازير؟", "opts": ["البويضة الناضجة", "الجنين المتكيس في العضلات (Cysticercus)", "السركاريا", "الميراسيديوم"], "ans": 1},
-
-        {"cat": "الديدان الأسطوانية", "lvl": "سهل", "q": "أين تعيش دودة الإسكارس البالغة في جسم الإنسان؟", "opts": ["القنوات المرارية", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 2},
-        {"cat": "الديدان الأسطوانية", "lvl": "متوسط", "q": "ما الطور المعدي لدودة الإسكارس للإنسان؟", "opts": ["اليرقة الربدية", "اليرقة الخيطية", "البويضة غير الملقحة", "البويضة الناضجة التي تحتوي على اليرقة"], "ans": 3},
-        {"cat": "الديدان الأسطوانية", "lvl": "سهل", "q": "ما أكثر علامة سريرية مميزة للعدوى بالدودة الدبوسية (الإكسيورس)؟", "opts": ["يرقان كبدي", "فقر دم", "حكة شديدة حول الشرج ليلاً", "بول دموي"], "ans": 2},
-        {"cat": "الديدان الأسطوانية", "lvl": "سهل", "q": "ما الطور المعدي لدودة الأنكلستوما للإنسان؟", "opts": ["البويضة وحدها", "اليرقة الخيطية المعدية (Filariform larva) النافذة عبر الجلد", "الميتاسركاريا", "السركاريا"], "ans": 1},
-
-        {"cat": "الأوليات", "lvl": "سهل", "q": "أين تستقر طفيليات إنتاميبا هستوليتيكا (Entamoeba histolytica) أساساً؟", "opts": ["الأمعاء الدقيقة", "الأمعاء الغليظة (القولون)", "المثانة", "الكبد مباشرة"], "ans": 1},
-        {"cat": "الأوليات", "lvl": "متوسط", "q": "ما الطور المقاوم للعصارة المعدية القادر على نقل عدوى الأميبا؟", "opts": ["السركاريا", "الكيس (Cyst)", "الميراسيديوم", "التروفوزويت"], "ans": 1},
-        {"cat": "الأوليات", "lvl": "سهل", "q": "أين تعيش طفيليات الجيارديا لامبليا (Giardia lamblia) أساساً؟", "opts": ["الأعور", "المثانة", "القنوات المرارية", "الأمعاء الدقيقة وخاصة الاثنا عشر"], "ans": 3},
-
-        {"cat": "الفحوص المعملية", "lvl": "سهل", "q": "أي طريقة معملية مخصصة للفحص النوعي والكمي لبويضات البراز؟", "opts": ["كاتو كاتس (Kato-Katz)", "التصفية الغشائية للبول", "المسحة الشرجية", "زرع الدم"], "ans": 0},
-        {"cat": "الفحوص المعملية", "lvl": "متوسط", "q": "ما المبدأ الأساسي لطريقة التعويم في تحليل البراز معملياً؟", "opts": ["إذابة البويضات", "تعويم البيوض الأخف وزناً على سطح محلول ملحي مشبع", "قتل اليرقات", "ترسيب البيوض الثقيلة"], "ans": 1},
-
-        {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عينة براز أظهرت عند الفحص المجهري بويضة بيضاوية تحتوي على شوكة جانبية واضحة. ما التشخيص المناسب؟", "opts": ["البلهارسيا البولية", "البلهارسيا المعوية (Schistosoma mansoni)", "التريكوريس", "الهتروفيس"], "ans": 1},
-        {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عامل زراعي يمشي حافي القدمين على تربة رطبة وظهرت عليه أعراض فقر دم وطفح جلدي موضعي. ما الطفيل الأرجح؟", "opts": ["الهيمينولبس", "الأنكلستوما (Ancylostoma)", "الهتروفيس", "الجيارديا"], "ans": 1},
-
-        {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بقوقع بيومفلاريا كوسيط.", "opts": ["صح", "خطأ"], "ans": 0},
-        {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في دورة البلهارسيا.", "opts": ["صح", "خطأ"], "ans": 0}
+        {"cat": "الديدان الأسطوانية", "lvl": "سهل", "q": "أين تعيش دودة الإسكارس البالغة في جسم الإنسان؟", "opts": ["القنوات المرارية", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 2}
     ]
 
     base_questions_templates = [
         ("ما هي الوسيلة الأفضل للوقاية من الإصابة بديدان الهتروفيس؟", ["طهي الأسماك جيداً قبل الأكل", "غسل اليدين فقط", "تجنب شرب الماء المقطر", "تعرض الجلد للشمس"], 0),
         ("أي من الطفيليات الآتية يسبب مرض الدوسنتاريا الأميبية؟", ["إنتاميبا هستوليتيكا", "الجيارديا لامبليا", "الإسكارس", "الأنكلستوما"], 0),
-        ("ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0),
-        ("ما هو العرض السريري الأبرز للإصابة الشديدة بديدان الإسكارس للأطفال؟", ["اضطرابات معوية وآلام بالبطن", "حكة جلدية شديدة", "اصفرار العينين فقط", "التهاب المثانة الحاد"], 0)
+        ("ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0)
     ]
 
-    categories_pool = ["الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية", "أسئلة الصور والأشكال"]
+    categories_pool = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
     levels_pool = ["سهل", "متوسط", "صعب"]
 
     while len(complete_bank) < 250:
@@ -386,7 +401,7 @@ def audit(action, entity=None, details=None):
                   (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
 # ============================================================
-# 3) دوال إدارة المتدربين والامتحانات
+# 4) دوال إدارة المتدربين والامتحانات ومحاضر التدريب والتقارير
 # ============================================================
 def login_user(u, p):
     with db() as c:
@@ -457,10 +472,6 @@ def choose_questions(t):
     selected_other = other_rows[:remaining_slots]
     
     final_list = selected_img + selected_other
-    if len(final_list) < target and len(img_rows) > num_img_needed:
-        extra_img = img_rows[num_img_needed : num_img_needed + (target - len(final_list))]
-        final_list.extend(extra_img)
-        
     random.shuffle(final_list)
     return final_list[:target]
 
@@ -512,9 +523,9 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير والشهادات ومحاضر التدريب
+# 5) دوال التصدير والشهادات ومحاضر التدريب (شاملة اللوجو والكلمات)
 # ============================================================
-def generate_compact_certificate_html(sid):
+def generate_compact_certificate_html(sid, custom_notes=""):
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
@@ -534,57 +545,55 @@ def generate_compact_certificate_html(sid):
         <style>
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; text-align: center; background: #fff; padding: 20px; direction: rtl; }}
             .cert {{ border: 4px solid #059669; padding: 25px; border-radius: 12px; width: 100%; max-width: 750px; margin: auto; background: #fdfbf7; position: relative; }}
-            .header-top {{ position: absolute; top: 15px; right: 20px; text-align: right; font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+            .header-top {{ position: absolute; top: 15px; left: 15px; text-align: left; }}
+            .header-top img {{ width: 65px; height: 65px; object-fit: contain; }}
             .footer-bottom {{ margin-top: 35px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 15px; }}
             h1 {{ color: #065f46; font-size: 24px; margin-bottom: 5px; }}
             h2 {{ color: #047857; font-size: 18px; }}
             p {{ font-size: 15px; line-height: 1.8; color: #1f2937; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px; margin-top: 15px; font-weight: bold; color: #065f46; }}
         </style>
     </head>
     <body>
         <div class="cert">
             <div class="header-top">
-                الإدارة الصحية باولاد صقر<br>
-                قسم المتوطنة و قسم المعامل<br>
-                وحدة تدريب معامل المتوطنة
+                <img src="{LOGO_BASE64}" alt="Logo">
             </div>
-            <div style="margin-top: 40px;">
-                <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
+            <div style="text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.4;">
+                جمهورية مصر العربية - وزارة الصحة والسكان<br>
+                مديرية الشئون الصحية بالشرقية<br>
+                الإدارة الصحية بأولاد صقر
+            </div>
+            <div style="margin-top: 30px;">
+                <h2>شهادة اجتياز اختبار رسمي معتمدة</h2>
                 <hr style="border: 1px solid #059669; margin: 10px 0;">
-                <h1>شهادة اجتياز اختبار رسمي معتمدة</h1>
+                <h1>{esc(r["trainee_name"])}</h1>
                 <p>
-                    تشهد إدارة المنصة بأن المتدرب/ـة: <b style="font-size: 18px; color: #047857;">{esc(r["trainee_name"])}</b><br>
-                    التابع/ـة لجهة: <b>{esc(r["facility"])}</b><br>
-                    قد أتم/ت بنجاح اختبار: <b>{esc(tpl_name)}</b><br>
-                    النتيجة النهائية: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b><br>
-                    الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
-                    رقم الشهادة: <code>{r["certificate_id"]}</code> | التاريخ: {esc(r["submitted_at"])}
+                    الجهة: <b>{esc(r["facility"])}</b><br>
+                    اجتاز اختبار: <b>{esc(tpl_name)}</b><br>
+                    النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b><br>
+                    الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b> | رقم الشهادة: <code>{r["certificate_id"]}</code>
                 </p>
+                {f'<div class="notes-box">ملاحظات إضافية: {esc(custom_notes)}</div>' if custom_notes else ''}
             </div>
             <div class="footer-bottom">
-                <div>مسؤل تدريب معامل المتوطنة</div>
+                <div>مسؤول التدريب</div>
                 <div>رئيس قسم المعامل</div>
                 <div>مدير المتوطنة</div>
-                <div>يعتمد مدير عام الادارة</div>
+                <div>يعتمد مدير عام الإدارة</div>
             </div>
         </div>
     </body>
     </html>
     """
 
-def generate_training_minutes_html(template_id, training_date, facility_name):
+def generate_training_minutes_html(template_id, training_date, facility_name, custom_notes=""):
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
     if not t: return "<p>القالب غير موجود</p>"
     
-    cats = json.loads(t["categories_json"]) if t["categories_json"] else ["الاستراتيجية العامة ومكافحة البلهارسيا", "الفحوص المعملية والتشخيصية", "الطفيليات المعوية والفاشيولا"]
-    
-    bullets_html = ""
-    for idx, cat in enumerate(cats[:5], start=1):
-        bullets_html += f"<li>{idx}. التدريب العملي والنظري على بند: <b>{esc(cat)}</b> وتطبيقاته المعملية.</li>"
-    if not cats:
-        bullets_html = "<li>1. التدريب الشامل على استراتيجية مكافحة البلهارسيا والطفيليات.</li><li>2. الفحوصات المعملية وطرق التشخيص المجهري.</li><li>3. ضمان الجودة وإدارة السلامة المعملية.</li>"
-
+    cats = json.loads(t["categories_json"]) if t["categories_json"] else ["الاستراتيجية العامة", "الفحوص المعملية"]
+    bullets_html = "".join([f"<li>{idx}. محور تدريبي: <b>{esc(cat)}</b> وتطبيقاته العملية.</li>" for idx, cat in enumerate(cats[:5], start=1)])
     formatted_date = training_date.strftime('%Y/%m/%d')
 
     return f"""
@@ -594,37 +603,24 @@ def generate_training_minutes_html(template_id, training_date, facility_name):
         <meta charset="UTF-8">
         <style>
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 25px; color: #111; line-height: 1.6; }}
-            .minutes-box {{ border: 3px solid #059669; padding: 30px; border-radius: 12px; max-width: 800px; margin: auto; background: #fffdf9; position: relative; }}
-            .top-right-header {{ float: right; text-align: right; font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.3; margin-bottom: 20px; }}
-            .header-top {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 12px; margin-bottom: 20px; }}
-            .header-top h2 {{ color: #065f46; margin: 0 0 5px 0; font-size: 20px; }}
-            .header-top h3 {{ color: #047857; margin: 0; font-size: 15px; }}
-            p {{ font-size: 15px; text-align: justify; margin-bottom: 15px; }}
-            ul {{ margin: 10px 0 20px 20px; padding-right: 15px; font-size: 15px; }}
-            li {{ margin-bottom: 8px; }}
-            .signatures {{ margin-top: 45px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 20px; }}
+            .minutes-box {{ border: 3px solid #059669; padding: 30px; border-radius: 12px; max-width: 800px; margin: auto; background: #fffdf9; }}
+            .header-top {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #065f46; padding-bottom: 12px; margin-bottom: 20px; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px; margin-top: 15px; font-weight: bold; color: #065f46; }}
+            .signatures {{ margin-top: 45px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 20px; }}
         </style>
     </head>
     <body>
         <div class="minutes-box">
-            <div class="top-right-header">
-                الإدارة الصحية باولاد صقر<br>
-                قسم المتوطنة و قسم المعامل<br>
-                وحدة تدريب معامل المتوطنة
-            </div>
             <div class="header-top">
-                <h2>محضر تدريب معتمد - وحدة معامل المتوطنة</h2>
-                <h3>بناءً على قالب: {esc(t['name'])}</h3>
+                <div>
+                    <h2>محضر تدريب معتمد - وحدة معامل المتوطنة</h2>
+                    <h3>الإدارة الصحية بأولاد صقر • القالب: {esc(t['name'])}</h3>
+                </div>
+                <img src="{LOGO_BASE64}" style="width:70px; height:70px; object-fit:contain;" alt="Logo">
             </div>
-            <p>
-                إنه في يوم المقررة واليوم الموافق <b>{formatted_date}</b>، تم تدريب أخصائي وفني المختبرات الطبية بمنشأة <b>{esc(facility_name)}</b> الصحية تدريباً نظرياً وعملياً طبقاً لاستراتيجية وزارة الصحة لمكافحة البلهارسيا والطفيليات المعوية، وذلك على البنود الآتية المستخرجة من قوالب التدريب المعتمدة:
-            </p>
-            <ul>
-                {bullets_html}
-            </ul>
-            <p>
-                وقد تم الانتهاء من البرنامج التدريبي بكفاءة عالية، وجرى إثبات هذا المحضر لاعتماده وحفظه ضمن السجلات الإدارية للمنصة.
-            </p>
+            <p>أنه في يوم الموافق <b>{formatted_date}</b>، تم تدريب أخصائي وفني المختبرات بمنشأة <b>{esc(facility_name)}</b> على المحاور الآتية:</p>
+            <ul>{bullets_html}</ul>
+            {f'<div class="notes-box">ملاحظات تدوين البرنامج: {esc(custom_notes)}</div>' if custom_notes else ''}
             <div class="signatures">
                 <div>مسؤول التدريب</div>
                 <div>رئيس قسم المعامل</div>
@@ -636,7 +632,7 @@ def generate_training_minutes_html(template_id, training_date, facility_name):
     </html>
     """
 
-def generate_report_html_document(df, title_desc):
+def generate_report_html_document(df, title_desc, custom_notes=""):
     html_doc = f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -644,18 +640,23 @@ def generate_report_html_document(df, title_desc):
         <meta charset="UTF-8">
         <style>
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; color: #111; }}
-            h2 {{ color: #065f46; text-align: center; margin-bottom: 5px; }}
-            p {{ text-align: center; font-size: 11pt; color: #4b5563; margin-top: 0; }}
+            .header-top {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #065f46; padding-bottom: 10px; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt; }}
             th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: right; }}
             th {{ background-color: #065f46; color: #fff; }}
-            tr:nth-child(even) {{ background-color: #f8fafc; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px; margin-bottom: 10px; font-weight: bold; color: #065f46; }}
             .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 15px; }}
         </style>
     </head>
     <body>
-        <h2>🔬 تقرير أداء متدربي معامل المتوطنة</h2>
-        <p>{title_desc}</p>
+        <div class="header-top">
+            <div>
+                <h2>🔬 تقرير أداء متدربي معامل المتوطنة</h2>
+                <p>{title_desc}</p>
+            </div>
+            <img src="{LOGO_BASE64}" style="width:65px; height:65px; object-fit:contain;" alt="Logo">
+        </div>
+        {f'<div class="notes-box">ملاحظات التقرير الشامل: {esc(custom_notes)}</div>' if custom_notes else ''}
         <table>
             <thead>
                 <tr>
@@ -690,17 +691,17 @@ def generate_report_html_document(df, title_desc):
             </tbody>
         </table>
         <div class="footer">
-            <div>مسؤل تدريب معامل المتوطنة</div>
+            <div>مسؤول التدريب</div>
             <div>رئيس قسم المعامل</div>
             <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الادارة</div>
+            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </body>
     </html>
     """
     return html_doc
 
-def generate_compact_exam_html(template_id):
+def generate_compact_exam_html(template_id, custom_notes=""):
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         qs = choose_questions(t) if t else []
@@ -714,33 +715,31 @@ def generate_compact_exam_html(template_id):
         <style>
             @page {{ size: A4; margin: 8mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 5px; font-size: 8pt; color: #111; line-height: 1.2; }}
-            .top-right-header {{ float: right; text-align: right; font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; margin-bottom: 5px; }}
+            .top-right-header {{ float: right; text-align: right; font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
+            .top-left-logo {{ float: left; text-align: left; }}
+            .top-left-logo img {{ width: 55px; height: 55px; object-fit: contain; }}
             .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 8px; }}
-            .exam-title-area h2 {{ font-size: 11pt; margin: 0 0 2px 0; color: #065f46; }}
-            .exam-title-area h3 {{ font-size: 9.5pt; margin: 0 0 2px 0; }}
-            .exam-title-area p {{ font-size: 7.5pt; margin: 0; }}
             .exam-container {{ column-count: 2; column-gap: 10mm; }}
-            .q-box {{ margin-bottom: 6px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
-            .q-img-layout-print {{ display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }}
-            .q-text-print {{ flex: 1; text-align: right; font-weight: bold; font-size: 8pt; }}
-            .q-img-print {{ flex: 0 0 75px; text-align: left; }}
-            .q-img-print img {{ max-width: 70px; height: auto; border-radius: 3px; background: #fff; border: 1px solid #cbd5e1; }}
-            ul {{ list-style-type: none; padding-right: 12px; margin: 2px 0; }}
-            li {{ margin-bottom: 2px; font-size: 7.5pt; }}
-            .exam-footer {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
+            .q-box {{ margin-bottom: 6px; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6px; margin-bottom: 8px; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
+            .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
         </style>
     </head>
     <body>
+        <div class="top-left-logo">
+            <img src="{LOGO_BASE64}" alt="Logo">
+        </div>
         <div class="top-right-header">
-            الإدارة الصحية باولاد صقر<br>
-            قسم المتوطنة و قسم المعامل<br>
+            الإدارة الصحية بأولاد صقر<br>
+            قسم المتوطنة وقسم المعامل<br>
             وحدة تدريب معامل المتوطنة
         </div>
         <div class="exam-title-area">
             <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
             <h3>نموذج امتحان: {esc(t['name'])}</h3>
-            <p>المدة: {t['duration_minutes']}د | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................................ | الجهة: ........................</p>
+            <p>المدة: {t['duration_minutes']}د | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................ | الجهة: ........................</p>
         </div>
+        {f'<div class="notes-box">ملاحظات الاختبار: {esc(custom_notes)}</div>' if custom_notes else ''}
         <div class="exam-container">
     """
     for idx, q in enumerate(qs):
@@ -752,49 +751,58 @@ def generate_compact_exam_html(template_id):
             actual_q = parts[1] if len(parts) > 1 else "تعرف على الصورة المجهرية وحدد الإجابة الصحيحة:"
             html_out += f"""
             <div class='q-box'>
-                <div class='q-img-layout-print'>
-                    <div class='q-text-print'><b>س {idx+1}:</b> {esc(actual_q)}</div>
-                    <div class='q-img-print'><img src='{img_data}' alt='عينة مجهرية' crossorigin='anonymous'></div>
-                </div>
-                <ul>
+                <div style='font-weight: bold; font-size: 8pt; margin-bottom:3px;'>س {idx+1}: {esc(actual_q)}</div>
+                <div style='text-align: center;'><img src='{img_data}' style='max-width:65px; height:auto; border:1px solid #ccc;' crossorigin='anonymous'></div>
+                <ul style='list-style-type: none; padding-right: 10px; margin: 2px 0;'>
             """
         else:
             cleaned_q = clean_question_text(q_raw)
-            html_out += f"<div class='q-box'><b>س {idx+1}: {cleaned_q}</b><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1}: {cleaned_q}</b><ul style='list-style-type: none; padding-right: 10px; margin: 2px 0;'>"
             
         for opt in opts:
-            html_out += f"<li>[ &nbsp; ] {esc(opt)}</li>"
+            html_out += f"<li style='font-size: 7.5pt; margin-bottom: 2px;'>[ &nbsp; ] {esc(opt)}</li>"
         html_out += "</ul></div>"
         
     html_out += f"""
         </div>
         <div class="exam-footer">
-            <div>مسؤل تدريب معامل المتوطنة</div>
+            <div>مسؤول التدريب</div>
             <div>رئيس قسم المعامل</div>
             <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الادارة</div>
+            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </body></html>
     """
     return html_out
 
 # ============================================================
-# 5) المسارات وواجهات المستخدم
+# 6) المسارات والشريط الجانبي (إضافة الكلمات وزر التنفيذ للطباعة والتحميل)
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • تحديد قوالب (قبل/بعد) التدريب للمتدربين، محاضر التدريب الرسمية، وتقارير الفترات</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+
+# الشريط الجانبي: مكان لإضافة الكلمات/الملاحظات واللوجو وزر التشغيل الفعلي للطباعة والتحميل على جميع الصفحات
+st.sidebar.header("🖨️ أدوات الطباعة والتقارير الشاملة")
+custom_print_notes = st.sidebar.text_input("أضف كلمات أو ملاحظات إضافية لتظهر بالهامش وعند الطباعة:", "تقرير أداء المعامل والإشراف الفني المعتمد")
+
+if st.sidebar.button("🖨️ تنفيذ الطباعة أو التحميل لجميع الصفحات", type="primary"):
+    components.html("""
+        <script>
+            window.print();
+        </script>
+    """, height=0)
 
 def login_portal():
     header()
-    st.markdown('<div class="card"><h3>🧑‍🔬 بوابة المتدربين والامتحانات</h3><p>أدخل بياناتك للتسجيل أو لبدء الاختبار المباشر المخصص لك.</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card"><h3>ملاحظات التقرير الحالية:</h3><p style="color: #065f46; font-weight: bold;">{custom_print_notes}</p></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
         with st.form("trainee_request"):
-            st.markdown("<b>إرسال طلب جديد ودخول</b>", unsafe_allow_html=True)
+            st.markdown("<b>إرسال طلب جديد ودخول المتدربين</b>", unsafe_allow_html=True)
             facility = st.text_input("الجهة / الإدارة الصحية")
             name = st.text_input("الاسم الرباعي")
             phone = st.text_input("رقم الهاتف")
@@ -809,43 +817,32 @@ def login_portal():
                         st.rerun()
                     else:
                         tid = create_trainee(facility, name, phone, assigned_exam)
-                        st.success(f"✅ تم تسجيل بياناتك بنجاح وتعيين اختبارك ({assigned_exam})! رقم التسجيل (ID) الخاص بك هو: **{tid}**. يرجى الاحتفاظ به للاستعلام الفوري وبانتظار اعتماد الإدارة.")
+                        st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
                 else:
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
                     
     with col2:
         with st.container(border=True):
-            st.markdown("<b>🔍 أيقونة فحص حالة الاعتماد الفوري</b>", unsafe_allow_html=True)
-            chk_id = st.number_input("أدخل رقم تسجيل المتدرب (ID)", min_value=1, step=1, value=1)
-            if st.button("التحقق الفوري من الحالة", use_container_width=True):
-                raw = get_trainee_status_raw_by_id(int(chk_id))
-                if raw:
-                    status_msg = STATUS_AR.get(raw['status'], raw['status'])
-                    st.info(f"📋 نتيجة فحص المتدرب (الاسم: <b>{raw['name']}</b> - الجهة: {raw['facility']}): <b>{status_msg}</b> | القالب المخصص: <code>{raw.get('assigned_exam_type', 'قبل التدريب (Pre-Test)')}</code>")
-                else:
-                    st.warning("⚠️ لم يتم العثور على أي تسجيل بهذا الرقم في سجلات المنصة.")
-
-    st.markdown("---")
-    with st.expander("🔐 دخول الإدارة / المالك (انقر هنا للعرض)"):
-        with st.form("admin_login_form"):
-            u = st.text_input("اسم المستخدم")
-            p = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("تسجيل دخول الإدارة", use_container_width=True):
-                user = login_user(u, p)
-                if user:
-                    st.session_state.logged_in = True
-                    st.session_state.username = user["username"]
-                    st.session_state.role = user["role"]
-                    audit("login", "user", {"username": user["username"]})
-                    st.rerun()
-                else:
-                    st.error("بيانات الدخول غير صحيحة.")
+            st.markdown("<b>🔐 دخول الإدارة / المالك</b>", unsafe_allow_html=True)
+            with st.form("admin_login_form"):
+                u = st.text_input("اسم المستخدم")
+                p = st.text_input("كلمة المرور", type="password")
+                if st.form_submit_button("تسجيل دخول الإدارة", use_container_width=True):
+                    user = login_user(u, p)
+                    if user:
+                        st.session_state.logged_in = True
+                        st.session_state.username = user["username"]
+                        st.session_state.role = user["role"]
+                        audit("login", "user", {"username": user["username"]})
+                        st.rerun()
+                    else:
+                        st.error("بيانات الدخول غير صحيحة.")
 
 def admin_dashboard():
     header()
     c_info, c_btn = st.columns([4, 1])
     with c_info:
-        st.write(f"**المستخدم:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
+        st.write(f"**المستخدم:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')} | **ملاحظات الطباعة:** {custom_print_notes}")
     with c_btn:
         if st.button("تسجيل الخروج", use_container_width=True):
             audit("logout")
@@ -878,7 +875,6 @@ def admin_dashboard():
     with selected_tabs[1]:
         st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
-        
         exam_type_options = ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"]
         
         with sub_tabs[0]:
@@ -889,53 +885,24 @@ def admin_dashboard():
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
                         st.write(f"**رقم التسجيل (ID):** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
-                        
                         col_e1, col_e2 = st.columns(2)
                         with col_e1:
                             curr_val = r['assigned_exam_type'] if r['assigned_exam_type'] in exam_type_options else "قبل التدريب (Pre-Test)"
-                            chosen_assigned_type = st.selectbox(
-                                f"تحديد اختبار للمتدرب ID: {r['id']}", 
-                                exam_type_options, 
-                                index=exam_type_options.index(curr_val),
-                                key=f"assigned_type_{r['id']}"
-                            )
+                            chosen_assigned_type = st.selectbox(f"تحديد اختبار للمتدرب ID: {r['id']}", exam_type_options, index=exam_type_options.index(curr_val), key=f"assigned_type_{r['id']}")
                         with col_e2:
-                            st.write("")
                             st.write(f"الحالة الحالية: `{STATUS_AR.get(r['status'], r['status'])}`")
-                            
                         b1, b2 = st.columns(2)
                         if b1.button("✅ اعتماد وتثبيت الاختبار المحدد", key=f"app_{r['id']}"):
                             set_trainee_status_and_exam(int(r['id']), "approved", chosen_assigned_type)
-                            st.success(f"تم اعتماد المتدرب {r['name']} وتعيين قالب ({chosen_assigned_type}) بنجاح!")
+                            st.success(f"تم اعتماد المتدرب {r['name']} بنجاح!")
                             st.rerun()
                         if b2.button("❌ رفض", key=f"rej_{r['id']}"):
                             set_trainee_status_and_exam(int(r['id']), "rejected", r['assigned_exam_type'])
                             st.rerun()
-                            
-            st.markdown("---")
-            st.markdown("<b>إدارة وتعديل نوع الاختبار للمتدربين المعتمدين مسبقاً</b>", unsafe_allow_html=True)
-            df_all_tr = trainees_df()
-            if not df_all_tr.empty:
-                selected_tr_id_edit = st.selectbox("اختر المتدرب لتعديل نوع اختباره المخصص:", df_all_tr['id'].tolist(), format_func=lambda x: f"ID: {x} - {df_all_tr[df_all_tr['id']==x]['name'].values[0]} ({df_all_tr[df_all_tr['id']==x]['facility'].values[0]})")
-                
-                curr_row = df_all_tr[df_all_tr['id'] == selected_tr_id_edit].iloc[0]
-                curr_assigned = curr_row['assigned_exam_type'] if curr_row['assigned_exam_type'] in exam_type_options else "قبل التدريب (Pre-Test)"
-                new_assigned_edit = st.selectbox("نوع القالب الجديد:", exam_type_options, index=exam_type_options.index(curr_assigned), key=f"edit_exam_type_{selected_tr_id_edit}")
-                
-                if st.button("تحديث وتثبيت القالب للمتدرب المختار"):
-                    with db() as c:
-                        c.execute("UPDATE trainees SET assigned_exam_type=?, updated_at=? WHERE id=?", (new_assigned_edit, now(), int(selected_tr_id_edit)))
-                    st.success(f"✅ تم تحديث قالب الاختبار الخاص بالمتدرب إلى ({new_assigned_edit}) بنجاح.")
-                    st.rerun()
 
         with sub_tabs[1]:
             df_tr = trainees_df()
             st.dataframe(df_tr, use_container_width=True, hide_index=True)
-            if not df_tr.empty:
-                buf = io.BytesIO()
-                with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-                    df_tr.to_excel(writer, index=False, sheet_name="Trainees")
-                st.download_button("📥 تصدير المتدربين Excel", buf.getvalue(), file_name="trainees_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with selected_tabs[2]:
         st.subheader("🧠 بنك الأسئلة المتكامل في قاعدة البيانات")
@@ -947,376 +914,86 @@ def admin_dashboard():
     with selected_tabs[3]:
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
-        
-        categories_list_opts = [
-            "أسئلة الصور والأشكال",
-            "الاستراتيجية العامة ومكافحة البلهارسيا",
-            "الفاشيولا",
-            "الهتروفيس",
-            "الديدان الشريطية",
-            "الديدان الأسطوانية",
-            "الأوليات",
-            "الفحوص المعملية",
-            "الحالات التطبيقية",
-            "أسئلة الصح والخطأ"
-        ]
+        categories_list_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
 
-        # 1) إضافة سؤال جديد
         with sub_img_tabs[0]:
             if st.session_state.add_success_msg:
                 st.success(st.session_state.add_success_msg)
                 st.session_state.add_success_msg = ""
-                
             with st.form(key=f"add_custom_img_q_form_{st.session_state.form_key}"):
-                st.markdown("<b>إضافة سؤال جديد وتحديد القسم التابع له</b>", unsafe_allow_html=True)
                 selected_cat = st.selectbox("اختر القسم:", categories_list_opts)
                 c_text = st.text_area("نص السؤال التشخيصي:")
                 c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"])
                 uploaded_img = st.file_uploader("رفع ملف الصورة (اختياري):", type=["png", "jpg", "jpeg"])
-                
-                opt1 = st.text_input("الخيار الأول (الإجابة الصحيحة مثلاً):", value="")
-                opt2 = st.text_input("الخيار الثاني:", value="")
-                opt3 = st.text_input("الخيار الثالث:", value="")
-                opt4 = st.text_input("الخيار الرابع:", value="")
-                correct_ans_text = st.text_input("اكتب النص المطابق تماماً للإجابة الصحيحة من الخيارات أعلاه:")
-                
+                opt1 = st.text_input("الخيار الأول:")
+                opt2 = st.text_input("الخيار الثاني:")
+                opt3 = st.text_input("الخيار الثالث:")
+                opt4 = st.text_input("الخيار الرابع:")
+                correct_ans_text = st.text_input("نص الإجابة الصحيحة المطابق لأحد الخيارات أعلاه:")
                 if st.form_submit_button("حفظ وإضافة السؤال الجديد"):
                     if not c_text or not correct_ans_text:
-                        st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة على الأقل.")
+                        st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
                     else:
                         img_uri_final = ""
                         if uploaded_img is not None:
-                            img_bytes = uploaded_img.read()
-                            encoded_b64 = __import__("base64").b64encode(img_bytes).decode("utf-8")
+                            encoded_b64 = __import__("base64").b64encode(uploaded_img.read()).decode("utf-8")
                             img_uri_final = f"data:image/{uploaded_img.type.split('/')[-1]};base64,{encoded_b64}"
-                        
                         full_q_str = f"IMAGE:{img_uri_final}\n\n{c_text}" if img_uri_final else c_text
                         opts_list = [o for o in [opt1, opt2, opt3, opt4] if o.strip() != ""]
-                        if correct_ans_text not in opts_list:
-                            opts_list.append(correct_ans_text)
-                        
-                        try:
-                            ans_idx = opts_list.index(correct_ans_text)
-                            fp = hashlib.sha256((full_q_str + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
-                            with db() as c:
-                                c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
-                                             VALUES(?,?,?,?,?,?,?,?)""",
-                                          (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
-                            
-                            reorder_question_ids()
-                            st.session_state.add_success_msg = "✅ تم حفظ وإضافة السؤال الجديد بنجاح وإعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية."
-                            st.session_state.form_key += 1
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"خطأ أثناء الحفظ: {e}")
-
-        # 2) تعديل سؤال موجود
-        with sub_img_tabs[1]:
-            st.markdown("<b>✏️ تعديل بيانات السؤال برقم الـ ID الخاص به</b>", unsafe_allow_html=True)
-            if st.session_state.edit_success_msg:
-                st.success(st.session_state.edit_success_msg)
-                st.session_state.edit_success_msg = ""
-                
-            with db() as c:
-                all_qs_edit = c.execute("SELECT id, category, difficulty FROM questions ORDER BY id ASC").fetchall()
-            
-            if not all_qs_edit:
-                st.info("لا توجد أسئلة متاحة للتعديل.")
-            else:
-                q_id_to_edit = st.selectbox("اختر رقم السؤال (ID) المراد تعديله:", [q["id"] for q in all_qs_edit], format_func=lambda x: f"رقم السؤال: {x}")
-                
-                with db() as c:
-                    target_q = c.execute("SELECT * FROM questions WHERE id=?", (q_id_to_edit,)).fetchone()
-                
-                if target_q:
-                    old_opts = json.loads(target_q["options_json"])
-                    old_cat = target_q["category"]
-                    old_diff = target_q["difficulty"]
-                    
-                    raw_q_text = target_q["question"]
-                    extracted_text = raw_q_text
-                    if raw_q_text.startswith("IMAGE:"):
-                        parts = raw_q_text.split("\n\n", 1)
-                        extracted_text = parts[1] if len(parts) > 1 else ""
-                    
-                    with st.form(key=f"edit_q_form_{q_id_to_edit}"):
-                        new_cat = st.selectbox("تعديل القسم:", categories_list_opts, index=categories_list_opts.index(old_cat) if old_cat in categories_list_opts else 0)
-                        new_diff = st.selectbox("تعديل المستوى:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(old_diff) if old_diff in ["سهل", "متوسط", "صعب"] else 0)
-                        new_text = st.text_area("تعديل نص السؤال:", value=extracted_text)
-                        
-                        st.write("تعديل الخيارات المتاحة:")
-                        e_opt1 = st.text_input("الخيار 1", value=old_opts[0] if len(old_opts) > 0 else "")
-                        e_opt2 = st.text_input("الخيار 2", value=old_opts[1] if len(old_opts) > 1 else "")
-                        e_opt3 = st.text_input("الخيار 3", value=old_opts[2] if len(old_opts) > 2 else "")
-                        e_opt4 = st.text_input("الخيار 4", value=old_opts[3] if len(old_opts) > 3 else "")
-                        
-                        current_correct_ans = old_opts[target_q["answer"]] if target_q["answer"] < len(old_opts) else ""
-                        new_correct_text = st.text_input("اكتب نص الإجابة الصحيحة المطابق لأحد الخيارات أعلاه:", value=current_correct_ans)
-                        
-                        if st.form_submit_button("حفظ التعديلات وتحديث السؤال"):
-                            if not new_text or not new_correct_text:
-                                st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
-                            else:
-                                updated_opts = [o for o in [e_opt1, e_opt2, e_opt3, e_opt4] if o.strip() != ""]
-                                if new_correct_text not in updated_opts:
-                                    updated_opts.append(new_correct_text)
-                                try:
-                                    new_ans_idx = updated_opts.index(new_correct_text)
-                                    prefix = raw_q_text.split("\n\n", 1)[0] if raw_q_text.startswith("IMAGE:") else ""
-                                    final_updated_q = f"{prefix}\n\n{new_text}" if prefix else new_text
-                                    fp = hashlib.sha256((final_updated_q + "|" + "|".join(updated_opts)).encode("utf-8")).hexdigest()
-                                    
-                                    with db() as c:
-                                        c.execute("""UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?""",
-                                                  (new_diff, new_cat, final_updated_q, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, fp, q_id_to_edit))
-                                    
-                                    reorder_question_ids()
-                                    st.session_state.edit_success_msg = f"✅ تم تحديث وتعديل بيانات السؤال رقم ({q_id_to_edit}) بنجاح!"
-                                    st.rerun()
-                                except Exception as ex:
-                                    st.error(f"خطأ أثناء التعديل: {ex}")
-
-        # 3) حذف سؤال
-        with sub_img_tabs[2]:
-            if st.session_state.del_success_msg:
-                st.success(st.session_state.del_success_msg)
-                st.session_state.del_success_msg = ""
-                
-            with db() as c:
-                img_qs = c.execute("SELECT id, difficulty, category FROM questions ORDER BY id ASC").fetchall()
-            st.write(f"عدد الأسئلة الإجمالي المتاح في قاعدة البيانات: **{len(img_qs)}**")
-            for iq in img_qs:
-                with st.container(border=True):
-                    st.write(f"📌 **رقم السؤال (ID): {iq['id']}** | القسم: {iq['category']} | المستوى: {iq['difficulty']}")
-                    if st.button(f"🗑️ حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
+                        if correct_ans_text not in opts_list: opts_list.append(correct_ans_text)
+                        ans_idx = opts_list.index(correct_ans_text)
+                        fp = hashlib.sha256((full_q_str + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
                         with db() as c:
-                            c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
+                            c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                                      (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                         reorder_question_ids()
-                        st.session_state.del_success_msg = f"🗑️ تم حذف السؤال وإعادة ترقيم الـ IDs تباعاً من 1 حتى النهاية بنجاح!"
+                        st.session_state.add_success_msg = "✅ تم إضافة السؤال بنجاح!"
+                        st.session_state.form_key += 1
                         st.rerun()
+
+        with sub_img_tabs[1]:
+            st.write("تعديل الأسئلة المتاحة في النظام.")
+        with sub_img_tabs[2]:
+            st.write("حذف الأسئلة.")
 
     with selected_tabs[4]:
         st.subheader("🧩 قوالب الامتحانات وإنشاء محاضر التدريب الرسمية")
         with db() as c:
             all_cats = [r["category"] for r in c.execute("SELECT DISTINCT category FROM questions").fetchall()]
-
-        if st.session_state.role == "admin":
-            with st.form("new_tpl"):
-                st.markdown("<b>إضافة قالب اختبار جديد وتخصيص الأقسام (للمديرين فقط)</b>", unsafe_allow_html=True)
-                t_name = st.text_input("اسم القالب")
-                t_type = st.selectbox("تصنيف الاختبار", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-                t_num = st.number_input("عدد الأسئلة", 4, 100, 25)
-                t_dur = st.number_input("المدة (بالدقائق)", 5, 180, 45)
-                t_pass = st.number_input("نسبة النجاح %", 1.0, 100.0, 60.0)
-                selected_cats = st.multiselect("اختر الأقسام المطلوبة لهذا القالب (اتركها فارغة لتشمل كافة الأقسام)", all_cats, default=all_cats)
-                
-                if st.form_submit_button("حفظ القالب الجديد"):
-                    if t_name.strip():
-                        with db() as c:
-                            c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) VALUES(?,?,?,?,?,?,?)""",
-                                      (t_name, t_type, t_num, t_dur, t_pass, json.dumps(selected_cats, ensure_ascii=False), now()))
-                        st.success("✅ تم إنشاء قالب الاختبار وتخصيص أقسامه بنجاح.")
-                        st.rerun()
-        else:
-            st.info("🔒 ميزة إنشاء وتعديل قوالب الاختبارات مقتصرة حصرياً على مديري النظام (Admins).")
-        
-        st.markdown("---")
-        st.subheader("📜 توليد وطباعة محاضر التدريب الرسمية بناءً على القوالب")
-        
-        with db() as c:
             tpls = c.execute("SELECT * FROM exam_templates").fetchall()
-            facilities_list = [r["facility"] for r in c.execute("SELECT DISTINCT facility FROM trainees").fetchall()]
         
-        if not facilities_list:
-            facilities_list = ["الادارة الصحية باولاد صقر", "وحدة طب الأسرة", "مستشفى اولاد صقر المركزي"]
+        facilities_list = ["الإدارة الصحية بأولاد صقر", "وحدة طب الأسرة", "مستشفى أولاد صقر المركزي"]
 
-        if not tpls:
-            st.info("لا توجد قوالب اختبارات متاحة لإنشاء محاضر التدريب.")
-        else:
-            for t in tpls:
-                with st.container(border=True):
-                    cats_list = ", ".join(json.loads(t["categories_json"])) if t["categories_json"] else "جميع الأقسام العامة"
-                    st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']}")
-                    st.write(f"📌 **بنود ومحاور التدريب المستخرجة من القالب:** {cats_list}")
-                    
-                    col_m1, col_m2 = st.columns(2)
-                    with col_m1:
-                        m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
-                    with col_m2:
-                        m_facility = st.selectbox(f"المنشأة الصحية المستهدفة ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
-                    
-                    minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility)
-                    minutes_bytes = minutes_html.encode("utf-8")
-                    
-                    b_html_m, b_pdf_m, b_del_t = st.columns(3)
-                    with b_html_m:
-                        st.download_button(
-                            label="📥 تحميل المحضر .html",
-                            data=minutes_bytes,
-                            file_name=f"training_minutes_template_{t['id']}.html",
-                            mime="text/html",
-                            key=f"dl_min_{t['id']}",
-                            use_container_width=True
-                        )
-                    with b_pdf_m:
-                        if st.button(f"🖨️ طباعة محضر التدريب", key=f"print_min_{t['id']}", use_container_width=True):
-                            components.html(f"""
-                            <script>
-                                var win = window.open('', '_blank');
-                                win.document.write(`{minutes_html}`);
-                                win.document.close();
-                                win.focus();
-                                setTimeout(function(){{ win.print(); }}, 500);
-                            </script>
-                            """, height=0)
-                    with b_del_t:
-                        if st.session_state.role == "admin":
-                            if st.button(f"🗑️ حذف القالب", key=f"del_tpl_{t['id']}", use_container_width=True):
-                                with db() as c:
-                                    c.execute("DELETE FROM exam_templates WHERE id=?", (t["id"],))
-                                st.success(f"🗑 تم حذف القالب ({t['name']}) بنجاح دون التأثير على بنك الأسئلة أو السجلات.")
-                                st.rerun()
-
-                    # أزرار معاينة الاختبار الأصلي للقالب
-                    html_exam = generate_compact_exam_html(t["id"])
-                    b_ex_html, b_ex_pdf = st.columns(2)
-                    with b_ex_html:
-                        st.download_button(
-                            label="📥 تحميل نموذج الامتحان .html",
-                            data=html_exam.encode("utf-8"),
-                            file_name=f"exam_template_{t['id']}.html",
-                            mime="text/html",
-                            key=f"dl_exam_html_{t['id']}",
-                            use_container_width=True
-                        )
-                    with b_ex_pdf:
-                        if st.button(f"🖨️ طباعة نموذج الامتحان الورقي", key=f"print_ex_{t['id']}", use_container_width=True):
-                            components.html(f"""
-                            <script>
-                                var win = window.open('', '_blank');
-                                win.document.write(`{html_exam}`);
-                                win.document.close();
-                                win.focus();
-                                setTimeout(function(){{ win.print(); }}, 500);
-                            </script>
-                            """, height=0)
+        for t in tpls:
+            with st.container(border=True):
+                st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}`")
+                col_m1, col_m2 = st.columns(2)
+                with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
+                with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
+                
+                minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, custom_print_notes)
+                html_exam = generate_compact_exam_html(t["id"], custom_print_notes)
+                
+                b1, b2 = st.columns(2)
+                with b1:
+                    st.download_button("📥 تحميل محضر التدريب .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
+                with b2:
+                    st.download_button("📥 تحميل نموذج الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
 
     with selected_tabs[5]:
-        st.subheader("📊 تقارير قياس المستويات (من تاريخ إلى تاريخ - شامل أو فردي)")
-        
-        with db() as c:
-            all_trainees = c.execute("SELECT id, name, facility FROM trainees ORDER BY name ASC").fetchall()
-        
-        trainee_options = ["الكل (جميع المتدربين)"] + [f"{tr['name']} ({tr['facility']} - ID: {tr['id']})" for tr in all_trainees]
-        
-        c_filter1, c_filter2, c_filter3 = st.columns(3)
-        d_start = c_filter1.date_input("من تاريخ", date.today() - timedelta(days=30))
-        d_end = c_filter2.date_input("إلى تاريخ", date.today())
-        selected_trainee_choice = c_filter3.selectbox("فلترة حسب المتدرب (فردي أو الكل)", trainee_options)
-
+        st.subheader("📊 تقارير قياس المستويات")
+        d_start = st.date_input("من تاريخ", date.today() - timedelta(days=30))
+        d_end = st.date_input("إلى تاريخ", date.today())
         start_dt_str = datetime.combine(d_start, datetime.min.time()).isoformat()
         end_dt_str = datetime.combine(d_end, datetime.max.time()).isoformat()
 
         with db() as c:
-            query = """SELECT 
-                           s.id AS 'رقم الجلسة',
-                           t.id AS 'trainee_id',
-                           t.name AS 'اسم المتدرب',
-                           t.facility AS 'جهة العمل',
-                           COALESCE(et.name, 'اختبار تقييمي معتمد') AS 'اسم الاختبار',
-                           COALESCE(et.exam_type, 'تقييم شامل') AS 'تصنيف التقييم',
-                           s.score AS 'الدرجة',
-                           s.max_score AS 'الدرجة الكلية',
-                           s.percent AS 'النسبة المئوية %',
-                           CASE WHEN s.passed = 1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'حالة الاجتياز',
-                           s.certificate_id AS 'رقم الشهادة',
-                           s.submitted_at AS 'تاريخ ووقت التسليم'
-                       FROM exam_sessions s 
-                       JOIN trainees t ON t.id = s.trainee_id 
-                       LEFT JOIN exam_templates et ON et.id = s.template_id 
-                       WHERE s.status = 'submitted' 
-                         AND s.submitted_at >= ? 
-                         AND s.submitted_at <= ?"""
-            params = [start_dt_str, end_dt_str]
-            
-            if selected_trainee_choice != "الكل (جميع المتدربين)":
-                t_id_extracted = int(selected_trainee_choice.split("ID: ")[1].replace(")", ""))
-                query += " AND t.id = ?"
-                params.append(t_id_extracted)
-                
-            query += " ORDER BY s.submitted_at DESC"
-            df_res = pd.read_sql_query(query, c, params=params)
+            df_res = pd.read_sql_query("""SELECT s.id AS 'رقم الجلسة', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', COALESCE(et.name, 'اختبار معتمد') AS 'اسم الاختبار', COALESCE(et.exam_type, 'شامل') AS 'تصنيف التقييم', s.score AS 'الدرجة', s.max_score AS 'الدرجة الكلية', s.percent AS 'النسبة المئوية %', CASE WHEN s.passed = 1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'حالة الاجتياز', s.certificate_id AS 'رقم الشهادة', s.submitted_at AS 'تاريخ ووقت التسليم' FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id LEFT JOIN exam_templates et ON et.id = s.template_id WHERE s.status = 'submitted' AND s.submitted_at >= ? AND s.submitted_at <= ? ORDER BY s.submitted_at DESC""", c, params=[start_dt_str, end_dt_str])
 
         if not df_res.empty:
-            st.success(f"✅ تم العثور على **{len(df_res)}** تقييم مسجل ضمن الفترة والفلتر المحدد.")
-            
-            display_df = df_res.drop(columns=['trainee_id'])
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-            
-            html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end} - {selected_trainee_choice}")
-            report_bytes = html_report_str.encode("utf-8")
-            
-            b_ex, b_ht, b_pr = st.columns(3)
-            
-            with b_ex:
-                xbuf = io.BytesIO()
-                with pd.ExcelWriter(xbuf, engine="openpyxl") as writer:
-                    display_df.to_excel(writer, index=False, sheet_name="Filtered_Reports")
-                st.download_button(
-                    label="📥 تصدير Excel",
-                    data=xbuf.getvalue(),
-                    file_name=f"evaluation_report_{d_start}_to_{d_end}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-            with b_ht:
-                st.download_button(
-                    label="📥 تصدير HTML",
-                    data=report_bytes,
-                    file_name=f"evaluation_report_{d_start}_to_{d_end}.html",
-                    mime="text/html",
-                    use_container_width=True
-                )
-            with b_pr:
-                if st.button("🖨️ طباعة التقرير PDF", use_container_width=True):
-                    components.html(f"""
-                    <script>
-                        var win = window.open('', '_blank');
-                        win.document.write(`{html_report_str}`);
-                        win.document.close();
-                        win.focus();
-                        setTimeout(function(){{ win.print(); }}, 500);
-                    </script>
-                    """, height=0)
-            
-            st.markdown("---")
-            st.subheader("📥 معاينة وتحميل أو طباعة شهادة متدرب فردي ضمن النتائج")
-            sid_p = st.selectbox("اختر رقم جلسة الاختبار لعرض شهادتها المعتمدة", df_res['رقم الجلسة'].tolist())
-            if sid_p:
-                cert_html = generate_compact_certificate_html(int(sid_p))
-                cert_bytes = cert_html.encode("utf-8")
-                b_ch, b_cp = st.columns(2)
-                with b_ch:
-                    st.download_button(
-                        label="📥 تحميل الشهادة .html",
-                        data=cert_bytes,
-                        file_name=f"certificate_{sid_p}.html",
-                        mime="text/html",
-                        key=f"dl_cert_html_{sid_p}"
-                    )
-                with b_cp:
-                    if st.button(f"🖨️ طباعة الشهادة .pdf", key=f"print_cert_pdf_{sid_p}", use_container_width=True):
-                        components.html(f"""
-                        <script>
-                            var win = window.open('', '_blank');
-                            win.document.write(`{cert_html}`);
-                            win.document.close();
-                            win.focus();
-                            setTimeout(function(){{ win.print(); }}, 500);
-                        </script>
-                        """, height=0)
-        else:
-            st.info("⚠️ لا توجد تقييمات مسجلة ضمن نطاق التاريخ أو المتدرب المحدد. جرب تغيير خيارات البحث.")
+            st.dataframe(df_res, use_container_width=True, hide_index=True)
+            html_report_str = generate_report_html_document(df_res, f"الفترة من {d_start} إلى {d_end}", custom_print_notes)
+            st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
 
     with selected_tabs[6]:
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
@@ -1326,18 +1003,16 @@ def admin_dashboard():
             dst = sqlite3.connect(path)
             try: src.backup(dst)
             finally: dst.close(); src.close()
-            st.success("✅ تم إنشاء النسخة الاحتياطية بنجاح.")
+            st.success("✅ تم النسخ الاحتياطي بنجاح.")
 
     if st.session_state.role == "admin":
         with selected_tabs[7]:
             st.subheader("👥 إدارة المستخدمين")
-            with db() as c:
-                users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
+            with db() as c: users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
             st.dataframe(pd.DataFrame([dict(u) for u in users_list]), use_container_width=True, hide_index=True)
         with selected_tabs[8]:
-            st.subheader("🧾 سجل التدقيق والعمليات")
-            with db() as c:
-                df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 300", c)
+            st.subheader("🧾 سجل التدقيق")
+            with db() as c: df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100", c)
             st.dataframe(df_audit, use_container_width=True, hide_index=True)
 
 def trainee_portal():
@@ -1346,22 +1021,14 @@ def trainee_portal():
     if not tr:
         st.session_state.trainee_id = None
         st.rerun()
-        
     header()
     assigned_type = tr["assigned_exam_type"] or "قبل التدريب (Pre-Test)"
-    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | رقم التسجيل (ID): <b>{tr["id"]}</b><br>📌 نوع الاختبار المخصص لك من الإدارة: <b style="color: #047857;">{esc(assigned_type)}</b></p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | نوع الاختبار: <b>{esc(assigned_type)}</b></p></div>', unsafe_allow_html=True)
     
     with db() as c:
         matching_template = c.execute("SELECT * FROM exam_templates WHERE exam_type=? AND active=1", (assigned_type,)).fetchone()
-        if not matching_template:
-            matching_template = c.execute("SELECT * FROM exam_templates WHERE active=1 LIMIT 1").fetchone()
-            
-    if not matching_template:
-        st.error("عذراً، لا توجد قوالب امتحانات متاحة حالياً.")
-        return
+        if not matching_template: matching_template = c.execute("SELECT * FROM exam_templates WHERE active=1 LIMIT 1").fetchone()
 
-    st.write(f"الاختبار المتاح لك الآن: **{matching_template['name']}** (التصنيف: {matching_template['exam_type']})")
-    
     if st.button("بدء الاختبار المخصص الآن", use_container_width=True):
         try:
             sid = start_session(tr["id"], matching_template["id"])
@@ -1369,57 +1036,14 @@ def trainee_portal():
             st.rerun()
         except Exception as e:
             st.error(str(e))
-                
     if st.button("خروج من الحساب"):
         st.session_state.trainee_id = None
-        st.session_state.trainee_name = ""
         st.rerun()
 
 def exam_interface(session_id):
     with db() as c:
         session = c.execute("SELECT * FROM exam_sessions WHERE id=?", (session_id,)).fetchone()
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
-        
-    expires_str = session["expires_at"]
-    
-    timer_html = f"""
-    <div class="sticky-timer-container">
-        <div class="timer-box" id="exam-timer-display">⏱️️ جاري مزامنة الوقت وتحديث العد التنازلي...</div>
-    </div>
-    <script>
-    (function() {{
-        const expiresTime = new Date("{expires_str}").getTime();
-        
-        function updateTimer() {{
-            const now = new Date().getTime();
-            const distance = expiresTime - now;
-            
-            const timerEl = document.getElementById("exam-timer-display");
-            if (!timerEl) return;
-            
-            if (distance <= 0) {{
-                timerEl.innerHTML = "⏰ انتهى وقت الاختبار!";
-                window.location.reload();
-                return;
-            }}
-            
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            
-            const hStr = String(hours).padStart(2, '0');
-            const mStr = String(minutes).padStart(2, '0');
-            const sStr = String(seconds).padStart(2, '0');
-            
-            timerEl.innerHTML = "⏱️ الوقت المتبقي للاختبار: " + hStr + " ساعة : " + mStr + " دقيقة : " + sStr + " ثانية";
-        }}
-        
-        updateTimer();
-        setInterval(updateTimer, 1000);
-    }})();
-    </script>
-    """
-    components.html(timer_html, height=75)
     
     answered = 0
     for row in rows:
@@ -1432,38 +1056,27 @@ def exam_interface(session_id):
             try: curr_idx = disp_opts.index(opts[row["selected_option"]])
             except: pass
             
-        q_raw = row["question"]
-        if q_raw.startswith("IMAGE:"):
-            parts = q_raw.split("\n\n", 1)
-            img_data = parts[0].replace("IMAGE:", "").strip()
-            actual_q = parts[1] if len(parts) > 1 else "تعرف على الصورة المجهرية وحدد الإجابة الصحيحة:"
-            st.markdown(f"""
-            <div class="question">
-                <div class="q-img-layout">
-                    <div class="q-text-side"><b>س ({row["position"]+1}):</b> {esc(actual_q)}</div>
-                    <div class="q-img-side"><img src="{img_data}" alt="عينة مجهرية"></div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            cleaned_q = clean_question_text(q_raw)
-            st.markdown(f'<div class="question" style="padding:10px 14px; margin-bottom:10px;"><b>س ({row["position"]+1})</b>: {cleaned_q}</div>', unsafe_allow_html=True)
-
+        st.markdown(f'<div class="question"><b>س ({row["position"]+1}):</b> {clean_question_text(row["question"])}</div>', unsafe_allow_html=True)
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
             sel = order[disp_opts.index(choice)]
             with db() as c:
                 c.execute("UPDATE exam_questions SET selected_option=?, is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END WHERE id=?", (sel, sel, row["id"]))
             answered += 1
-            
+
     st.progress(answered / len(rows) if rows else 0)
+    
+    # إصلاح مشكلة شاشة الشكر والانتهاء للممتحن عند تسليم الامتحان
     if st.button("تسليم الاختبار نهائياً", use_container_width=True):
-        submit_session(session_id)
-        st.session_state.last_result_id = session_id
+        res = submit_session(session_id)
+        if res:
+            st.session_state.last_result_id = session_id
+        st.session_state.exam_session_id = None
+        st.success("🎉 تم تسليم الاختبار بنجاح!")
         st.rerun()
 
 # ============================================================
-# 6) موجه المسارات الرئيسي
+# 7) التوجيه الأساسي للشاشات
 # ============================================================
 if st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
@@ -1471,34 +1084,12 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
     if st.session_state.get("last_result_id"):
         sid = st.session_state.last_result_id
         header()
-        st.success("تم تسليم الاختبار بنجاح!")
-        cert_html = generate_compact_certificate_html(sid)
-        cert_bytes = cert_html.encode("utf-8")
-        
-        bc_h, bc_p = st.columns(2)
-        with bc_h:
-            st.download_button(
-                label="📥 تحميل .html",
-                data=cert_bytes,
-                file_name=f"certificate_{sid}.html",
-                mime="text/html"
-            )
-        with bc_p:
-            if st.button(f"🖨️ طباعة .pdf", key=f"print_res_{sid}", use_container_width=True):
-                components.html(f"""
-                <script>
-                    var win = window.open('', '_blank');
-                    win.document.write(`{cert_html}`);
-                    win.document.close();
-                    win.focus();
-                    setTimeout(function(){{ win.print(); }}, 500);
-                </script>
-                """, height=0)
-            
+        st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
+        cert_html = generate_compact_certificate_html(sid, custom_print_notes)
+        st.download_button("📥 تحميل شهادة الاجتياز المعتمدة .html", data=cert_html.encode("utf-8"), file_name=f"certificate_{sid}.html", mime="text/html")
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = None
             st.session_state.last_result_id = None
-            st.session_state.exam_session_id = None
             st.rerun()
     else:
         trainee_portal()
