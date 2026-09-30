@@ -265,6 +265,11 @@ def init_db():
         if "assigned_exam_type" not in columns:
             c.execute("ALTER TABLE trainees ADD COLUMN assigned_exam_type TEXT DEFAULT 'قبل التدريب (Pre-Test)'")
 
+def get_facilities_with_ids():
+    with db() as c:
+        rows = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
+        return [dict(r) for r in rows] if rows else []
+
 def get_facilities():
     with db() as c:
         rows = c.execute("SELECT name FROM facilities_list ORDER BY id ASC").fetchall()
@@ -280,10 +285,9 @@ def add_facility_db(fac_name):
         except sqlite3.IntegrityError:
             return False
 
-def delete_facility_db(fac_name):
-    norm = normalize_text(fac_name)
+def delete_facility_db_by_id(fac_id):
     with db() as c:
-        c.execute("DELETE FROM facilities_list WHERE name=? OR TRIM(name)=TRIM(?)", (fac_name, fac_name))
+        c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
 
 def reorder_question_ids():
     with db() as c:
@@ -902,7 +906,7 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) المسارات والشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": "", "tpl_success_msg": "", "active_tpl_tab": 0}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": "", "tpl_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
@@ -960,13 +964,24 @@ def admin_dashboard():
             st.session_state.role = ""
             st.rerun()
 
-    tabs = ["لوحة التحكم", "🏥 إدارة المنشآت", "اعتماد المتدربين وتحديد الاختبار", "بنك الأسئلة الشامل", "إدارة الأسئلة", "قوالب ومحاضر التدريب", "✍️ تسجيل نتيجة يدوي", "التقارير المتقدمة والتصدير", "النسخ الاحتياطي"]
+    menu_options = [
+        "📊 لوحة التحكم",
+        "🏥 إدارة المنشآت",
+        "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار",
+        "🧠 بنك الأسئلة الشامل",
+        "⚙️ إدارة الأسئلة",
+        "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
+        "✍️ تسجيل نتيجة يدوي",
+        "📊 التقارير المتقدمة والتصدير",
+        "💾 النسخ الاحتياطي"
+    ]
     if st.session_state.role == "admin":
-        tabs += ["إدارة المستخدمين", "سجل التدقيق"]
-    
-    selected_tabs = st.tabs(tabs)
+        menu_options += ["👥 إدارة المستخدمين", "🧾 سجل التدقيق"]
 
-    with selected_tabs[0]:
+    selected_menu = st.selectbox("📌 القائمة الرئيسية لإدارة المنصة:", menu_options, label_visibility="collapsed")
+    st.markdown("---")
+
+    if selected_menu == "📊 لوحة التحكم":
         st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
             cnts = c.execute("""SELECT
@@ -981,7 +996,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    with selected_tabs[1]:
+    elif selected_menu == "🏥 إدارة المنشآت":
         st.subheader("🏥 إضافة وإدارة المنشآت الصحية يدوياً")
         with st.form("add_facility_form"):
             new_fac_input = st.text_input("اسم المنشأة الجديدة (مستشفى، وحدة صحية، إدارة...):")
@@ -998,19 +1013,19 @@ def admin_dashboard():
         
         st.markdown("---")
         st.markdown("#### قائمة المنشآت المسجلة حالياً:")
-        current_facs = get_facilities()
-        if not current_facs:
+        fac_list_records = get_facilities_with_ids()
+        if not fac_list_records:
             st.info("لا توجد منشآت مسجلة حالياً.")
         else:
-            for fac in current_facs:
+            for fac_item in fac_list_records:
                 col_f1, col_f2 = st.columns([4, 1])
-                col_f1.write(f"🔹 {fac}")
-                if col_f2.button("🗑️ حذف", key=f"del_fac_{fac}"):
-                    delete_facility_db(fac)
-                    st.success(f"تم حذف المنشأة ({fac}) بنجاح.")
+                col_f1.write(f"🔹 {fac_item['name']}")
+                if col_f2.button("🗑️ حذف", key=f"del_fac_id_{fac_item['id']}"):
+                    delete_facility_db_by_id(fac_item['id'])
+                    st.success(f"تم حذف المنشأة ({fac_item['name']}) بنجاح.")
                     st.rerun()
             
-    with selected_tabs[2]:
+    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار":
         st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         exam_type_options = ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"]
@@ -1042,14 +1057,14 @@ def admin_dashboard():
             df_tr = trainees_df()
             st.dataframe(df_tr, use_container_width=True, hide_index=True)
 
-    with selected_tabs[3]:
+    elif selected_menu == "🧠 بنك الأسئلة الشامل":
         st.subheader("🧠 بنك الأسئلة المتكامل في قاعدة البيانات")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
         st.write(f"إجمالي الأسئلة الحالية في قاعدة البيانات: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
-    with selected_tabs[4]:
+    elif selected_menu == "⚙️ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
@@ -1171,12 +1186,12 @@ def admin_dashboard():
                     st.success(f"✅ تم حذف السؤال رقم {selected_del_id} بنجاح وإعادة ترتيب أرقام بنك الأسئلة!")
                     st.rerun()
 
-    with selected_tabs[5]:
-        st.subheader("🧩 قوالب ومحاضر التدريب وإضافة قالب جديد")
+    elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
+        st.subheader("🧩 إدارة قوالب وامتحانات ومحاضر التدريب (للمالك فقط)")
         
-        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"], horizontal=True)
+        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض القوالب الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك"], horizontal=True)
         
-        if sub_tpl_mode == "📋 قوالب الامتحانات الحالية وتوليد المحاضر":
+        if sub_tpl_mode == "📋 عرض القوالب الحالية وتوليد المحاضر":
             with db() as c:
                 tpls = c.execute("SELECT * FROM exam_templates ORDER BY id DESC").fetchall()
             
@@ -1243,7 +1258,7 @@ def admin_dashboard():
                         except sqlite3.IntegrityError:
                             st.error("اسم القالب موجود مسبقاً، يرجى استخدام اسم مختلف.")
 
-    with selected_tabs[6]:
+    elif selected_menu == "✍️ تسجيل نتيجة يدوي":
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
         facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
         with st.form("manual_score_form"):
@@ -1285,7 +1300,7 @@ def admin_dashboard():
                     audit("manual_score_entry", "session", {"session_id": new_sid, "trainee": m_trainee_name, "score": manual_score})
                     st.success(f"✅ تم تسجيل النتيجة بنجاح للمتدرب {m_trainee_name}! برقم شهادة معتمد: **{cert_code}**")
 
-    with selected_tabs[7]:
+    elif selected_menu == "📊 التقارير المتقدمة والتصدير":
         st.subheader("📊 تقارير قياس المستويات وطباعة الشهادات الإدارية")
         d_start = st.date_input("من تاريخ", date.today() - timedelta(days=30))
         d_end = st.date_input("إلى تاريخ", date.today())
@@ -1320,7 +1335,7 @@ def admin_dashboard():
             st.download_button("📥 تحميل التقرير الشامل .html", data=html_report_str.encode("utf-8"), file_name="report.html", mime="text/html", use_container_width=True)
             render_print_button_only(html_report_str, "التقرير الشامل")
 
-    with selected_tabs[8]:
+    elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي للقاعدة")
         if st.button("إنشاء نسخة احتياطية الآن"):
             path = os.path.join(BACKUP_DIR, f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
@@ -1330,15 +1345,15 @@ def admin_dashboard():
             finally: dst.close(); src.close()
             st.success("✅ تم النسخ الاحتياطي بنجاح.")
 
-    if st.session_state.role == "admin":
-        with selected_tabs[9]:
-            st.subheader("👥 إدارة المستخدمين")
-            with db() as c: users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
-            st.dataframe(pd.DataFrame([dict(u) for u in users_list]), use_container_width=True, hide_index=True)
-        with selected_tabs[10]:
-            st.subheader("🧾 سجل التدقيق")
-            with db() as c: df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100", c)
-            st.dataframe(df_audit, use_container_width=True, hide_index=True)
+    elif selected_menu == "👥 إدارة المستخدمين":
+        st.subheader("👥 إدارة المستخدمين")
+        with db() as c: users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
+        st.dataframe(pd.DataFrame([dict(u) for u in users_list]), use_container_width=True, hide_index=True)
+
+    elif selected_menu == "🧾 سجل التدقيق":
+        st.subheader("🧾 سجل التدقيق")
+        with db() as c: df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100", c)
+        st.dataframe(df_audit, use_container_width=True, hide_index=True)
 
 def trainee_portal():
     with db() as c:
