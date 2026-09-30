@@ -190,8 +190,9 @@ def init_db():
         """)
 
 def reorder_question_ids():
-    """إعادة ترتيب معرفات (IDs) الأسئلة تلقائياً وتحديث الجداول المرتبطة"""
+    """إعادة ترتيب معرفات (IDs) الأسئلة تلقائياً بشكل متسلسل ودقيق"""
     with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
         rows = c.execute("SELECT * FROM questions ORDER BY id ASC").fetchall()
         c.execute("DROP TABLE IF EXISTS questions_temp")
         c.execute("""
@@ -221,11 +222,11 @@ def reorder_question_ids():
         c.execute("DROP TABLE questions")
         c.execute("ALTER TABLE questions_temp RENAME TO questions")
         
-        # تحديث الجداول المرتبطة (exam_questions) إذا كانت مرتبطة بـ question_id القديم
         eq_rows = c.execute("SELECT id, question_id FROM exam_questions").fetchall()
         for eq in eq_rows:
             if eq["question_id"] in id_mapping:
                 c.execute("UPDATE exam_questions SET question_id=? WHERE id=?", (id_mapping[eq["question_id"]], eq["id"]))
+        c.execute("PRAGMA foreign_keys=ON;")
 
 def seed_complete_250_question_bank():
     with db() as c:
@@ -289,7 +290,7 @@ def seed_complete_250_question_bank():
         {"cat": "الفحوص المعملية", "lvl": "متوسط", "q": "ما المبدأ الأساسي لطريقة التعويم في تحليل البراز معملياً؟", "opts": ["إذابة البويضات", "تعويم البيوض الأخف وزناً على سطح محلول ملحي مشبع", "قتل اليرقات", "ترسيب البيوض الثقيلة"], "ans": 1},
 
         {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عينة براز أظهرت عند الفحص المجهري بويضة بيضاوية تحتوي على شوكة جانبية واضحة. ما التشخيص المناسب؟", "opts": ["البلهارسيا البولية", "البلهارسيا المعوية (Schistosoma mansoni)", "التريكوريس", "الهتروفيس"], "ans": 1},
-        {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عامل زراعي يمشي حافي القدمين على تربة رطبة وظهرت عليه أعراض فقر دم وطفح جلدي موضعي. ما الطفيل الأرجح؟", "opts": ["الهيمينولبس", "الأنكلستوما (Ancylostoma)", "الهتروفيس", "الجيارديا"], "ans": 1},
+        {"cat": "الحالات التطبيقية", "lvl": "صعب", "q": "عامل زراعي يمشي hافي القدمين على تربة رطبة وظهرت عليه أعراض فقر دم وطفح جلدي موضعي. ما الطفيل الأرجح؟", "opts": ["الهيمينولبس", "الأنكلستوما (Ancylostoma)", "الهتروفيس", "الجيارديا"], "ans": 1},
 
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بقوقع بيومفلاريا كوسيط.", "opts": ["صح", "خطأ"], "ans": 0},
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في دورة البلهارسيا.", "opts": ["صح", "خطأ"], "ans": 0}
@@ -605,7 +606,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • إضافة الأسئلة بالأقسام، حفظ فوري، وانتقال تلقائي مع إعادة ترقيم الـ IDs</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • حفظ، إضافة الأقسام، الانتقال التلقائي، وإعادة ترقيم الـ IDs بدقة</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -730,7 +731,7 @@ def admin_dashboard():
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     with selected_tabs[3]:
-        st.subheader("⚙️️ إدارة وإضافة وحذف الأسئلة المصورة والتشخيصية")
+        st.subheader("⚙️ إدارة وإضافة وحذف الأسئلة المصورة والتشخيصية")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال مصور جديد", "🗑 عرض وحذف الأسئلة المصورة"])
         
         with sub_img_tabs[0]:
@@ -801,8 +802,8 @@ def admin_dashboard():
                     if st.button(f"حذف السؤال رقم {iq['id']} نهائياً", key=f"del_iq_{iq['id']}"):
                         with db() as c:
                             c.execute("DELETE FROM questions WHERE id=?", (iq['id'],))
-                        reorder_question_ids() # إعادة ترتيب المعرفات تلقائياً بعد الحذف
-                        st.success(f"🗑️ تم حذف السؤال وإعادة ترتيب معرّفات الأسئلة (IDs) تلقائياً بنجاح!")
+                        reorder_question_ids() # إعادة ترتيب المعرفات تلقائياً
+                        st.success(f"🗑️ تم الحذف وإعادة ترتيب معرّفات الأسئلة (IDs) تلقائياً بنجاح!")
                         st.rerun()
 
     with selected_tabs[4]:
