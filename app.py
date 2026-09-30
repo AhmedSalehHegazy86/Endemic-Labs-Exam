@@ -214,6 +214,11 @@ def init_db():
             created_at TEXT NOT NULL
         );
         """)
+        # التأكد من وجود العمود الجديد حتى لو القاعدة القديمة منشأة مسبقاً
+        cursor = c.execute("PRAGMA table_info(trainees)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if "assigned_exam_type" not in columns:
+            c.execute("ALTER TABLE trainees ADD COLUMN assigned_exam_type TEXT DEFAULT 'قبل التدريب (Pre-Test)'")
 
 def reorder_question_ids():
     with db() as c:
@@ -882,10 +887,11 @@ def admin_dashboard():
                         
                         col_e1, col_e2 = st.columns(2)
                         with col_e1:
+                            curr_val = r['assigned_exam_type'] if r['assigned_exam_type'] in exam_type_options else "قبل التدريب (Pre-Test)"
                             chosen_assigned_type = st.selectbox(
                                 f"تحديد اختبار للمتدرب ID: {r['id']}", 
                                 exam_type_options, 
-                                index=exam_type_options.index(r['assigned_exam_type']) if r['assigned_exam_type'] in exam_type_options else 0,
+                                index=exam_type_options.index(curr_val),
                                 key=f"assigned_type_{r['id']}"
                             )
                         with col_e2:
@@ -908,7 +914,8 @@ def admin_dashboard():
                 selected_tr_id_edit = st.selectbox("اختر المتدرب لتعديل نوع اختباره المخصص:", df_all_tr['id'].tolist(), format_func=lambda x: f"ID: {x} - {df_all_tr[df_all_tr['id']==x]['name'].values[0]} ({df_all_tr[df_all_tr['id']==x]['facility'].values[0]})")
                 
                 curr_row = df_all_tr[df_all_tr['id'] == selected_tr_id_edit].iloc[0]
-                new_assigned_edit = st.selectbox("نوع القالب الجديد:", exam_type_options, index=exam_type_options.index(curr_row['assigned_exam_type']) if curr_row['assigned_exam_type'] in exam_type_options else 0, key=f"edit_exam_type_{selected_tr_id_edit}")
+                curr_assigned = curr_row['assigned_exam_type'] if curr_row['assigned_exam_type'] in exam_type_options else "قبل التدريب (Pre-Test)"
+                new_assigned_edit = st.selectbox("نوع القالب الجديد:", exam_type_options, index=exam_type_options.index(curr_assigned), key=f"edit_exam_type_{selected_tr_id_edit}")
                 
                 if st.button("تحديث وتثبيت القالب للمتدرب المختار"):
                     with db() as c:
@@ -1340,7 +1347,6 @@ def trainee_portal():
     st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | رقم التسجيل (ID): <b>{tr["id"]}</b><br>📌 نوع الاختبار المخصص لك من الإدارة: <b style="color: #047857;">{esc(assigned_type)}</b></p></div>', unsafe_allow_html=True)
     
     with db() as c:
-        # البحث عن القالب المناسب حسب ما حددته الإدارة للمتدرب
         matching_template = c.execute("SELECT * FROM exam_templates WHERE exam_type=? AND active=1", (assigned_type,)).fetchone()
         if not matching_template:
             matching_template = c.execute("SELECT * FROM exam_templates WHERE active=1 LIMIT 1").fetchone()
@@ -1373,7 +1379,7 @@ def exam_interface(session_id):
     
     timer_html = f"""
     <div class="sticky-timer-container">
-        <div class="timer-box" id="exam-timer-display">⏱️️ جاري مزامنة الوقت وتحديث العد التنازلي...</div>
+        <div class="timer-box" id="exam-timer-display">⏱️ جاري مزامنة الوقت وتحديث العد التنازلي...</div>
     </div>
     <script>
     (function() {{
