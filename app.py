@@ -9,14 +9,14 @@ import streamlit as st
 # 1) إعدادات التطبيق الأساسية
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v4.1 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v4.3 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_1.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v4_3.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -46,7 +46,7 @@ html,body,[class*="css"]{direction:rtl;text-align:right;font-family:"Cairo","Tah
 .metric .v{font-size:24px;font-weight:800;color:#065f46}
 .metric .l{color:#4b5563;font-weight:700;font-size:13px}
 .timer{font-size:22px;font-weight:900;text-align:center;background:#fef3c7;border:2px solid #f59e0b;padding:10px;border-radius:10px;color:#92400e}
-.img-box{background:#f8fafc;border:2px dashed #059669;padding:12px;border-radius:10px;text-align:center;margin-bottom:10px;font-weight:bold;color:#065f46;font-size:14px}
+.img-box{background:#f8fafc;border:2px dashed #059669;padding:14px;border-radius:10px;text-align:center;margin-bottom:12px;font-weight:bold;color:#065f46;font-size:16px;box-shadow: 0 2px 5px rgba(0,0,0,0.05)}
 .stButton>button{border-radius:10px;font-weight:800;min-height:42px;transition:all 0.3s ease}
 [data-testid="stSidebar"]{display:none !important;}
 
@@ -234,22 +234,21 @@ def seed_complete_250_question_bank():
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "البلهارسيا المعوية ترتبط بقوقع بيومفلاريا كوسيط.", "opts": ["صح", "خطأ"], "ans": 0},
         {"cat": "أسئلة الصح والخطأ", "lvl": "متنوع", "q": "السركاريا هي الطور الذي يخترق جلد الإنسان في دورة البلهارسيا.", "opts": ["صح", "خطأ"], "ans": 0},
 
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا المعوية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية (Schistosoma mansoni)"], "ans": 3},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا البولية]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية ذات الشوكة الطرفية (Schistosoma haematobium)", "الهتروفيس"], "ans": 2},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة الفاشيولا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا الكبدية ذات الغطاء (Fasciola hepatica)", "التينيا"], "ans": 2},
-        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لكيس الجيارديا]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا المتشيس (Giardia cyst)", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1}
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا المعوية - Schistosoma mansoni Egg]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا اليابانية", "البلهارسيا البولية", "التريكوريس", "البلهارسيا المعوية (Schistosoma mansoni)"], "ans": 3},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة البلهارسيا البولية - Schistosoma haematobium Egg]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["البلهارسيا المعوية", "التريكوريس", "البلهارسيا البولية ذات الشوكة الطرفية (Schistosoma haematobium)", "الهتروفيس"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لبيضة الفاشيولا - Fasciola hepatica Egg]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["الهتروفيس", "التريكوريس", "الفاشيولا الكبدية ذات الغطاء (Fasciola hepatica)", "التينيا"], "ans": 2},
+        {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": "📷 [صورة مجهرية لكيس الجيارديا - Giardia lamblia Cyst]\n\nتعرف على الشكل الظاهر في الصورة وحدد الطفيل المناسب:", "opts": ["بيضة التريكوريس", "كيس الجيارديا المتشيس (Giardia cyst)", "كيس الأميبا", "تروفوزويت الجيارديا"], "ans": 1}
     ]
 
-    # استكمال بنك الأسئلة ليصل إلى 250 سؤالاً حقيقياً ومتنوعاً بالكامل ودون أي تكرار نمطي
-    categories_pool = ["الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية", "أسئلة الصور والأشكال"]
-    levels_pool = ["سهل", "متوسط", "صعب"]
-    
     base_questions_templates = [
         ("ما هي الوسيلة الأفضل للوقاية من الإصابة بديدان الهتروفيس؟", ["طهي الأسماك جيداً قبل الأكل", "غسل اليدين فقط", "تجنب شرب الماء المقطر", "تعرض الجلد للشمس"], 0),
         ("أي من الطفيليات الآتية يسبب مرض الدوسنتاريا الأميبية؟", ["إنتاميبا هستوليتيكا", "الجيارديا لامبليا", "الإسكارس", "الأنكلستوما"], 0),
         ("ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0),
         ("ما هو العرض السريري الأبرز للإصابة الشديدة بديدان الإسكارس للأطفال؟", ["اضطرابات معوية وآلام بالبطن", "حكة جلدية شديدة", "اصفرار العينين فقط", "التهاب المثانة الحاد"], 0)
     ]
+
+    categories_pool = ["الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية", "أسئلة الصور والأشكال"]
+    levels_pool = ["سهل", "متوسط", "صعب"]
 
     while len(complete_bank) < 250:
         idx = len(complete_bank) + 1
@@ -320,10 +319,9 @@ def trainee_by_credentials(name, facility):
                       (normalize_text(name), normalize_text(facility))).fetchone()
         return dict(r) if r else None
 
-def get_trainee_status_raw(name, facility):
+def get_trainee_status_raw_by_id(tid):
     with db() as c:
-        r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=?",
-                      (normalize_text(name), normalize_text(facility))).fetchone()
+        r = c.execute("SELECT * FROM trainees WHERE id=?", (tid,)).fetchone()
         return dict(r) if r else None
 
 def set_trainee_status(tid, status):
@@ -397,7 +395,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 4) دوال التصدير (HTML و PDF مستقلين)
+# 4) دوال التصدير (HTML و PDF مستقلين ببيانات بايثون صريحة)
 # ============================================================
 def generate_compact_certificate_html(sid):
     with db() as c:
@@ -449,7 +447,7 @@ def generate_compact_exam_html(template_id):
         body {{ font-family: 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; font-size: 11pt; }}
         .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }}
         .q-box {{ margin-bottom: 10px; page-break-inside: avoid; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; }}
-        .img-box {{ background: #f8fafc; border: 2px dashed #059669; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 8px; font-weight: bold; color: #065f46; }}
+        .img-box {{ background: #f8fafc; border: 2px dashed #059669; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 8px; font-weight: bold; color: #065f46; }}
         ul {{ list-style-type: none; padding-right: 15px; margin: 5px 0; }}
         li {{ margin-bottom: 3px; }}
     </style></head>
@@ -466,7 +464,7 @@ def generate_compact_exam_html(template_id):
             parts = q_text.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>{img_title}</div><p>{actual_q}</p><ul>"
+            html_out += f"<div class='q-box'><b>س {idx+1}:</b><div class='img-box'>🖼️ {img_title}</div><p>{actual_q}</p><ul>"
         else:
             html_out += f"<div class='q-box'><b>س {idx+1}: {q_text}</b><ul>"
             
@@ -484,7 +482,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.1 FINAL • بنك الأسئلة الكامل (250 سؤالاً) وأزرار تصدير HTML/PDF مستقلة</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v4.3 FINAL • أزرار تصدير HTML و PDF فعالة ومستقلة بالكامل</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -506,30 +504,22 @@ def login_portal():
                         st.success("تم التعرف على حسابك! جاري الدخول...")
                         st.rerun()
                     else:
-                        raw = get_trainee_status_raw(name, facility)
-                        if raw:
-                            st.warning(f"حالة طلبك: ({STATUS_AR.get(raw['status'], raw['status'])}). بانتظار اعتماد الإدارة.")
-                        else:
-                            tid = create_trainee(facility, name, phone)
-                            st.info(f"تم إرسال طلبك برقم ({tid}). بانتظار موافقة الإدارة.")
+                        tid = create_trainee(facility, name, phone)
+                        st.info(f"تم إرسال طلبك برقم تسلسلي ({tid}). احتفظ بهذا الرقم للاستعلام الفوري. بانتظار موافقة الإدارة.")
                 else:
                     st.warning("الرجاء إدخال الجهة والاسم الرباعي.")
                     
     with col2:
         with st.container(border=True):
             st.markdown("<b>🔍 أيقونة فحص حالة الاعتماد الفوري</b>", unsafe_allow_html=True)
-            chk_name = st.text_input("الاسم الرباعي للمتدرب المسجل", key="check_name_input")
-            chk_fac = st.text_input("الجهة / الإدارة الصحية المسجلة", key="check_fac_input")
-            if st.button("التحقق من حالة الاعتماد", use_container_width=True):
-                if chk_name and chk_fac:
-                    raw = get_trainee_status_raw(chk_name, chk_fac)
-                    if raw:
-                        status_msg = STATUS_AR.get(raw['status'], raw['status'])
-                        st.info(f"📋 نتيجة فحص المتدرب (<b>{chk_name}</b> - {chk_fac}): <b>{status_msg}</b>")
-                    else:
-                        st.warning("⚠️ لم يتم العثور على أي تسجيل بهذا الاسم والجهة في سجلات المنصة.")
+            chk_id = st.number_input("أدخل رقم تسجيل المتدرب (ID)", min_value=1, step=1, value=1)
+            if st.button("التحقق الفوري من الحالة", use_container_width=True):
+                raw = get_trainee_status_raw_by_id(int(chk_id))
+                if raw:
+                    status_msg = STATUS_AR.get(raw['status'], raw['status'])
+                    st.info(f"📋 نتيجة فحص المتدرب (الاسم: <b>{raw['name']}</b> - الجهة: {raw['facility']}): <b>{status_msg}</b>")
                 else:
-                    st.warning("الرجاء إدخال الاسم والجهة للاستعلام.")
+                    st.warning("⚠️ لم يتم العثور على أي تسجيل بهذا الرقم في سجلات المنصة.")
 
     st.markdown("---")
     with st.expander("🔐 دخول الإدارة / المالك (انقر هنا للعرض)"):
@@ -591,7 +581,7 @@ def admin_dashboard():
             else:
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
-                        st.write(f"**الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
+                        st.write(f"**رقم التسجيل:** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
                         b1, b2 = st.columns(2)
                         if b1.button("✅ موافقة واعتماد", key=f"app_{r['id']}"):
                             set_trainee_status(int(r['id']), "approved")
@@ -643,12 +633,13 @@ def admin_dashboard():
             with st.container(border=True):
                 st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: {t['num_questions']} | المدة: {t['duration_minutes']} دقيقة")
                 html_exam = generate_compact_exam_html(t["id"])
+                html_bytes = html_exam.encode("utf-8")
                 
                 b_html, b_pdf = st.columns(2)
                 with b_html:
                     st.download_button(
                         label=f"📥 تحميل قالب امتحان ({t['name']}) كملف HTML",
-                        data=html_exam,
+                        data=html_bytes,
                         file_name=f"exam_template_{t['id']}.html",
                         mime="text/html",
                         key=f"dl_html_{t['id']}"
@@ -656,7 +647,7 @@ def admin_dashboard():
                 with b_pdf:
                     st.download_button(
                         label=f"📥 تحميل قالب امتحان ({t['name']}) كملف PDF",
-                        data=html_exam,
+                        data=html_bytes,
                         file_name=f"exam_template_{t['id']}.pdf",
                         mime="application/pdf",
                         key=f"dl_pdf_{t['id']}"
@@ -718,11 +709,12 @@ def admin_dashboard():
             sid_p = st.selectbox("اختر جلسة الاختبار لتحميل الشهادة", df_res.id.tolist())
             if sid_p:
                 cert_html = generate_compact_certificate_html(int(sid_p))
+                cert_bytes = cert_html.encode("utf-8")
                 b_ch, b_cp = st.columns(2)
                 with b_ch:
                     st.download_button(
                         label="📥 تحميل الشهادة كملف HTML",
-                        data=cert_html,
+                        data=cert_bytes,
                         file_name=f"certificate_{sid_p}.html",
                         mime="text/html",
                         key=f"dl_cert_html_{sid_p}"
@@ -730,7 +722,7 @@ def admin_dashboard():
                 with b_cp:
                     st.download_button(
                         label="📥 تحميل الشهادة كملف PDF",
-                        data=cert_html,
+                        data=cert_bytes,
                         file_name=f"certificate_{sid_p}.pdf",
                         mime="application/pdf",
                         key=f"dl_cert_pdf_{sid_p}"
@@ -818,7 +810,7 @@ def exam_interface(session_id):
             parts = q_text.split("\n\n", 1)
             img_title = parts[0]
             actual_q = parts[1] if len(parts) > 1 else ""
-            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">{img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br><div class="img-box">🖼️ {img_title}</div><p>{actual_q}</p></div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div class="question"><b>السؤال ({row["position"]+1})</b><br>{q_text}</div>', unsafe_allow_html=True)
 
@@ -846,19 +838,20 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         header()
         st.success("تم تسليم الاختبار بنجاح!")
         cert_html = generate_compact_certificate_html(sid)
+        cert_bytes = cert_html.encode("utf-8")
         
         bc_h, bc_p = st.columns(2)
         with bc_h:
             st.download_button(
                 label="📥 تحميل الشهادة كملف HTML",
-                data=cert_html,
+                data=cert_bytes,
                 file_name=f"certificate_{sid}.html",
                 mime="text/html"
             )
         with bc_p:
             st.download_button(
                 label="📥 تحميل الشهادة كملف PDF",
-                data=cert_html,
+                data=cert_bytes,
                 file_name=f"certificate_{sid}.pdf",
                 mime="application/pdf"
             )
