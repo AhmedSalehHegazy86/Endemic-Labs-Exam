@@ -7,7 +7,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (هوامش علوية وسفلية أوسع قليلاً)
+# 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
     page_title="منصة اختبارات معامل المتوطنة - Professional v6.0 FINAL",
@@ -819,13 +819,23 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     return html_out
 
 # ============================================================
-# 6) المسارات والشاشات (بدون شريط جانبي)
+# 6) المسارات والشاشات (مع زر طباعة الصفحة المباشر)
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "edit_success_msg": "", "add_success_msg": "", "del_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
     st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.0 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    
+    # زر طباعة الصفحة المباشر في رأس الصفحة
+    c_p1, c_p2 = st.columns([6, 1])
+    with c_p2:
+        if st.button("🖨️️ طباعة الصفحة", use_container_width=True):
+            components.html("""
+                <script>
+                    window.print();
+                </script>
+            """, height=0)
 
 def login_portal():
     header()
