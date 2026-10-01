@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v36.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v38.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v36_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v38_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -287,7 +287,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             exam_type TEXT NOT NULL DEFAULT 'اختبار مخصص للمالك',
-            num_questions INTEGER NOT NULL DEFAULT 50,
+            num_questions INTEGER NOT NULL DEFAULT 999999,
             duration_minutes INTEGER NOT NULL DEFAULT 60,
             pass_percent REAL NOT NULL DEFAULT 60,
             categories_json TEXT NOT NULL DEFAULT '[]',
@@ -339,7 +339,7 @@ def init_db():
         cursor_tpl = c.execute("PRAGMA table_info(exam_templates)")
         tpl_columns = [col[1] for col in cursor_tpl.fetchall()]
         if "num_questions" not in tpl_columns:
-            c.execute("ALTER TABLE exam_templates ADD COLUMN num_questions INTEGER NOT NULL DEFAULT 50")
+            c.execute("ALTER TABLE exam_templates ADD COLUMN num_questions INTEGER NOT NULL DEFAULT 999999")
 
 def get_facilities():
     with db() as c:
@@ -375,7 +375,7 @@ def reorder_template_ids():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 exam_type TEXT NOT NULL DEFAULT 'اختبار مخصص للمالك',
-                num_questions INTEGER NOT NULL DEFAULT 50,
+                num_questions INTEGER NOT NULL DEFAULT 999999,
                 duration_minutes INTEGER NOT NULL DEFAULT 60,
                 pass_percent REAL NOT NULL DEFAULT 60,
                 categories_json TEXT NOT NULL DEFAULT '[]',
@@ -385,10 +385,11 @@ def reorder_template_ids():
         """)
         
         for idx, r in enumerate(rows, start=1):
+            num_q_val = dict(r).get("num_questions", 999999)
             c.execute("""
                 INSERT INTO exam_templates_temp(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, active, created_at)
                 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (idx, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["active"], r["created_at"]))
+            """, (idx, r["name"], r["exam_type"], num_q_val, r["duration_minutes"], r["pass_percent"], r["categories_json"], r["active"], r["created_at"]))
         
         c.execute("DROP TABLE exam_templates")
         c.execute("ALTER TABLE exam_templates_temp RENAME TO exam_templates")
@@ -526,13 +527,14 @@ def choose_questions(t):
     if not t:
         return []
     
-    cats_raw = t["categories_json"] if "categories_json" in t else "[]"
+    t_dict = dict(t)
+    cats_raw = t_dict.get("categories_json", "[]")
     try:
         cats = json.loads(cats_raw) if cats_raw else []
     except:
         cats = []
 
-    limit_count = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 50
+    limit_count = int(t_dict.get("num_questions", 999999))
 
     with db() as c:
         if cats:
@@ -543,6 +545,8 @@ def choose_questions(t):
         else:
             all_db_questions = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
             
+    if limit_count >= 999900:
+        return all_db_questions
     return all_db_questions[:limit_count]
 
 def start_session(trainee_id, template_id):
@@ -559,7 +563,8 @@ def start_session(trainee_id, template_id):
 
     qs = choose_questions(t)
     started = datetime.now()
-    expires = started + timedelta(minutes=int(t["duration_minutes"]))
+    t_dict = dict(t)
+    expires = started + timedelta(minutes=int(t_dict.get("duration_minutes", 60)))
     
     with db() as c:
         cur = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,status) VALUES(?,?,?,?,?)",
@@ -590,7 +595,8 @@ def submit_session(sid):
         max_score = len(rows)
         percent = (correct / max_score * 100) if max_score else 0
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (s["template_id"],)).fetchone()
-        pass_pct = float(t["pass_percent"]) if t and t["pass_percent"] else 60.0
+        t_dict = dict(t) if t else {}
+        pass_pct = float(t_dict.get("pass_percent", 60.0))
         passed = 1 if percent >= pass_pct else 0
         cert = f"ELX-{sid:06d}"
         
@@ -685,7 +691,8 @@ def generate_training_minutes_html(template_id, training_date, facility_name, cu
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
     if not t: return "<p>القالب غير موجود</p>"
-    cats = json.loads(t["categories_json"]) if t["categories_json"] else ["الاستراتيجية العامة", "الفحوص المعملية"]
+    t_dict = dict(t)
+    cats = json.loads(t_dict.get("categories_json", "[]")) if t_dict.get("categories_json") else ["الاستراتيجية العامة", "الفحوص المعملية"]
     bullets_html = "".join([f"<li>{idx}. محور تدريبي: <b>{esc(cat)}</b> وتطبيقاته العملية.</li>" for idx, cat in enumerate(cats[:5], start=1)])
     formatted_date = training_date.strftime('%Y/%m/%d')
     return f"""
@@ -706,7 +713,7 @@ def generate_training_minutes_html(template_id, training_date, facility_name, cu
             <div class="header-top">
                 <div>
                     <h2>محضر تدريب معتمد - وحدة معامل المتوطنة</h2>
-                    <h3>الإدارة الصحية بأولاد صقر • القالب: {esc(t['name'])}</h3>
+                    <h3>الإدارة الصحية بأولاد صقر • القالب: {esc(t_dict.get('name', ''))}</h3>
                 </div>
                 <img src="{LOGO_BASE64}" style="width:70px; height:70px; object-fit:contain;" alt="Logo">
             </div>
@@ -798,6 +805,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         qs = choose_questions(t) if t else []
     if not t: return "<p>القالب غير موجود</p>"
+    t_dict = dict(t)
     html_out = f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -827,8 +835,8 @@ def generate_compact_exam_html(template_id, custom_notes=""):
         </div>
         <div class="exam-title-area">
             <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
-            <h3>نموذج امتحان: {esc(t['name'])}</h3>
-            <p>المدة: {t['duration_minutes']}د | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................ | الجهة: ........................</p>
+            <h3>نموذج امتحان: {esc(t_dict.get('name', ''))}</h3>
+            <p>المدة: {t_dict.get('duration_minutes', 60)}د | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................ | الجهة: ........................</p>
         </div>
         {f'<div class="notes-box">ملاحظات الاختبار: {esc(custom_notes)}</div>' if custom_notes else ''}
         <div class="exam-container">
@@ -895,7 +903,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v36.0 COMPLETE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v38.0 OPEN-QUESTIONS • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -991,7 +999,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية (إضافة وعرض القائمة)")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v36", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v38", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True):
@@ -1001,7 +1009,7 @@ def admin_dashboard():
                             st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح!")
                             st.rerun()
                         else:
-                            st.warning(f"⚠️ {msg}")
+                            st.warning(f"⚠️️ {msg}")
                     else:
                         st.error("الرجاء كتابة اسم المنشأة.")
         with tab_fac_2:
@@ -1013,7 +1021,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v36", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v38", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة المحددة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -1021,7 +1029,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد القالب (تحديد فردي أو تعميم جماعي دفعة واحدة)")
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد القالب (تحديد فردي أو تعميم جماعي دفعة واحدة)")
         
         with db() as c:
             all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
@@ -1110,7 +1118,7 @@ def admin_dashboard():
         with tab_ex_1:
             st.markdown("#### رفع ملف إكسيل (.xlsx أو .csv) لإضافة ودمج الأسئلة:")
             st.info("الأعمدة المطلوبة في الملف: `difficulty`, `category`, `question`, `options_json`, `answer`")
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v36")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v38")
             
             if uploaded_excel is not None:
                 try:
@@ -1210,15 +1218,15 @@ def admin_dashboard():
                 st.success(st.session_state.add_success_msg)
                 st.session_state.add_success_msg = ""
             with st.form(key=f"add_custom_img_q_form_{st.session_state.form_key}"):
-                selected_cat = st.selectbox("اختر القسم:", categories_list_opts, key="add_q_cat_v36")
-                c_text = st.text_area("نص السؤال التشخيصي:", key="add_q_txt_v36")
-                c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"], key="add_q_diff_v36")
-                uploaded_img = st.file_uploader("رفع ملف الصورة (اختياري):", type=["png", "jpg", "jpeg"], key="add_q_img_v36")
-                opt1 = st.text_input("الخيار الأول:", key="add_q_o1_v36")
-                opt2 = st.text_input("الخيار الثاني:", key="add_q_o2_v36")
-                opt3 = st.text_input("الخيار الثالث:", key="add_q_o3_v36")
-                opt4 = st.text_input("الخيار الرابع:", key="add_q_o4_v36")
-                correct_ans_text = st.text_input("نص الإجابة الصحيحة:", key="add_q_ans_v36")
+                selected_cat = st.selectbox("اختر القسم:", categories_list_opts, key="add_q_cat_v38")
+                c_text = st.text_area("نص السؤال التشخيصي:", key="add_q_txt_v38")
+                c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"], key="add_q_diff_v38")
+                uploaded_img = st.file_uploader("رفع ملف الصورة (اختياري):", type=["png", "jpg", "jpeg"], key="add_q_img_v38")
+                opt1 = st.text_input("الخيار الأول:", key="add_q_o1_v38")
+                opt2 = st.text_input("الخيار الثاني:", key="add_q_o2_v38")
+                opt3 = st.text_input("الخيار الثالث:", key="add_q_o3_v38")
+                opt4 = st.text_input("الخيار الرابع:", key="add_q_o4_v38")
+                correct_ans_text = st.text_input("نص الإجابة الصحيحة:", key="add_q_ans_v38")
                 if st.form_submit_button("حفظ وإضافة السؤال الجديد", use_container_width=True):
                     if c_text and correct_ans_text:
                         img_uri_final = f"data:image/{uploaded_img.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_img.read()).decode("utf-8") if uploaded_img else ""
@@ -1238,7 +1246,7 @@ def admin_dashboard():
             with db() as c: all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
             if all_questions:
                 q_options_map = {f"سؤال ({q['id']}) - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions}
-                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_box_v36")
+                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_box_v38")
                 selected_q_id = q_options_map[selected_q_label]
                 with db() as c: q_data = c.execute("SELECT * FROM questions WHERE id=?", (selected_q_id,)).fetchone()
                 if q_data:
@@ -1271,35 +1279,37 @@ def admin_dashboard():
             with db() as c: all_questions_del = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
             if all_questions_del:
                 q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
-                selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()), key="del_q_box_v36")
-                if st.button("🗑️ تأكيد وحذف السؤال نهائياً", key="del_q_btn_v36", use_container_width=True):
+                selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()), key="del_q_box_v38")
+                if st.button("🗑️ تأكيد وحذف السؤال نهائياً", key="del_q_btn_v38", use_container_width=True):
                     with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
                     reorder_question_ids()
                     st.success("✅ تم الحذف وإعادة الترتيب بنجاح!")
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات (تحديد عدد الأسئلة والأقسام بدقة)")
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات (عدد أسئلة مفتوح وغير محدد)")
         sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض القوالب وتوليد الأوراق", "➕ إنشاء قالب جديد كلياً", "🗑 حذف قالب امتحان"], horizontal=True)
         if sub_tpl_mode == "📋 عرض القوالب وتوليد الأوراق":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             facilities_list = [f["name"] for f in get_facilities()] or ["الإدارة الصحية بأولاد صقر"]
             if tpls:
                 for t in tpls:
+                    t_dict = dict(t)
+                    num_q_display = "مفتوح (كامل البنك)" if int(t_dict.get('num_questions', 999999)) >= 999900 else t_dict.get('num_questions')
                     with st.container(border=True):
-                        st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']} | عدد الأسئلة: {t.get('num_questions', 50)}")
+                        st.markdown(f"#### 🏷️ قالب رقم ({t_dict.get('id')}): {t_dict.get('name')} | عدد الأسئلة: {num_q_display}")
                         col_m1, col_m2 = st.columns(2)
-                        with col_m1: m_date = st.date_input(f"تاريخ المحضر ({t['id']})", date.today(), key=f"m_date_{t['id']}")
-                        with col_m2: m_facility = st.selectbox(f"المنشأة ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
-                        minutes_html = generate_training_minutes_html(t["id"], m_date, m_facility, "تقرير أداء المعامل والإشراف الفني المعتمد")
-                        html_exam = generate_compact_exam_html(t["id"], "تقرير أداء المعامل والإشراف الفني المعتمد")
+                        with col_m1: m_date = st.date_input(f"تاريخ المحضر ({t_dict.get('id')})", date.today(), key=f"m_date_{t_dict.get('id')}")
+                        with col_m2: m_facility = st.selectbox(f"المنشأة ({t_dict.get('id')})", facilities_list, key=f"m_fac_{t_dict.get('id')}")
+                        minutes_html = generate_training_minutes_html(t_dict.get('id'), m_date, m_facility, "تقرير أداء المعامل والإشراف الفني المعتمد")
+                        html_exam = generate_compact_exam_html(t_dict.get('id'), "تقرير أداء المعامل والإشراف الفني المعتمد")
                         b1, b2 = st.columns(2)
                         with b1:
-                            st.download_button("📥 تحميل المحضر .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t['id']}.html", mime="text/html", key=f"dl_min_{t['id']}", use_container_width=True)
-                            render_print_button_only(minutes_html, f"محضر التدريب {t['id']}")
+                            st.download_button("📥 تحميل المحضر .html", data=minutes_html.encode("utf-8"), file_name=f"training_minutes_{t_dict.get('id')}.html", mime="text/html", key=f"dl_min_{t_dict.get('id')}", use_container_width=True)
+                            render_print_button_only(minutes_html, f"محضر التدريب {t_dict.get('id')}")
                         with b2:
-                            st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
-                            render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
+                            st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t_dict.get('id')}.html", mime="text/html", key=f"dl_exam_{t_dict.get('id')}", use_container_width=True)
+                            render_print_button_only(html_exam, f"نموذج الامتحان {t_dict.get('id')}")
         elif sub_tpl_mode == "➕ إنشاء قالب جديد كلياً":
             if st.session_state.tpl_success_msg:
                 st.success(st.session_state.tpl_success_msg)
@@ -1317,17 +1327,19 @@ def admin_dashboard():
             ]
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوبة في الاختبار:", min_value=1, max_value=500, value=50)
+                is_open_questions = st.checkbox("جعل عدد الأسئلة مفتوح وغير محدد (سحب كامل بنك الأسئلة المتاح)", value=True)
+                new_tpl_num_q = st.number_input("عدد الأسئلة المخصص (يُهمل إذا تم تفعيل الخيار المفتوح):", min_value=1, max_value=5000, value=50)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=300, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة لسحب كامل البنك):", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ وإنشاء القالب الجديد", use_container_width=True):
                     if new_tpl_name.strip():
+                        final_num_q = 999999 if is_open_questions else int(new_tpl_num_q)
                         with db() as c:
                             c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at) VALUES(?,?,?,?,?,?,?)",
-                                      (new_tpl_name.strip(), "اختبار مخصص للمالك", int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), now()))
+                                      (new_tpl_name.strip(), "اختبار مخصص للمالك", final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), now()))
                         reorder_template_ids()
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء القالب ({new_tpl_name}) بنجاح!"
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء القالب ({new_tpl_name}) بنجاح وبعدد أسئلة {'مفتوح' if is_open_questions else final_num_q}!"
                         st.rerun()
                     else:
                         st.error("الرجاء إدخال اسم القالب.")
@@ -1422,7 +1434,7 @@ def trainee_portal():
     if matching_template:
         st.info(f"📌 سيتم بدء اختبارك المخصص بناءً على القالب المعتمد لك: **{tpl_name_str}**")
     else:
-        st.warning("⚠️️ عذراً، لم تقم الإدارة بتعيين قالب امتحان مخصص لك بعد من لوحة التحكم.")
+        st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين قالب امتحان مخصص لك بعد من لوحة التحكم.")
 
     if matching_template and st.button("بدء الاختبار المخصص الآن", use_container_width=True):
         try:
