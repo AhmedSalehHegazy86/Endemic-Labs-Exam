@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v9.5 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v9.6 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_5.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_6.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -495,7 +495,7 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    سحب الأسئلة الحرفي المطابق للعدد المحدد تماماً (num_questions) مع استكمال أي نقص من بنك الأسئلة بالكامل فوراً.
+    سحب الأسئلة الحرفي المطابق للعدد المحدد في القالب (num_questions) واستكمال أي نقص من بنك الأسئلة بالكامل فوراً.
     """
     if not t:
         return []
@@ -513,7 +513,7 @@ def choose_questions(t):
     seen_texts = set()
 
     with db() as c:
-        # 1. محاولة السحب من الأقسام المحددة في القالب أولاً
+        # 1. سحب من الأقسام المحددة أولاً إن وجدت
         if cats:
             placeholders = ",".join(["?"] * len(cats))
             cat_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
@@ -529,7 +529,7 @@ def choose_questions(t):
                     seen_texts.add(q_txt)
                     unique_list.append(q)
 
-        # 2. استكمال العدد المطلوب من إجمالي بنك الأسئلة بالكامل فوراً إذا لم يكتمل العدد
+        # 2. استكمال العدد المطلوب تماماً من إجمالي بنك الأسئلة بالكامل فوراً
         if len(unique_list) < target:
             all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
             for q in all_db_qs:
@@ -884,7 +884,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.5 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.6 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -983,7 +983,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v95", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v96", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -994,7 +994,7 @@ def admin_dashboard():
                             st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) برقم المعرف ({manual_id_input}) بنجاح!")
                             st.rerun()
                         else:
-                            st.warning(f"⚠️ {msg}")
+                            st.warning(f"⚠️️ {msg}")
                     else:
                         st.error("الرجاء كتابة اسم المنشأة.")
 
@@ -1012,7 +1012,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v95", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v96", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1224,7 +1224,7 @@ def admin_dashboard():
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب:", min_value=1, max_value=250, value=50)
+                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب (اختر أي رقم حتى 250):", min_value=1, max_value=250, value=50)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب (اتركها فارغة للسحب من كافة الأقسام):", categories_pool_opts)
@@ -1243,7 +1243,7 @@ def admin_dashboard():
                         st.rerun()
 
         else:
-            st.subheader("🗑️ حذف قالب امتحان موجود")
+            st.subheader("🗑️️ حذف قالب امتحان موجود")
             with db() as c:
                 tpls_del = c.execute("SELECT id, name FROM exam_templates ORDER BY id ASC").fetchall()
             if not tpls_del:
