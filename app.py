@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v20.0 STRICT BANK-ONLY",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v21.0 BALANCED BANK",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v20_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v21_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -367,10 +367,6 @@ def reorder_question_ids():
         c.execute("PRAGMA foreign_keys=ON;")
 
 def seed_initial_bank():
-    """
-    إنشاء بنك أسئلة أساسي وغني يحتوي على أسئلة حقيقية ومتنوعة عبر الأقسام،
-    دون أي توليد وهمي أو إضافات لاحقة.
-    """
     with db() as c:
         current_count = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
         if current_count > 0:
@@ -472,9 +468,10 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    خوارزمية السحب الصارم من بنك الأسئلة فقط (بدون توليد):
-    - تسحب من الأقسام المحددة أولاً (دون تكرار).
-    - إذا لم تكفِ الأسئلة في الأقسام المحددة للوصول للعدد المطلوب، يستكمل النظام بقية العدد حصرياً من باقي الأقسام المتاحة في بنك الأسئلة دون تكرار أي سؤال.
+    خوارزمية السحب المتوازن العادل (Balanced Distribution):
+    - توزع العدد المطلوب بالتساوي على الأقسام المحددة (أو كل الأقسام إن لم تُحدد).
+    - تمنع التكرار مطلقاً.
+    - إذا نفدت أسئلة أحد الأقسام، تستكمل الحصة من الأقسام الأخرى تلقائياً لضمان اكتمال العدد المطلوب بدقة.
     """
     if not t:
         return []
@@ -494,21 +491,55 @@ def choose_questions(t):
     with db() as c:
         all_db_questions = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
         
-        # 1. سحب الأسئلة المطابقة للأقسام المحددة أولاً بدون تكرار
-        if cats:
-            for q in all_db_questions:
-                if len(unique_questions) >= target:
-                    break
-                if q["category"] in cats:
+        # تحديد الأقسام المستهدفة
+        if not cats:
+            cats = list(set(q["category"] for q in all_db_questions))
+        
+        # تجميع الأسئلة حسب كل قسم لضمان العدالة والتوازن
+        questions_by_cat = {cat: [] for cat in cats}
+        other_questions = []
+        
+        for q in all_db_questions:
+            q_id = q["id"]
+            q_txt = clean_question_text(q["question"])
+            if q_id in seen_ids or q_txt in seen_texts:
+                continue
+            if q["category"] in cats:
+                questions_by_cat[q["category"]].append(q)
+            else:
+                other_questions.append(q)
+
+        # حساب الحصة التساوية المبدئية لكل قسم
+        active_cats = [cat for cat in cats if questions_by_cat[cat]]
+        if active_cats:
+            per_cat_target = max(1, target // len(active_cats))
+            
+            # المرحلة الأولى: السحب المتوازن من كل قسم بحسب حصته
+            for cat in active_cats:
+                cat_qs = questions_by_cat[cat]
+                random.shuffle(cat_qs)
+                taken = 0
+                for q in cat_qs:
+                    if len(unique_questions) >= target or taken >= per_cat_target:
+                        break
                     q_id = q["id"]
                     q_txt = clean_question_text(q["question"])
                     if q_id not in seen_ids and q_txt not in seen_texts:
                         seen_ids.add(q_id)
                         seen_texts.add(q_txt)
                         unique_questions.append(q)
+                        taken += 1
 
-        # 2. استكمال باقي العدد المطلوب من باقي أقسام بنك الأسئلة حصرياً دون أي تكرار
-        for q in all_db_questions:
+        # المرحلة الثانية: استكمال باقي العدد المطلوب من البنك العام أو الأقسام الأخرى بدون أي تكرار
+        remaining_pool = []
+        for cat in cats:
+            for q in questions_by_cat[cat]:
+                if q["id"] not in seen_ids:
+                    remaining_pool.append(q)
+        remaining_pool.extend(other_questions)
+        random.shuffle(remaining_pool)
+
+        for q in remaining_pool:
             if len(unique_questions) >= target:
                 break
             q_id = q["id"]
@@ -858,7 +889,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v20.0 STRICT BANK-ONLY • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v21.0 BALANCED BANK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -957,7 +988,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v20", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v21", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -986,7 +1017,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v20", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v21", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -997,7 +1028,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1035,14 +1066,14 @@ def admin_dashboard():
             st.dataframe(df_tr, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧠 بنك الأسئلة الشامل":
-        st.subheader("🧠 بنك الأسئلة الحقيقي والأساسي (بدون توليد وهمي)")
+        st.subheader("🧠 بنك الأسئلة الحقيقي والمتوازن عبر الأقسام")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
-        st.write(f"إجمالي الأسئلة الحقيقية المتاحة في البنك: **{len(df_q)}** سؤالاً.")
+        st.write(f"إجمالي الأسئلة المتاحة في البنك: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙️ إدارة الأسئلة":
-        st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
+        st.subheader("⚙️️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
 
@@ -1153,7 +1184,7 @@ def admin_dashboard():
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات حصرياً من بنك الأسئلة")
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات بالسحب المتوازن")
         sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل القوالب الحالية وتوليد الأوراق", "➕ إنشاء قالب جديد كلياً", "🗑 حذف قالب امتحان"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض وتعديل القوالب الحالية وتوليد الأوراق":
@@ -1166,7 +1197,7 @@ def admin_dashboard():
                 for t in tpls:
                     with st.container(border=True):
                         st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
-                        st.write(f"عدد الأسئلة المطلوب سحبها من البنك: **{t['num_questions']}** سؤالاً (بدون تكرار أو توليد)")
+                        st.write(f"عدد الأسئلة المطلوب سحبها متوازناً: **{t['num_questions']}** سؤالاً")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
                             new_q_limit = st.number_input("تعديل عدد الأسئلة للقالب:", min_value=1, max_value=500, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
@@ -1198,10 +1229,10 @@ def admin_dashboard():
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب سحبها من البنك:", min_value=1, max_value=500, value=20, step=1)
+                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب سحبها:", min_value=1, max_value=500, value=20, step=1)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
-                new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة للسحب من كامل البنك):", categories_pool_opts)
+                new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة للسحب المتوازن من كامل البنك):", categories_pool_opts)
                 
                 if st.form_submit_button("💾 حفظ وإنشاء القالب الجديد", use_container_width=True):
                     if not new_tpl_name.strip():
@@ -1350,7 +1381,7 @@ def trainee_portal():
     
     st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | قالب الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
     if matching_template:
-        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة المسحوبة من البنك: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
+        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة المسحوبة متوازناً: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
     else:
         st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين قالب امتحان لك بعد. يرجى مراجعة إدارة المنصة.")
 
