@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v9.1 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v9.2 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_1.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_2.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -503,8 +503,12 @@ def trainees_df(status=None):
         return pd.read_sql_query(q, c, params=args)
 
 def choose_questions(t):
+    """
+    الارتباط الصارم والحصري بعدد الأسئلة (num_questions) الموجود في القالب الذي حدده المالك.
+    """
     if not t:
         return []
+    
     target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 25
     cats_raw = t["categories_json"] if "categories_json" in t else "[]"
     try:
@@ -887,7 +891,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.1 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.2 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -979,7 +983,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v91", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v92", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1008,7 +1012,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v91", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v92", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1185,7 +1189,7 @@ def admin_dashboard():
                         st.write(f"التصنيف: `{t['exam_type']}` | عدد الأسئلة الحالي في القالب: **{t['num_questions']}** سؤالاً")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
-                            new_q_limit = st.number_input("التحكم في عدد الأسئلة (يظهر فوراً في الأوراق والامتحانات):", min_value=5, max_value=150, value=int(t['num_questions']), key=f"owner_q_cnt_{t['id']}")
+                            new_q_limit = st.number_input("التحكم الصارم في عدد الأسئلة (يظهر فوراً في الأوراق والامتحانات):", min_value=5, max_value=150, value=int(t['num_questions']), key=f"owner_q_cnt_{t['id']}")
                             if st.form_submit_button("💾 حفظ وتحديث عدد الأسئلة في القالب والأوراق فوراً"):
                                 with db() as c_up:
                                     c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(new_q_limit), t['id']))
@@ -1318,11 +1322,8 @@ def admin_dashboard():
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستخلاص قاعدة البيانات للجهاز")
-        
-        # زر استخلاص وتصدير قاعدة البيانات للجهاز المستخدم مباشرة
         with open(DB_PATH, "rb") as f:
             db_bytes = f.read()
-        
         st.markdown("#### 📥 تصريف وتحميل قاعدة البيانات الحالية على جهازك الشخصي:")
         st.download_button(
             label="💾 تحميل واستخلاص قاعدة البيانات الكاملة (.db) إلى جهازك",
@@ -1331,7 +1332,6 @@ def admin_dashboard():
             mime="application/octet-stream",
             use_container_width=True
         )
-        
         st.markdown("---")
         if st.button("إنشاء نسخة احتياطية محلية على السيرفر"):
             path = os.path.join(BACKUP_DIR, f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
