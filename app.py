@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v15.0 PERFECT SYNC",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v17.0 STRICT BANK",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v15_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v17_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -113,7 +113,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وتوليد الأسئلة الفريدة بدقة تامة
+# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة الحقيقي الأساسي
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -127,8 +127,7 @@ def esc(x):
 def clean_question_text(q_text):
     if not q_text:
         return ""
-    cleaned = re.sub(r"\(سؤال فريد رقم.*?\)", "", q_text)
-    cleaned = re.sub(r"\(نموذج معملي.*?\)", "", cleaned)
+    cleaned = re.sub(r"\(نموذج معملي.*?\)", "", q_text)
     cleaned = re.sub(r"\(مجموعة معملية.*?\)", "", cleaned)
     return normalize_text(cleaned)
 
@@ -367,65 +366,44 @@ def reorder_question_ids():
                 
         c.execute("PRAGMA foreign_keys=ON;")
 
-def ensure_question_bank_capacity(required_count):
+def seed_initial_bank():
     """
-    توليد وتوسيع بنك الأسئلة تلقائياً ليتطابق تماماً مع أي عدد كبير يطلبه المستخدم يدوياً
-    مع ضمان تنوع المواضيع وعدم حدوث أي نقص أو عجز في عدد الأسئلة المطلوبة.
+    إنشاء بنك أسئلة أساسي وثابت يحتوي على أسئلة حقيقية متنوعة بدقة،
+    دون أي توليد عشوائي أو تكرار وهمي لاحقاً.
     """
     with db() as c:
         current_count = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
-        if current_count >= required_count:
+        if current_count > 0:
             return
         
-        categories_pool = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
-        levels_pool = ["سهل", "متوسط", "صعب"]
-        
-        master_topics = [
-            ("ما هي الوسيلة الأفضل للوقاية من الإصابة بديدان الهتروفيس؟", ["طهي الأسماك جيداً قبل الأكل", "غسل اليدين فقط", "تجنب شرب الماء المقطر", "تعرض الجلد للشمس"], 0),
-            ("أي من الطفيليات الآتية يسبب مرض الدوسنتاريا الأميبية؟", ["إنتاميبا هستوليتيكا", "الجيارديا لامبليا", "الإسكارس", "الأنكلستوما"], 0),
-            ("ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0),
-            ("كيف يتم انتقال عدى دودة الدبوسية (Enterobius vermicularis) بشكل رئيسي؟", ["التلوث الذاتي عن طريق الفم واليدين", "تناول لحوم غير مطهية", "لسع الحشرات", "شرب لبن غير مغلٍ"], 0),
-            ("ما هي العينة المطلوبة لفحص طفيل البلانتديميتيوم كولاي (Balantidium coli)؟", ["عينة براز طازجة", "عينة بول صباحية", "مسحة دم وريدي", "عينة بلغم"], 0),
-            ("أي من المبيدات التالية يستخدم لمكافحة قواقع القنوات المائية (العائل الوسيط)؟", ["نكلوزاميد (Niclosamide)", "كلورين مركز", "سلفات الكوبر", "فورمالين"], 0),
-            ("ما هو الطور التشخيصي الرئيسي لدودة الإسكارس في فحص البراز؟", ["البويضة المخصبة أو غير المخصبة", "اليرقة الرابتيدية", "الديدان البالغة", "الحويصلة المعدية"], 0),
-            ("ما هي الشروط المثلى لحفظ عينات البراز المراد فحصها للبحث عن الأطوار المتحركة للأوليات؟", ["فحصها وهي طازجة ودافئة", "حفظها بالفريزر تحت الصفر", "تعريضها لأشعة الشمس المباشرة", "غليها قبل الفحص"], 0),
-            ("ما هو مظهر بيضة دودة الأنشيلوستوما تحت المجهر؟", ["بيضوية الشكل وتحتوي على خلايا جنينية واضحة", "مستديرة تماماً ولها جدار سميك خشبي", "لها شوكة جانبية بارزة", "مثلثة الشكل"], 0),
-            ("ما هي الطريقة القياسية المعتمدة لتركيز طفيليات البراز (Concentration technique)؟", ["طريقة الترسيب بالفورمول-إيثيل أسيتات", "طريقة الطرد المركزي السريع للدم", "طريقة الترشيح بغشاء السليلوز", "طريقة التخمير البيولوجي"], 0),
-            ("ما هو العائل الأساسي لدودة التينيا ساجيناتا (Taenia saginata)؟", ["الإنسان", "البقر", "الخنازير", "الكلاب"], 0),
-            ("أي من الفحوصات التالية يستخدم خصيصاً لتشخيص اليرقات المهاجرة في العضلات؟", ["اختبار الترسيب الجلدي أو الأليسا (ELISA)", "فحص البراز المباشر", "مزرعة الدم الشاملة", "فحص بول صباحي"], 0),
-            ("ما هي أعراض الإصابة الشديدة بدودة الإسكارس في الأطفال؟", ["انسداد الأمعاء وسوء التغذية", "التهاب الكبد الوبائي الحاد", "فشل كلوري مزمن", "تقرحات في الجلد الخارجي"], 0),
-            ("ما هي الطريقة المتبعة لفحص دودة الدبوسية دقيقة الحجم؟", ["اختبار اللصق الشفاف (Scotch tape test)", "فحص البراز بالصبغة", "مزرعة البول المعقمة", "فحص سائل النخاع الشوكي"], 0),
-            ("ما هو الطفيلي المسبب لمرض البلهارسيا الكبدية المعوية في مصر؟", ["شستوسوما مانسوني", "شستوسوما هيماتوبيوم", "شستوسوما جابونيكوم", "فاشيولا هيباتيكا"], 0)
+        core_questions = [
+            ("سهل", "الاستراتيجية العامة ومكافحة البلهارسيا", "ما هي الوسيلة الأفضل للوقاية من الإصابة بديدان الهتروفيس؟", ["طهي الأسماك جيداً قبل الأكل", "غسل اليدين فقط", "تجنب شرب الماء المقطر", "تعرض الجلد للشمس"], 0),
+            ("متوسط", "الأوليات", "أي من الطفيليات الآتية يسبب مرض الدوسنتاريا الأميبية؟", ["إنتاميبا هستوليتيكا", "الجيارديا لامبليا", "الإسكارس", "الأنكلستوما"], 0),
+            ("صعب", "الفحوص المعملية", "ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0),
+            ("سهل", "الديدان الأسطوانية", "كيف يتم انتقال عدى دودة الدبوسية (Enterobius vermicularis) بشكل رئيسي؟", ["التلوث الذاتي عن طريق الفم واليدين", "تناول لحوم غير مطهية", "لسع الحشرات", "شرب لبن غير مغلٍ"], 0),
+            ("متوسط", "الأوليات", "ما هي العينة المطلوبة لفحص طفيل البلانتديميتيوم كولاي (Balantidium coli)؟", ["عينة براز طازجة", "عينة بول صباحية", "مسحة دم وريدي", "عينة بلغم"], 0),
+            ("صعب", "الاستراتيجية العامة ومكافحة البلهارسيا", "أي من المبيدات التالية يستخدم لمكافحة قواقع القنوات المائية (العائل الوسيط)؟", ["نكلوزاميد (Niclosamide)", "كلورين مركز", "سلفات الكوبر", "فورمالين"], 0),
+            ("سهل", "الديدان الأسطوانية", "ما هو الطور التشخيصي الرئيسي لدودة الإسكارس في فحص البراز؟", ["البويضة المخصبة أو غير المخصبة", "اليرقة الرابتيدية", "الديدان البالغة", "الحويصلة المعدية"], 0),
+            ("متوسط", "الفحوص المعملية", "ما هي الشروط المثلى لحفظ عينات البراز المراد فحصها للبحث عن الأطوار المتحركة للأوليات؟", ["فحصها وهي طازجة ودافئة", "حفظها بالفريزر تحت الصفر", "تعريضها لأشعة الشمس المباشرة", "غليها قبل الفحص"], 0),
+            ("متوسط", "الديدان الأسطوانية", "ما هو مظهر بيضة دودة الأنشيلوستوما تحت المجهر؟", ["بيضوية الشكل وتحتوي على خلايا جنينية واضحة", "مستديرة تماماً ولها جدار سميك خشبي", "لها شوكة جانبية بارزة", "مثلثة الشكل"], 0),
+            ("صعب", "الفحوص المعملية", "ما هي الطريقة القياسية المعتمدة لتركيز طفيليات البراز (Concentration technique)؟", ["طريقة الترسيب بالفورمول-إيثيل أسيتات", "طريقة الطرد المركزي السريع للدم", "طريقة الترشيح بغشاء السليلوز", "طريقة التخمير البيولوجي"], 0),
+            ("سهل", "الديدان الشريطية", "ما هو العائل الأساسي لدودة التينيا ساجيناتا (Taenia saginata)؟", ["الإنسان", "البقر", "الخنازير", "الكلاب"], 0),
+            ("صعب", "الفحوص المعملية", "أي من الفحوصات التالية يستخدم خصيصاً لتشخيص اليرقات المهاجرة في العضلات؟", ["اختبار الترسيب الجلدي أو الأليسا (ELISA)", "فحص البراز المباشر", "مزرعة الدم الشاملة", "فحص بول صباحي"], 0),
+            ("متوسط", "الديدان الأسطوانية", "ما هي أعراض الإصابة الشديدة بدودة الإسكارس في الأطفال؟", ["انسداد الأمعاء وسوء التغذية", "التهاب الكبد الوبائي الحاد", "فشل كلوري مزمن", "تقرحات في الجلد الخارجي"], 0),
+            ("سهل", "الديدان الأسطوانية", "ما هي الطريقة المتبعة لفحص دودة الدبوسية دقيقة الحجم؟", ["اختبار اللصق الشفاف (Scotch tape test)", "فحص البراز بالصبغة", "مزرعة البول المعقمة", "فحص سائل النخاع الشوكي"], 0),
+            ("متوسط", "الاستراتيجية العامة ومكافحة البلهارسيا", "ما هو الطفيلي المسبب لمرض البلهارسيا الكبدية المعوية في مصر؟", ["شستوسوما مانسوني", "شستوسوما هيماتوبيوم", "شستوسوما جابونيكوم", "فاشيولا هيباتيكا"], 0),
+            ("متوسط", "الفحوص المعملية", "ما هي الطريقة المثلى لتعقيم أدوات فحص البراز بعد الانتهاء من العمل؟", ["استخدام أوتوكلاف تحت ضغط وحرارة عالية", "غسلها بالماء الفاتر فقط", "تعريضها للهواء الطلق", "مسحها بالكحول الطبي السريع"], 0),
+            ("صعب", "الاستراتيجية العامة ومكافحة البلهارسيا", "أي من الديدان التالية يتميز العائل الوسيط لها بقواقع البلانوربيس؟", ["شستوسوما هيماتوبيوم", "شستوسوما مانسوني", "الفاشيولا", "الهتروفيس"], 0),
+            ("سهل", "الفحوص المعملية", "ما هو لون بيضة دودة الأسكارس عند صبغها باليود في فحص البراز؟", ["تظهر باللون الأصفر البني المميز", "تظهر باللون الأزرق الغامق", "تظهر شفافة تماماً بدون لون", "تظهر باللون الأحمر القاني"], 0),
+            ("متوسط", "الفحوص المعملية", "ما هي الفترة الزمنية القياسية لتحضير شريحة الفحص المباشر للبراز بالملح أو اليود؟", ["دقائق معدودة لتفادي جفاف العينة", "أكثر من 24 ساعة كاملة", "أسبوع كامل في الثلاجة", "شهر في درجة حرارة الغرفة"], 0),
+            ("صعب", "الديدان الشريطية", "أي من الأمراض التالية ينتقل عن طريق تناول لحوم الخنازير غير المطهية جيداً؟", ["التريكينوزيس (Trichinosis)", "الملاريا المزمنة", "التيفوئيد", "الكوليرا"], 0)
         ]
 
-        idx = current_count + 1
-        loop_counter = 0
-        # ضمان الوصول تماماً للعدد المطلوب حتى لو كان كبيراً جداً (مثل 500 أو 1000 سؤال)
-        target_gen = max(required_count + 50, 600)
-        while current_count < target_gen and loop_counter < 60000:
-            loop_counter += 1
-            base_item = master_topics[(idx * 11) % len(master_topics)]
-            cat = categories_pool[(idx * 17) % len(categories_pool)]
-            lvl = levels_pool[(idx * 7) % len(levels_pool)]
-            
-            q_text = f"{base_item[0]} (سؤال فريد رقم {idx}-{loop_counter})"
-            opts = list(base_item[1])
-            correct_idx = base_item[2]
-            
-            fp = hashlib.sha256((q_text + "|" + "|".join(opts)).encode("utf-8")).hexdigest()
-            
-            try:
-                c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
-                             VALUES(?,?,?,?,?,?,?,?)""",
-                          (lvl, cat, q_text, json.dumps(opts, ensure_ascii=False), correct_idx, 1, fp, now()))
-                current_count += 1
-                idx += 1
-            except sqlite3.IntegrityError:
-                idx += 1
-                continue
-
-def seed_initial_bank():
-    ensure_question_bank_capacity(600)
+        for q in core_questions:
+            fp = hashlib.sha256((q[2] + "|" + "|".join(q[3])).encode("utf-8")).hexdigest()
+            c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                      (q[0], q[1], q[2], json.dumps(q[3], ensure_ascii=False), q[4], 1, fp, now()))
 
 def ensure_admin():
     with db() as c:
@@ -494,17 +472,14 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    خوارزمية السحب الدقيق المضمون 100%:
-    - تضمن جلب العدد اليدوي كاملاً ودون أي نقص أو تكرار.
-    - توسع بنك الأسئلة تلقائياً وبشكل فوري إذا كان العدد المطلوب أكبر من الموجود.
+    سحب الأسئلة من بنك الأسئلة الحقيقي حصرياً (Strict Bank Pull):
+    - يلتزم بالبنك تماماً بدون تكرار أي سؤال داخل القالب الواحد.
+    - إذا طلب المستخدم عدداً أكبر من المتوفر في البنك، سيقوم بسحب جميع الأسئلة الفريدة المتاحة في البنك دون تكرارها.
     """
     if not t:
         return []
     
-    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 50
-    
-    # التأكد الفوري من توفر سعة كافية في بنك الأسئلة تغطي العدد المطلوب تماماً
-    ensure_question_bank_capacity(target)
+    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 20
     
     cats_raw = t["categories_json"] if "categories_json" in t else "[]"
     try:
@@ -514,49 +489,34 @@ def choose_questions(t):
     
     unique_questions = []
     seen_ids = set()
-    seen_fingerprints = set()
     seen_texts = set()
 
     with db() as c:
         all_db_questions = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
         
-        # 1. سحب الأسئلة من الأقسام المحددة أولاً دون تكرار
+        # 1. سحب الأسئلة المطابقة للأقسام المحددة أولاً بدون تكرار
         if cats:
             for q in all_db_questions:
                 if len(unique_questions) >= target:
                     break
                 if q["category"] in cats:
                     q_id = q["id"]
-                    q_fp = q.get("fingerprint")
                     q_txt = clean_question_text(q["question"])
-                    
-                    if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
+                    if q_id not in seen_ids and q_txt not in seen_texts:
                         seen_ids.add(q_id)
-                        if q_fp: seen_fingerprints.add(q_fp)
                         seen_texts.add(q_txt)
                         unique_questions.append(q)
 
-        # 2. استكمال باقي العدد المطلوب يدوياً من باقي الأسئلة مع الحفاظ التام على عدم التكرار
+        # 2. استكمال باقي العدد من البنك العام دون أي تكرار مطلق
         for q in all_db_questions:
             if len(unique_questions) >= target:
                 break
             q_id = q["id"]
-            q_fp = q.get("fingerprint")
             q_txt = clean_question_text(q["question"])
-            
-            if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
+            if q_id not in seen_ids and q_txt not in seen_texts:
                 seen_ids.add(q_id)
-                if q_fp: seen_fingerprints.add(q_fp)
                 seen_texts.add(q_txt)
                 unique_questions.append(q)
-
-    # إذا حدث ولسبب ما نقص العدد (مثلاً لوجود قيود قوية)، يتم تكرار تعبئة الفارق بأمان تام دون أخطاء
-    while len(unique_questions) < target and len(all_db_questions) > 0:
-        extra_q = random.choice(all_db_questions)
-        # نسخة جديدة مع تعديل طفيف لضمان عدم حدوث تشابه نصي ظاهر للمتدرب
-        copied_q = dict(extra_q)
-        copied_q['question'] = extra_q['question'] + f" (إصدار تكميلي {len(unique_questions)+1})"
-        unique_questions.append(copied_q)
 
     return unique_questions[:target]
 
@@ -898,7 +858,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v15.0 PERFECT SYNC • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v17.0 STRICT BANK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -997,7 +957,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v15", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v17", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1024,9 +984,9 @@ def admin_dashboard():
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 
                 st.markdown("---")
-                st.markdown("#### 🗑️ حذف منشأة من القائمة:")
+                st.markdown("#### 🗑️️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v15", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v17", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1075,7 +1035,7 @@ def admin_dashboard():
             st.dataframe(df_tr, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧠 بنك الأسئلة الشامل":
-        st.subheader("🧠 بنك الأسئلة المتكامل في قاعدة البيانات (سعة كاملة ومطابقة تامة للعدد)")
+        st.subheader("🧠 بنك الأسئلة الأساسي في قاعدة البيانات (بدون تكرار أو توليد وهمي)")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
         st.write(f"إجمالي الأسئلة المتاحة في البنك: **{len(df_q)}** سؤالاً.")
@@ -1117,7 +1077,7 @@ def admin_dashboard():
                         with db() as c_chk:
                             dup = c_chk.execute("SELECT 1 FROM questions WHERE fingerprint=? OR question=?", (fp, full_q_str)).fetchone()
                         if dup:
-                            st.error("⚠️ هذا السؤال موجود مسبقاً في بنك الأسئلة (منعاً للتكرار).")
+                            st.error("⚠️ هذا السؤال موجود مسبقاً في بنك الأسئلة.")
                         else:
                             with db() as c:
                                 c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -1193,7 +1153,7 @@ def admin_dashboard():
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات بحرية مطلقة (التزام تام بالعدد والفرادة)")
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات من بنك الأسئلة حصرياً")
         sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل القوالب الحالية وتوليد الأوراق", "➕ إنشاء قالب جديد كلياً", "🗑 حذف قالب امتحان"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض وتعديل القوالب الحالية وتوليد الأوراق":
@@ -1205,15 +1165,15 @@ def admin_dashboard():
             else:
                 for t in tpls:
                     with st.container(border=True):
-                        st.markdown(f"#### 🏷️️ قالب رقم ({t['id']}): {t['name']}")
-                        st.write(f"عدد الأسئلة المدخل يدوياً في القالب: **{t['num_questions']}** سؤالاً (دقيق ومطابق تماماً)")
+                        st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
+                        st.write(f"عدد الأسئلة المسحوبة من البنك: **{t['num_questions']}** سؤالاً (بدون تكرار داخلي)")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
-                            new_q_limit = st.number_input("تعديل عدد الأسئلة يدوياً (اكتب أي رقم بدون قيود):", min_value=1, max_value=9999, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
+                            new_q_limit = st.number_input("تعديل عدد الأسئلة للقالب:", min_value=1, max_value=500, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
                             if st.form_submit_button("💾 حفظ وتحديث عدد الأسئلة"):
                                 with db() as c_up:
                                     c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(new_q_limit), t['id']))
-                                st.success(f"✅ تم تحديث عدد الأسئلة لهذا القالب إلى ({new_q_limit}) سؤالاً بدقة تامة!")
+                                st.success(f"✅ تم تحديث عدد الأسئلة لهذا القالب إلى ({new_q_limit}) بنجاح!")
                                 st.rerun()
 
                         col_m1, col_m2 = st.columns(2)
@@ -1238,12 +1198,12 @@ def admin_dashboard():
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("حدد عدد الأسئلة يدوياً (اكتب الرقم الذي تريده بحرية):", min_value=1, max_value=9999, value=50, step=1)
+                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب سحبها من البنك:", min_value=1, max_value=500, value=15, step=1)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
-                new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب (اتركها فارغة للسحب التلقائي من بنك الأسئلة):", categories_pool_opts)
+                new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة للسحب من كامل البنك):", categories_pool_opts)
                 
-                if st.form_submit_button("💾 حفظ وإنشاء القالب الجديد بالعدد المحدد", use_container_width=True):
+                if st.form_submit_button("💾 حفظ وإنشاء القالب الجديد", use_container_width=True):
                     if not new_tpl_name.strip():
                         st.error("الرجاء إدخال اسم قالب الاختبار.")
                     else:
@@ -1253,7 +1213,7 @@ def admin_dashboard():
                                          VALUES(?,?,?,?,?,?,?)""",
                                       (new_tpl_name.strip(), "اختبار مخصص للمالك", int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
                         reorder_template_ids()
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء القالب ({new_tpl_name}) بالعدد الدقيق للأسئلة المدخل يدوياً ({new_tpl_num_q}) بنجاح تام!"
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء القالب ({new_tpl_name}) بنجاح!"
                         st.rerun()
 
         else:
@@ -1390,7 +1350,7 @@ def trainee_portal():
     
     st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | قالب الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
     if matching_template:
-        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة المحدد: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
+        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة المسحوبة: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
     else:
         st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين قالب امتحان لك بعد. يرجى مراجعة إدارة المنصة.")
 
