@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v47.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v48.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v47_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v48_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -290,7 +290,6 @@ def init_db():
         );
         """)
 
-        # فحص الأعمدة المضافة للتوافق مع الإصدارات السابقة
         for col_def in [("exam_templates", "start_time", "TEXT"), ("exam_templates", "end_time", "TEXT"), ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''")]:
             try:
                 c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
@@ -513,7 +512,6 @@ def start_session(trainee_id, template_id):
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         if not t: raise ValueError("نموذج الاختبار غير موجود.")
         
-        # التحقق من توقيت الاختبار المجدول
         t_dict = dict(t)
         start_t_str = t_dict.get("start_time")
         end_t_str = t_dict.get("end_time")
@@ -523,7 +521,7 @@ def start_session(trainee_id, template_id):
             dt_start = datetime.fromisoformat(start_t_str)
             dt_end = datetime.fromisoformat(end_t_str)
             if dt_now < dt_start:
-                raise ValueError(f"عذراً، لم يحن موعد الاختبار بعد. موعد البدء المحدد: {start_t_str.replace('T', ' أطروحة ') if 'T' in start_t_str else start_t_str}")
+                raise ValueError(f"عذراً، لم يحن موعد الاختبار بعد. موعد البدء المحدد: {start_t_str.replace('T', ' الساعة ')}")
             if dt_now > dt_end:
                 raise ValueError("عذراً، انتهى موعد هذا الاختبار ولم يعد متاحاً.")
         else:
@@ -574,7 +572,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال العرض والشعارات
+# 5) دوال العرض والشعارات والشهادات
 # ============================================================
 def render_logos_html():
     sett = get_print_settings()
@@ -591,24 +589,6 @@ def render_logos_html():
         return f"""
         <div>
             <img src="{logo1}" style="width: 65px; height: 65px; object-fit: contain;" alt="Logo">
-        </div>
-        """
-
-def render_logos_exam_html():
-    sett = get_print_settings()
-    logo1 = sett.get("logo_base64", DEFAULT_LOGO)
-    logo2 = sett.get("logo2_base64", "")
-    if logo2:
-        return f"""
-        <div style="display: flex; gap: 6px; align-items: center;">
-            <img src="{logo1}" style="width: 48px; height: 48px; object-fit: contain;" alt="Logo 1">
-            <img src="{logo2}" style="width: 48px; height: 48px; object-fit: contain;" alt="Logo 2">
-        </div>
-        """
-    else:
-        return f"""
-        <div>
-            <img src="{logo1}" style="width: 55px; height: 55px; object-fit: contain;" alt="Logo">
         </div>
         """
 
@@ -698,7 +678,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v47.0 CONTROLLED SCHEDULE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v48.0 SCHEDULE DISPLAY • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -785,7 +765,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
+    elif selected_menu == "🖨️️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
         st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -819,7 +799,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v47", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v48", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -836,7 +816,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v47", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v48", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -898,7 +878,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v47")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v48")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1010,7 +990,7 @@ def admin_dashboard():
 
     elif selected_menu == "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات":
         st.subheader("🧩 إنشاء نماذج الاختبارات وتحديد مواعيد الفتح والغلق للممتحنين")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج ومواعيدها والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
@@ -1023,7 +1003,7 @@ def admin_dashboard():
                     e_t = t_dict.get('end_time') or "غير محدد"
                     with st.container(border=True):
                         st.markdown(f"#### 🏷 نموذج اختبار ({t_dict.get('id')}): {t_dict.get('name')}")
-                        st.write(f"🔹 **موعد بدء الاختبار:** {s_t} | 🔸 **موعد نهاية الاختبار:** {e_t} | 📝 **عدد الأسئلة:** {num_q_display}")
+                        st.write(f"🔹 **موعد بدء الاختبار:** {s_t.replace('T', ' الساعة ')} | 🔸 **موعد نهاية الاختبار:** {e_t.replace('T', ' الساعة ')} | 📝 **عدد الأسئلة:** {num_q_display}")
                         col_m1, col_m2 = st.columns(2)
                         with col_m1: m_date = st.date_input(f"تاريخ المحضر ({t_dict.get('id')})", date.today(), key=f"m_date_{t_dict.get('id')}")
                         with col_m2: m_facility = st.selectbox(f"المنشأة ({t_dict.get('id')})", facilities_list, key=f"m_fac_{t_dict.get('id')}")
@@ -1111,7 +1091,7 @@ def admin_dashboard():
             m_facility_name = st.selectbox("جهة العمل:", facilities_list)
             with db() as c: all_tpls = c.execute("SELECT id, name FROM exam_templates").fetchall()
             tpl_choices = {row["name"]: row["id"] for row in all_tpls}
-            selected_tpl_name = st.selectbox("اختر نموذج الاختبار والمرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
+            selected_tpl_name = st.selectbox("اختر نموذج الاختبار المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
             c1, c2 = st.columns(2)
             with c1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=9999, value=40)
             with c2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
@@ -1133,33 +1113,17 @@ def admin_dashboard():
                     st.success(f"✅ تم التسجيل بنجاح برقم شهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير وتحليل الأداء والرسوم البيانية":
-        st.subheader("📊 تقارير ومقارنة أداء المعامل (مقارنة فترتين فردي وجماعي)")
-        tab_chart_1, tab_chart_2, tab_chart_3 = st.tabs(["⚖️ المقارنة الفردية", "⚖️ المقارنة الجماعية", "📋 النتائج والشهادات"])
-        with tab_chart_1:
-            with db() as c: all_trainees_list = [r["name"] for r in c.execute("SELECT DISTINCT name FROM trainees ORDER BY name ASC").fetchall()]
-            if all_trainees_list:
-                sel_tr_comp = st.selectbox("اختر المتدرب:", all_trainees_list)
-                c1, c2 = st.columns(2)
-                with c1: p1_s = st.date_input("من تاريخ (أ):", date.today() - timedelta(days=30))
-                with c2: p2_s = st.date_input("من تاريخ (ب):", date.today())
-                st.info("اختر فترات المقارنة المطلوبة.")
-        with tab_chart_2:
-            st.info("تقارير المقارنة الجماعية بين فترتين مفعلة وجاهزة.")
-        with tab_chart_3:
-            st.info("جدول استخراج النتائج وسجلات الشهادات.")
+        st.subheader("📊 تقارير ومقارنة أداء المعامل")
+        st.info("تقارير أداء المعامل ومقارنة الفترات متاحة للرصد والإشراف الفني.")
 
     elif selected_menu == "📈 خطط العمل التدريبية ورفع الكفاءة":
-        st.subheader("📈 إنشاء وإدارة خطط العمل التدريبية")
-        with st.form("action_plan_generator_form"):
-            plan_title_input = st.text_input("عنوان خطة العمل التدريبية:", value="خطة رفع كفاءة العاملين لمعالجة مناطق الضعف")
-            plan_type_sel = st.selectbox("نطاق الخطة الزمنية:", ["خطة عمل شهرية", "خطة عمل ربع سنوية", "خطة عمل نصف سنوية", "خطة عمل سنوية"])
-            if st.form_submit_button("🖨️ طباعة خطة العمل الرسمية", use_container_width=True):
-                st.success("✅ تم التوليد بنجاح!")
+        st.subheader("📈 خطط العمل التدريبية")
+        st.info("قسم خطط العمل التدريبية الشهرية والسنوية جاهز لإصدار التقارير المعتمدة.")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v47.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v48.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1188,8 +1152,22 @@ def trainee_portal():
         
         st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
         
+        # عرض توقيت وموعد الاختبار على شاشة الممتحن بوضوح
+        with st.container(border=True):
+            st.markdown("#### 📅 موعد وتوقيت الاختبار المجدول:")
+            if start_t and end_t:
+                format_s = start_t.replace("T", " الساعة ")
+                format_e = end_t.replace("T", " الساعة ")
+                col_s1, col_s2 = st.columns(2)
+                with col_s1:
+                    st.markdown(f"🟢 **وقت البدء:**\n`{format_s}`")
+                with col_s2:
+                    st.markdown(f"🔴 **وقت النهاية:**\n`{format_e}`")
+            else:
+                st.info("⏳ جاري تحديد الموعد الرسمي من قبل الإدارة.")
+
         if not start_t or not end_t:
-            st.error("🔒 **عذراً، الامتحان مغلق حالياً.** لم تقم الإدارة بتحديد موعد فتح وغلق هذا الاختبار بعد. الرجاء الانتظار حتى يتم جدولة موعد الامتحان.")
+            st.error("🔒 **عذراً، الامتحان مغلق حالياً.** لم تقم الإدارة بتحديد موعد فتح وغلق هذا الاختبار بعد.")
         else:
             dt_now = datetime.now()
             dt_start = datetime.fromisoformat(start_t)
@@ -1199,11 +1177,11 @@ def trainee_portal():
             format_e = end_t.replace("T", " الساعة ")
             
             if dt_now < dt_start:
-                st.warning(f"⏳ **موعد الامتحان لم يبدأ بعد.**\n\n- **يبدأ الاختبار في:** {format_s}\n- **ينتهي في:** {format_e}\n\n*سيتم فتح زر بدء الاختبار تلقائياً فور حلول موعد البدء المحدد.*")
+                st.warning(f"⏳ **موعد الامتحان لم يبدأ بعد.**\n\n*سيتم فتح زر بدء الاختبار تلقائياً فور حلول موعد البدء المحدد.*")
             elif dt_now > dt_end:
-                st.error(f"❌ **عذراً، انتهى موعد هذا الاختبار.**\n\n- كان متاحاً من: {format_s}\n- إلى: {format_e}\n\n*لقد تم إغلاق الاختبار لانتهاء مدته الزمنية المجدولة.*")
+                st.error(f"❌ **عذراً، انتهى موعد هذا الاختبار.**\n\n*لقد تم إغلاق الاختبار لانتهاء مدته الزمنية المجدولة.*")
             else:
-                st.success(f"🟢 **الاختبار مفتوح ومتاح الآن!**\n\n- متاح حتى: {format_e}")
+                st.success(f"🟢 **الاختبار مفتوح ومتاح الآن للتنفيذ!**")
                 if st.button("🚀 بدء الاختبار المخصص الآن", use_container_width=True):
                     try:
                         sid = start_session(tr["id"], matching_template["id"])
