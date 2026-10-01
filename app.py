@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v7.7 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v8.0 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_7.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v8_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -504,13 +504,11 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    الالتزام الصارم بنسبة 100% بالعدد المحدد (num_questions) في القالب بغض النظر عن الفلاتر أو الأقسام.
-    إذا كان القالب يحتوي على عدد معين، يتم جلبه وضبط القائمة النهائية تماماً للمطابقة.
+    الالتزام المطلق بنسبة 100% بالعدد المحدد (num_questions) في القالب بغض النظر عن الفلاتر أو الأقسام.
     """
     if not t:
         return []
     
-    # قراءة العدد بدقة مطلقة من القالب
     target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 25
     cats_raw = t["categories_json"] if "categories_json" in t else "[]"
     try:
@@ -524,7 +522,6 @@ def choose_questions(t):
     seen_texts = set()
 
     with db() as c:
-        # محاولة جلب الأسئلة بناءً على الأقسام المحددة أولاً إن وجدت
         if cats:
             placeholders = ",".join(["?"] * len(cats))
             cat_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
@@ -540,7 +537,6 @@ def choose_questions(t):
                     seen_texts.add(q_txt)
                     unique_list.append(q)
 
-        # استكمال باقي العدد المطلوب من بنك الأسئلة العام عشوائياً إذا لم يكتمل العدد
         if len(unique_list) < target:
             all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
             for q in all_db_qs:
@@ -555,7 +551,6 @@ def choose_questions(t):
                     seen_texts.add(q_txt)
                     unique_list.append(q)
 
-    # قص القائمة وقطعها نهائياً لتتوافق تماماً مع العدد المحدد دون أي نقص أو زيادة
     return unique_list[:target]
 
 def start_session(trainee_id, template_id):
@@ -896,7 +891,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.7 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v8.0 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -988,7 +983,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v77", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v80", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1017,7 +1012,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v77", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v80", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1191,6 +1186,16 @@ def admin_dashboard():
                 for t in tpls:
                     with st.container(border=True):
                         st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة المحدد: `{t['num_questions']}` | المعرف: `{t['id']}`")
+                        
+                        # أداة سريعة لتعديل عدد الأسئلة المباشر في القالب
+                        with st.form(f"quick_edit_tpl_{t['id']}"):
+                            q_count_update = st.number_input("تعديل عدد الأسئلة لهذا القالب فوراً:", min_value=5, max_value=100, value=int(t['num_questions']), key=f"q_cnt_{t['id']}")
+                            if st.form_submit_button("💾 تحديث عدد الأسئلة فوراً"):
+                                with db() as c_up:
+                                    c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(q_count_update), t['id']))
+                                st.success("✅ تم تحديث عدد الأسئلة للقالب بنجاح!")
+                                st.rerun()
+
                         col_m1, col_m2 = st.columns(2)
                         with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
                         with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
