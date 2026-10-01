@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v26.0 STABLE",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v27.0 STABLE",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v26_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v27_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -812,7 +812,7 @@ def render_print_button_only(html_content, label_prefix=""):
     components.html(f"""
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
-                🖨️ طباعة / حفظ PDF ({label_prefix})
+                🖨️️ طباعة / حفظ PDF ({label_prefix})
             </button>
         </div>
         <script>
@@ -833,7 +833,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v26.0 STABLE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v27.0 STABLE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -898,9 +898,9 @@ def admin_dashboard():
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
         "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
-        "⚙️️ إدارة الأسئلة",
+        "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
-        "✍️️ تسجيل نتيجة يدوي",
+        "✍️ تسجيل نتيجة يدوي",
         "📊 التقارير المتقدمة والتصدير",
         "💾 النسخ الاحتياطي"
     ]
@@ -932,7 +932,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v26", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v27", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -961,7 +961,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v26", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v27", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1100,7 +1100,17 @@ def admin_dashboard():
     elif selected_menu == "⚙️ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
-        categories_list_opts = ["الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"]
+        categories_list_opts = [
+            "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", 
+            "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", 
+            "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", 
+            "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", 
+            "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", 
+            "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", 
+            "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", 
+            "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", 
+            "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"
+        ]
 
         with sub_img_tabs[0]:
             if st.session_state.add_success_msg:
@@ -1116,7 +1126,7 @@ def admin_dashboard():
                 opt3 = st.text_input("الخيار الثالث:")
                 opt4 = st.text_input("الخيار الرابع:")
                 correct_ans_text = st.text_input("نص الإجابة الصحيحة المطابق لأحد الخيارات أعلاه:")
-                if st.form_submit_button("حفظ وإضافة السؤال الجديد"):
+                if st.form_submit_button("حفظ وإضافة السؤال الجديد", use_container_width=True):
                     if not c_text or not correct_ans_text:
                         st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
                     else:
@@ -1144,17 +1154,19 @@ def admin_dashboard():
                             st.rerun()
 
         with sub_img_tabs[1]:
-            st.subheader("✏️ تعديل سؤال موجود")
+            st.subheader("✏️ تعديل سؤال موجود في بنك الأسئلة")
             with db() as c:
-                all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
+                all_questions = c.execute("SELECT id, question, category, difficulty FROM questions ORDER BY id ASC").fetchall()
             if not all_questions:
                 st.info("لا توجد أسئلة متاحة للتعديل.")
             else:
-                q_options_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions}
-                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box")
+                q_options_map = {f"سؤال ({q['id']}) - [{q['category']}] : {q['question'][:60]}...": q['id'] for q in all_questions}
+                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v27")
                 selected_q_id = q_options_map[selected_q_label]
+                
                 with db() as c:
                     q_data = c.execute("SELECT * FROM questions WHERE id=?", (selected_q_id,)).fetchone()
+                
                 if q_data:
                     try:
                         current_opts = json.loads(q_data["options_json"])
@@ -1165,47 +1177,61 @@ def admin_dashboard():
                     while len(current_opts) < 4: current_opts.append("")
                     correct_idx = q_data["answer"] if 0 <= q_data["answer"] < len(current_opts) else 0
                     current_correct_text = current_opts[correct_idx] if current_opts else ""
-                    with st.form("edit_question_form"):
+                    
+                    with st.form(f"edit_question_form_{selected_q_id}"):
                         e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
                         e_diff = st.selectbox("مستوى الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
+                        
                         raw_q_db = q_data["question"]
                         actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
-                        e_text = st.text_area("نص السؤال:", value=actual_text_editable)
-                        e_opt1 = st.text_input("الخيار الأول:", value=str(current_opts[0]))
-                        e_opt2 = st.text_input("الخيار الثاني:", value=str(current_opts[1]))
-                        e_opt3 = st.text_input("الخيار الثالث:", value=str(current_opts[2]))
-                        e_opt4 = st.text_input("الخيار الرابع:", value=str(current_opts[3]))
-                        e_correct_text = st.text_input("نص الإجابة الصحيحة:", value=current_correct_text)
-                        if st.form_submit_button("💾 حفظ التعديلات وتحديث السؤال", use_container_width=True):
+                        e_text = st.text_area("نص السؤال التشخيصي:", value=actual_text_editable)
+                        
+                        col_o1, col_o2 = st.columns(2)
+                        with col_o1:
+                            e_opt1 = st.text_input("الخيار الأول:", value=str(current_opts[0]))
+                            e_opt2 = st.text_input("الخيار الثاني:", value=str(current_opts[1]))
+                        with col_o2:
+                            e_opt3 = st.text_input("الخيار الثالث:", value=str(current_opts[2]))
+                            e_opt4 = st.text_input("الخيار الرابع:", value=str(current_opts[3]))
+                        
+                        e_correct_text = st.text_input("نص الإجابة الصحيحة (يجب أن مطابِقاً تماماً لأحد الخيارات أعلاه):", value=current_correct_text)
+                        
+                        if st.form_submit_button("💾 حفظ التعديلات وتحديث السؤال نهائياً", use_container_width=True):
                             if not e_text or not e_correct_text:
                                 st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
                             else:
                                 updated_opts = [o for o in [e_opt1, e_opt2, e_opt3, e_opt4] if o.strip() != ""]
-                                if e_correct_text not in updated_opts: updated_opts.append(e_correct_text)
+                                if e_correct_text not in updated_opts: 
+                                    updated_opts.append(e_correct_text)
                                 new_ans_idx = updated_opts.index(e_correct_text)
+                                
                                 prefix_img = ""
                                 if "IMAGE:" in raw_q_db:
                                     parts_img = raw_q_db.split("\n\n")
-                                    if len(parts_img) > 0 and parts_img[0].startswith("IMAGE:"): prefix_img = parts_img[0] + "\n\n"
+                                    if len(parts_img) > 0 and parts_img[0].startswith("IMAGE:"): 
+                                        prefix_img = parts_img[0] + "\n\n"
+                                
                                 final_updated_q_str = prefix_img + e_text
                                 new_fp = hashlib.sha256((final_updated_q_str + "|" + "|".join(updated_opts)).encode("utf-8")).hexdigest()
+                                
                                 with db() as c:
                                     c.execute("""UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?""",
                                               (e_diff, e_cat, final_updated_q_str, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, new_fp, selected_q_id))
-                                st.success(f"✅ تم تحديث وتعديل السؤال رقم {selected_q_id} بنجاح!")
+                                
+                                st.success(f"✅ تم تحديث وتعديل السؤال رقم ({selected_q_id}) بنجاح!")
                                 st.rerun()
 
         with sub_img_tabs[2]:
-            st.subheader("🗑 حذف سؤال من النظام")
+            st.subheader("🗑 حذف سؤال من بنك الأسئلة")
             with db() as c:
                 all_questions_del = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
             if not all_questions_del:
                 st.info("لا توجد أسئلة متاحة للحذف.")
             else:
                 q_del_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions_del}
-                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box")
+                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v27")
                 selected_del_id = q_del_map[selected_del_label]
-                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn", use_container_width=True):
+                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v27", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM questions WHERE id=?", (selected_del_id,))
                     reorder_question_ids()
@@ -1255,7 +1281,17 @@ def admin_dashboard():
             if st.session_state.tpl_success_msg:
                 st.success(st.session_state.tpl_success_msg)
                 st.session_state.tpl_success_msg = ""
-            categories_pool_opts = ["الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"]
+            categories_pool_opts = [
+                "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", 
+                "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", 
+                "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", 
+                "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", 
+                "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", 
+                "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", 
+                "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", 
+                "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", 
+                "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"
+            ]
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
