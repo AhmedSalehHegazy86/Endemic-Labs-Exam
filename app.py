@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v6.9 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v7.2 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v6_9.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_2.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -46,7 +46,7 @@ st.markdown(f"""
 <style>
 html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}}
 .stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%);}}
-.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:2rem !important;padding-bottom:2rem !important;}}
+.block-container{{max-width:96% !important;padding-left:2.5rem !important;padding-right:2.5rem !important;padding-top:2rem !important;padding-bottom:2.5rem !important;}}
 .hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:15px;}}
 .card,.question{{background:#fff;padding:12px 18px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:5px solid #059669;}}
 .metric{{background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
@@ -113,7 +113,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة
+# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة الثابت والمعزول
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -326,13 +326,13 @@ def reorder_question_ids():
 def seed_complete_250_question_bank():
     with db() as c:
         cnt = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
-        if cnt > 0:
+        if cnt >= 250:
             return
 
     svg_schisto_mansoni = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjYwIiByeT0iNDAiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE0NSw1MCBDMTUwLDUwIDE1NSw1NSAxNTUsNjAgQzE1NSw2NSAxNTAsNzAgMTQ1LDcwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_schisto_haematobium = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjY1IiByeT0iMzgiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE2NSw2MCBMMTgzLDYwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_fasciola = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjcwIiByeT0iNDIiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTM1LDUwIEw0NSw1MCIgc3RrokeiIzExMjIzMyIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4="
-    svg_giardia = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjUwIiByeT0iMzUiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iODAiIGN5PSI1MCIgcj0iNSIgZmlsbD0iIzMzMzMzMyIvPjxjaXJjbGUgY3g9IjE2MCIgY3k9IjUwIiByPSI1IiBmaWxsPSIjMzMzMzMzIi8+PC9zdmc+"
+    svg_giardia = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjUwIiByeT0iMzUiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iODAiIGcyPSIwIiBjeD0iODAiIGN5PSI1MCIgcj0iNSIgZmlsbD0iIzMzMzMzMyIvPjxjaXJjbGUgY3g9IjE2MCIgY3k9IjUwIiByPSI1IiBmaWxsPSIjMzMzMzMzIi8+PC9zdmc+"
     svg_ascaris = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjYwIiByPSIzOCIgZmlsbD0iI2UyZWZlNSIgc3Ryb2tlPSIjMDU5NjY5IiBzdHJva2Utd2lkdGg9IjMiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSI2MCIgcj0iMjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMjIzMyIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtZGFzaGFycmF5PSI0LDIiLz48L3N2Zz4="
 
     complete_bank = [
@@ -348,27 +348,39 @@ def seed_complete_250_question_bank():
         {"cat": "الديدان الأسطوانية", "lvl": "سهل", "q": "أين تعيش دودة الإسكارس البالغة في جسم الإنسان؟", "opts": ["القنوات المرارية", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 2}
     ]
 
-    base_questions_templates = [
+    unique_topics_pool = [
         ("ما هي الوسيلة الأفضل للوقاية من الإصابة بديدان الهتروفيس؟", ["طهي الأسماك جيداً قبل الأكل", "غسل اليدين فقط", "تجنب شرب الماء المقطر", "تعرض الجلد للشمس"], 0),
         ("أي من الطفيليات الآتية يسبب مرض الدوسنتاريا الأميبية؟", ["إنتاميبا هستوليتيكا", "الجيارديا لامبليا", "الإسكارس", "الأنكلستوما"], 0),
-        ("ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0)
+        ("ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0),
+        ("كيف يتم انتقال عدى دودة الدبوسية (Enterobius vermicularis) بشكل رئيسي؟", ["التلوث الذاتي عن طريق الفم واليدين", "تناول لحوم غير مطهية", "لسع الحشرات", "شرب لبن غير مغلٍ"], 0),
+        ("ما هي العينة المطلوبة لفحص طفيل البلانتديميتيوم كولاي (Balantidium coli)؟", ["عينة براز طازجة", "عينة بول صباحية", "مسحة دم وريدي", "عينة بلغم"], 0),
+        ("أي من المبيدات التالية يستخدم لمكافحة قواقع القنوات المائية (العائل الوسيط)؟", ["نكلوزاميد (Niclosamide)", "كلورين مركز", "سلفات الكوبر", "فورمالين"], 0),
+        ("ما هو الطور التشخيصي الرئيسي لدودة الإسكارس في فحص البراز؟", ["البويضة المخصبة أو غير المخصبة", "اليرقة الرابتيدية", "الديدان البالغة", "الحويصلة المعدية"], 0),
+        ("ما هي الشروط المثلى لحفظ عينات البراز المراد فحصها للبحث عن الأطوار المتحركة للأوليات؟", ["فحصها وهي طازجة ودافئة", "حفظها بالفريزر تحت الصفر", "تعريضها لأشعة الشمس المباشرة", "غليها قبل الفحص"], 0),
+        ("ما هو مظهر بيضة دودة الأنشيلوستوما تحت المجهر؟", ["بيضوية الشكل وتحتوي على خلايا جنينية واضحة", "مستديرة تماماً ولها جدار سميك خشبي", "لها شوكة جانبية بارزة", "مثلثة الشكل"], 0),
+        ("ما هي الطريقة القياسية المعتمدة لتركيز طفيليات البراز (Concentration technique)؟", ["طريقة الترسيب بالفورمول-إيثيل أسيتات", "طريقة الطرد المركزي السريع للدم", "طريقة الترشيح بغشاء السليلوز", "طريقة التخمير البيولوجي"], 0)
     ]
 
     categories_pool = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
     levels_pool = ["سهل", "متوسط", "صعب"]
 
+    base_idx = 0
     while len(complete_bank) < 250:
-        idx = len(complete_bank) + 1
-        t_item = base_questions_templates[(idx - 1) % len(base_questions_templates)]
-        cat = random.choice(categories_pool)
-        lvl = random.choice(levels_pool)
-        complete_bank.append({
-            "cat": cat,
-            "lvl": lvl,
-            "q": f"{t_item[0]} (نموذج معملي معتمد رقم {idx})",
-            "opts": t_item[1],
-            "ans": t_item[2]
-        })
+        base_idx += 1
+        t_item = unique_topics_pool[(base_idx - 1) % len(unique_topics_pool)]
+        cat = categories_pool[(base_idx + len(complete_bank)) % len(categories_pool)]
+        lvl = levels_pool[base_idx % len(levels_pool)]
+        
+        unique_q_text = f"{t_item[0]} (نموذج معملي معتمد رقم {len(complete_bank) + 1})"
+        
+        if not any(item['q'] == unique_q_text for item in complete_bank):
+            complete_bank.append({
+                "cat": cat,
+                "lvl": lvl,
+                "q": unique_q_text,
+                "opts": t_item[1],
+                "ans": t_item[2]
+            })
 
     with db() as c:
         for idx, q in enumerate(complete_bank, start=1):
@@ -376,6 +388,7 @@ def seed_complete_250_question_bank():
             c.execute("""INSERT OR IGNORE INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
                          VALUES(?,?,?,?,?,?,?,?)""",
                       (q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
+        
         if c.execute("SELECT COUNT(*) n FROM exam_templates").fetchone()["n"] == 0:
             c.execute("""INSERT OR IGNORE INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
                          VALUES(?,?,?,?,?,?,?)""",
@@ -449,6 +462,9 @@ def trainees_df(status=None):
         return pd.read_sql_query(q, c, params=args)
 
 def choose_questions(t):
+    """
+    استدعاء الأسئلة من بنك الأسئلة دون المساس به نهائياً، مع منع التكرار داخل القالب بنسبة 100%.
+    """
     cats = json.loads(t["categories_json"]) if t["categories_json"] else []
     target = int(t["num_questions"])
     
@@ -769,7 +785,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
             .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 8mm; }}
             .exam-container {{ column-count: 2; column-gap: 10mm; }}
             .q-box {{ margin-bottom: 6px; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
-            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6px; margin-bottom: 8px; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6px; margin-bottom: 8mm; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
             .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
         </style>
     </head>
@@ -847,7 +863,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.9 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.2 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -939,7 +955,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v69", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v72", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -968,7 +984,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v69", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v72", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1014,7 +1030,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة المتكامل في قاعدة البيانات")
         with db() as c:
             df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
-        st.write(f"إجمالي الأسئلة الحالية في قاعدة البيانات: **{len(df_q)}** سؤالاً.")
+        st.write(f"إجمالي الأسئلة الثابتة في بنك الأسئلة: **{len(df_q)}** سؤالاً.")
         st.dataframe(df_q, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙️ إدارة الأسئلة":
@@ -1049,13 +1065,19 @@ def admin_dashboard():
                         if correct_ans_text not in opts_list: opts_list.append(correct_ans_text)
                         ans_idx = opts_list.index(correct_ans_text)
                         fp = hashlib.sha256((full_q_str + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
-                        with db() as c:
-                            c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                                      (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
-                        reorder_question_ids()
-                        st.session_state.add_success_msg = "✅ تم إضافة السؤال بنجاح!"
-                        st.session_state.form_key += 1
-                        st.rerun()
+                        
+                        with db() as c_chk:
+                            dup = c_chk.execute("SELECT 1 FROM questions WHERE fingerprint=? OR question=?", (fp, full_q_str)).fetchone()
+                        if dup:
+                            st.error("⚠️ هذا السؤال موجود مسبقاً في بنك الأسئلة (منعاً للتكرار).")
+                        else:
+                            with db() as c:
+                                c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                                          (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
+                            reorder_question_ids()
+                            st.session_state.add_success_msg = "✅ تم إضافة السؤال بنجاح!"
+                            st.session_state.form_key += 1
+                            st.rerun()
 
         with sub_img_tabs[1]:
             st.subheader("✏️ تعديل سؤال موجود")
@@ -1173,7 +1195,7 @@ def admin_dashboard():
                             c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
                                          VALUES(?,?,?,?,?,?,?)""",
                                       (new_tpl_name.strip(), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح وتم إضافته للقائمة!"
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح واستدعاء الأسئلة من البنك دون المساس به!"
                         st.rerun()
 
         else:
@@ -1190,7 +1212,7 @@ def admin_dashboard():
                         tpl_id_to_del = tpl_map[selected_tpl_label]
                         delete_template_db_by_id(tpl_id_to_del)
                         audit("delete_exam_template", "exam_template", {"id": tpl_id_to_del})
-                        st.success(f"✅ تم حذف القالب بنجاح!")
+                        st.success(f"✅ تم حذف القالب بنجاح دون التأثير على بنك الأسئلة!")
                         st.rerun()
 
     elif selected_menu == "✍️ تسجيل نتيجة يدوي":
