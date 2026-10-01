@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v22.0 EXCEL SYNC",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v23.0 FLEXIBLE TARGET",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v22_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v23_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -366,36 +366,6 @@ def reorder_question_ids():
                 
         c.execute("PRAGMA foreign_keys=ON;")
 
-def seed_initial_bank():
-    with db() as c:
-        current_count = c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
-        if current_count > 0:
-            return
-        
-        core_questions = [
-            ("سهل", "الاستراتيجية العامة ومكافحة البلهارسيا", "ما هي الوسيلة الأفضل للوقاية من الإصابة بديدان الهتروفيس؟", ["طهي الأسماك جيداً قبل الأكل", "غسل اليدين فقط", "تجنب شرب الماء المقطر", "تعرض الجلد للشمس"], 0),
-            ("متوسط", "الأوليات", "أي من الطفيليات الآتية يسبب مرض الدوسنتاريا الأميبية؟", ["إنتاميبا هستوليتيكا", "الجيارديا لامبليا", "الإسكارس", "الأنكلستوما"], 0),
-            ("صعب", "الفحوص المعملية", "ما الفحص المعملي الأدق لتشخيص الإصابة بالبلهارسيا البولية في المراحل المبكرة؟", ["التصفية الغشائية لبول العيان", "زرع الدم", "المسحة الشرجية", "اختبار البراز العام"], 0),
-            ("سهل", "الديدان الأسطوانية", "كيف يتم انتقال عدى دودة الدبوسية (Enterobius vermicularis) بشكل رئيسي؟", ["التلوث الذاتي عن طريق الفم واليدين", "تناول لحوم غير مطهية", "لسع الحشرات", "شرب لبن غير مغلٍ"], 0),
-            ("متوسط", "الأوليات", "ما هي العينة المطلوبة لفحص طفيل البلانتديميتيوم كولاي (Balantidium coli)؟", ["عينة براز طازجة", "عينة بول صباحية", "مسحة دم وريدي", "عينة بلغم"], 0),
-            ("صعب", "الاستراتيجية العامة ومكافحة البلهارسيا", "أي من المبيدات التالية يستخدم لمكافحة قواقع القنوات المائية (العائل الوسيط)؟", ["نكلوزاميد (Niclosamide)", "كلورين مركز", "سلفات الكوبر", "فورمالين"], 0),
-            ("سهل", "الديدان الأسطوانية", "ما هو الطور التشخيصي الرئيسي لدودة الإسكارس في فحص البراز؟", ["البويضة المخصبة أو غير المخصبة", "اليرقة الرابتيدية", "الديدان البالغة", "الحويصلة المعدية"], 0),
-            ("متوسط", "الفحوص المعملية", "ما هي الشروط المثلى لحفظ عينات البراز المراد فحصها للبحث عن الأطوار المتحركة للأوليات؟", ["فحصها وهي طازجة ودافئة", "حفظها بالفريزر تحت الصفر", "تعريضها لأشعة الشمس المباشرة", "غليها قبل الفحص"], 0),
-            ("متوسط", "الديدان الأسطوانية", "ما هو مظهر بيضة دودة الأنشيلوستوما تحت المجهر؟", ["بيضوية الشكل وتحتوي على خلايا جنينية واضحة", "مستديرة تماماً ولها جدار سميك خشبي", "لها شوكة جانبية بارزة", "مثلثة الشكل"], 0),
-            ("صعب", "الفحوص المعملية", "ما هي الطريقة القياسية المعتمدة لتركيز طفيليات البراز (Concentration technique)؟", ["طريقة الترسيب بالفورمول-إيثيل أسيتات", "طريقة الطرد المركزي السريع للدم", "طريقة الترشيح بغشاء السليلوز", "طريقة التخمير البيولوجي"], 0),
-            ("سهل", "الديدان الشريطية", "ما هو العائل الأساسي لدودة التينيا ساجيناتا (Taenia saginata)؟", ["الإنسان", "البقر", "الخنازير", "الكلاب"], 0),
-            ("صعب", "الفحوص المعملية", "أي من الفحوصات التالية يستخدم خصيصاً لتشخيص اليرقات المهاجرة في العضلات؟", ["اختبار الترسيب الجلدي أو الأليسا (ELISA)", "فحص البراز المباشر", "مزرعة الدم الشاملة", "فحص بول صباحي"], 0),
-            ("متوسط", "الديدان الأسطوانية", "ما هي أعراض الإصابة الشديدة بدودة الإسكارس في الأطفال؟", ["انسداد الأمعاء وسوء التغذية", "التهاب الكبد الوبائي الحاد", "فشل كلوري مزمن", "تقرحات في الجلد الخارجي"], 0),
-            ("سهل", "الديدان الأسطوانية", "ما هي الطريقة المتبعة لفحص دودة الدبوسية دقيقة الحجم؟", ["اختبار اللصق الشفاف (Scotch tape test)", "فحص البراز بالصبغة", "مزرعة البول المعقمة", "فحص سائل النخاع الشوكي"], 0),
-            ("متوسط", "الاستراتيجية العامة ومكافحة البلهارسيا", "ما هو الطفيلي المسبب لمرض البلهارسيا الكبدية المعوية في مصر؟", ["شستوسوما مانسوني", "شستوسوما هيماتوبيوم", "شستوسوما جابونيكوم", "فاشيولا هيباتيكا"], 0)
-        ]
-
-        for q in core_questions:
-            fp = hashlib.sha256((q[2] + "|" + "|".join(q[3])).encode("utf-8")).hexdigest()
-            c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
-                         VALUES(?,?,?,?,?,?,?,?)""",
-                      (q[0], q[1], q[2], json.dumps(q[3], ensure_ascii=False), q[4], 1, fp, now()))
-
 def ensure_admin():
     with db() as c:
         u = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
@@ -406,7 +376,6 @@ def ensure_admin():
             c.execute("UPDATE users SET password_hash=? WHERE role='admin'", (hash_password("admin"),))
 
 init_db()
-seed_initial_bank()
 reorder_question_ids()
 reorder_template_ids()
 ensure_admin()
@@ -463,10 +432,9 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    خوارزمية السحب المتوازن العادل (Balanced Distribution):
-    - توزع العدد المطلوب بالتساوي على الأقسام المحددة (أو كل الأقسام إن لم تُحدد).
-    - تمنع التكرار مطلقاً.
-    - إذا نفدت أسئلة أحد الأقسام، تستكمل الحصة من الأقسام الأخرى تلقائياً لضمان اكتمال العدد المطلوب بدقة.
+    خوارزمية السحب المرن المتكامل (Flexible Target Sync):
+    - تضمن الوصول للعدد المطلوب (num_questions) تماماً دون نقص.
+    - تسحب من الأقسام المحددة في القالب أولاً (متوازناً)، ثم تكمل فوراً من بقية أقسام البنك بلا تكرار حتى يكتمل العدد بالكامل.
     """
     if not t:
         return []
@@ -489,47 +457,21 @@ def choose_questions(t):
         if not cats:
             cats = list(set(q["category"] for q in all_db_questions))
         
-        questions_by_cat = {cat: [] for cat in cats}
-        other_questions = []
-        
-        for q in all_db_questions:
-            q_id = q["id"]
-            q_txt = clean_question_text(q["question"])
-            if q_id in seen_ids or q_txt in seen_texts:
-                continue
-            if q["category"] in cats:
-                questions_by_cat[q["category"]].append(q)
-            else:
-                other_questions.append(q)
-
-        active_cats = [cat for cat in cats if questions_by_cat[cat]]
-        if active_cats:
-            per_cat_target = max(1, target // len(active_cats))
-            
-            for cat in active_cats:
-                cat_qs = questions_by_cat[cat]
-                random.shuffle(cat_qs)
-                taken = 0
-                for q in cat_qs:
-                    if len(unique_questions) >= target or taken >= per_cat_target:
-                        break
+        # 1. سحب الأسئلة من الأقسام المحددة في القالب أولاً
+        for cat in cats:
+            for q in all_db_questions:
+                if len(unique_questions) >= target:
+                    break
+                if q["category"] == cat:
                     q_id = q["id"]
                     q_txt = clean_question_text(q["question"])
                     if q_id not in seen_ids and q_txt not in seen_texts:
                         seen_ids.add(q_id)
                         seen_texts.add(q_txt)
                         unique_questions.append(q)
-                        taken += 1
 
-        remaining_pool = []
-        for cat in cats:
-            for q in questions_by_cat[cat]:
-                if q["id"] not in seen_ids:
-                    remaining_pool.append(q)
-        remaining_pool.extend(other_questions)
-        random.shuffle(remaining_pool)
-
-        for q in remaining_pool:
+        # 2. الاستكمال التلقائي الحصري من باقي بنك الأسئلة للوصول للعدد المطلوب تماماً دون تكرار
+        for q in all_db_questions:
             if len(unique_questions) >= target:
                 break
             q_id = q["id"]
@@ -562,7 +504,14 @@ def start_session(trainee_id, template_id):
                         (trainee_id, template_id, started.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds"), "active"))
         sid = cur.lastrowid
         for pos, q in enumerate(qs):
-            order = list(range(len(json.loads(q["options_json"]))))
+            raw_opts = q["options_json"]
+            try:
+                opts_parsed = json.loads(raw_opts)
+                if not isinstance(opts_parsed, list):
+                    opts_parsed = ["نعم", "لا"]
+            except:
+                opts_parsed = ["نعم", "لا"]
+            order = list(range(len(opts_parsed)))
             random.shuffle(order)
             c.execute("INSERT INTO exam_questions(session_id,question_id,position,option_order_json) VALUES(?,?,?,?)",
                       (sid, q["id"], pos, json.dumps(order)))
@@ -823,7 +772,12 @@ def generate_compact_exam_html(template_id, custom_notes=""):
         <div class="exam-container">
     """
     for idx, q in enumerate(qs):
-        opts = json.loads(q["options_json"])
+        try:
+            opts = json.loads(q["options_json"])
+            if not isinstance(opts, list):
+                opts = ["نعم", "لا"]
+        except:
+            opts = ["نعم", "لا"]
         q_raw = q["question"]
         if q_raw.startswith("IMAGE:"):
             parts = q_raw.split("\n\n", 1)
@@ -879,7 +833,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v22.0 EXCEL IMPORT/EXPORT • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v23.0 FLEXIBLE TARGET • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -944,7 +898,7 @@ def admin_dashboard():
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
         "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
-        "⚙️ إدارة الأسئلة",
+        "⚙️️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
         "📊 التقارير المتقدمة والتصدير",
@@ -978,7 +932,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v22", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v23", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1007,7 +961,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v22", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v23", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1018,7 +972,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1062,7 +1016,7 @@ def admin_dashboard():
         
         with tab_ex_1:
             st.markdown("#### رفع ملف إكسيل (.xlsx) لإضافة وتحديث بنك الأسئلة:")
-            st.info("يجب أن يحتوي شيت الإكسيل على الأعمدة الآتية: `difficulty`, `category`, `question`, `options`, `answer_index` (أو سيتم اعتماد الإجابة الأولى افتراضياً). الخيارات تفصل بينها بفاصلة أو يتم جلبها من الأعمدة.")
+            st.info("يجب أن يحتوي شيت الإكسيل على الأعمدة الآتية: `difficulty`, `category`, `question`, `options`, `answer_index` (أو سيتم اعتماد الإجابة الأولى افتراضياً).")
             
             uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"])
             if uploaded_excel is not None:
@@ -1083,7 +1037,15 @@ def admin_dashboard():
                                 
                                 raw_opts = row.get("options", "خيار 1,خيار 2,خيار 3,خيار 4")
                                 if isinstance(raw_opts, str):
-                                    opts_list = [o.strip() for o in raw_opts.split(",") if o.strip()]
+                                    try:
+                                        if raw_opts.startswith("["):
+                                            opts_list = json.loads(raw_opts)
+                                        else:
+                                            opts_list = [o.strip() for o in raw_opts.split(",") if o.strip()]
+                                    except:
+                                        opts_list = [o.strip() for o in raw_opts.split(",") if o.strip()]
+                                elif isinstance(raw_opts, list):
+                                    opts_list = raw_opts
                                 else:
                                     opts_list = ["نعم", "لا"]
                                 
@@ -1092,7 +1054,7 @@ def admin_dashboard():
                                     ans_idx = 0
                                 
                                 if q_text.strip() and opts_list:
-                                    fp = hashlib.sha256((q_text + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
+                                    fp = hashlib.sha256((q_text + "|" + "|".join(str(o) for o in opts_list)).encode("utf-8")).hexdigest()
                                     try:
                                         c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
                                                      VALUES(?,?,?,?,?,?,?,?)""",
@@ -1187,7 +1149,12 @@ def admin_dashboard():
                 with db() as c:
                     q_data = c.execute("SELECT * FROM questions WHERE id=?", (selected_q_id,)).fetchone()
                 if q_data:
-                    current_opts = json.loads(q_data["options_json"])
+                    try:
+                        current_opts = json.loads(q_data["options_json"])
+                        if not isinstance(current_opts, list):
+                            current_opts = ["", "", "", ""]
+                    except:
+                        current_opts = ["", "", "", ""]
                     while len(current_opts) < 4: current_opts.append("")
                     correct_idx = q_data["answer"] if 0 <= q_data["answer"] < len(current_opts) else 0
                     current_correct_text = current_opts[correct_idx] if current_opts else ""
@@ -1197,10 +1164,10 @@ def admin_dashboard():
                         raw_q_db = q_data["question"]
                         actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
                         e_text = st.text_area("نص السؤال:", value=actual_text_editable)
-                        e_opt1 = st.text_input("الخيار الأول:", value=current_opts[0])
-                        e_opt2 = st.text_input("الخيار الثاني:", value=current_opts[1])
-                        e_opt3 = st.text_input("الخيار الثالث:", value=current_opts[2])
-                        e_opt4 = st.text_input("الخيار الرابع:", value=current_opts[3])
+                        e_opt1 = st.text_input("الخيار الأول:", value=str(current_opts[0]))
+                        e_opt2 = st.text_input("الخيار الثاني:", value=str(current_opts[1]))
+                        e_opt3 = st.text_input("الخيار الثالث:", value=str(current_opts[2]))
+                        e_opt4 = st.text_input("الخيار الرابع:", value=str(current_opts[3]))
                         e_correct_text = st.text_input("نص الإجابة الصحيحة:", value=current_correct_text)
                         if st.form_submit_button("💾 حفظ التعديلات وتحديث السؤال", use_container_width=True):
                             if not e_text or not e_correct_text:
@@ -1240,7 +1207,7 @@ def admin_dashboard():
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات بالسحب المتوازن")
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات (السحب المرن والمكتمل)")
         sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل القوالب الحالية وتوليد الأوراق", "➕ إنشاء قالب جديد كلياً", "🗑 حذف قالب امتحان"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض وتعديل القوالب الحالية وتوليد الأوراق":
@@ -1253,7 +1220,7 @@ def admin_dashboard():
                 for t in tpls:
                     with st.container(border=True):
                         st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
-                        st.write(f"عدد الأسئلة المطلوب سحبها متوازناً: **{t['num_questions']}** سؤالاً")
+                        st.write(f"عدد الأسئلة المطلوبة: **{t['num_questions']}** سؤالاً (سيتم اكتمال العدد تماماً من بنك الأسئلة)")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
                             new_q_limit = st.number_input("تعديل عدد الأسئلة للقالب:", min_value=1, max_value=500, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
@@ -1281,14 +1248,14 @@ def admin_dashboard():
             if st.session_state.tpl_success_msg:
                 st.success(st.session_state.tpl_success_msg)
                 st.session_state.tpl_success_msg = ""
-            categories_pool_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
+            categories_pool_opts = ["الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"]
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب سحبها:", min_value=1, max_value=500, value=20, step=1)
+                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب في الاختبار:", min_value=1, max_value=500, value=50, step=1)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
-                new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة للسحب المتوازن من كامل البنك):", categories_pool_opts)
+                new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة للسحب من كامل البنك):", categories_pool_opts)
                 
                 if st.form_submit_button("💾 حفظ وإنشاء القالب الجديد", use_container_width=True):
                     if not new_tpl_name.strip():
@@ -1437,7 +1404,7 @@ def trainee_portal():
     
     st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | قالب الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
     if matching_template:
-        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة المسحوبة متوازناً: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
+        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة المطلوبة: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
     else:
         st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين قالب امتحان لك بعد. يرجى مراجعة إدارة المنصة.")
 
@@ -1459,7 +1426,12 @@ def exam_interface(session_id):
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
     answered = 0
     for row in rows:
-        opts = json.loads(row["options_json"])
+        try:
+            opts = json.loads(row["options_json"])
+            if not isinstance(opts, list):
+                opts = ["نعم", "لا"]
+        except:
+            opts = ["نعم", "لا"]
         order = json.loads(row["option_order_json"])
         disp_opts = [opts[i] for i in order]
         curr_idx = None
