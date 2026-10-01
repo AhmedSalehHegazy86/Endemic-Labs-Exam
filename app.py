@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v9.7 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v9.9 PERFECT",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_7.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_9.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -383,7 +383,7 @@ def seed_complete_250_question_bank():
                 {"cat": "أسئلة الصور والأشكال", "lvl": "صعب", "q": f"IMAGE:{svg_ascaris}\n\nتعرف على العينة المجهرية الظاهرة وحدد الطفيل المناسب:", "opts": ["بيضة إسكارس لومبريكويدس", "بيضة أنكلستوما", "بيضة أوكسيورس", "بيضة تريكوريس"], "ans": 0},
                 {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا البولية ؟", "opts": ["بولينس (Bulinus)", "بيرينلا كونيكا", "بيومفلاريا", "ليمنيا"], "ans": 0},
                 {"cat": "الاستراتيجية العامة ومكافحة البلهارسيا", "lvl": "سهل", "q": "ما العائل الوسيط للبلهارسيا المعوية؟", "opts": ["ليمنيا", "بولينس", "بيومفلاريا (Biomphalaria)", "بيرينلا كونيكا"], "ans": 2},
-                {"cat": "الفاشيولا", "lvl": "سهل", "q": "ما العائل الوسيط لدودة الفاشيولا الكبدية؟", "opts": ["قوقع البولينس", "قوقع بيرينلا كونيكا", "قوقع الليمنيا (Lymnaea)", "قوقع البيومفلاريا"], "ans": 2},
+                {"cat": "الفاشيولا", "lvl": "سهل", "q": " ما العائل الوسيط لدودة الفاشيولا الكبدية؟", "opts": ["قوقع البولينس", "قوقع بيرينلا كونيكا", "قوقع الليمنيا (Lymnaea)", "قوقع البيومفلاريا"], "ans": 2},
                 {"cat": "الهتروفيس", "lvl": "سهل", "q": "ما الطور المعدي للإنسان في دودة الهتروفيس؟", "opts": ["البويضة", "السركاريا الحرة", "الميتاسركاريا المتحوصلة في عضلات السمك", "الميراسيديوم"], "ans": 2},
                 {"cat": "الديدان الأسطوانية", "lvl": "سهل", "q": "أين تعيش دودة الإسكارس البالغة في جسم الإنسان؟", "opts": ["القنوات المرارية", "الأعور", "الأمعاء الدقيقة", "المثانة"], "ans": 2}
             ]
@@ -495,7 +495,10 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    سحب الأسئلة الحرفي المطابق تماماً للعدد المطلوب في القالب (num_questions) واستكمال أي نقص من بنك الأسئلة بالكامل فوراً.
+    سحب دقيق ونظيف 100% بدون أي تكرار للأسئلة:
+    - يبدأ بسحب الأسئلة من الأقسام المحددة في القالب عشوائياً.
+    - إذا لم يكتمل العدد المطلوب (مثلاً طُلب 50)، يقوم النظام فوراً بسحب الأسئلة المتبقية 
+      من "باقي أقسام بنك الأسئلة" غير المستخدمة حتى يكتمل العدد تماماً وبشكل فريد تماماً بدون أي تكرار.
     """
     if not t:
         return []
@@ -507,18 +510,18 @@ def choose_questions(t):
     except:
         cats = []
     
-    unique_list = []
+    unique_questions = []
     seen_ids = set()
     seen_fingerprints = set()
     seen_texts = set()
 
     with db() as c:
-        # 1. سحب من الأقسام المحددة أولاً إن وجدت
+        # 1. سحب الأسئلة من الأقسام المحددة أولاً (إن وجدت)
         if cats:
             placeholders = ",".join(["?"] * len(cats))
             cat_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
             for q in cat_rows:
-                if len(unique_list) >= target:
+                if len(unique_questions) >= target:
                     break
                 q_id = q["id"]
                 q_fp = q.get("fingerprint")
@@ -527,13 +530,13 @@ def choose_questions(t):
                     seen_ids.add(q_id)
                     if q_fp: seen_fingerprints.add(q_fp)
                     seen_texts.add(q_txt)
-                    unique_list.append(q)
+                    unique_questions.append(q)
 
-        # 2. استكمال العدد المطلوب تماماً من إجمالي بنك الأسئلة بالكامل فوراً إذا لم يكتمل
-        if len(unique_list) < target:
-            all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
-            for q in all_db_qs:
-                if len(unique_list) >= target:
+        # 2. استكمال العدد المطلوب تماماً من "باقي أقسام بنك الأسئلة" تلقائياً دون أي تكرار
+        if len(unique_questions) < target:
+            all_remaining = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
+            for q in all_remaining:
+                if len(unique_questions) >= target:
                     break
                 q_id = q["id"]
                 q_fp = q.get("fingerprint")
@@ -542,9 +545,9 @@ def choose_questions(t):
                     seen_ids.add(q_id)
                     if q_fp: seen_fingerprints.add(q_fp)
                     seen_texts.add(q_txt)
-                    unique_list.append(q)
+                    unique_questions.append(q)
 
-    return unique_list[:target]
+    return unique_questions[:target]
 
 def start_session(trainee_id, template_id):
     with db() as c:
@@ -884,7 +887,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.7 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.9 PERFECT • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -949,7 +952,7 @@ def admin_dashboard():
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
         "🧠 بنك الأسئلة الشامل",
-        "⚙️️ إدارة الأسئلة",
+        "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
         "📊 التقارير المتقدمة والتصدير",
@@ -983,7 +986,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v97", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v99", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1012,7 +1015,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v97", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v99", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1224,7 +1227,7 @@ def admin_dashboard():
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب (اختر الرقم الذي تريده مثلاً 50 أو 100):", min_value=1, max_value=250, value=50)
+                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب (اختر 50 أو أي رقم):", min_value=1, max_value=250, value=50)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب (اتركها فارغة للسحب من كافة الأقسام):", categories_pool_opts)
