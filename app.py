@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v29.0 STABLE",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v30.0 STABLE",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v29_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v30_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,18 +40,73 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) وتوسيع الهوامش العلوية والسفلية بشكل واسع جداً
+# 2) حقن التنسيقات (CSS) وتثبيت الألوان والشاشات ومنع التباين
 # ============================================================
 st.markdown(f"""
 <style>
-html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}}
-.stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%);}}
-.block-container{{max-width:96% !important;padding-left:3rem !important;padding-right:3rem !important;padding-top:5.5rem !important;padding-bottom:6rem !important;}}
-.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:18px;border-radius:12px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:30px;}}
-.card,.question{{background:#fff;padding:18px 24px;border-radius:10px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:6px solid #059669;}}
-.metric{{background:#fff;padding:16px;border-radius:10px;text-align:center;border-top:4px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
-.metric .v{{font-size:24px;font-weight:800;color:#065f46;}}
-.metric .l{{color:#4b5563;font-weight:700;font-size:13px;}}
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+
+html, body, [class*="css"] {{
+    direction: rtl;
+    text-align: right;
+    font-family: 'Cairo', 'Tahoma', sans-serif !important;
+    color-scheme: light !important;
+}}
+
+.stApp {{
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 45%, #bbf7d0 100%) !important;
+    background-attachment: fixed !important;
+}}
+
+.block-container {{
+    max-width: 1100px !important;
+    margin: auto !important;
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+    padding-top: 5.5rem !important;
+    padding-bottom: 6rem !important;
+}}
+
+.hero {{
+    background: linear-gradient(90deg, #064e3b, #065f46, #047857) !important;
+    color: #ffffff !important;
+    padding: 18px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}}
+
+.card, .question {{
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 18px 24px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border-right: 6px solid #059669 !important;
+}}
+
+.metric {{
+    background: #ffffff !important;
+    padding: 16px;
+    border-radius: 10px;
+    text-align: center;
+    border-top: 4px solid #059669 !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}}
+
+.metric .v {{
+    font-size: 24px;
+    font-weight: 800;
+    color: #065f46 !important;
+}}
+
+.metric .l {{
+    color: #4b5563 !important;
+    font-weight: 700;
+    font-size: 13px;
+}}
 
 [data-testid="stSidebar"], [data-testid="collapsedControl"] {{
     display: none !important;
@@ -64,19 +119,21 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     padding: 18px 24px;
     margin-bottom: 35px;
     border-bottom: 2px solid #006633;
-    background-color: #ffffff;
+    background-color: #ffffff !important;
     border-radius: 10px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }}
+
 .print-logo {{
     width: 75px;
     height: 75px;
     object-fit: contain;
 }}
+
 .header-text {{
     font-size: 15px;
     font-weight: bold;
-    color: #2c3e50;
+    color: #2c3e50 !important;
     text-align: right;
     line-height: 1.6;
 }}
@@ -99,7 +156,27 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     }}
 }}
 
-.stButton>button{{border-radius:8px;font-weight:800;min-height:40px;padding:6px 18px;transition:all 0.2s ease;}}
+.stButton>button {{
+    background-color: #059669 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+    min-height: 40px !important;
+    padding: 6px 18px;
+    border: none !important;
+    transition: all 0.2s ease;
+}}
+
+.stButton>button:hover {{
+    background-color: #047857 !important;
+    color: #ffffff !important;
+}}
+
+input, select, textarea {{
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #cbd5e1 !important;
+}}
 </style>
 
 <div class="print-header">
@@ -833,7 +910,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v29.0 SPACING • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v30.0 STABLE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -932,7 +1009,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v29", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v30", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -961,7 +1038,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v29", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v30", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -972,7 +1049,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1097,7 +1174,7 @@ def admin_dashboard():
                 )
                 st.dataframe(df_bank, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "⚙️ إدارة الأسئلة":
+    elif selected_menu == "⚙️️ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = [
@@ -1161,7 +1238,7 @@ def admin_dashboard():
                 st.info("لا توجد أسئلة متاحة للتعديل.")
             else:
                 q_options_map = {f"سؤال ({q['id']}) - [{q['category']}] : {q['question'][:60]}...": q['id'] for q in all_questions}
-                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v29")
+                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v30")
                 selected_q_id = q_options_map[selected_q_label]
                 
                 with db() as c:
@@ -1229,9 +1306,9 @@ def admin_dashboard():
                 st.info("لا توجد أسئلة متاحة للحذف.")
             else:
                 q_del_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions_del}
-                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v29")
+                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v30")
                 selected_del_id = q_del_map[selected_del_label]
-                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v29", use_container_width=True):
+                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v30", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM questions WHERE id=?", (selected_del_id,))
                     reorder_question_ids()
