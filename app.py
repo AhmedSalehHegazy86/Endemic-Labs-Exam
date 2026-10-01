@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v23.0 FLEXIBLE TARGET",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v24.0 FIXED EXCEL SYNC",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v23_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v24_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -434,7 +434,7 @@ def choose_questions(t):
     """
     خوارزمية السحب المرن المتكامل (Flexible Target Sync):
     - تضمن الوصول للعدد المطلوب (num_questions) تماماً دون نقص.
-    - تسحب من الأقسام المحددة في القالب أولاً (متوازناً)، ثم تكمل فوراً من بقية أقسام البنك بلا تكرار حتى يكتمل العدد بالكامل.
+    - تسحب من الأقسام المحددة في القالب أولاً، ثم تكمل فوراً من بقية أقسام البنك بلا تكرار حتى يكتمل العدد بالكامل.
     """
     if not t:
         return []
@@ -470,7 +470,7 @@ def choose_questions(t):
                         seen_texts.add(q_txt)
                         unique_questions.append(q)
 
-        # 2. الاستكمال التلقائي الحصري من باقي بنك الأسئلة للوصول للعدد المطلوب تماماً دون تكرار
+        # 2. الاستكمال التلقائي من باقي بنك الأسئلة للوصول للعدد المطلوب تماماً دون تكرار
         for q in all_db_questions:
             if len(unique_questions) >= target:
                 break
@@ -833,7 +833,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v23.0 FLEXIBLE TARGET • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v24.0 FIXED EXCEL SYNC • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -898,7 +898,7 @@ def admin_dashboard():
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
         "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
-        "⚙️️ إدارة الأسئلة",
+        "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
         "📊 التقارير المتقدمة والتصدير",
@@ -932,7 +932,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v23", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v24", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -961,7 +961,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v23", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v24", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -972,7 +972,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1015,8 +1015,8 @@ def admin_dashboard():
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد بنك الأسئلة من شيت إكسيل", "📤 تصدير بنك الأسئلة الحالي إلى إكسيل"])
         
         with tab_ex_1:
-            st.markdown("#### رفع ملف إكسيل (.xlsx) لإضافة وتحديث بنك الأسئلة:")
-            st.info("يجب أن يحتوي شيت الإكسيل على الأعمدة الآتية: `difficulty`, `category`, `question`, `options`, `answer_index` (أو سيتم اعتماد الإجابة الأولى افتراضياً).")
+            st.markdown("#### رفع ملف إكسيل (.xlsx) لإضافة ودمج بنك الأسئلة بقاعدة البيانات:")
+            st.info("يدعم الملف المرفق أعمدة بنك الأسئلة (`difficulty`, `category`, `question`, `options_json`, `answer`).")
             
             uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"])
             if uploaded_excel is not None:
@@ -1026,16 +1026,18 @@ def admin_dashboard():
                     else:
                         df_import = pd.read_excel(uploaded_excel)
                     
-                    st.write("معاينة البيانات المرفوعة:", df_import.head())
-                    if st.button("تأكيد وحفظ الأسئلة في قاعدة البيانات", use_container_width=True):
+                    st.write(f"📊 معاينة الملف المرفوع (إجمالي الصفوف: {len(df_import)}):", df_import.head(3))
+                    
+                    if st.button("🚀 تأكيد ودمج الأسئلة بقاعدة البيانات الآن", use_container_width=True):
                         imported_count = 0
+                        skipped_count = 0
                         with db() as c:
                             for _, row in df_import.iterrows():
                                 diff = str(row.get("difficulty", "متوسط"))
                                 cat = str(row.get("category", "الفحوص المعملية"))
                                 q_text = str(row.get("question", ""))
                                 
-                                raw_opts = row.get("options", "خيار 1,خيار 2,خيار 3,خيار 4")
+                                raw_opts = row.get("options_json", '["خيار 1", "خيار 2", "خيار 3", "خيار 4"]')
                                 if isinstance(raw_opts, str):
                                     try:
                                         if raw_opts.startswith("["):
@@ -1049,7 +1051,11 @@ def admin_dashboard():
                                 else:
                                     opts_list = ["نعم", "لا"]
                                 
-                                ans_idx = int(row.get("answer_index", 0))
+                                try:
+                                    ans_idx = int(row.get("answer", 0))
+                                except:
+                                    ans_idx = 0
+                                    
                                 if ans_idx < 0 or ans_idx >= len(opts_list):
                                     ans_idx = 0
                                 
@@ -1061,12 +1067,13 @@ def admin_dashboard():
                                                   (diff, cat, q_text, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                                         imported_count += 1
                                     except sqlite3.IntegrityError:
+                                        skipped_count += 1
                                         continue
                         reorder_question_ids()
-                        st.success(f"✅ تم بنجاح استيراد وإضافة ({imported_count}) سؤالاً جديداً لبنك الأسئلة!")
-                        st.rerun()
+                        st.success(f"🎉 تم بنجاح دمج بنك الأسئلة بقاعدة البيانات! تم إضافة ({imported_count}) سؤالاً جديداً (تم استبعاد {skipped_count} سؤالاً مكرراً مسبقاً).")
+                        st.balloons()
                 except Exception as e:
-                    st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+                    st.error(f"حدث خطأ أثناء قراءة الملف أو دمجه: {e}")
 
         with tab_ex_2:
             st.markdown("#### تصدير بنك الأسئلة الحالي إلى ملف إكسيل:")
@@ -1093,7 +1100,7 @@ def admin_dashboard():
     elif selected_menu == "⚙️ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
-        categories_list_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
+        categories_list_opts = ["الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"]
 
         with sub_img_tabs[0]:
             if st.session_state.add_success_msg:
@@ -1220,7 +1227,7 @@ def admin_dashboard():
                 for t in tpls:
                     with st.container(border=True):
                         st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
-                        st.write(f"عدد الأسئلة المطلوبة: **{t['num_questions']}** سؤالاً (سيتم اكتمال العدد تماماً من بنك الأسئلة)")
+                        st.write(f"عدد الأسئلة المطلوبة: **{t['num_questions']}** سؤالاً (يتم اكتمال العدد تماماً من بنك الأسئلة)")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
                             new_q_limit = st.number_input("تعديل عدد الأسئلة للقالب:", min_value=1, max_value=500, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
