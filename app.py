@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v49.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v50.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v49_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v50_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -132,19 +132,6 @@ input, select, textarea {{
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1px solid #cbd5e1 !important;
-}}
-
-.live-clock-box {{
-    background: #064e3b;
-    color: #ffffff;
-    padding: 12px 20px;
-    border-radius: 10px;
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-    border: 2px solid #059669;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -352,6 +339,13 @@ def add_facility_manual_db(fac_id, fac_name):
 def delete_facility_db_by_id(fac_id):
     with db() as c:
         c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
+
+def delete_trainee_db_by_id(tid):
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        c.execute("DELETE FROM trainees WHERE id=?", (tid,))
+        c.execute("DELETE FROM exam_sessions WHERE trainee_id=?", (tid,))
+        c.execute("PRAGMA foreign_keys=ON;")
 
 def reorder_template_ids():
     with db() as c:
@@ -691,7 +685,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v49.0 LIVE CLOCK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v50.0 TRAINEE DELETION • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -792,7 +786,7 @@ def admin_dashboard():
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
             
-            st.markdown("#### 🖼️ شعارات أعلى يسار الصفحات:")
+            st.markdown("#### 🖼️️ شعارات أعلى يسار الصفحات:")
             col_logo1, col_logo2 = st.columns(2)
             with col_logo1: uploaded_logo1 = st.file_uploader("الشعار الأول:", type=["png", "jpg", "jpeg"], key="logo1_upload")
             with col_logo2: uploaded_logo2 = st.file_uploader("الشعار الثاني:", type=["png", "jpg", "jpeg"], key="logo2_upload")
@@ -812,7 +806,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v49", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v50", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -829,14 +823,14 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v49", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v50", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
                         st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار المخصص")
+        st.subheader("🧑‍🔬 اعتماد المتدربين، تعديل النماذج، وحذف المتدربين نهائياً")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
 
@@ -850,7 +844,7 @@ def admin_dashboard():
                         st.success("✅ تم تعميم نموذج الاختبار واعتماد الجميع دفعة واحدة!"); st.rerun()
                     else: st.error("لا توجد نماذج اختبارات مسجلة.")
 
-        sub_tabs = st.tabs(["الطلبات المعلقة (فردي)", "جميع المتدربين"])
+        sub_tabs = st.tabs(["الطلبات المعلقة (فردي)", "جميع المتدربين وإدارتهم/حذفهم"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
             if df_pend.empty: st.info("لا توجد طلبات معلقة.")
@@ -871,27 +865,37 @@ def admin_dashboard():
                                 st.warning("تم الرفض."); st.rerun()
         with sub_tabs[1]:
             df_all_tr = trainees_df()
-            if df_all_tr.empty: st.info("لا توجد بيانات متدربين.")
+            if df_all_tr.empty: st.info("لا توجد بيانات متدربين مسجلة.")
             else:
                 for _, tr_row in df_all_tr.iterrows():
                     with st.container(border=True):
-                        st.write(f"**المتدرب:** {tr_row['name']} | **الجهة:** {tr_row['facility']} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
+                        st.write(f"**ID رقم:** {tr_row['id']} | **المتدرب:** {tr_row['name']} | **الجهة:** {tr_row['facility']} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
                             curr_id = tr_row['assigned_template_id']
                             curr_name = [k for k, v in all_tpls_map.items() if v == curr_id]
                             def_name = curr_name[0] if curr_name else (tpl_names_list[0] if tpl_names_list else "")
                             def_idx = tpl_names_list.index(def_name) if def_name in tpl_names_list else 0
                             new_chosen_tpl = st.selectbox(f"تعديل نموذج الاختبار للمتدرب ID: {tr_row['id']}", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
-                            if st.form_submit_button("💾 تحديث نموذج الاختبار"):
+                            c_upd, c_del = st.columns(2)
+                            with c_upd:
+                                upd_btn = st.form_submit_button("💾 تحديث النموذج", use_container_width=True)
+                            with c_del:
+                                del_btn = st.form_submit_button("🗑️ حذف المتدرب نهائياً", use_container_width=True)
+                            
+                            if upd_btn:
                                 if all_tpls_map:
                                     set_trainee_status_and_template(int(tr_row['id']), tr_row['status'], all_tpls_map[new_chosen_tpl])
                                     st.success("✅ تم التحديث بنجاح!"); st.rerun()
+                            if del_btn:
+                                delete_trainee_db_by_id(int(tr_row['id']))
+                                st.success(f"✅ تم حذف المتدرب ({tr_row['name']}) وسجلاته نهائياً من قاعدة البيانات والتقارير!")
+                                st.rerun()
 
     elif selected_menu == "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)":
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v49")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v50")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1136,7 +1140,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v49.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v50.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1155,9 +1159,6 @@ def trainee_portal():
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
     
-    # ==========================================================
-    # إدراج الساعة الرقمية بالثواني والدقائق والساعات في الواجهة
-    # ==========================================================
     components.html("""
         <div id="liveClock" style="background: linear-gradient(135deg, #064e3b, #047857); color: white; padding: 14px; border-radius: 12px; text-align: center; font-family: 'Cairo', sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
             <div style="font-size: 14px; font-weight: bold; opacity: 0.9;">🕒 الساعة الحالية للتوقيت الرسمي:</div>
@@ -1186,7 +1187,6 @@ def trainee_portal():
         
         st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
         
-        # عرض موعد الاختبار بدقة تحت الساعة الرقمية مباشرة
         with st.container(border=True):
             st.markdown("#### 📅 موعد وتوقيت الاختبار المجدول:")
             if start_t and end_t:
