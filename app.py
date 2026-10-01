@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v6.8 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v6.9 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v6_8.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v6_9.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -271,28 +271,6 @@ def add_facility_manual_db(fac_id, fac_name):
             return True, "تم الإضافة بنجاح"
         except sqlite3.IntegrityError:
             return False, "رقم المعرف (ID) أو اسم المنشأة مستخدم مسبقاً."
-
-def update_facility_full_db(old_id, new_id, new_name):
-    norm = normalize_text(new_name)
-    if not norm: return False, "اسم المنشأة فارغ."
-    with db() as c:
-        try:
-            c.execute("PRAGMA foreign_keys=OFF;")
-            if old_id != new_id:
-                exists = c.execute("SELECT 1 FROM facilities_list WHERE id=?", (new_id,)).fetchone()
-                if exists:
-                    return False, "رقم المعرف (ID) الجديد مستخدم مسبقاً لمنشأة أخرى."
-                old_row = c.execute("SELECT * FROM facilities_list WHERE id=?", (old_id,)).fetchone()
-                if not old_row:
-                    return False, "المنشأة غير موجودة."
-                c.execute("DELETE FROM facilities_list WHERE id=?", (old_id,))
-                c.execute("INSERT INTO facilities_list(id, name, created_at) VALUES(?, ?, ?)", (int(new_id), norm, old_row["created_at"]))
-            else:
-                c.execute("UPDATE facilities_list SET name=? WHERE id=?", (norm, old_id))
-            c.execute("PRAGMA foreign_keys=ON;")
-            return True, "تم التحديث بنجاح"
-        except sqlite3.IntegrityError as e:
-            return False, str(e)
 
 def delete_facility_db_by_id(fac_id):
     with db() as c:
@@ -869,7 +847,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.8 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.9 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -955,13 +933,13 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🏥 إدارة المنشآت":
-        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية (إدخال يدوي لرقم المعرف ID)")
+        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية (إضافة وعرض القائمة)")
         
-        tab_fac_1, tab_fac_2, tab_fac_3 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "✏️ تعديل معرف واسم المنشأة", "🗑 حذف منشأة"])
+        tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v68", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v69", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -977,41 +955,20 @@ def admin_dashboard():
                         st.error("الرجاء كتابة اسم المنشأة.")
 
         with tab_fac_2:
-            st.markdown("#### ✏️ تعديل رقم المعرف (ID) واسم المنشأة:")
-            facs_list_objs = get_facilities()
-            
-            if not facs_list_objs:
-                st.info("لا توجد منشآت مسجلة حالياً. قم بإضافة منشأة جديدة أولاً.")
-            else:
-                fac_edit_map = {f"معرف حالي ({f['id']}) - {f['name']}": f for f in facs_list_objs}
-                selected_fac_edit_label = st.selectbox("اختر المنشأة المراد تعديلها:", list(fac_edit_map.keys()), key="select_edit_fac_box_v68")
-                chosen_fac_obj = fac_edit_map[selected_fac_edit_label]
-                
-                with st.form("edit_facility_manual_form_v68"):
-                    new_id_input = st.number_input("تعديل رقم المعرف (ID):", min_value=1, max_value=99999, value=int(chosen_fac_obj["id"]))
-                    updated_fac_name_input = st.text_input("تعديل اسم المنشأة:", value=chosen_fac_obj["name"])
-                    submit_edit_fac = st.form_submit_button("💾 حفظ وتحديث المعرف والاسم", use_container_width=True)
-                    if submit_edit_fac:
-                        if updated_fac_name_input.strip():
-                            success_upd, msg_upd = update_facility_full_db(chosen_fac_obj["id"], int(new_id_input), updated_fac_name_input)
-                            if success_upd:
-                                audit("update_facility_manual", "facility", {"old_id": chosen_fac_obj["id"], "new_id": int(new_id_input), "new_name": updated_fac_name_input})
-                                st.success(f"✅ تم تحديث المنشأة بنجاح بالمعرف ({new_id_input}) والاسم ({updated_fac_name_input})!")
-                                st.rerun()
-                            else:
-                                st.warning(f"⚠️ تعذر التحديث: {msg_upd}")
-                        else:
-                            st.error("الرجاء إدخال اسم صحيح للمنشأة.")
-
-        with tab_fac_3:
-            st.markdown("#### 🗑️ حذف منشأة مسجلة:")
+            st.markdown("#### 📋 جدول وقائمة المنشآت المسجلة في النظام:")
             facs_rows = get_facilities()
             
             if not facs_rows:
-                st.info("لا توجد منشآت مسجلة للحذف.")
+                st.info("لا توجد منشآت مسجلة حالياً.")
             else:
+                df_facs = pd.DataFrame(facs_rows)
+                df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
+                st.dataframe(df_facs, use_container_width=True, hide_index=True)
+                
+                st.markdown("---")
+                st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v68", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v69", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
