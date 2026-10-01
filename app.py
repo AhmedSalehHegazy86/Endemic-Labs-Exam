@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v63.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v64.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v63_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v64_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -685,7 +685,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v63.0 • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v64.0 • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -710,7 +710,11 @@ def login_portal():
                     st.rerun()
                 else:
                     tid = create_trainee(facility, name, phone, assigned_tpl_id)
-                    st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
+                    # تعيين المعرف فوراً وتحديث الصفحة لتختفي واجهة التسجيل كلياً
+                    st.session_state.trainee_id = tid
+                    st.session_state.trainee_name = name
+                    st.success("✅ تم تسجيل بياناتك بنجاح! جاري الانتقال للبوابة...")
+                    st.rerun()
             else:
                 st.warning("الرجاء التأكد من إضافة منشآت وإنشاء نماذج اختبارات أولاً.")
 
@@ -772,7 +776,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
+    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
         st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -806,7 +810,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v63", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v64", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -823,7 +827,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v63", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v64", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -895,7 +899,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v63")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v64")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1007,7 +1011,7 @@ def admin_dashboard():
 
     elif selected_menu == "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات":
         st.subheader("🧩 إنشاء نماذج الاختبارات وتحديد مواعيد الفتح والغلق للممتحنين")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج ومواعيدها والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
@@ -1140,7 +1144,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v63.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v64.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1160,7 +1164,6 @@ def trainee_portal():
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
 
-    # التحقق الحاسم والصارم من وقت بدء ونهاية الامتحان
     is_exam_open = False
     if matching_template:
         t_dict = dict(matching_template)
@@ -1177,14 +1180,14 @@ def trainee_portal():
                 pass
 
     if not is_exam_open:
-        # إظهار رسالة "لا يوجد امتحانات متوفرة الان" مع إخفاء واجهة الممتحن نهائياً
+        # إخفاء واجهة التسجيل تماماً وعرض رسالة "لا يوجد امتحانات متوفرة الان"
         st.markdown("""
             <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
                 <div style="font-size: 34px; font-weight: 900; letter-spacing: 1px;">🚫 لا يوجد امتحانات متوفرة الان</div>
             </div>
         """, unsafe_allow_html=True)
     else:
-        # إظهار واجهة الممتحن الكاملة فقط عندما يكون الاختبار مفتوحاً ومتاحاً
+        # إظهار واجهة الاختبار الكاملة إذا حلّ الموعد وسُمح بالدخول
         t_dict = dict(matching_template)
         tpl_name_str = t_dict.get("name", "اختبار معتمد")
         start_t = t_dict.get("start_time")
@@ -1244,7 +1247,7 @@ def exam_interface(session_id):
         st.rerun()
 
 # ============================================================
-# 7) التوجيه الأساسي للشاشات
+# 7) التوجيه الأساسي الشامل للشاشات (إخفاء التسجيل تلقائياً)
 # ============================================================
 if st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
@@ -1257,6 +1260,9 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         st.download_button("📥 تحميل شهادة الاجتياز المعتمدة .html", data=cert_html.encode("utf-8"), file_name=f"certificate_{sid}.html", mime="text/html")
         render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
         if st.button("العودة للرئيسية"): st.session_state.trainee_id = None; st.session_state.last_result_id = None; st.rerun()
-    else: trainee_portal()
-elif not st.session_state.logged_in: login_portal()
-else: admin_dashboard()
+    else:
+        trainee_portal()
+elif not st.session_state.logged_in:
+    login_portal()
+else:
+    admin_dashboard()
