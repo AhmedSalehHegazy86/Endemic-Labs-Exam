@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v52.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v53.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v52_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v53_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -42,32 +42,32 @@ DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP///////
 # ============================================================
 # 2) حقن التنسيقات (CSS) وتثبيت الساعة الرقمية التفاعلية الثابتة
 # ============================================================
-st.markdown(f"""
+st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
 
-html, body, [class*="css"] {{
+html, body, [class*="css"] {
     direction: rtl;
     text-align: right;
     font-family: 'Cairo', 'Tahoma', sans-serif !important;
     color-scheme: light !important;
-}}
+}
 
-.stApp {{
+.stApp {
     background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 45%, #bbf7d0 100%) !important;
     background-attachment: fixed !important;
-}}
+}
 
-.block-container {{
+.block-container {
     max-width: 1100px !important;
     margin: auto !important;
     padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
     padding-top: 5.5rem !important;
     padding-bottom: 6rem !important;
-}}
+}
 
-.hero {{
+.hero {
     background: linear-gradient(90deg, #064e3b, #065f46, #047857) !important;
     color: #ffffff !important;
     padding: 18px;
@@ -75,9 +75,9 @@ html, body, [class*="css"] {{
     text-align: center;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     margin-bottom: 30px;
-}}
+}
 
-.card, .question {{
+.card, .question {
     background: #ffffff !important;
     color: #111827 !important;
     padding: 18px 24px;
@@ -85,34 +85,34 @@ html, body, [class*="css"] {{
     margin-bottom: 18px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     border-right: 6px solid #059669 !important;
-}}
+}
 
-.metric {{
+.metric {
     background: #ffffff !important;
     padding: 16px;
     border-radius: 10px;
     text-align: center;
     border-top: 4px solid #059669 !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}}
+}
 
-.metric .v {{
+.metric .v {
     font-size: 24px;
     font-weight: 800;
     color: #065f46 !important;
-}}
+}
 
-.metric .l {{
+.metric .l {
     color: #4b5563 !important;
     font-weight: 700;
     font-size: 13px;
-}}
+}
 
-[data-testid="stSidebar"], [data-testid="collapsedControl"] {{
+[data-testid="stSidebar"], [data-testid="collapsedControl"] {
     display: none !important;
-}}
+}
 
-.stButton>button {{
+.stButton>button {
     background-color: #059669 !important;
     color: #ffffff !important;
     border-radius: 8px !important;
@@ -121,21 +121,21 @@ html, body, [class*="css"] {{
     padding: 6px 18px;
     border: none !important;
     transition: all 0.2s ease;
-}}
+}
 
-.stButton>button:hover {{
+.stButton>button:hover {
     background-color: #047857 !important;
     color: #ffffff !important;
-}}
+}
 
-input, select, textarea {{
+input, select, textarea {
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1px solid #cbd5e1 !important;
-}}
+}
 
 /* تصميم الساعة الرقمية المباشرة */
-.fixed-live-clock-container {{
+.fixed-live-clock-container {
     background: linear-gradient(135deg, #064e3b, #047857);
     color: #ffffff;
     padding: 16px;
@@ -144,19 +144,19 @@ input, select, textarea {{
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     margin-bottom: 25px;
     border: 2px solid #059669;
-}}
-.fixed-live-clock-title {{
+}
+.fixed-live-clock-title {
     font-size: 15px;
     font-weight: bold;
     opacity: 0.95;
     margin-bottom: 4px;
-}}
-.fixed-live-clock-digits {{
+}
+.fixed-live-clock-digits {
     font-size: 36px;
     font-weight: 900;
     letter-spacing: 3px;
     direction: ltr;
-}}
+}
 </style>
 
 <!-- سكريبت تشغيل وتحديث الساعة الرقمية تلقائياً بالثواني ودون انقطاع -->
@@ -734,7 +734,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v52.0 STABLE LIVE CLOCK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v53.0 STABLE LIVE CLOCK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -855,7 +855,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v52", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v53", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -872,7 +872,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v52", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v53", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -944,7 +944,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v52")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v53")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1145,7 +1145,7 @@ def admin_dashboard():
                 tpl_map = {f"نموذج رقم {t['id']} - {t['name']}": t['id'] for t in tpls_del}
                 with st.form("delete_template_form"):
                     selected_tpl_label = st.selectbox("اختر نموذج الاختبار للحذف:", list(tpl_map.keys()))
-                    if st.form_submit_button("🗑️️ حذف نموذج الاختبار نهائياً", use_container_width=True):
+                    if st.form_submit_button("🗑 حذف نموذج الاختبار نهائياً", use_container_width=True):
                         delete_template_db_by_id(tpl_map[selected_tpl_label])
                         st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
@@ -1189,7 +1189,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v52.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v53.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
