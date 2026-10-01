@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v28.0 STABLE",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v29.0 STABLE",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v28_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v29_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,16 +40,16 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) وتوسيع الهوامش العلوية والسفلية بشكل واسع ومريح
+# 2) حقن التنسيقات (CSS) وتوسيع الهوامش العلوية والسفلية بشكل واسع جداً
 # ============================================================
 st.markdown(f"""
 <style>
 html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Tahoma",sans-serif}}
 .stApp{{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 45%,#bbf7d0 100%);}}
-.block-container{{max-width:96% !important;padding-left:3rem !important;padding-right:3rem !important;padding-top:3.5rem !important;padding-bottom:4.5rem !important;}}
-.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:16px;border-radius:12px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:25px;}}
-.card,.question{{background:#fff;padding:16px 22px;border-radius:10px;margin-bottom:15px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:6px solid #059669;}}
-.metric{{background:#fff;padding:14px;border-radius:10px;text-align:center;border-top:4px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
+.block-container{{max-width:96% !important;padding-left:3rem !important;padding-right:3rem !important;padding-top:5.5rem !important;padding-bottom:6rem !important;}}
+.hero{{background:linear-gradient(90deg,#064e3b,#065f46,#047857);color:#fff;padding:18px;border-radius:12px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:30px;}}
+.card,.question{{background:#fff;padding:18px 24px;border-radius:10px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border-right:6px solid #059669;}}
+.metric{{background:#fff;padding:16px;border-radius:10px;text-align:center;border-top:4px solid #059669;box-shadow:0 1px 4px rgba(0,0,0,0.04);}}
 .metric .v{{font-size:24px;font-weight:800;color:#065f46;}}
 .metric .l{{color:#4b5563;font-weight:700;font-size:13px;}}
 
@@ -61,8 +61,8 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 22px;
-    margin-bottom: 30px;
+    padding: 18px 24px;
+    margin-bottom: 35px;
     border-bottom: 2px solid #006633;
     background-color: #ffffff;
     border-radius: 10px;
@@ -99,7 +99,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
     }}
 }}
 
-.stButton>button{{border-radius:8px;font-weight:800;min-height:38px;padding:4px 16px;transition:all 0.2s ease;}}
+.stButton>button{{border-radius:8px;font-weight:800;min-height:40px;padding:6px 18px;transition:all 0.2s ease;}}
 </style>
 
 <div class="print-header">
@@ -749,7 +749,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
             .top-left-logo img {{ width: 55px; height: 55px; object-fit: contain; }}
             .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 8mm; }}
             .exam-container {{ column-count: 2; column-gap: 10mm; }}
-            .q-box {{ margin-bottom: 6px; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
+            .q-box {{ margin-bottom: 6mm; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 6px; border-radius: 4px; background: #fff; }}
             .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6px; margin-bottom: 8mm; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
             .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
         </style>
@@ -833,7 +833,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v28.0 SPACING • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v29.0 SPACING • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -932,7 +932,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v28", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v29", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -961,7 +961,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v28", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v29", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -972,7 +972,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1161,7 +1161,7 @@ def admin_dashboard():
                 st.info("لا توجد أسئلة متاحة للتعديل.")
             else:
                 q_options_map = {f"سؤال ({q['id']}) - [{q['category']}] : {q['question'][:60]}...": q['id'] for q in all_questions}
-                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v28")
+                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v29")
                 selected_q_id = q_options_map[selected_q_label]
                 
                 with db() as c:
@@ -1229,9 +1229,9 @@ def admin_dashboard():
                 st.info("لا توجد أسئلة متاحة للحذف.")
             else:
                 q_del_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions_del}
-                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v28")
+                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v29")
                 selected_del_id = q_del_map[selected_del_label]
-                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v28", use_container_width=True):
+                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v29", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM questions WHERE id=?", (selected_del_id,))
                     reorder_question_ids()
