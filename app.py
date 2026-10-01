@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v57.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v58.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v57_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v58_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -628,7 +628,7 @@ def generate_compact_certificate_html(sid, custom_notes=""):
             h2 {{ color: #047857; font-size: 19pt; margin-bottom: 4px; }}
             h1 {{ color: #065f46; font-size: 28pt; margin: 10px 0; font-weight: 900; }}
             p {{ font-size: 12pt; line-height: 1.7; color: #1f2937; }}
-            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px 16mm; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
             .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12px; margin-top: 6mm; }}
         </style>
     </head>
@@ -685,7 +685,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v57.0 LIVE CLOCK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v58.0 • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -806,7 +806,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v57", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v58", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -823,7 +823,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v57", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v58", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -895,7 +895,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v57")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v58")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1007,7 +1007,7 @@ def admin_dashboard():
 
     elif selected_menu == "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات":
         st.subheader("🧩 إنشاء نماذج الاختبارات وتحديد مواعيد الفتح والغلق للممتحنين")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج ومواعيدها والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
@@ -1140,7 +1140,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v57.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v58.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1158,28 +1158,13 @@ def trainee_portal():
     header()
     
     # ==========================================================
-    # إدراج الساعة الرقمية المباشرة والمضمونة 100% (Component HTML مستقل ومستقر)
+    # استبدال الساعة بجملة: لا يوجد امتحانات متوفرة الان
     # ==========================================================
-    components.html("""
-        <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 18px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 2px solid #059669; font-family: 'Cairo', sans-serif;">
-            <div style="font-size: 15px; font-weight: bold; opacity: 0.95; margin-bottom: 4px;">🕒 الساعة الرقمية الرسمية للتوقيت الحالي:</div>
-            <div id="liveClock" style="font-size: 40px; font-weight: 900; letter-spacing: 4px; direction: ltr;">00 : 00 : 00</div>
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 22px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 2px solid #059669; margin-bottom: 25px; font-family: 'Cairo', sans-serif;">
+            <div style="font-size: 26px; font-weight: 900; letter-spacing: 1px;">🚫 لا يوجد امتحانات متوفرة الان</div>
         </div>
-        <script>
-            function updateClock() {
-                var now = new Date();
-                var h = String(now.getHours()).padStart(2, '0');
-                var m = String(now.getMinutes()).padStart(2, '0');
-                var s = String(now.getSeconds()).padStart(2, '0');
-                var elem = document.getElementById('liveClock');
-                if (elem) {
-                    elem.innerText = h + ' : ' + m + ' : ' + s;
-                }
-            }
-            setInterval(updateClock, 1000);
-            updateClock();
-        </script>
-    """, height=115)
+    """, unsafe_allow_html=True)
 
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
