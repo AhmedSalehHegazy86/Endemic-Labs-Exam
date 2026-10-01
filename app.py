@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v53.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v54.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v53_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v54_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,7 +40,7 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) وتثبيت الساعة الرقمية التفاعلية الثابتة
+# 2) حقن التنسيقات (CSS) الأساسية
 # ============================================================
 st.markdown("""
 <style>
@@ -133,56 +133,7 @@ input, select, textarea {
     color: #111827 !important;
     border: 1px solid #cbd5e1 !important;
 }
-
-/* تصميم الساعة الرقمية المباشرة */
-.fixed-live-clock-container {
-    background: linear-gradient(135deg, #064e3b, #047857);
-    color: #ffffff;
-    padding: 16px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    margin-bottom: 25px;
-    border: 2px solid #059669;
-}
-.fixed-live-clock-title {
-    font-size: 15px;
-    font-weight: bold;
-    opacity: 0.95;
-    margin-bottom: 4px;
-}
-.fixed-live-clock-digits {
-    font-size: 36px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    direction: ltr;
-}
 </style>
-
-<!-- سكريبت تشغيل وتحديث الساعة الرقمية تلقائياً بالثواني ودون انقطاع -->
-<script>
-    function startGlobalClock() {
-        function updateTime() {
-            var now = new Date();
-            var h = String(now.getHours()).padStart(2, '0');
-            var m = String(now.getMinutes()).padStart(2, '0');
-            var s = String(now.getSeconds()).padStart(2, '0');
-            var timeString = h + ' : ' + m + ' : ' + s;
-            
-            var elements = document.getElementsByClassName('fixed-live-clock-digits');
-            for (var i = 0; i < elements.length; i++) {
-                elements[i].innerText = timeString;
-            }
-        }
-        setInterval(updateTime, 1000);
-        updateTime();
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startGlobalClock);
-    } else {
-        startGlobalClock();
-    }
-</script>
 """, unsafe_allow_html=True)
 
 # ============================================================
@@ -734,7 +685,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v53.0 STABLE LIVE CLOCK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v54.0 LIVE CLOCK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -855,7 +806,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v53", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v54", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -872,7 +823,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v53", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v54", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -944,7 +895,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v53")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v54")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1189,7 +1140,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v53.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v54.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1207,14 +1158,29 @@ def trainee_portal():
     header()
     
     # ==========================================================
-    # إدراج الساعة الرقمية الثابتة والمتحركة مباشرة كعنصر HTML مضمون الظهور
+    # إدراج الساعة الرقمية الثابتة والمتحركة مباشرة داخل واجهة الممتحن باستخدام components.html
+    # لضمان ظهورها وتشغيلها بشكل تفاعلي وثابت تماماً
     # ==========================================================
-    st.markdown("""
-        <div class="fixed-live-clock-container">
-            <div class="fixed-live-clock-title">🕒 الساعة الرقمية الرسمية للتوقيت الحالي:</div>
-            <div class="fixed-live-clock-digits">00 : 00 : 00</div>
+    components.html("""
+        <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 18px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 20px; border: 2px solid #059669; font-family: 'Cairo', sans-serif; direction: rtl;">
+            <div style="font-size: 16px; font-weight: bold; opacity: 0.95; margin-bottom: 6px;">🕒 الساعة الرقمية الرسمية للتوقيت الحالي:</div>
+            <div id="liveClockDigits" style="font-size: 38px; font-weight: 900; letter-spacing: 4px; direction: ltr;">00 : 00 : 00</div>
         </div>
-    """, unsafe_allow_html=True)
+        <script>
+            function updateLiveClock() {
+                var d = new Date();
+                var h = String(d.getHours()).padStart(2, '0');
+                var m = String(d.getMinutes()).padStart(2, '0');
+                var s = String(d.getSeconds()).padStart(2, '0');
+                var elem = document.getElementById('liveClockDigits');
+                if (elem) {
+                    elem.innerText = h + ' : ' + m + ' : ' + s;
+                }
+            }
+            setInterval(updateLiveClock, 1000);
+            updateLiveClock();
+        </script>
+    """, height=120)
 
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
