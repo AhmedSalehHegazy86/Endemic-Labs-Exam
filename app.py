@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v7.5 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v7.6 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_5.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_6.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -507,8 +507,13 @@ def choose_questions(t):
     استدعاء العدد المحدد بدقة تامة (num_questions) من بنك الأسئلة دون زيادة أو نقصان، مع منع التكرار بنسبة 100%.
     إذا كانت الأقسام المختارة قليلة، يتم استكمال باقي العدد من البنك العام عشوائياً.
     """
-    target = int(t["num_questions"]) if t and "num_questions" in t and t["num_questions"] else 25
-    cats = json.loads(t["categories_json"]) if t and t.get("categories_json") else []
+    if not t:
+        return []
+    
+    # التعامل الآمن مع كائن الصف أو القاموس
+    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 25
+    cats_raw = t["categories_json"] if "categories_json" in t else "[]"
+    cats = json.loads(cats_raw) if cats_raw else []
     
     unique_list = []
     seen_ids = set()
@@ -516,7 +521,6 @@ def choose_questions(t):
     seen_texts = set()
 
     with db() as c:
-        # 1. محاولة جلب الأسئلة من الأقسام المحددة في القالب أولاً إن وجدت
         if cats:
             placeholders = ",".join(["?"] * len(cats))
             cat_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
@@ -532,7 +536,6 @@ def choose_questions(t):
                     seen_texts.add(q_txt)
                     unique_list.append(q)
 
-        # 2. إذا لم يكتمل العدد المطلوب، يتم استكمال الباقي من بنك الأسئلة العام عشوائياً وبدون تكرار
         if len(unique_list) < target:
             all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
             for q in all_db_qs:
@@ -547,7 +550,6 @@ def choose_questions(t):
                     seen_texts.add(q_txt)
                     unique_list.append(q)
 
-    # قص القائمة تماماً لتتوافق مع العدد المطلوب دون أي زيادة
     return unique_list[:target]
 
 def start_session(trainee_id, template_id):
@@ -888,7 +890,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.5 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.6 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -980,7 +982,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v75", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v76", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1009,7 +1011,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v75", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v76", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
