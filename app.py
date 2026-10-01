@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v41.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v42.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v41_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v42_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -544,7 +544,7 @@ def start_session(trainee_id, template_id):
                                     (trainee_id, template_id, today_start)).fetchone()
         if completed_today: raise ValueError("عذراً، لا يمكنك أداء هذا الاختبار أكثر من مرة في نفس اليوم.")
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
-        if not t: raise ValueError("قالب الاختبار غير موجود.")
+        if not t: raise ValueError("نموذج الاختبار غير موجود.")
         active = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND status='active'", (trainee_id,)).fetchone()
         if active: raise ValueError("لديك اختبار نشط بالفعل.")
 
@@ -587,7 +587,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال توليد الطباعة والتقارير والشارات
+# 5) دوال توليد الطباعة والتقارير والشهادات
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     sett = get_print_settings()
@@ -716,7 +716,7 @@ def generate_collective_report_html(df_summary, title_desc, custom_notes=""):
 def generate_training_minutes_html(template_id, training_date, facility_name, custom_notes=""):
     sett = get_print_settings()
     with db() as c: t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
-    if not t: return "<p>القالب غير موجود</p>"
+    if not t: return "<p>نموذج الاختبار غير موجود</p>"
     t_dict = dict(t)
     cats = json.loads(t_dict.get("categories_json", "[]")) if t_dict.get("categories_json") else ["الاستراتيجية العامة", "الفحوص المعملية"]
     bullets_html = "".join([f"<li>{idx}. محور تدريبي: <b>{esc(cat)}</b> وتطبيقاته العملية.</li>" for idx, cat in enumerate(cats[:5], start=1)])
@@ -742,7 +742,7 @@ def generate_training_minutes_html(template_id, training_date, facility_name, cu
                 <img src="{sett['logo_base64']}" style="width:65px; height:65px; object-fit:contain;" alt="Logo">
             </div>
             <h2>محضر تدريب معتمد - وحدة معامل المتوطنة</h2>
-            <h3>القالب: {esc(t_dict.get('name', ''))}</h3>
+            <h3>نموذج الاختبار: {esc(t_dict.get('name', ''))}</h3>
             <p>أنه في يوم الموافق <b>{formatted_date}</b>، تم تدريب أخصائي وفني المختبرات بمنشأة <b>{esc(facility_name)}</b> على المحاور الآتية:</p>
             <ul>{bullets_html}</ul>
             {f'<div class="notes-box">ملاحظات تدوين البرنامج: {esc(custom_notes)}</div>' if custom_notes else ''}
@@ -762,7 +762,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         qs = choose_questions(t) if t else []
-    if not t: return "<p>القالب غير موجود</p>"
+    if not t: return "<p>نموذج الاختبار غير موجود</p>"
     t_dict = dict(t)
     html_out = f"""
     <!DOCTYPE html>
@@ -778,7 +778,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
             .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 6mm; }}
             .exam-container {{ column-count: 2; column-gap: 8mm; }}
             .q-box {{ margin-bottom: 5mm; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 5px; border-radius: 4px; background: #fff; }}
-            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6px; margin-bottom: 6mm; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6mm; margin-bottom: 6mm; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
             .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
         </style>
     </head>
@@ -851,7 +851,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v41.0 ANALYTICS & PRINT • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v42.0 EXAM TEMPLATES • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -862,8 +862,8 @@ def login_portal():
         name = st.text_input("الاسم الرباعي")
         phone = st.text_input("رقم الهاتف")
         with db() as c: all_tpls_opts = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
-        tpl_choices_list = list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد قوالب امتحانات مسجلة"]
-        selected_req_tpl_name = st.selectbox("اختر القالب المبدئي:", tpl_choices_list)
+        tpl_choices_list = list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
+        selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار المبدئي:", tpl_choices_list)
         
         if st.form_submit_button("إرسال الطلب والدخول للمتدرب", use_container_width=True):
             if facility.strip() and name.strip() and facilities_list and all_tpls_opts:
@@ -878,7 +878,7 @@ def login_portal():
                     tid = create_trainee(facility, name, phone, assigned_tpl_id)
                     st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
             else:
-                st.warning("الرجاء التأكد من إضافة منشآت وإنشاء قوالب امتحانات أولاً.")
+                st.warning("الرجاء التأكد من إضافة منشآت وإنشاء نماذج اختبارات أولاً.")
 
     with st.expander("🔐 تسجيل دخول مالك المنصة / الإدارة العليا"):
         with st.form("admin_login_form_hidden"):
@@ -909,11 +909,11 @@ def admin_dashboard():
         "📊 لوحة التحكم",
         "🖨️ إعدادات الطباعة والهوامش والترويسة",
         "🏥 إدارة المنشآت",
-        "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
+        "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار",
         "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
         "⚙ إدارة الأسئلة",
-        "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
-        "✍️ تسجيل نتيجة يدوي",
+        "🧩 نماذج ومحاضر التدريب (للمالك فقط)",
+        "✍️️ تسجيل نتيجة يدوي",
         "📊 التقارير وتحليل الأداء والرسوم البيانية",
         "💾 النسخ الاحتياطي"
     ]
@@ -937,8 +937,8 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️️ إعدادات الطباعة والهوامش والترويسة":
-        st.subheader("🖨️️ تحكم كامل في هوامش الورق، ترويسة اليمين، وشعار اليسار للطباعة")
+    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة":
+        st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، وشعار اليسار للطباعة")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
@@ -949,7 +949,7 @@ def admin_dashboard():
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
-            st.markdown("#### 🖼️️ صورة شعار أعلى يسار الصفحات:")
+            st.markdown("#### 🖼️ صورة شعار أعلى يسار الصفحات:")
             uploaded_logo = st.file_uploader("اختر صورة الشعار:", type=["png", "jpg", "jpeg"])
             current_logo_val = current_set["logo_base64"]
             if uploaded_logo is not None:
@@ -963,7 +963,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v41", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v42", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -980,26 +980,26 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v41", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v42", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
                         st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
-    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد القالب")
+    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار":
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار المخصص")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
-        tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد قوالب امتحانات مسجلة"]
+        tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
 
         with st.container(border=True):
-            st.markdown("#### ⚡ تعميم قالب واحد لجميع المتدربين دفعة واحدة:")
+            st.markdown("#### ⚡ تعميم نموذج اختبار واحد لجميع المتدربين دفعة واحدة:")
             with st.form("bulk_assign_form"):
-                bulk_tpl_name = st.selectbox("اختر القالب لتعميمه:", tpl_names_list)
-                if st.form_submit_button("🚀 تعميم هذا القالب واعتماد الكل", use_container_width=True):
+                bulk_tpl_name = st.selectbox("اختر نموذج الاختبار لتعميمه:", tpl_names_list)
+                if st.form_submit_button("🚀 تعميم نموذج الاختبار واعتماد الكل", use_container_width=True):
                     if all_tpls_map:
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
-                        st.success("✅ تم تعميم القالب واعتماد الجميع دفعة واحدة!"); st.rerun()
-                    else: st.error("لا توجد قوالب.")
+                        st.success("✅ تم تعميم نموذج الاختبار واعتماد الجميع دفعة واحدة!"); st.rerun()
+                    else: st.error("لا توجد نماذج اختبارات مسجلة.")
 
         sub_tabs = st.tabs(["الطلبات المعلقة (فردي)", "جميع المتدربين"])
         with sub_tabs[0]:
@@ -1010,7 +1010,7 @@ def admin_dashboard():
                     with st.container(border=True):
                         st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']}")
                         with st.form(f"approve_form_{r['id']}"):
-                            chosen_tpl_name = st.selectbox(f"القالب المخصص:", tpl_names_list)
+                            chosen_tpl_name = st.selectbox(f"نموذج الاختبار المخصص:", tpl_names_list)
                             c1, c2 = st.columns(2)
                             with c1: app_btn = st.form_submit_button("✅ اعتماد وتثبيت", use_container_width=True)
                             with c2: rej_btn = st.form_submit_button("❌ رفض الطلب", use_container_width=True)
@@ -1032,8 +1032,8 @@ def admin_dashboard():
                             curr_name = [k for k, v in all_tpls_map.items() if v == curr_id]
                             def_name = curr_name[0] if curr_name else (tpl_names_list[0] if tpl_names_list else "")
                             def_idx = tpl_names_list.index(def_name) if def_name in tpl_names_list else 0
-                            new_chosen_tpl = st.selectbox(f"تعديل قالب ID: {tr_row['id']}", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
-                            if st.form_submit_button("💾 تحديث القالب"):
+                            new_chosen_tpl = st.selectbox(f"تعديل نموذج الاختبار للمتدرب ID: {tr_row['id']}", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
+                            if st.form_submit_button("💾 تحديث نموذج الاختبار"):
                                 if all_tpls_map:
                                     set_trainee_status_and_template(int(tr_row['id']), tr_row['status'], all_tpls_map[new_chosen_tpl])
                                     st.success("✅ تم التحديث بنجاح!"); st.rerun()
@@ -1042,7 +1042,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v41")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v42")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1152,10 +1152,10 @@ def admin_dashboard():
                     reorder_question_ids()
                     st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
-    elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض القوالب والطباعة", "➕ إنشاء قالب جديد", "🗑 حذف قالب"], horizontal=True)
-        if sub_tpl_mode == "📋 عرض القوالب والطباعة":
+    elif selected_menu == "🧩 نماذج ومحاضر التدريب (للمالك فقط)":
+        st.subheader("🧩 إنشاء وإدارة نماذج ومحاضر التدريب")
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض نماذج الاختبارات والطباعة", "➕ إنشاء نموذج اختبار جديد", "🗑 حذف نموذج اختبار"], horizontal=True)
+        if sub_tpl_mode == "📋 عرض نماذج الاختبارات والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             facilities_list = [f["name"] for f in get_facilities()] or ["الإدارة الصحية بأولاد صقر"]
             if tpls:
@@ -1163,7 +1163,7 @@ def admin_dashboard():
                     t_dict = dict(t)
                     num_q_display = "مفتوح (كامل البنك)" if int(t_dict.get('num_questions', 999999)) >= 999900 else t_dict.get('num_questions')
                     with st.container(border=True):
-                        st.markdown(f"#### 🏷 قالب رقم ({t_dict.get('id')}): {t_dict.get('name')} | عدد الأسئلة: {num_q_display}")
+                        st.markdown(f"#### 🏷 نموذج اختبار رقم ({t_dict.get('id')}): {t_dict.get('name')} | عدد الأسئلة: {num_q_display}")
                         col_m1, col_m2 = st.columns(2)
                         with col_m1: m_date = st.date_input(f"تاريخ المحضر ({t_dict.get('id')})", date.today(), key=f"m_date_{t_dict.get('id')}")
                         with col_m2: m_facility = st.selectbox(f"المنشأة ({t_dict.get('id')})", facilities_list, key=f"m_fac_{t_dict.get('id')}")
@@ -1176,7 +1176,7 @@ def admin_dashboard():
                         with b2:
                             st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t_dict.get('id')}.html", mime="text/html", key=f"dl_exam_{t_dict.get('id')}", use_container_width=True)
                             render_print_button_only(html_exam, f"نموذج الامتحان {t_dict.get('id')}")
-        elif sub_tpl_mode == "➕ إنشاء قالب جديد":
+        elif sub_tpl_mode == "➕ إنشاء نموذج اختبار جديد":
             if st.session_state.tpl_success_msg: st.success(st.session_state.tpl_success_msg); st.session_state.tpl_success_msg = ""
             categories_pool_opts = [
                 "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا",
@@ -1186,31 +1186,31 @@ def admin_dashboard():
                 "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "أسئلة الصور والأشكال"
             ]
             with st.form("create_template_form"):
-                new_tpl_name = st.text_input("اسم قالب الاختبار:")
+                new_tpl_name = st.text_input("اسم نموذج الاختبار الجديد:")
                 is_open_questions = st.checkbox("جعل عدد الأسئلة مفتوح وغير محدد (سحب كامل بنك الأسئلة المتاح)", value=True)
                 new_tpl_num_q = st.number_input("عدد الأسئلة (إذا لم يكن مفتوحاً):", min_value=1, max_value=5000, value=50)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=300, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة (فارغ = كامل البنك):", categories_pool_opts)
-                if st.form_submit_button("💾 حفظ وإنشاء القالب", use_container_width=True):
+                if st.form_submit_button("💾 حفظ وإنشاء نموذج الاختبار", use_container_width=True):
                     if new_tpl_name.strip():
                         final_num_q = 999999 if is_open_questions else int(new_tpl_num_q)
                         with db() as c:
                             c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at) VALUES(?,?,?,?,?,?,?)",
                                       (new_tpl_name.strip(), "اختبار مخصص للمالك", final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), now()))
                         reorder_template_ids()
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء القالب ({new_tpl_name}) بنجاح!"
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء نموذج الاختبار ({new_tpl_name}) بنجاح!"
                         st.rerun()
-                    else: st.error("الرجاء إدخال اسم القالب.")
+                    else: st.error("الرجاء إدخال اسم نموذج الاختبار.")
         else:
             with db() as c: tpls_del = c.execute("SELECT id, name FROM exam_templates ORDER BY id ASC").fetchall()
             if tpls_del:
-                tpl_map = {f"قالب رقم {t['id']} - {t['name']}": t['id'] for t in tpls_del}
+                tpl_map = {f"نموذج اختبار رقم {t['id']} - {t['name']}": t['id'] for t in tpls_del}
                 with st.form("delete_template_form"):
-                    selected_tpl_label = st.selectbox("اختر القالب للحذف:", list(tpl_map.keys()))
-                    if st.form_submit_button("🗑️ حذف القالب نهائياً", use_container_width=True):
+                    selected_tpl_label = st.selectbox("اختر نموذج الاختبار للحذف:", list(tpl_map.keys()))
+                    if st.form_submit_button("🗑️ حذف نموذج الاختبار نهائياً", use_container_width=True):
                         delete_template_db_by_id(tpl_map[selected_tpl_label])
-                        st.success("✅ تم الحذف بنجاح!"); st.rerun()
+                        st.success("✅ تم حذف نموذج الاختبار بنجاح!"); st.rerun()
 
     elif selected_menu == "✍️ تسجيل نتيجة يدوي":
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
@@ -1220,7 +1220,7 @@ def admin_dashboard():
             m_facility_name = st.selectbox("جهة العمل:", facilities_list)
             with db() as c: all_tpls = c.execute("SELECT id, name FROM exam_templates").fetchall()
             tpl_choices = {row["name"]: row["id"] for row in all_tpls}
-            selected_tpl_name = st.selectbox("اختر القالب المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
+            selected_tpl_name = st.selectbox("اختر نموذج الاختبار المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
             c1, c2 = st.columns(2)
             with c1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=9999, value=40)
             with c2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
@@ -1272,7 +1272,6 @@ def admin_dashboard():
                     st.line_chart(chart_data)
                     st.dataframe(df_tr_filtered[["session_id", "template_name", "score", "max_score", "percent", "status", "submitted_at"]], use_container_width=True, hide_index=True)
                     
-                    # زر طباعة التقرير الفردي
                     ind_html = f"""
                     <!DOCTYPE html>
                     <html lang="ar" dir="rtl">
@@ -1291,7 +1290,6 @@ def admin_dashboard():
             if df_all_sess.empty:
                 st.info("لا توجد بيانات كافية لتحليل الأداء الجماعي.")
             else:
-                # حساب الإحصائيات الجماعية
                 total_exams = len(df_all_sess)
                 avg_total_pct = df_all_sess["percent"].mean()
                 total_passed = len(df_all_sess[df_all_sess["status"] == "اجتزت بنجاح"])
@@ -1304,7 +1302,6 @@ def admin_dashboard():
                 c4.markdown(f'<div class="metric"><div class="v">{pass_ratio_global:.1f}%</div><div class="l">نسبة الاجتياز الكلية</div></div>', unsafe_allow_html=True)
 
                 st.markdown("---")
-                # تجميع حسب جهة العمل
                 df_group_fac = df_all_sess.groupby("facility").agg(
                     إجمالي_المتقدمين=('session_id', 'count'),
                     متوسط_النسبة=('percent', 'mean'),
@@ -1317,7 +1314,6 @@ def admin_dashboard():
                 st.bar_chart(df_group_fac.set_index("جهة العمل")[["متوسط النسبة المئوية %"]])
                 st.dataframe(df_group_fac, use_container_width=True, hide_index=True)
 
-                # زر طباعة التقرير الجماعي
                 coll_html = generate_collective_report_html(df_group_fac, "تقرير تحليلي شامل لمستويات الأداء الجماعي بجميع المنشآت الصحية", "تم استخراج هذا التقرير عبر المنصة الرقمية الموحدة")
                 render_print_button_only(coll_html, "التقرير الجماعي الشامل")
 
@@ -1340,7 +1336,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستخلاص قاعدة البيانات")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v41.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v42.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1358,11 +1354,11 @@ def trainee_portal():
     header()
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
-    tpl_name_str = matching_template["name"] if matching_template else "لم يتم تخصيص قالب بعد"
+    tpl_name_str = matching_template["name"] if matching_template else "لم يتم تخصيص نموذج اختبار بعد"
     
-    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | القالب المخصص لك حصرياً: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
-    if matching_template: st.info(f"📌 سيتم بدء اختبارك المخصص بناءً على القالب المعتمد لك: **{tpl_name_str}**")
-    else: st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين قالب امتحان مخصص لك بعد.")
+    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | نموذج الاختبار المخصص لك حصرياً: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
+    if matching_template: st.info(f"📌 سيتم بدء اختبارك المخصص بناءً على نموذج الاختبار المعتمد لك: **{tpl_name_str}**")
+    else: st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين نموذج امتحان مخصص لك بعد.")
 
     if matching_template and st.button("بدء الاختبار المخصص الآن", use_container_width=True):
         try:
