@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v7.2 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v7.4 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_4.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -276,11 +276,54 @@ def delete_facility_db_by_id(fac_id):
     with db() as c:
         c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
 
+def reorder_template_ids():
+    """
+    إعادة ترقيم قوالب الامتحانات لتكون متسلسلة ونظيفة بدون أي فجوات بعد عمليات الحذف.
+    """
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
+        
+        id_mapping = {}
+        for idx, r in enumerate(rows, start=1):
+            id_mapping[r["id"]] = idx
+
+        c.execute("DROP TABLE IF EXISTS exam_templates_temp")
+        c.execute("""
+            CREATE TABLE exam_templates_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                exam_type TEXT NOT NULL DEFAULT 'قبل التدريب (Pre-Test)',
+                num_questions INTEGER NOT NULL DEFAULT 25,
+                duration_minutes INTEGER NOT NULL DEFAULT 45,
+                pass_percent REAL NOT NULL DEFAULT 60,
+                categories_json TEXT NOT NULL DEFAULT '[]',
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            )
+        """)
+        
+        for idx, r in enumerate(rows, start=1):
+            c.execute("""
+                INSERT INTO exam_templates_temp(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, active, created_at)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (idx, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["active"], r["created_at"]))
+        
+        c.execute("DROP TABLE exam_templates")
+        c.execute("ALTER TABLE exam_templates_temp RENAME TO exam_templates")
+        
+        for old_id, new_id in id_mapping.items():
+            if old_id != new_id:
+                c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
+                
+        c.execute("PRAGMA foreign_keys=ON;")
+
 def delete_template_db_by_id(tpl_id):
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
         c.execute("DELETE FROM exam_templates WHERE id=?", (tpl_id,))
         c.execute("PRAGMA foreign_keys=ON;")
+    reorder_template_ids()
 
 def reorder_question_ids():
     with db() as c:
@@ -332,7 +375,7 @@ def seed_complete_250_question_bank():
     svg_schisto_mansoni = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjYwIiByeT0iNDAiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE0NSw1MCBDMTUwLDUwIDE1NSw1NSAxNTUsNjAgQzE1NSw2NSAxNTAsNzAgMTQ1LDcwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_schisto_haematobium = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjY1IiByeT0iMzgiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTE2NSw2MCBMMTgzLDYwIiBzdHJva2U9IiNlMTE5MmYiIHN0cm9rZS13aWR0aD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
     svg_fasciola = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjcwIiByeT0iNDIiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTM1LDUwIEw0NSw1MCIgc3RrokeiIzExMjIzMyIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4="
-    svg_giardia = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjUwIiByeT0iMzUiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iODAiIGcyPSIwIiBjeD0iODAiIGN5PSI1MCIgcj0iNSIgZmlsbD0iIzMzMzMzMyIvPjxjaXJjbGUgY3g9IjE2MCIgY3k9IjUwIiByPSI1IiBmaWxsPSIjMzMzMzMzIi8+PC9zdmc+"
+    svg_giardia = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxlbGxpcHNlIGN4PSIxMDAiIGN5PSI2MCIgcng9IjUwIiByeT0iMzUiIGZpbGw9IiNlMmVmZTUiIHN0cm9rZT0iIzA1OTY2OSIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iODAiIGN5PSI1MCIgcj0iNSIgZmlsbD0iIzMzMzMzMyIvPjxjaXJjbGUgY3g9IjE2MCIgY3k9IjUwIiByPSI1IiBmaWxsPSIjMzMzMzMzIi8+PC9zdmc+"
     svg_ascaris = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjAwIDEyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y4ZmFmYyIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjYwIiByPSIzOCIgZmlsbD0iI2UyZWZlNSIgc3Ryb2tlPSIjMDU5NjY5IiBzdHJva2Utd2lkdGg9IjMiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSI2MCIgcj0iMjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMjIzMyIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtZGFzaGFycmF5PSI0LDIiLz48L3N2Zz4="
 
     complete_bank = [
@@ -409,6 +452,7 @@ def ensure_admin():
 init_db()
 seed_complete_250_question_bank()
 reorder_question_ids()
+reorder_template_ids()
 ensure_admin()
 
 def audit(action, entity=None, details=None):
@@ -462,39 +506,24 @@ def trainees_df(status=None):
         return pd.read_sql_query(q, c, params=args)
 
 def choose_questions(t):
-    """
-    استدعاء الأسئلة من بنك الأسئلة دون المساس به نهائياً، مع منع التكرار داخل القالب بنسبة 100%.
-    """
     cats = json.loads(t["categories_json"]) if t["categories_json"] else []
     target = int(t["num_questions"])
     
     with db() as c:
         if cats:
             placeholders = ",".join(["?"] * len(cats))
-            img_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND question LIKE 'IMAGE:%' AND category IN ({placeholders})", cats).fetchall()]
-            other_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND question NOT LIKE 'IMAGE:%' AND category IN ({placeholders})", cats).fetchall()]
+            rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
         else:
-            img_rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 AND question LIKE 'IMAGE:%'").fetchall()]
-            other_rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 AND question NOT LIKE 'IMAGE:%'").fetchall()]
+            rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
 
-    random.shuffle(img_rows)
-    random.shuffle(other_rows)
-    
-    num_img_needed = min(4, len(img_rows))
-    selected_img = img_rows[:num_img_needed]
-    
-    remaining_slots = max(0, target - len(selected_img))
-    selected_other = other_rows[:remaining_slots]
-    
-    combined_selected = selected_img + selected_other
-    random.shuffle(combined_selected)
-    
     unique_list = []
     seen_ids = set()
     seen_fingerprints = set()
     seen_texts = set()
     
-    for q in combined_selected:
+    for q in rows:
+        if len(unique_list) >= target:
+            break
         q_id = q["id"]
         q_fp = q.get("fingerprint")
         q_txt = clean_question_text(q["question"])
@@ -522,7 +551,6 @@ def choose_questions(t):
                 seen_texts.add(q_txt)
                 unique_list.append(q)
 
-    random.shuffle(unique_list)
     return unique_list[:target]
 
 def start_session(trainee_id, template_id):
@@ -863,7 +891,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.2 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.4 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -955,7 +983,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v72", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v74", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -984,9 +1012,9 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v72", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v74", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
-                    submit_del_fac = st.form_submit_button("🗑️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
+                    submit_del_fac = st.form_submit_button("🗑️️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
                         fac_id_to_del = fac_del_map[selected_fac_label]
                         delete_facility_db_by_id(fac_id_to_del)
@@ -1080,7 +1108,7 @@ def admin_dashboard():
                             st.rerun()
 
         with sub_img_tabs[1]:
-            st.subheader("✏️ تعديل سؤال موجود")
+            st.subheader("✏️️ تعديل سؤال موجود")
             with db() as c:
                 all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
             if not all_questions:
@@ -1150,7 +1178,7 @@ def admin_dashboard():
         
         if sub_tpl_mode == "📋 عرض القوالب الحالية وتوليد المحاضر":
             with db() as c:
-                tpls = c.execute("SELECT * FROM exam_templates ORDER BY id DESC").fetchall()
+                tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             facilities_list = [f["name"] for f in get_facilities()] or ["الإدارة الصحية بأولاد صقر"]
             if not tpls:
                 st.info("لا توجد قوالب امتحانات مسجلة.")
@@ -1195,13 +1223,14 @@ def admin_dashboard():
                             c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
                                          VALUES(?,?,?,?,?,?,?)""",
                                       (new_tpl_name.strip(), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح واستدعاء الأسئلة من البنك دون المساس به!"
+                        reorder_template_ids()
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) وترتيب القوالب بنجاح!"
                         st.rerun()
 
         else:
             st.subheader("🗑️ حذف قالب امتحان موجود")
             with db() as c:
-                tpls_del = c.execute("SELECT id, name FROM exam_templates ORDER BY id DESC").fetchall()
+                tpls_del = c.execute("SELECT id, name FROM exam_templates ORDER BY id ASC").fetchall()
             if not tpls_del:
                 st.info("لا توجد قوالب امتحانات متاحة للحذف.")
             else:
@@ -1212,7 +1241,7 @@ def admin_dashboard():
                         tpl_id_to_del = tpl_map[selected_tpl_label]
                         delete_template_db_by_id(tpl_id_to_del)
                         audit("delete_exam_template", "exam_template", {"id": tpl_id_to_del})
-                        st.success(f"✅ تم حذف القالب بنجاح دون التأثير على بنك الأسئلة!")
+                        st.success(f"✅ تم حذف القالب وإعادة ترتيب وترقيم جميع القوالب المتبقية بنجاح!")
                         st.rerun()
 
     elif selected_menu == "✍️ تسجيل نتيجة يدوي":
