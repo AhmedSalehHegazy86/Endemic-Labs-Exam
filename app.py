@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v39.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v40.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v39_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v40_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -331,7 +331,6 @@ def init_db():
         );
         """)
 
-        # Default print settings if empty
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
@@ -343,8 +342,7 @@ init_db()
 def get_print_settings():
     with db() as c:
         row = c.execute("SELECT * FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
-        if row:
-            return dict(row)
+        if row: return dict(row)
         return {
             "header_text": "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
             "margin_top": "8mm", "margin_bottom": "8mm", "margin_right": "8mm", "margin_left": "8mm",
@@ -469,7 +467,7 @@ def audit(action, entity=None, details=None):
                   (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
 
 # ============================================================
-# 4) دوال إدارة المتدربين والامتحانات والشهادات بالترويسة المخصصة
+# 4) دوال المتدربين والاختبارات
 # ============================================================
 def login_user(u, p):
     with db() as c:
@@ -484,7 +482,6 @@ def create_trainee(facility, name, phone, assigned_template_id=None):
         cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
                         (normalize_text(facility), normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now()))
         tid = cur.lastrowid
-    audit("create_trainee", "trainee", {"id": tid, "name": name})
     return tid
 
 def trainee_by_credentials(name, facility):
@@ -590,7 +587,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال توليد الطباعة والشهادات بالهوامش والترويسة المخصصة
+# 5) دوال توليد الطباعة والشهادات
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     sett = get_print_settings()
@@ -785,13 +782,13 @@ def render_print_button_only(html_content, label_prefix=""):
     """, height=50)
 
 # ============================================================
-# 6) واجهات النظام والتوجيه
+# 6) واجهات النظام وتوجيه الشاشات
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "tpl_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v39.0 PRINT CONTROL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v40.0 CHARTS • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -854,7 +851,7 @@ def admin_dashboard():
         "⚙ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
-        "📊 التقارير المتقدمة والتصدير",
+        "📊 التقارير وتحليل الأداء والرسوم البيانية",
         "💾 النسخ الاحتياطي"
     ]
     if st.session_state.role == "admin": menu_options += ["👥 إدارة المستخدمين", "🧾 سجل التدقيق"]
@@ -880,61 +877,54 @@ def admin_dashboard():
     elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة":
         st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، وشعار اليسار للطباعة")
         current_set = get_print_settings()
-        
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
             new_header_text = st.text_area("نص الترويسة (يدعم HTML مثل <br>):", value=current_set["header_text"], height=90)
-            
             st.markdown("#### 📏 هوامش الورق المطبوع (PDF / طباعة):")
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-            with col_m1: m_top = st.text_input("الهامش العلوي (Margin Top):", value=current_set["margin_top"])
-            with col_m2: m_bot = st.text_input("الهامش السفلي (Margin Bottom):", value=current_set["margin_bottom"])
-            with col_m3: m_right = st.text_input("الهامش الأيمن (Margin Right):", value=current_set["margin_right"])
-            with col_m4: m_left = st.text_input("الهامش الأيسر (Margin Left):", value=current_set["margin_left"])
-            
+            with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
+            with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
+            with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
+            with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
             st.markdown("#### 🖼️ صورة شعار أعلى يسار الصفحات:")
-            logo_option = st.radio("اختر طريقة إدخال الشعار:", ["رفع صورة جديدة (PNG/JPG)", "استخدام الرابط أو الكود الحالي (Base64)"], horizontal=True)
             uploaded_logo = st.file_uploader("اختر صورة الشعار:", type=["png", "jpg", "jpeg"])
-            
             current_logo_val = current_set["logo_base64"]
             if uploaded_logo is not None:
                 current_logo_val = f"data:image/{uploaded_logo.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo.read()).decode("utf-8")
-                st.image(uploaded_logo, width=80, caption="معاينة الشعار الجديد المرفوع")
-            
-            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة والهوامش", use_container_width=True):
+                st.image(uploaded_logo, width=80, caption="معاينة الشعار الجديد")
+            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة", use_container_width=True):
                 save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo_val)
-                st.success("✅ تم حفظ إعدادات الطباعة والهوامش والترويسة بنجاح وسيتم تطبيقها فوراً على كافة المطبوعات والشهادات!")
-                st.rerun()
+                st.success("✅ تم حفظ إعدادات الطباعة والهوامش بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 إدارة المنشآت":
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v39", clear_on_submit=True):
-                manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
+            with st.form("add_facility_manual_form_v40", clear_on_submit=True):
+                manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
                     if new_fac_input.strip():
                         success, msg = add_facility_manual_db(manual_id_input, new_fac_input)
-                        if success: st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح!"); st.rerun()
+                        if success: st.success(f"✅ تم إضافة المنشأة بنجاح!"); st.rerun()
                         else: st.warning(f"⚠️ {msg}")
                     else: st.error("الرجاء كتابة اسم المنشأة.")
         with tab_fac_2:
             facs_rows = get_facilities()
-            if not facs_rows: st.info("لا توجد منشآت مسجلة حالياً.")
+            if not facs_rows: st.info("لا توجد منشآت مسجلة.")
             else:
                 df_facs = pd.DataFrame(facs_rows)
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v39", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v40", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
                         st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد القالب (فردي أو جماعي)")
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد القالب")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد قوالب امتحانات مسجلة"]
 
@@ -942,10 +932,10 @@ def admin_dashboard():
             st.markdown("#### ⚡ تعميم قالب واحد لجميع المتدربين دفعة واحدة:")
             with st.form("bulk_assign_form"):
                 bulk_tpl_name = st.selectbox("اختر القالب لتعميمه:", tpl_names_list)
-                if st.form_submit_button("🚀 تعميم هذا القالب واعتماد الكل دفعة واحدة", use_container_width=True):
+                if st.form_submit_button("🚀 تعميم هذا القالب واعتماد الكل", use_container_width=True):
                     if all_tpls_map:
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
-                        st.success(f"✅ تم تعميم القالب واعتماد الجميع دفعة واحدة!"); st.rerun()
+                        st.success("✅ تم تعميم القالب واعتماد الجميع دفعة واحدة!"); st.rerun()
                     else: st.error("لا توجد قوالب.")
 
         sub_tabs = st.tabs(["الطلبات المعلقة (فردي)", "جميع المتدربين"])
@@ -989,12 +979,12 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v39")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v40")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
                     st.write("📊 معاينة البيانات:", df_import.head(3))
-                    if st.button("🚀 تأكيد ودمج الأسئلة بقاعدة البيانات", use_container_width=True):
+                    if st.button("🚀 تأكيد ودمج الأسئلة", use_container_width=True):
                         imported_count = 0
                         with db() as c:
                             for _, row in df_import.iterrows():
@@ -1013,7 +1003,7 @@ def admin_dashboard():
                                         imported_count += 1
                                     except: continue
                         reorder_question_ids()
-                        st.success(f"🎉 تم بنجاح إضافة ({imported_count}) سؤالاً جديداً!"); st.balloons()
+                        st.success(f"🎉 تم إضافة ({imported_count}) سؤالاً جديداً بنجاح!"); st.balloons()
                 except Exception as e: st.error(f"خطأ: {e}")
         with tab_ex_2:
             with db() as c: df_bank = pd.read_sql_query("SELECT id, difficulty, category, question, options_json, answer FROM questions ORDER BY id ASC", c)
@@ -1021,7 +1011,7 @@ def admin_dashboard():
             else:
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer: df_bank.to_excel(writer, index=False, sheet_name='QuestionBank')
-                st.download_button("📥 تحميل شيت إكسيل بنك الأسئلة (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+                st.download_button("📥 تحميل إكسيل بنك الأسئلة (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                 st.dataframe(df_bank, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
@@ -1039,8 +1029,8 @@ def admin_dashboard():
             with st.form(key=f"add_q_form_{st.session_state.form_key}"):
                 selected_cat = st.selectbox("القسم:", categories_list_opts)
                 c_text = st.text_area("نص السؤال التشخيصي:")
-                c_diff = st.selectbox("مستوى الصعوبة:", ["سهل", "متوسط", "صعب"])
-                uploaded_img = st.file_uploader("رفع ملف صورة (اختياري):", type=["png", "jpg", "jpeg"])
+                c_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"])
+                uploaded_img = st.file_uploader("رفع صورة (اختياري):", type=["png", "jpg", "jpeg"])
                 opt1, opt2 = st.text_input("الخيار 1:"), st.text_input("الخيار 2:")
                 opt3, opt4 = st.text_input("الخيار 3:"), st.text_input("الخيار 4:")
                 correct_ans_text = st.text_input("نص الإجابة الصحيحة:")
@@ -1100,7 +1090,7 @@ def admin_dashboard():
                     st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات (أسئلة مفتوحة وحسب الطلب)")
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض القوالب والطباعة", "➕ إنشاء قالب جديد", "🗑 حذف قالب"], horizontal=True)
         if sub_tpl_mode == "📋 عرض القوالب والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
@@ -1110,7 +1100,7 @@ def admin_dashboard():
                     t_dict = dict(t)
                     num_q_display = "مفتوح (كامل البنك)" if int(t_dict.get('num_questions', 999999)) >= 999900 else t_dict.get('num_questions')
                     with st.container(border=True):
-                        st.markdown(f"#### 🏷️️ قالب رقم ({t_dict.get('id')}): {t_dict.get('name')} | عدد الأسئلة: {num_q_display}")
+                        st.markdown(f"#### 🏷 قالب رقم ({t_dict.get('id')}): {t_dict.get('name')} | عدد الأسئلة: {num_q_display}")
                         col_m1, col_m2 = st.columns(2)
                         with col_m1: m_date = st.date_input(f"تاريخ المحضر ({t_dict.get('id')})", date.today(), key=f"m_date_{t_dict.get('id')}")
                         with col_m2: m_facility = st.selectbox(f"المنشأة ({t_dict.get('id')})", facilities_list, key=f"m_fac_{t_dict.get('id')}")
@@ -1188,27 +1178,69 @@ def admin_dashboard():
                         c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
                     st.success(f"✅ تم التسجيل بنجاح برقم شهادة: **{cert_code}**")
 
-    elif selected_menu == "📊 التقارير المتقدمة والتصدير":
-        st.subheader("📊 تقارير قياس المستويات وطباعة الشهادات المعتمدة")
-        d_start, d_end = st.date_input("من تاريخ", date.today() - timedelta(days=30)), st.date_input("إلى تاريخ", date.today())
+    elif selected_menu == "📊 التقارير وتحليل الأداء والرسوم البيانية":
+        st.subheader("📊 تقارير قياس المستويات والرسوم البيانية (فردي وجماعي)")
+        
+        tab_chart_1, tab_chart_2, tab_chart_3 = st.tabs(["📈 التحليل الفردي للمتدرب", "📊 المقارنة الجماعية حسب جهة العمل", "📋 جدول النتائج والشهادات"])
+        
         with db() as c:
-            df_res = pd.read_sql_query("""SELECT s.id AS 'رقم الجلسة', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', COALESCE(et.name, 'اختبار معتمد') AS 'اسم الاختبار', s.score AS 'الدرجة', s.max_score AS 'الدرجة الكلية', s.percent AS 'النسبة %', CASE WHEN s.passed = 1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة', s.certificate_id AS 'رقم الشهادة', s.submitted_at AS 'تاريخ ووقت التسليم' FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id LEFT JOIN exam_templates et ON et.id = s.template_id WHERE s.status = 'submitted' AND s.submitted_at >= ? AND s.submitted_at <= ? ORDER BY s.submitted_at DESC""", c, params=[datetime.combine(d_start, datetime.min.time()).isoformat(), datetime.combine(d_end, datetime.max.time()).isoformat()])
-        if not df_res.empty:
-            st.dataframe(df_res, use_container_width=True, hide_index=True)
-            st.markdown("---")
-            with db() as c: submitted_sessions = c.execute("SELECT s.id, t.name, t.facility, s.certificate_id FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC").fetchall()
-            if submitted_sessions:
-                session_options = {f"جلسة رقم {row['id']} - المتدرب: {row['name']} ({row['facility']}) - شهادة: {row['certificate_id']}": row['id'] for row in submitted_sessions}
-                selected_sid = session_options[st.selectbox("اختر المتدرب لطباعة شهادته:", list(session_options.keys()))]
-                cert_html_admin = generate_compact_certificate_html(selected_sid, "شهادة معتمدة ومصدرة من لوحة إشراف المالك")
-                col_b1, col_b2 = st.columns(2)
-                with col_b1: st.download_button("📥 تحميل الشهادة .html", data=cert_html_admin.encode("utf-8"), file_name=f"cert_{selected_sid}.html", mime="text/html", use_container_width=True)
-                with col_b2: render_print_button_only(cert_html_admin, f"شهادة متدرب {selected_sid}")
+            df_all_sess = pd.read_sql_query("""SELECT s.id AS session_id, t.name AS trainee_name, t.facility AS facility, 
+                                               COALESCE(et.name, 'اختبار معتمد') AS template_name, s.score AS score, 
+                                               s.max_score AS max_score, s.percent AS percent, 
+                                               CASE WHEN s.passed = 1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS status, 
+                                               s.certificate_id AS cert_id, s.submitted_at AS submitted_at 
+                                               FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id 
+                                               LEFT JOIN exam_templates et ON et.id = s.template_id 
+                                               WHERE s.status = 'submitted' ORDER BY s.submitted_at ASC""", c)
+
+        with tab_chart_1:
+            st.markdown("#### 📈 قياس مستوى متدرب معين عبر اختباراته:")
+            if df_all_sess.empty:
+                st.info("لا توجد بيانات اختبارات مقدمة حتى الآن لإنشاء الرسوم البيانية.")
+            else:
+                unique_trainees = df_all_sess["trainee_name"].unique().tolist()
+                selected_tr_chart = st.selectbox("اختر اسم المتدرب للعرض البياني:", unique_trainees)
+                df_tr_filtered = df_all_sess[df_all_sess["trainee_name"] == selected_tr_chart]
+                
+                if not df_tr_filtered.empty:
+                    st.markdown(f"**تقرير الأداء للمتدرب: {selected_tr_chart}** (إجمالي الاختبارات المقدمة: {len(df_tr_filtered)})")
+                    # رسم بياني خطي/أعمدة للنسب المئوية
+                    chart_data = df_tr_filtered.set_index("submitted_at")[["percent"]]
+                    chart_data.columns = ["النسبة المئوية %"]
+                    st.line_chart(chart_data)
+                    st.dataframe(df_tr_filtered[["session_id", "template_name", "score", "max_score", "percent", "status", "submitted_at"]], use_container_width=True, hide_index=True)
+
+        with tab_chart_2:
+            st.markdown("#### 📊 مقارنة متوسط مستويات الأداء الجماعي (حسب جهة العمل / المنشأة):")
+            if df_all_sess.empty:
+                st.info("لا توجد بيانات كافية.")
+            else:
+                df_group_fac = df_all_sess.groupby("facility")[["percent"]].mean().reset_index()
+                df_group_fac.columns = ["جهة العمل", "متوسط النسبة المئوية %"]
+                st.markdown("<b>متوسط درجات الأداء الجماعي لكل منشأة صحية:</b>", unsafe_allow_html=True)
+                st.bar_chart(df_group_fac.set_index("جهة العمل"))
+                st.dataframe(df_group_fac, use_container_width=True, hide_index=True)
+
+        with tab_chart_3:
+            d_start, d_end = st.date_input("من تاريخ", date.today() - timedelta(days=30)), st.date_input("إلى تاريخ", date.today())
+            with db() as c:
+                df_res = pd.read_sql_query("""SELECT s.id AS 'رقم الجلسة', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', COALESCE(et.name, 'اختبار معتمد') AS 'اسم الاختبار', s.score AS 'الدرجة', s.max_score AS 'الدرجة الكلية', s.percent AS 'النسبة %', CASE WHEN s.passed = 1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة', s.certificate_id AS 'رقم الشهادة', s.submitted_at AS 'تاريخ ووقت التسليم' FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id LEFT JOIN exam_templates et ON et.id = s.template_id WHERE s.status = 'submitted' AND s.submitted_at >= ? AND s.submitted_at <= ? ORDER BY s.submitted_at DESC""", c, params=[datetime.combine(d_start, datetime.min.time()).isoformat(), datetime.combine(d_end, datetime.max.time()).isoformat()])
+            if not df_res.empty:
+                st.dataframe(df_res, use_container_width=True, hide_index=True)
+                st.markdown("---")
+                with db() as c: submitted_sessions = c.execute("SELECT s.id, t.name, t.facility, s.certificate_id FROM exam_sessions s JOIN trainees t ON t.id = s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC").fetchall()
+                if submitted_sessions:
+                    session_options = {f"جلسة رقم {row['id']} - المتدرب: {row['name']} ({row['facility']}) - شهادة: {row['certificate_id']}": row['id'] for row in submitted_sessions}
+                    selected_sid = session_options[st.selectbox("اختر المتدرب لطباعة شهادته:", list(session_options.keys()))]
+                    cert_html_admin = generate_compact_certificate_html(selected_sid, "شهادة معتمدة ومصدرة من لوحة إشراف المالك")
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1: st.download_button("📥 تحميل الشهادة .html", data=cert_html_admin.encode("utf-8"), file_name=f"cert_{selected_sid}.html", mime="text/html", use_container_width=True)
+                    with col_b2: render_print_button_only(cert_html_admin, f"شهادة متدرب {selected_sid}")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستخلاص قاعدة البيانات")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v39.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v40.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
