@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v64.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v66.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v64_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v66_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,7 +40,7 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) الأساسية
+# 2) حقن التنسيقات (CSS) وحماية الأمان وحقوق الملكية
 # ============================================================
 st.markdown("""
 <style>
@@ -51,6 +51,10 @@ html, body, [class*="css"] {
     text-align: right;
     font-family: 'Cairo', 'Tahoma', sans-serif !important;
     color-scheme: light !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
 }
 
 .stApp {
@@ -64,7 +68,7 @@ html, body, [class*="css"] {
     padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
     padding-top: 5.5rem !important;
-    padding-bottom: 6rem !important;
+    padding-bottom: 7rem !important;
 }
 
 .hero {
@@ -133,7 +137,72 @@ input, select, textarea {
     color: #111827 !important;
     border: 1px solid #cbd5e1 !important;
 }
+
+/* شريط حقوق الملكية الثابت والغير قابل للإزالة */
+.ownership-watermark {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    background: rgba(6, 78, 59, 0.95);
+    color: #ffffff;
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    z-index: 99999;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    border-top: 2px solid #059669;
+}
 </style>
+
+<!-- سكريبت الأمان المتقدم وحماية الحقوق -->
+<script>
+document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+    alert("⚠️ عذراً، النقر بزر الماوس الأيمن محظور حفاظاً على سرية محتوى الاختبار.");
+});
+
+document.addEventListener("copy", function(e) {
+    e.preventDefault();
+    alert("⚠️ عذراً، نسخ الأسئلة أو النصوص محظور تماماً!");
+});
+
+document.addEventListener("cut", function(e) {
+    e.preventDefault();
+});
+
+document.addEventListener("keydown", function(e) {
+    if (e.key === "F12" || 
+        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c")) ||
+        (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "C" || e.key === "c" || e.key === "A" || e.key === "a" || e.key === "P" || e.key === "p" || e.key === "S" || e.key === "s"))) {
+        e.preventDefault();
+        alert("⚠️ هذا الإجراء غير مسموح به أثناء أداء الاختبار الأمني.");
+        return false;
+    }
+    if (e.key === "PrintScreen") {
+        navigator.clipboard.writeText("تم حظر محتوى لقطة الشاشة لأسباب أمنية.");
+        alert("⚠️ تم حظر التقاط الشاشة (PrintScreen) لحماية سرية الأسئلة!");
+        e.preventDefault();
+    }
+});
+
+document.addEventListener("visibilitychange", function() {
+    if (document.hidden) {
+        document.body.style.filter = "blur(15px)";
+    } else {
+        document.body.style.filter = "none";
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
+# حقن شريط حقوق الملكية الثابت أسفل الشاشة برمجياً
+st.markdown("""
+<div class="ownership-watermark">
+    جميع الحقوق محفوظة © 2026 | نظام اختبارات معامل المتوطنة • تصميم وتطوير النظام: <b>Dr/Ahmed.S.Hegazy</b>
+</div>
 """, unsafe_allow_html=True)
 
 # ============================================================
@@ -630,6 +699,7 @@ def generate_compact_certificate_html(sid, custom_notes=""):
             p {{ font-size: 12pt; line-height: 1.7; color: #1f2937; }}
             .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
             .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12px; margin-top: 6mm; }}
+            .cert-watermark {{ font-size: 9pt; color: #059669; font-weight: bold; margin-top: 4px; }}
         </style>
     </head>
     <body>
@@ -654,6 +724,7 @@ def generate_compact_certificate_html(sid, custom_notes=""):
                 <div>مدير المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
             </div>
+            <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
         </div>
     </body>
     </html>
@@ -685,7 +756,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v64.0 • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v66.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -710,7 +781,6 @@ def login_portal():
                     st.rerun()
                 else:
                     tid = create_trainee(facility, name, phone, assigned_tpl_id)
-                    # تعيين المعرف فوراً وتحديث الصفحة لتختفي واجهة التسجيل كلياً
                     st.session_state.trainee_id = tid
                     st.session_state.trainee_name = name
                     st.success("✅ تم تسجيل بياناتك بنجاح! جاري الانتقال للبوابة...")
@@ -810,7 +880,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v64", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v66", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -827,7 +897,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v64", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v66", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -899,7 +969,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v64")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v66")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1011,7 +1081,7 @@ def admin_dashboard():
 
     elif selected_menu == "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات":
         st.subheader("🧩 إنشاء نماذج الاختبارات وتحديد مواعيد الفتح والغلق للممتحنين")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙️ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج ومواعيدها والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
@@ -1028,8 +1098,8 @@ def admin_dashboard():
                         col_m1, col_m2 = st.columns(2)
                         with col_m1: m_date = st.date_input(f"تاريخ المحضر ({t_dict.get('id')})", date.today(), key=f"m_date_{t_dict.get('id')}")
                         with col_m2: m_facility = st.selectbox(f"المنشأة ({t_dict.get('id')})", facilities_list, key=f"m_fac_{t_dict.get('id')}")
-                        minutes_html = f"<h3>محضر تدريب معتمد - {t_dict.get('name')}</h3>"
-                        html_exam = f"<h3>امتحان - {t_dict.get('name')}</h3>"
+                        minutes_html = f"<h3>محضر تدريب معتمد - {t_dict.get('name')}</h3><p>Developed by Dr/Ahmed.S.Hegazy</p>"
+                        html_exam = f"<h3>امتحان - {t_dict.get('name')}</h3><p>Developed by Dr/Ahmed.S.Hegazy</p>"
                         b1, b2 = st.columns(2)
                         with b1: render_print_button_only(minutes_html, f"محضر التدريب {t_dict.get('id')}")
                         with b2: render_print_button_only(html_exam, f"نموذج الامتحان {t_dict.get('id')}")
@@ -1144,7 +1214,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v64.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v66.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1180,14 +1250,12 @@ def trainee_portal():
                 pass
 
     if not is_exam_open:
-        # إخفاء واجهة التسجيل تماماً وعرض رسالة "لا يوجد امتحانات متوفرة الان"
         st.markdown("""
             <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
                 <div style="font-size: 34px; font-weight: 900; letter-spacing: 1px;">🚫 لا يوجد امتحانات متوفرة الان</div>
             </div>
         """, unsafe_allow_html=True)
     else:
-        # إظهار واجهة الاختبار الكاملة إذا حلّ الموعد وسُمح بالدخول
         t_dict = dict(matching_template)
         tpl_name_str = t_dict.get("name", "اختبار معتمد")
         start_t = t_dict.get("start_time")
@@ -1247,7 +1315,7 @@ def exam_interface(session_id):
         st.rerun()
 
 # ============================================================
-# 7) التوجيه الأساسي الشامل للشاشات (إخفاء التسجيل تلقائياً)
+# 7) التوجيه الأساسي الشامل للشاشات
 # ============================================================
 if st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
