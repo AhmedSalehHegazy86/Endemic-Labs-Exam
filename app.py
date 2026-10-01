@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v9.3 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v9.4 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_3.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_4.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -495,12 +495,12 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    الالتزام المطابق 100% لعدد الأسئلة (num_questions) الذي حدده المالك في هذا القالب بالذات دون أي افتراضات.
+    سحب الأسئلة الحرفي والمطابق تماماً للرقم المحدد في القالب (num_questions) دون أي قيود افتراضية سابقة.
     """
     if not t:
         return []
     
-    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 25
+    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 10
     cats_raw = t["categories_json"] if "categories_json" in t else "[]"
     try:
         cats = json.loads(cats_raw) if cats_raw else []
@@ -528,6 +528,7 @@ def choose_questions(t):
                     seen_texts.add(q_txt)
                     unique_list.append(q)
 
+        # إذا لم تكتمل الكمية المطلوبة من الأقسام المحددة، اسحب من إجمالي بنك الأسئلة بالكامل حتى يكتمل العدد المطلوب بدقة
         if len(unique_list) < target:
             all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
             for q in all_db_qs:
@@ -882,7 +883,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.3 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.4 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -981,7 +982,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v93", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v94", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1010,7 +1011,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v93", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v94", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1021,7 +1022,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1222,7 +1223,7 @@ def admin_dashboard():
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب:", min_value=1, max_value=250, value=15)
+                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب:", min_value=1, max_value=250, value=10)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=30)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب:", categories_pool_opts)
@@ -1268,8 +1269,8 @@ def admin_dashboard():
             tpl_choices = {row["name"]: row["id"] for row in all_tpls}
             selected_tpl_name = st.selectbox("اختر قالب الاختبار المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
             col_sc1, col_sc2 = st.columns(2)
-            with col_sc1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=250, value=20)
-            with col_sc2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=250, value=25)
+            with col_sc1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=250, value=10)
+            with col_sc2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=250, value=10)
             manual_passed = st.radio("حالة الاجتياز:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             manual_notes = st.text_input("ملاحظات إضافية للشهادة:", "تم اجتياز التدريب العملي والنظري بنجاح بمعامل المتوطنة")
             if st.form_submit_button("💾 حفظ وتسجيل النتيجة يدوياً وإصدار الشهادة", use_container_width=True):
@@ -1376,7 +1377,7 @@ def trainee_portal():
     if matching_template:
         st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
     else:
-        st.warning("⚠️ عذراً، لم قمت الإدارة بتعيين قالب امتحان لك بعد. يرجى مراجعة إدارة المنصة.")
+        st.warning("⚠️ عذراً، لم تقم الإدارة بتعيين قالب امتحان لك بعد. يرجى مراجعة إدارة المنصة.")
 
     if matching_template and st.button("بدء الاختبار المخصص الآن", use_container_width=True):
         try:
