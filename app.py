@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v40.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v41.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v40_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v41_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -587,7 +587,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال توليد الطباعة والشهادات
+# 5) دوال توليد الطباعة والتقارير والشارات
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     sett = get_print_settings()
@@ -649,6 +649,69 @@ def generate_compact_certificate_html(sid, custom_notes=""):
     </body>
     </html>
     """
+
+def generate_collective_report_html(df_summary, title_desc, custom_notes=""):
+    sett = get_print_settings()
+    html_doc = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; color: #111; }}
+            .header-top {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #065f46; padding-bottom: 10px; margin-bottom: 20px; }}
+            .header-right {{ font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: right; }}
+            th {{ background-color: #065f46; color: #fff; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px; margin-bottom: 10px; font-weight: bold; color: #065f46; }}
+            .footer {{ margin-top: 40px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #065f46; padding-top: 15px; page-break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="header-top">
+            <div class="header-right">{sett['header_text']}</div>
+            <img src="{sett['logo_base64']}" style="width:65px; height:65px; object-fit:contain;" alt="Logo">
+        </div>
+        <h2>📊 تقرير التحليل الجماعي الشامل لأداء معامل المتوطنة</h2>
+        <p><b>{title_desc}</b></p>
+        {f'<div class="notes-box">ملاحظات التقرير: {esc(custom_notes)}</div>' if custom_notes else ''}
+        <table>
+            <thead>
+                <tr>
+                    <th>جهة العمل / المنشأة</th>
+                    <th>إجمالي المتقدمين</th>
+                    <th>متوسط النسبة المئوية %</th>
+                    <th>عدد الناجحين</th>
+                    <th>نسبة الاجتياز الإجمالية</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    for _, row in df_summary.iterrows():
+        html_doc += f"""
+                <tr>
+                    <td>{esc(row['جهة العمل'])}</td>
+                    <td>{row['إجمالي المتقدمين']}</td>
+                    <td>{row['متوسط النسبة المئوية %']:.1f}%</td>
+                    <td>{row['عدد الناجحين']}</td>
+                    <td>{row['نسبة الاجتياز %']:.1f}%</td>
+                </tr>
+        """
+    html_doc += """
+            </tbody>
+        </table>
+        <div class="footer">
+            <div>مسؤول التدريب</div>
+            <div>رئيس قسم المعامل</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_doc
 
 def generate_training_minutes_html(template_id, training_date, facility_name, custom_notes=""):
     sett = get_print_settings()
@@ -788,7 +851,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v40.0 CHARTS • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v41.0 ANALYTICS & PRINT • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -874,8 +937,8 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة":
-        st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، وشعار اليسار للطباعة")
+    elif selected_menu == "🖨️️ إعدادات الطباعة والهوامش والترويسة":
+        st.subheader("🖨️️ تحكم كامل في هوامش الورق، ترويسة اليمين، وشعار اليسار للطباعة")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
@@ -886,7 +949,7 @@ def admin_dashboard():
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
-            st.markdown("#### 🖼️ صورة شعار أعلى يسار الصفحات:")
+            st.markdown("#### 🖼️️ صورة شعار أعلى يسار الصفحات:")
             uploaded_logo = st.file_uploader("اختر صورة الشعار:", type=["png", "jpg", "jpeg"])
             current_logo_val = current_set["logo_base64"]
             if uploaded_logo is not None:
@@ -900,7 +963,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v40", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v41", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -917,7 +980,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v40", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v41", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -979,7 +1042,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v40")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v41")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1179,9 +1242,9 @@ def admin_dashboard():
                     st.success(f"✅ تم التسجيل بنجاح برقم شهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير وتحليل الأداء والرسوم البيانية":
-        st.subheader("📊 تقارير قياس المستويات والرسوم البيانية (فردي وجماعي)")
+        st.subheader("📊 تقارير قياس المستويات والتحليل البياني الشامل (فردي وجماعي)")
         
-        tab_chart_1, tab_chart_2, tab_chart_3 = st.tabs(["📈 التحليل الفردي للمتدرب", "📊 المقارنة الجماعية حسب جهة العمل", "📋 جدول النتائج والشهادات"])
+        tab_chart_1, tab_chart_2, tab_chart_3 = st.tabs(["📈 التحليل الفردي مع طباعة تقرير المتدرب", "📊 التحليل الجماعي الشامل وطباعة التقرير", "📋 جدول النتائج والشهادات"])
         
         with db() as c:
             df_all_sess = pd.read_sql_query("""SELECT s.id AS session_id, t.name AS trainee_name, t.facility AS facility, 
@@ -1194,32 +1257,69 @@ def admin_dashboard():
                                                WHERE s.status = 'submitted' ORDER BY s.submitted_at ASC""", c)
 
         with tab_chart_1:
-            st.markdown("#### 📈 قياس مستوى متدرب معين عبر اختباراته:")
+            st.markdown("#### 📈 التحليل الفردي لأداء المتدرب:")
             if df_all_sess.empty:
-                st.info("لا توجد بيانات اختبارات مقدمة حتى الآن لإنشاء الرسوم البيانية.")
+                st.info("لا توجد بيانات اختبارات مقدمة حتى الآن.")
             else:
                 unique_trainees = df_all_sess["trainee_name"].unique().tolist()
-                selected_tr_chart = st.selectbox("اختر اسم المتدرب للعرض البياني:", unique_trainees)
+                selected_tr_chart = st.selectbox("اختر اسم المتدرب للعرض الفردي:", unique_trainees, key="sel_tr_ind")
                 df_tr_filtered = df_all_sess[df_all_sess["trainee_name"] == selected_tr_chart]
                 
                 if not df_tr_filtered.empty:
-                    st.markdown(f"**تقرير الأداء للمتدرب: {selected_tr_chart}** (إجمالي الاختبارات المقدمة: {len(df_tr_filtered)})")
-                    # رسم بياني خطي/أعمدة للنسب المئوية
+                    st.markdown(f"**تقرير الأداء الفردي للمتدرب: {selected_tr_chart}**")
                     chart_data = df_tr_filtered.set_index("submitted_at")[["percent"]]
                     chart_data.columns = ["النسبة المئوية %"]
                     st.line_chart(chart_data)
                     st.dataframe(df_tr_filtered[["session_id", "template_name", "score", "max_score", "percent", "status", "submitted_at"]], use_container_width=True, hide_index=True)
+                    
+                    # زر طباعة التقرير الفردي
+                    ind_html = f"""
+                    <!DOCTYPE html>
+                    <html lang="ar" dir="rtl">
+                    <head><meta charset="UTF-8"><style>body{{font-family:'Cairo',sans-serif; direction:rtl; text-align:right; padding:20px;}} table{{width:100%; border-collapse:collapse; margin-top:15px;}} th,td{{border:1px solid #ccc; padding:8px;}} th{{background:#065f46; color:#fff;}}</style></head>
+                    <body>
+                        <h2>تقرير الأداء الفردي: {esc(selected_tr_chart)}</h2>
+                        <table><tr><th>رقم الجلسة</th><th>الاختبار</th><th>الدرجة</th><th>النسبة %</th><th>الحالة</th><th>التاريخ</th></tr>
+                    """
+                    for _, r in df_tr_filtered.iterrows():
+                        ind_html += f"<tr><td>{r['session_id']}</td><td>{esc(r['template_name'])}</td><td>{r['score']}/{r['max_score']}</td><td>{r['percent']:.1f}%</td><td>{esc(r['status'])}</td><td>{esc(r['submitted_at'])}</td></tr>"
+                    ind_html += "</table></body></html>"
+                    render_print_button_only(ind_html, f"التقرير الفردي ({selected_tr_chart})")
 
         with tab_chart_2:
-            st.markdown("#### 📊 مقارنة متوسط مستويات الأداء الجماعي (حسب جهة العمل / المنشأة):")
+            st.markdown("#### 📊 التحليل الجماعي الشامل ومؤشرات الأداء للمنشآت:")
             if df_all_sess.empty:
-                st.info("لا توجد بيانات كافية.")
+                st.info("لا توجد بيانات كافية لتحليل الأداء الجماعي.")
             else:
-                df_group_fac = df_all_sess.groupby("facility")[["percent"]].mean().reset_index()
-                df_group_fac.columns = ["جهة العمل", "متوسط النسبة المئوية %"]
-                st.markdown("<b>متوسط درجات الأداء الجماعي لكل منشأة صحية:</b>", unsafe_allow_html=True)
-                st.bar_chart(df_group_fac.set_index("جهة العمل"))
+                # حساب الإحصائيات الجماعية
+                total_exams = len(df_all_sess)
+                avg_total_pct = df_all_sess["percent"].mean()
+                total_passed = len(df_all_sess[df_all_sess["status"] == "اجتزت بنجاح"])
+                pass_ratio_global = (total_passed / total_exams * 100) if total_exams > 0 else 0
+
+                c1, c2, c3, c4 = st.columns(4)
+                c1.markdown(f'<div class="metric"><div class="v">{total_exams}</div><div class="l">إجمالي الاختبارات</div></div>', unsafe_allow_html=True)
+                c2.markdown(f'<div class="metric"><div class="v">{avg_total_pct:.1f}%</div><div class="l">متوسط الدرجات العام</div></div>', unsafe_allow_html=True)
+                c3.markdown(f'<div class="metric"><div class="v">{total_passed}</div><div class="l">عدد الناجحين</div></div>', unsafe_allow_html=True)
+                c4.markdown(f'<div class="metric"><div class="v">{pass_ratio_global:.1f}%</div><div class="l">نسبة الاجتياز الكلية</div></div>', unsafe_allow_html=True)
+
+                st.markdown("---")
+                # تجميع حسب جهة العمل
+                df_group_fac = df_all_sess.groupby("facility").agg(
+                    إجمالي_المتقدمين=('session_id', 'count'),
+                    متوسط_النسبة=('percent', 'mean'),
+                    عدد_الناجحين=('status', lambda x: sum(1 for s in x if s == 'اجتزت بنجاح'))
+                ).reset_index()
+                df_group_fac["نسبة الاجتياز %"] = (df_group_fac["عدد_الناجحين"] / df_group_fac["إجمالي_المتقدمين"]) * 100
+                df_group_fac.columns = ["جهة العمل", "إجمالي المتقدمين", "متوسط النسبة المئوية %", "عدد الناجحين", "نسبة الاجتياز %"]
+
+                st.markdown("<b>📊 مقارنة متوسط الأداء الجماعي لكل منشأة صحية:</b>", unsafe_allow_html=True)
+                st.bar_chart(df_group_fac.set_index("جهة العمل")[["متوسط النسبة المئوية %"]])
                 st.dataframe(df_group_fac, use_container_width=True, hide_index=True)
+
+                # زر طباعة التقرير الجماعي
+                coll_html = generate_collective_report_html(df_group_fac, "تقرير تحليلي شامل لمستويات الأداء الجماعي بجميع المنشآت الصحية", "تم استخراج هذا التقرير عبر المنصة الرقمية الموحدة")
+                render_print_button_only(coll_html, "التقرير الجماعي الشامل")
 
         with tab_chart_3:
             d_start, d_end = st.date_input("من تاريخ", date.today() - timedelta(days=30)), st.date_input("إلى تاريخ", date.today())
@@ -1240,7 +1340,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستخلاص قاعدة البيانات")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v40.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v41.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
