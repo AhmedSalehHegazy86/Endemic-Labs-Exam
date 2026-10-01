@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v9.2 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v9.3 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_3.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -186,10 +186,11 @@ def init_db():
             name TEXT NOT NULL,
             phone TEXT,
             status TEXT NOT NULL DEFAULT 'pending',
-            assigned_exam_type TEXT DEFAULT 'قبل التدريب (Pre-Test)',
+            assigned_template_id INTEGER,
             created_at TEXT NOT NULL,
             approved_at TEXT,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(assigned_template_id) REFERENCES exam_templates(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS questions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -207,7 +208,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS exam_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب (Pre-Test)',
+            exam_type TEXT NOT NULL DEFAULT 'اختبار مخصص للمالك',
             num_questions INTEGER NOT NULL DEFAULT 25,
             duration_minutes INTEGER NOT NULL DEFAULT 45,
             pass_percent REAL NOT NULL DEFAULT 60,
@@ -254,8 +255,8 @@ def init_db():
 
         cursor = c.execute("PRAGMA table_info(trainees)")
         columns = [col[1] for col in cursor.fetchall()]
-        if "assigned_exam_type" not in columns:
-            c.execute("ALTER TABLE trainees ADD COLUMN assigned_exam_type TEXT DEFAULT 'قبل التدريب (Pre-Test)'")
+        if "assigned_template_id" not in columns:
+            c.execute("ALTER TABLE trainees ADD COLUMN assigned_template_id INTEGER")
 
 def get_facilities():
     with db() as c:
@@ -290,7 +291,7 @@ def reorder_template_ids():
             CREATE TABLE exam_templates_temp (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
-                exam_type TEXT NOT NULL DEFAULT 'قبل التدريب (Pre-Test)',
+                exam_type TEXT NOT NULL DEFAULT 'اختبار مخصص للمالك',
                 num_questions INTEGER NOT NULL DEFAULT 25,
                 duration_minutes INTEGER NOT NULL DEFAULT 45,
                 pass_percent REAL NOT NULL DEFAULT 60,
@@ -312,6 +313,7 @@ def reorder_template_ids():
         for old_id, new_id in id_mapping.items():
             if old_id != new_id:
                 c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
+                c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (new_id, old_id))
                 
         c.execute("PRAGMA foreign_keys=ON;")
 
@@ -426,17 +428,6 @@ def seed_complete_250_question_bank():
                              VALUES(?,?,?,?,?,?,?,?)""",
                           (q["lvl"], q["cat"], q["q"], json.dumps(q["opts"], ensure_ascii=False), q["ans"], 1, fp, now()))
 
-    categories_pool = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
-    with db() as c:
-        tpl_cnt = c.execute("SELECT COUNT(*) n FROM exam_templates").fetchone()["n"]
-        if tpl_cnt == 0:
-            c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
-                         VALUES(?,?,?,?,?,?,?)""",
-                      ("الاختبار الشامل لمكافحة المتوطنة", "قبل التدريب (Pre-Test)", 25, 50, 60.0, json.dumps(categories_pool, ensure_ascii=False), now()))
-            c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
-                         VALUES(?,?,?,?,?,?,?)""",
-                      ("الاختبار التقييمي بعد التدريب", "بعد التدريب (Post-Test)", 25, 50, 60.0, json.dumps(categories_pool, ensure_ascii=False), now()))
-
 def ensure_admin():
     with db() as c:
         u = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
@@ -469,12 +460,12 @@ def login_user(u, p):
             return dict(user)
     return None
 
-def create_trainee(facility, name, phone, assigned_exam_type="قبل التدريب (Pre-Test)"):
+def create_trainee(facility, name, phone, assigned_template_id=None):
     with db() as c:
-        cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_exam_type,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                        (normalize_text(facility), normalize_text(name), normalize_text(phone), "pending", assigned_exam_type, now(), now()))
+        cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                        (normalize_text(facility), normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now()))
         tid = cur.lastrowid
-    audit("create_trainee", "trainee", {"id": tid, "name": name, "exam_type": assigned_exam_type})
+    audit("create_trainee", "trainee", {"id": tid, "name": name, "assigned_template_id": assigned_template_id})
     return tid
 
 def trainee_by_credentials(name, facility):
@@ -483,18 +474,18 @@ def trainee_by_credentials(name, facility):
                       (normalize_text(name), normalize_text(facility))).fetchone()
         return dict(r) if r else None
 
-def set_trainee_status_and_exam(tid, status, assigned_exam_type):
+def set_trainee_status_and_template(tid, status, assigned_template_id):
     with db() as c:
         c.execute("""UPDATE trainees 
-                     SET status=?, assigned_exam_type=?, updated_at=?, 
+                     SET status=?, assigned_template_id=?, updated_at=?, 
                          approved_at=CASE WHEN ?='approved' THEN ? ELSE approved_at END 
                      WHERE id=?""",
-                  (status, assigned_exam_type, now(), status, now(), tid))
-    audit("update_trainee", "trainee", {"id": tid, "status": status, "assigned_exam_type": assigned_exam_type})
+                  (status, assigned_template_id, now(), status, now(), tid))
+    audit("update_trainee", "trainee", {"id": tid, "status": status, "assigned_template_id": assigned_template_id})
 
 def trainees_df(status=None):
     with db() as c:
-        q = "SELECT id, facility, name, phone, status, assigned_exam_type, created_at, approved_at FROM trainees"
+        q = "SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at FROM trainees"
         args = []
         if status:
             q += " WHERE status=?"
@@ -504,7 +495,7 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    الارتباط الصارم والحصري بعدد الأسئلة (num_questions) الموجود في القالب الذي حدده المالك.
+    الالتزام المطابق 100% لعدد الأسئلة (num_questions) الذي حدده المالك في هذا القالب بالذات دون أي افتراضات.
     """
     if not t:
         return []
@@ -561,7 +552,7 @@ def start_session(trainee_id, template_id):
         if completed_today:
             raise ValueError("عذراً، لا يمكنك أداء هذا الاختبار أكثر من مرة في نفس اليوم.")
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
-        if not t: raise ValueError("قالب الاختبار غير موجود.")
+        if not t: raise ValueError("قالب الاختبار غير موجود. يرجى إنشاء قالب أولاً من لوحة التحكم.")
         active = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND status='active'", (trainee_id,)).fetchone()
         if active: raise ValueError("لديك اختبار نشط بالفعل.")
 
@@ -579,7 +570,7 @@ def start_session(trainee_id, template_id):
             c.execute("INSERT INTO exam_questions(session_id,question_id,position,option_order_json) VALUES(?,?,?,?)",
                       (sid, q["id"], pos, json.dumps(order)))
         c.execute("UPDATE trainees SET status='active', updated_at=? WHERE id=?", (now(), trainee_id))
-    audit("start_exam", "session", {"session_id": sid, "trainee_id": trainee_id})
+    audit("start_exam", "session", {"session_id": sid, "trainee_id": trainee_id, "template_id": template_id})
     return sid
 
 def submit_session(sid):
@@ -798,7 +789,7 @@ def generate_compact_exam_html(template_id, custom_notes=""):
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         qs = choose_questions(t) if t else []
-    if not t: return ""
+    if not t: return "<p>القالب غير موجود</p>"
     html_out = f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -891,7 +882,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.2 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.3 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -901,9 +892,16 @@ def login_portal():
         facility = st.selectbox("اختر جهة العمل أو المنشأة التابع لها:", facilities_list if facilities_list else ["لا توجد منشآت مسجلة يرجى إضافتها من لوحة الإدارة"])
         name = st.text_input("الاسم الرباعي")
         phone = st.text_input("رقم الهاتف")
-        assigned_exam = st.selectbox("تحديد نوع الاختبار الأولي عند التسجيل:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)"])
+        
+        with db() as c:
+            all_tpls_opts = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
+        
+        tpl_choices_list = list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد قوالب امتحانات مسجلة (أنشئها من لوحة المالك أولاً)"]
+        selected_req_tpl_name = st.selectbox("اختر قالب الاختبار المخصص للمتدرب:", tpl_choices_list)
+        
         if st.form_submit_button("إرسال الطلب والدخول للمتدرب", use_container_width=True):
-            if facility.strip() and name.strip() and facilities_list:
+            if facility.strip() and name.strip() and facilities_list and all_tpls_opts:
+                assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility)
                 if existing:
                     st.session_state.trainee_id = existing["id"]
@@ -911,10 +909,10 @@ def login_portal():
                     st.success("تم التعرف على حسابك! جاري الدخول...")
                     st.rerun()
                 else:
-                    tid = create_trainee(facility, name, phone, assigned_exam)
+                    tid = create_trainee(facility, name, phone, assigned_tpl_id)
                     st.success(f"✅ تم تسجيل بياناتك بنجاح! رقم التسجيل (ID) الخاص بك هو: **{tid}**")
             else:
-                st.warning("الرجاء التأكد من وجود منشآت مسجلة وإدخال اسم الجهة والاسم الرباعي بدقة.")
+                st.warning("الرجاء التأكد من إضافة منشآت وإنشاء قوالب امتحانات أولاً من لوحة تحكم المالك.")
 
     with st.expander("🔐 تسجيل دخول مالك المنصة / الإدارة العليا"):
         with st.form("admin_login_form_hidden"):
@@ -947,7 +945,7 @@ def admin_dashboard():
     menu_options = [
         "📊 لوحة التحكم",
         "🏥 إدارة المنشآت",
-        "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار",
+        "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
         "🧠 بنك الأسئلة الشامل",
         "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
@@ -983,7 +981,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v92", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v93", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1012,7 +1010,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v92", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v93", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1022,10 +1020,13 @@ def admin_dashboard():
                         st.success("✅ تم حذف المنشأة نهائياً من قاعدة البيانات!")
                         st.rerun()
 
-    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار":
-        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
+    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
+        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
-        exam_type_options = ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"]
+        
+        with db() as c:
+            all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
+        tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد قوالب امتحانات مسجلة"]
         
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
@@ -1037,17 +1038,20 @@ def admin_dashboard():
                         st.write(f"**رقم التسجيل (ID):** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']} | **الهاتف:** {r['phone']}")
                         col_e1, col_e2 = st.columns(2)
                         with col_e1:
-                            curr_val = r['assigned_exam_type'] if r['assigned_exam_type'] in exam_type_options else "قبل التدريب (Pre-Test)"
-                            chosen_assigned_type = st.selectbox(f"تحديد اختبار للمتدرب ID: {r['id']}", exam_type_options, index=exam_type_options.index(curr_val), key=f"assigned_type_{r['id']}")
+                            chosen_tpl_name = st.selectbox(f"اختر القالب المخصص للمتدرب ID: {r['id']}", tpl_names_list, key=f"assigned_tpl_{r['id']}")
                         with col_e2:
                             st.write(f"الحالة الحالية: `{STATUS_AR.get(r['status'], r['status'])}`")
                         b1, b2 = st.columns(2)
-                        if b1.button("✅ اعتماد وتثبيت الاختبار المحدد", key=f"app_{r['id']}"):
-                            set_trainee_status_and_exam(int(r['id']), "approved", chosen_assigned_type)
-                            st.success(f"تم اعتماد المتدرب {r['name']} بنجاح!")
-                            st.rerun()
+                        if b1.button("✅ اعتماد وتثبيت القالب للمتدرب", key=f"app_{r['id']}"):
+                            if all_tpls_map:
+                                assigned_id = all_tpls_map[chosen_tpl_name]
+                                set_trainee_status_and_template(int(r['id']), "approved", assigned_id)
+                                st.success(f"تم اعتماد المتدرب {r['name']} وربطه بالقالب بنجاح!")
+                                st.rerun()
+                            else:
+                                st.error("يجب إنشاء قالب امتحان أولاً من قسم قوالب التدريب.")
                         if b2.button("❌ رفض", key=f"rej_{r['id']}"):
-                            set_trainee_status_and_exam(int(r['id']), "rejected", r['assigned_exam_type'])
+                            set_trainee_status_and_template(int(r['id']), "rejected", r.get('assigned_template_id'))
                             st.rerun()
 
         with sub_tabs[1]:
@@ -1173,27 +1177,27 @@ def admin_dashboard():
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إدارة قوالب وامتحانات ومحاضر التدريب (تحكم كامل للمالك فقط)")
-        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك", "🗑 حذف قالب امتحان"], horizontal=True)
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات من الصفر (تحكم كامل للمالك)")
+        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل القوالب الحالية وتوليد الأوراق", "➕ إنشاء قالب جديد كلياً", "🗑 حذف قالب امتحان"], horizontal=True)
         
-        if sub_tpl_mode == "📋 عرض وتعديل قوالب الامتحانات الحالية وتوليد المحاضر":
+        if sub_tpl_mode == "📋 عرض وتعديل القوالب الحالية وتوليد الأوراق":
             with db() as c:
                 tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             facilities_list = [f["name"] for f in get_facilities()] or ["الإدارة الصحية بأولاد صقر"]
             if not tpls:
-                st.info("لا توجد قوالب امتحانات مسجلة.")
+                st.info("لا توجد قوالب امتحانات مسجلة. اضغط على (إنشاء قالب جديد كلياً) للبدء.")
             else:
                 for t in tpls:
                     with st.container(border=True):
                         st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
-                        st.write(f"التصنيف: `{t['exam_type']}` | عدد الأسئلة الحالي في القالب: **{t['num_questions']}** سؤالاً")
+                        st.write(f"عدد الأسئلة الحالي المعتمد في القالب: **{t['num_questions']}** سؤالاً")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
-                            new_q_limit = st.number_input("التحكم الصارم في عدد الأسئلة (يظهر فوراً في الأوراق والامتحانات):", min_value=5, max_value=150, value=int(t['num_questions']), key=f"owner_q_cnt_{t['id']}")
-                            if st.form_submit_button("💾 حفظ وتحديث عدد الأسئلة في القالب والأوراق فوراً"):
+                            new_q_limit = st.number_input("تعديل العدد الدقيق للأسئلة (ينعكس فوراً في الأوراق والامتحان):", min_value=1, max_value=250, value=int(t['num_questions']), key=f"owner_q_cnt_{t['id']}")
+                            if st.form_submit_button("💾 حفظ وتحديث عدد الأسئلة"):
                                 with db() as c_up:
                                     c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(new_q_limit), t['id']))
-                                st.success(f"✅ تم تحديث عدد الأسئلة لهذا القالب إلى ({new_q_limit}) سؤالاً بنجاح وسينعكس فوراً في طباعة الأوراق والاختبارات!")
+                                st.success(f"✅ تم تحديث عدد الأسئلة لهذا القالب إلى ({new_q_limit}) سؤالاً بدقة تامة!")
                                 st.rerun()
 
                         col_m1, col_m2 = st.columns(2)
@@ -1209,22 +1213,21 @@ def admin_dashboard():
                             st.download_button("📥 تحميل الامتحان .html", data=html_exam.encode("utf-8"), file_name=f"exam_template_{t['id']}.html", mime="text/html", key=f"dl_exam_{t['id']}", use_container_width=True)
                             render_print_button_only(html_exam, f"نموذج الامتحان {t['id']}")
 
-        elif sub_tpl_mode == "➕ إضافة قالب امتحان جديد للمالك":
-            st.subheader("➕ إنشاء وإضافة قالب امتحان جديد")
+        elif sub_tpl_mode == "➕ إنشاء قالب جديد كلياً":
+            st.subheader("➕ إنشاء قالب امتحان جديد من الصفر")
             if st.session_state.tpl_success_msg:
                 st.success(st.session_state.tpl_success_msg)
                 st.session_state.tpl_success_msg = ""
             categories_pool_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
             
-            with st.form("create_template_direct_form"):
-                new_tpl_name = st.text_input("اسم قالب الاختبار الجديد (مثال: اختبار المتابعة المتقدم):")
-                new_tpl_type = st.selectbox("تصنيف الاختبار:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-                new_tpl_num_q = st.number_input("عدد الأسئلة الدقيق في الاختبار:", min_value=5, max_value=150, value=25)
-                new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=45)
+            with st.form("create_template_from_scratch_form"):
+                new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
+                new_tpl_num_q = st.number_input("العدد الدقيق للأسئلة في هذا القالب:", min_value=1, max_value=250, value=15)
+                new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=30)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب:", categories_pool_opts)
                 
-                if st.form_submit_button("💾 حفظ وإنشاء قالب الاختبار الجديد مباشرة", use_container_width=True):
+                if st.form_submit_button("💾 حفظ وإنشاء القالب الجديد بالعدد المحدد", use_container_width=True):
                     if not new_tpl_name.strip():
                         st.error("الرجاء إدخال اسم قالب الاختبار.")
                     else:
@@ -1232,9 +1235,9 @@ def admin_dashboard():
                         with db() as c:
                             c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
                                          VALUES(?,?,?,?,?,?,?)""",
-                                      (new_tpl_name.strip(), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
+                                      (new_tpl_name.strip(), "اختبار مخصص للمالك", int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
                         reorder_template_ids()
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بالعدد الدقيق للأسئلة ({new_tpl_num_q}) وترتيب القوالب بنجاح!"
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء القالب ({new_tpl_name}) بالعدد الدقيق للأسئلة ({new_tpl_num_q}) بنجاح تام!"
                         st.rerun()
 
         else:
@@ -1251,7 +1254,7 @@ def admin_dashboard():
                         tpl_id_to_del = tpl_map[selected_tpl_label]
                         delete_template_db_by_id(tpl_id_to_del)
                         audit("delete_exam_template", "exam_template", {"id": tpl_id_to_del})
-                        st.success(f"✅ تم حذف القالب وإعادة ترتيب وترقيم جميع القوالب المتبقية بنجاح!")
+                        st.success(f"✅ تم حذف القالب وإعادة ترتيب القوالب بنجاح!")
                         st.rerun()
 
     elif selected_menu == "✍️ تسجيل نتيجة يدوي":
@@ -1265,8 +1268,8 @@ def admin_dashboard():
             tpl_choices = {row["name"]: row["id"] for row in all_tpls}
             selected_tpl_name = st.selectbox("اختر قالب الاختبار المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
             col_sc1, col_sc2 = st.columns(2)
-            with col_sc1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=150, value=20)
-            with col_sc2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=150, value=25)
+            with col_sc1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=250, value=20)
+            with col_sc2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=250, value=25)
             manual_passed = st.radio("حالة الاجتياز:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             manual_notes = st.text_input("ملاحظات إضافية للشهادة:", "تم اجتياز التدريب العملي والنظري بنجاح بمعامل المتوطنة")
             if st.form_submit_button("💾 حفظ وتسجيل النتيجة يدوياً وإصدار الشهادة", use_container_width=True):
@@ -1274,10 +1277,10 @@ def admin_dashboard():
                     st.error("الرجاء إدخال اسم المتدرب.")
                 else:
                     with db() as c:
-                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_exam_type,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                                           (normalize_text(m_facility_name), normalize_text(m_trainee_name), "0000000000", "completed", "قبل التدريب (Pre-Test)", now(), now()))
-                        new_tid = cur_tr.lastrowid
                         tpl_id_val = tpl_choices.get(selected_tpl_name) if tpl_choices else None
+                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                                           (normalize_text(m_facility_name), normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now()))
+                        new_tid = cur_tr.lastrowid
                         pct_val = (manual_score / manual_max) * 100 if manual_max > 0 else 0
                         passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
                         cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -1358,20 +1361,31 @@ def trainee_portal():
         st.session_state.trainee_id = None
         st.rerun()
     header()
-    assigned_type = tr["assigned_exam_type"] or "قبل التدريب (Pre-Test)"
-    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | نوع الاختبار المحدد لك: <b>{esc(assigned_type)}</b></p></div>', unsafe_allow_html=True)
+    
+    assigned_tpl_id = tr["assigned_template_id"]
     with db() as c:
-        matching_template = c.execute("SELECT * FROM exam_templates WHERE exam_type=? AND active=1", (assigned_type,)).fetchone()
-        if not matching_template: matching_template = c.execute("SELECT * FROM exam_templates WHERE active=1 LIMIT 1").fetchone()
+        matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
+        if not matching_template:
+            matching_template = c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY id ASC LIMIT 1").fetchone()
+            
+    tpl_name_str = matching_template["name"] if matching_template else "لا يوجد قالب محدد"
+    num_q_str = matching_template["num_questions"] if matching_template else 0
+    duration_str = matching_template["duration_minutes"] if matching_template else 0
+    
+    st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | قالب الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
     if matching_template:
-        st.info(f"📌 قالب الاختبار المعين لك تلقائياً: **{matching_template['name']}** (عدد الأسئلة: {matching_template['num_questions']} | المدة: {matching_template['duration_minutes']} دقيقة)")
-    if st.button("بدء الاختبار المخصص تلقائياً الآن", use_container_width=True):
+        st.info(f"📌 تفاصيل قالبك المخصص: **{tpl_name_str}** (عدد الأسئلة: **{num_q_str}** سؤالاً | المدة: **{duration_str}** دقيقة)")
+    else:
+        st.warning("⚠️ عذراً، لم قمت الإدارة بتعيين قالب امتحان لك بعد. يرجى مراجعة إدارة المنصة.")
+
+    if matching_template and st.button("بدء الاختبار المخصص الآن", use_container_width=True):
         try:
             sid = start_session(tr["id"], matching_template["id"])
             st.session_state.exam_session_id = sid
             st.rerun()
         except Exception as e:
             st.error(str(e))
+            
     if st.button("خروج من الحساب"):
         st.session_state.trainee_id = None
         st.rerun()
