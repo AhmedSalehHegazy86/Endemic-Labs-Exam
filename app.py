@@ -280,10 +280,10 @@ def delete_facility_db_by_name(fac_name):
     with db() as c:
         c.execute("DELETE FROM facilities_list WHERE name=?", (fac_name,))
 
-def delete_template_db_by_name(tpl_name):
+def delete_template_db_by_id(tpl_id):
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        c.execute("DELETE FROM exam_templates WHERE name=?", (tpl_name,))
+        c.execute("DELETE FROM exam_templates WHERE id=?", (tpl_id,))
         c.execute("PRAGMA foreign_keys=ON;")
 
 def reorder_question_ids():
@@ -1164,17 +1164,18 @@ def admin_dashboard():
         else:
             st.subheader("🗑️ حذف قالب امتحان موجود")
             with db() as c:
-                tpls_del = c.execute("SELECT name FROM exam_templates ORDER BY id DESC").fetchall()
-            tpl_names_list = [t["name"] for t in tpls_del]
-            if not tpl_names_list:
+                tpls_del = c.execute("SELECT id, name FROM exam_templates ORDER BY id DESC").fetchall()
+            if not tpls_del:
                 st.info("لا توجد قوالب امتحانات متاحة للحذف.")
             else:
+                tpl_map = {f"قالب رقم {t['id']} - {t['name']}": t['id'] for t in tpls_del}
                 with st.form("delete_template_form"):
-                    tpl_to_del = st.selectbox("اختر قالب الامتحان المراد حذفه:", tpl_names_list)
+                    selected_tpl_label = st.selectbox("اختر قالب الامتحان المراد حذفه:", list(tpl_map.keys()))
                     if st.form_submit_button("🗑️ تأكيد وحذف قالب الامتحان نهائياً", use_container_width=True):
-                        delete_template_db_by_name(tpl_to_del)
-                        audit("delete_exam_template", "exam_template", {"name": tpl_to_del})
-                        st.success(f"✅ تم حذف القالب ({tpl_to_del}) بنجاح!")
+                        tpl_id_to_del = tpl_map[selected_tpl_label]
+                        delete_template_db_by_id(tpl_id_to_del)
+                        audit("delete_exam_template", "exam_template", {"id": tpl_id_to_del})
+                        st.success(f"✅ تم حذف القالب بنجاح!")
                         st.rerun()
 
     elif selected_menu == "✍️ تسجيل نتيجة يدوي":
