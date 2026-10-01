@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v24.0 FIXED EXCEL SYNC",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v25.0 UNLIMITED TARGET",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v24_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v25_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -432,56 +432,56 @@ def trainees_df(status=None):
 
 def choose_questions(t):
     """
-    خوارزمية السحب المرن المتكامل (Flexible Target Sync):
-    - تضمن الوصول للعدد المطلوب (num_questions) تماماً دون نقص.
-    - تسحب من الأقسام المحددة في القالب أولاً، ثم تكمل فوراً من بقية أقسام البنك بلا تكرار حتى يكتمل العدد بالكامل.
+    خوارزمية السحب المفتوح والمرن (Unlimited Target Sync):
+    - تلبّي العدد المطلوب تماماً (num_questions) مهما كان كبيراً (حتى لو طُلب 200 أو 300 سؤال).
+    - تسحب من الأقسام المحددة أولاً، ثم تكمل من بقية البنك، وإذا تجاوز العدد المطلوب إجمالي الأسئلة المتاحة، تقوم بالتكرار الذكي لضمان اكتمال العدد المطلوب تماماً دون أي توقف أو نقص.
     """
     if not t:
         return []
     
-    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 20
+    target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 50
     
-    cats_raw = t["categories_json"] if "categories_json" in t else "[]"
+    cats_raw = t["categories_json"] if "categories_json`" in t else (t.get("categories_json") or "[]")
     try:
         cats = json.loads(cats_raw) if cats_raw else []
     except:
         cats = []
-    
-    unique_questions = []
-    seen_ids = set()
-    seen_texts = set()
 
     with db() as c:
         all_db_questions = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
-        
-        if not cats:
-            cats = list(set(q["category"] for q in all_db_questions))
-        
-        # 1. سحب الأسئلة من الأقسام المحددة في القالب أولاً
-        for cat in cats:
-            for q in all_db_questions:
-                if len(unique_questions) >= target:
-                    break
-                if q["category"] == cat:
-                    q_id = q["id"]
-                    q_txt = clean_question_text(q["question"])
-                    if q_id not in seen_ids and q_txt not in seen_texts:
-                        seen_ids.add(q_id)
-                        seen_texts.add(q_txt)
-                        unique_questions.append(q)
+    
+    if not all_db_questions:
+        return []
 
-        # 2. الاستكمال التلقائي من باقي بنك الأسئلة للوصول للعدد المطلوب تماماً دون تكرار
+    if not cats:
+        cats = list(set(q["category"] for q in all_db_questions))
+
+    selected_pool = []
+    seen_ids = set()
+
+    # 1. سحب الأسئلة من الأقسام المحددة أولاً
+    for cat in cats:
         for q in all_db_questions:
-            if len(unique_questions) >= target:
-                break
-            q_id = q["id"]
-            q_txt = clean_question_text(q["question"])
-            if q_id not in seen_ids and q_txt not in seen_texts:
-                seen_ids.add(q_id)
-                seen_texts.add(q_txt)
-                unique_questions.append(q)
+            if q["category"] == cat and q["id"] not in seen_ids:
+                seen_ids.add(q["id"])
+                selected_pool.append(q)
 
-    return unique_questions[:target]
+    # 2. إضافة باقي الأسئلة المتوفرة في البنك
+    for q in all_db_questions:
+        if q["id"] not in seen_ids:
+            seen_ids.add(q["id"])
+            selected_pool.append(q)
+
+    # 3. إذا كان العدد المطلوب أكبر من البنك المتاح، نقوم بالتكرار الذكي لضمان اكتمال العدد بالكامل حسب رغبة المستخدم
+    final_questions = []
+    while len(final_questions) < target:
+        random.shuffle(selected_pool)
+        for q in selected_pool:
+            final_questions.append(q)
+            if len(final_questions) >= target:
+                break
+
+    return final_questions[:target]
 
 def start_session(trainee_id, template_id):
     with db() as c:
@@ -833,7 +833,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v24.0 FIXED EXCEL SYNC • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v25.0 UNLIMITED TARGET • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -932,7 +932,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v24", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v25", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -961,7 +961,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v24", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v25", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1097,7 +1097,7 @@ def admin_dashboard():
                 )
                 st.dataframe(df_bank, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "⚙️ إدارة الأسئلة":
+    elif selected_menu == "⚙️️ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = ["الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "علاج الهتروفيس", "التينيا", "هيمنولبس نانا", "الديدان الشريطية", "علاج الديدان الشريطية", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "علاج الديدان المعوية", "Entamoeba histolytica", "Giardia lamblia", "الأوليات", "الفحوص المعملية", "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "جداول الطفيليات", "مهام الوزارات والفرق", "مهام طبيب الرعاية الأساسية", "مهام فني ومساعد المعمل", "ملخص بويضات الطفيليات", "أسئلة الصور والأشكال"]
@@ -1214,7 +1214,7 @@ def admin_dashboard():
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات (السحب المرن والمكتمل)")
+        st.subheader("🧩 إنشاء وإدارة قوالب الامتحانات (العدد المفتوح والمرن)")
         sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل القوالب الحالية وتوليد الأوراق", "➕ إنشاء قالب جديد كلياً", "🗑 حذف قالب امتحان"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض وتعديل القوالب الحالية وتوليد الأوراق":
@@ -1227,10 +1227,10 @@ def admin_dashboard():
                 for t in tpls:
                     with st.container(border=True):
                         st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
-                        st.write(f"عدد الأسئلة المطلوبة: **{t['num_questions']}** سؤالاً (يتم اكتمال العدد تماماً من بنك الأسئلة)")
+                        st.write(f"عدد الأسئلة المطلوبة: **{t['num_questions']}** سؤالاً (مفتوح وحسب طلبك تماماً)")
                         
                         with st.form(f"owner_edit_tpl_{t['id']}"):
-                            new_q_limit = st.number_input("تعديل عدد الأسئلة للقالب:", min_value=1, max_value=500, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
+                            new_q_limit = st.number_input("تعديل عدد الأسئلة للقالب (حسب رغبتك):", min_value=1, max_value=1000, value=int(t['num_questions']), step=1, key=f"owner_q_cnt_{t['id']}")
                             if st.form_submit_button("💾 حفظ وتحديث عدد الأسئلة"):
                                 with db() as c_up:
                                     c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(new_q_limit), t['id']))
@@ -1259,8 +1259,8 @@ def admin_dashboard():
             
             with st.form("create_template_from_scratch_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد:")
-                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب في الاختبار:", min_value=1, max_value=500, value=50, step=1)
-                new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=60)
+                new_tpl_num_q = st.number_input("عدد الأسئلة المطلوب في الاختبار (رقم مفتوح):", min_value=1, max_value=1000, value=50, step=1)
+                new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=300, value=60)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة (اتركها فارغة للسحب من كامل البنك):", categories_pool_opts)
                 
