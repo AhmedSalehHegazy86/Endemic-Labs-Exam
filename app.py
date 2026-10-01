@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v8.2 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v9.1 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v8_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v9_1.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -432,7 +432,7 @@ def seed_complete_250_question_bank():
         if tpl_cnt == 0:
             c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
                          VALUES(?,?,?,?,?,?,?)""",
-                      ("الاختبار الشامل لمكافحة المتوطنة (الـ 25 سؤالاً)", "قبل التدريب (Pre-Test)", 25, 50, 60.0, json.dumps(categories_pool, ensure_ascii=False), now()))
+                      ("الاختبار الشامل لمكافحة المتوطنة", "قبل التدريب (Pre-Test)", 25, 50, 60.0, json.dumps(categories_pool, ensure_ascii=False), now()))
             c.execute("""INSERT INTO exam_templates(name,exam_type,num_questions,duration_minutes,pass_percent,categories_json,created_at) 
                          VALUES(?,?,?,?,?,?,?)""",
                       ("الاختبار التقييمي بعد التدريب", "بعد التدريب (Post-Test)", 25, 50, 60.0, json.dumps(categories_pool, ensure_ascii=False), now()))
@@ -503,12 +503,8 @@ def trainees_df(status=None):
         return pd.read_sql_query(q, c, params=args)
 
 def choose_questions(t):
-    """
-    الالتزام المطلق بنسبة 100% بالعدد المحدد (num_questions) في القالب بغض النظر عن الفلاتر أو الأقسام.
-    """
     if not t:
         return []
-    
     target = int(t["num_questions"]) if "num_questions" in t and t["num_questions"] else 25
     cats_raw = t["categories_json"] if "categories_json" in t else "[]"
     try:
@@ -891,7 +887,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v8.2 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v9.1 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -983,7 +979,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v82", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v91", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1012,7 +1008,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v82", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v91", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1173,10 +1169,10 @@ def admin_dashboard():
                     st.rerun()
 
     elif selected_menu == "🧩 قوالب ومحاضر التدريب (للمالك فقط)":
-        st.subheader("🧩 إدارة قوالب وامتحانات ومحاضر التدريب (للمالك فقط)")
-        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض القوالب الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك", "🗑️ حذف قالب امتحان"], horizontal=True)
+        st.subheader("🧩 إدارة قوالب وامتحانات ومحاضر التدريب (تحكم كامل للمالك فقط)")
+        sub_tpl_mode = st.radio("اختر القسم المطلوب:", ["📋 عرض وتعديل قوالب الامتحانات الحالية وتوليد المحاضر", "➕ إضافة قالب امتحان جديد للمالك", "🗑 حذف قالب امتحان"], horizontal=True)
         
-        if sub_tpl_mode == "📋 عرض القوالب الحالية وتوليد المحاضر":
+        if sub_tpl_mode == "📋 عرض وتعديل قوالب الامتحانات الحالية وتوليد المحاضر":
             with db() as c:
                 tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             facilities_list = [f["name"] for f in get_facilities()] or ["الإدارة الصحية بأولاد صقر"]
@@ -1185,14 +1181,15 @@ def admin_dashboard():
             else:
                 for t in tpls:
                     with st.container(border=True):
-                        st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة المحدد: `{t['num_questions']}` | المعرف: `{t['id']}`")
+                        st.markdown(f"#### 🏷️ قالب رقم ({t['id']}): {t['name']}")
+                        st.write(f"التصنيف: `{t['exam_type']}` | عدد الأسئلة الحالي في القالب: **{t['num_questions']}** سؤالاً")
                         
-                        with st.form(f"quick_edit_tpl_{t['id']}"):
-                            q_count_update = st.number_input("تعديل عدد الأسئلة لهذا القالب فوراً:", min_value=5, max_value=100, value=int(t['num_questions']), key=f"q_cnt_{t['id']}")
-                            if st.form_submit_button("💾 تحديث عدد الأسئلة فوراً"):
+                        with st.form(f"owner_edit_tpl_{t['id']}"):
+                            new_q_limit = st.number_input("التحكم في عدد الأسئلة (يظهر فوراً في الأوراق والامتحانات):", min_value=5, max_value=150, value=int(t['num_questions']), key=f"owner_q_cnt_{t['id']}")
+                            if st.form_submit_button("💾 حفظ وتحديث عدد الأسئلة في القالب والأوراق فوراً"):
                                 with db() as c_up:
-                                    c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(q_count_update), t['id']))
-                                st.success("✅ تم تحديث عدد الأسئلة للقالب بنجاح!")
+                                    c_up.execute("UPDATE exam_templates SET num_questions=? WHERE id=?", (int(new_q_limit), t['id']))
+                                st.success(f"✅ تم تحديث عدد الأسئلة لهذا القالب إلى ({new_q_limit}) سؤالاً بنجاح وسينعكس فوراً في طباعة الأوراق والاختبارات!")
                                 st.rerun()
 
                         col_m1, col_m2 = st.columns(2)
@@ -1218,7 +1215,7 @@ def admin_dashboard():
             with st.form("create_template_direct_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد (مثال: اختبار المتابعة المتقدم):")
                 new_tpl_type = st.selectbox("تصنيف الاختبار:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-                new_tpl_num_q = st.number_input("عدد الأسئلة الدقيق في الاختبار:", min_value=5, max_value=100, value=25)
+                new_tpl_num_q = st.number_input("عدد الأسئلة الدقيق في الاختبار:", min_value=5, max_value=150, value=25)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=45)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب:", categories_pool_opts)
@@ -1264,8 +1261,8 @@ def admin_dashboard():
             tpl_choices = {row["name"]: row["id"] for row in all_tpls}
             selected_tpl_name = st.selectbox("اختر قالب الاختبار المرتبط:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
             col_sc1, col_sc2 = st.columns(2)
-            with col_sc1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=100, value=20)
-            with col_sc2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=100, value=25)
+            with col_sc1: manual_score = st.number_input("الدرجة المحصلة:", min_value=0, max_value=150, value=20)
+            with col_sc2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=150, value=25)
             manual_passed = st.radio("حالة الاجتياز:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             manual_notes = st.text_input("ملاحظات إضافية للشهادة:", "تم اجتياز التدريب العملي والنظري بنجاح بمعامل المتوطنة")
             if st.form_submit_button("💾 حفظ وتسجيل النتيجة يدوياً وإصدار الشهادة", use_container_width=True):
@@ -1320,14 +1317,29 @@ def admin_dashboard():
             render_print_button_only(html_report_str, "التقرير الشامل")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
-        st.subheader("💾 النسخ الاحتياطي للقاعدة")
-        if st.button("إنشاء نسخة احتياطية الآن"):
+        st.subheader("💾 النسخ الاحتياطي واستخلاص قاعدة البيانات للجهاز")
+        
+        # زر استخلاص وتصدير قاعدة البيانات للجهاز المستخدم مباشرة
+        with open(DB_PATH, "rb") as f:
+            db_bytes = f.read()
+        
+        st.markdown("#### 📥 تصريف وتحميل قاعدة البيانات الحالية على جهازك الشخصي:")
+        st.download_button(
+            label="💾 تحميل واستخلاص قاعدة البيانات الكاملة (.db) إلى جهازك",
+            data=db_bytes,
+            file_name=f"endemic_labs_database_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+            mime="application/octet-stream",
+            use_container_width=True
+        )
+        
+        st.markdown("---")
+        if st.button("إنشاء نسخة احتياطية محلية على السيرفر"):
             path = os.path.join(BACKUP_DIR, f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
             src = sqlite3.connect(DB_PATH)
             dst = sqlite3.connect(path)
             try: src.backup(dst)
             finally: dst.close(); src.close()
-            st.success("✅ تم النسخ الاحتياطي بنجاح.")
+            st.success("✅ تم النسخ الاحتياطي المحلي بنجاح.")
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
