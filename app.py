@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v30.0 STABLE",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v31.0 STABLE",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v30_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v31_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -910,7 +910,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v30.0 STABLE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v31.0 STABLE • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -1009,7 +1009,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v30", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v31", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1038,7 +1038,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v30", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v31", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1174,7 +1174,7 @@ def admin_dashboard():
                 )
                 st.dataframe(df_bank, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "⚙️️ إدارة الأسئلة":
+    elif selected_menu == "⚙️ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = [
@@ -1194,15 +1194,16 @@ def admin_dashboard():
                 st.success(st.session_state.add_success_msg)
                 st.session_state.add_success_msg = ""
             with st.form(key=f"add_custom_img_q_form_{st.session_state.form_key}"):
-                selected_cat = st.selectbox("اختر القسم:", categories_list_opts)
-                c_text = st.text_area("نص السؤال التشخيصي:")
-                c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"])
-                uploaded_img = st.file_uploader("رفع ملف الصورة (اختياري):", type=["png", "jpg", "jpeg"])
-                opt1 = st.text_input("الخيار الأول:")
-                opt2 = st.text_input("الخيار الثاني:")
-                opt3 = st.text_input("الخيار الثالث:")
-                opt4 = st.text_input("الخيار الرابع:")
-                correct_ans_text = st.text_input("نص الإجابة الصحيحة المطابق لأحد الخيارات أعلاه:")
+                selected_cat = st.selectbox("اختر القسم:", categories_list_opts, key="add_q_cat_select_v31")
+                c_text = st.text_area("نص السؤال التشخيصي:", key="add_q_text_area_v31")
+                c_diff = st.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب"], key="add_q_diff_select_v31")
+                uploaded_img = st.file_uploader("رفع ملف الصورة (اختياري):", type=["png", "jpg", "jpeg"], key="add_q_img_uploader_v31")
+                opt1 = st.text_input("الخيار الأول:", key="add_q_opt1_v31")
+                opt2 = st.text_input("الخيار الثاني:", key="add_q_opt2_v31")
+                opt3 = st.text_input("الخيار الثالث:", key="add_q_opt3_v31")
+                opt4 = st.text_input("الخيار الرابع:", key="add_q_opt4_v31")
+                correct_ans_text = st.text_input("نص الإجابة الصحيحة المطابق لأحد الخيارات أعلاه:", key="add_q_correct_v31")
+                
                 if st.form_submit_button("حفظ وإضافة السؤال الجديد", use_container_width=True):
                     if not c_text or not correct_ans_text:
                         st.error("الرجاء إدخال نص السؤال والإجابة الصحيحة.")
@@ -1238,7 +1239,7 @@ def admin_dashboard():
                 st.info("لا توجد أسئلة متاحة للتعديل.")
             else:
                 q_options_map = {f"سؤال ({q['id']}) - [{q['category']}] : {q['question'][:60]}...": q['id'] for q in all_questions}
-                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v30")
+                selected_q_label = st.selectbox("اختر السؤال المراد تعديله:", list(q_options_map.keys()), key="edit_q_select_box_v31")
                 selected_q_id = q_options_map[selected_q_label]
                 
                 with db() as c:
@@ -1256,22 +1257,22 @@ def admin_dashboard():
                     current_correct_text = current_opts[correct_idx] if current_opts else ""
                     
                     with st.form(f"edit_question_form_{selected_q_id}"):
-                        e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
-                        e_diff = st.selectbox("مستوى الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
+                        e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0, key=f"edit_cat_{selected_q_id}")
+                        e_diff = st.selectbox("مستوى الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0, key=f"edit_diff_{selected_q_id}")
                         
                         raw_q_db = q_data["question"]
                         actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
-                        e_text = st.text_area("نص السؤال التشخيصي:", value=actual_text_editable)
+                        e_text = st.text_area("نص السؤال التشخيصي:", value=actual_text_editable, key=f"edit_text_{selected_q_id}")
                         
                         col_o1, col_o2 = st.columns(2)
                         with col_o1:
-                            e_opt1 = st.text_input("الخيار الأول:", value=str(current_opts[0]))
-                            e_opt2 = st.text_input("الخيار الثاني:", value=str(current_opts[1]))
+                            e_opt1 = st.text_input("الخيار الأول:", value=str(current_opts[0]), key=f"edit_opt1_{selected_q_id}")
+                            e_opt2 = st.text_input("الخيار الثاني:", value=str(current_opts[1]), key=f"edit_opt2_{selected_q_id}")
                         with col_o2:
-                            e_opt3 = st.text_input("الخيار الثالث:", value=str(current_opts[2]))
-                            e_opt4 = st.text_input("الخيار الرابع:", value=str(current_opts[3]))
+                            e_opt3 = st.text_input("الخيار الثالث:", value=str(current_opts[2]), key=f"edit_opt3_{selected_q_id}")
+                            e_opt4 = st.text_input("الخيار الرابع:", value=str(current_opts[3]), key=f"edit_opt4_{selected_q_id}")
                         
-                        e_correct_text = st.text_input("نص الإجابة الصحيحة (يجب أن يكون مطابِقاً تماماً لأحد الخيارات أعلاه):", value=current_correct_text)
+                        e_correct_text = st.text_input("نص الإجابة الصحيحة (يجب أن يكون مطابِقاً تماماً لأحد الخيارات أعلاه):", value=current_correct_text, key=f"edit_correct_{selected_q_id}")
                         
                         if st.form_submit_button("💾 حفظ التعديلات وتحديث السؤال نهائياً", use_container_width=True):
                             if not e_text or not e_correct_text:
@@ -1306,9 +1307,9 @@ def admin_dashboard():
                 st.info("لا توجد أسئلة متاحة للحذف.")
             else:
                 q_del_map = {f"سؤال رقم {q['id']} - [{q['category']}] : {q['question'][:50]}...": q['id'] for q in all_questions_del}
-                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v30")
+                selected_del_label = st.selectbox("اختر السؤال المراد حذفه:", list(q_del_map.keys()), key="del_q_select_box_v31")
                 selected_del_id = q_del_map[selected_del_label]
-                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v30", use_container_width=True):
+                if st.button("🗑️ تأكيد وحذف هذا السؤال نهائياً", key="confirm_delete_q_btn_v31", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM questions WHERE id=?", (selected_del_id,))
                     reorder_question_ids()
