@@ -907,7 +907,7 @@ def admin_dashboard():
     menu_options = [
         "📊 لوحة التحكم",
         "🏥 إدارة المنشآت",
-        "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار",
+        "🧑‍‍🔬 اعتماد المتدربين وتحديد الاختبار",
         "🧠 بنك الأسئلة الشامل",
         "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
@@ -937,41 +937,39 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🏥 إدارة المنشآت":
-        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية (إضافة وحذف وتحديث فوري)")
+        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         
-        # قسم إضافة منشأة جديدة
-        with st.form("add_facility_form_new"):
+        col_f1, col_f2 = st.columns(2)
+        
+        with col_f1:
             st.markdown("#### ➕ إضافة منشأة جديدة:")
-            new_fac_input = st.text_input("اسم المنشأة الصحية (مستشفى، وحدة صحية، إدارة...):")
-            if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
+            new_fac_input = st.text_input("اسم المنشأة الجديدة:", key="input_new_fac_field")
+            if st.button("حفظ وإضافة المنشأة الجديدة", use_container_width=True):
                 if new_fac_input.strip():
                     success = add_facility_db(new_fac_input)
                     if success:
-                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح وتكويدها بالقائمة!")
+                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح!")
                         st.rerun()
                     else:
-                        st.warning("هذه المنشأة موجودة مسبقاً أو أن الاسم غير صالح.")
+                        st.warning("هذه المنشأة موجودة مسبقاً.")
                 else:
                     st.error("الرجاء كتابة اسم المنشأة.")
         
-        st.markdown("---")
-        
-        # قسم حذف منشأة مسجلة
-        st.markdown("#### 🗑️ حذف منشأة مسجلة:")
-        with db() as c:
-            facs_rows = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
-        
-        if not facs_rows:
-            st.info("لا توجد منشآت مسجلة حالياً.")
-        else:
-            fac_del_map = {f"منشأة رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-            with st.form("delete_facility_form_new"):
-                selected_fac_label = st.selectbox("اختر المنشأة المراد حذفها من النظام:", list(fac_del_map.keys()))
-                if st.form_submit_button("🗑️ تأكيد حذف المنشأة نهائياً", use_container_width=True):
+        with col_f2:
+            st.markdown("#### 🗑️ حذف منشأة مسجلة:")
+            with db() as c:
+                facs_rows = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
+            
+            if not facs_rows:
+                st.info("لا توجد منشآت مسجلة.")
+            else:
+                fac_del_map = {f"({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
+                selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()), key="select_del_fac_box")
+                if st.button("🗑️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True):
                     fac_id_to_del = fac_del_map[selected_fac_label]
                     delete_facility_db_by_id(fac_id_to_del)
                     audit("delete_facility", "facility", {"id": fac_id_to_del})
-                    st.success(f"✅ تم حذف المنشأة بنجاح وتحديث القوائم!")
+                    st.success("✅ تم حذف المنشأة نهائياً من قاعدة البيانات!")
                     st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار":
