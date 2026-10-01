@@ -561,7 +561,7 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال التصدير والشهادات (مع إطار عريض وهوامش واسعة)
+# 5) دوال التصدير والشهادات
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     with db() as c:
@@ -855,7 +855,7 @@ def header():
 
 def login_portal():
     header()
-    st.markdown("<b>تسجيل وإرسال طلب المتدربين (اختر جهة العمل من المنشآت المسجلة)</b>", unsafe_allow_html=True)
+    st.markdown("<b>تسجيل وإرسال طلب المتدربين (اختيار جهة العمل من المنشآت المسجلة)</b>", unsafe_allow_html=True)
     with st.form("trainee_request"):
         facilities_list = get_facilities()
         facility = st.selectbox("اختر جهة العمل أو المنشأة التابع لها:", facilities_list)
@@ -937,14 +937,17 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🏥 إدارة المنشآت":
-        st.subheader("🏥 إضافة وإدارة المنشآت الصحية (مع إمكانية الحذف الفوري)")
-        with st.form("add_facility_form"):
-            new_fac_input = st.text_input("اسم المنشأة الجديدة (مستشفى، وحدة صحية، إدارة...):")
-            if st.form_submit_button("إضافة المنشأة لقائمة الاختيار", use_container_width=True):
+        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية (إضافة وحذف وتحديث فوري)")
+        
+        # قسم إضافة منشأة جديدة
+        with st.form("add_facility_form_new"):
+            st.markdown("#### ➕ إضافة منشأة جديدة:")
+            new_fac_input = st.text_input("اسم المنشأة الصحية (مستشفى، وحدة صحية، إدارة...):")
+            if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
                 if new_fac_input.strip():
                     success = add_facility_db(new_fac_input)
                     if success:
-                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح!")
+                        st.success(f"✅ تم إضافة المنشأة ({new_fac_input}) بنجاح وتكويدها بالقائمة!")
                         st.rerun()
                     else:
                         st.warning("هذه المنشأة موجودة مسبقاً أو أن الاسم غير صالح.")
@@ -952,22 +955,25 @@ def admin_dashboard():
                     st.error("الرجاء كتابة اسم المنشأة.")
         
         st.markdown("---")
-        st.markdown("#### حذف منشأة مسجلة:")
+        
+        # قسم حذف منشأة مسجلة
+        st.markdown("#### 🗑️ حذف منشأة مسجلة:")
         with db() as c:
             facs_rows = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
+        
         if not facs_rows:
             st.info("لا توجد منشآت مسجلة حالياً.")
         else:
-            fac_del_map = {f"منشأة رقم {f['id']} - {f['name']}": f['id'] for f in facs_rows}
-            with st.form("delete_facility_form"):
-                selected_fac_label = st.selectbox("اختر المنشأة المراد حذفها:", list(fac_del_map.keys()))
-                if st.form_submit_button("🗑️ تأكيد وحذف هذه المنشأة نهائياً", use_container_width=True):
+            fac_del_map = {f"منشأة رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
+            with st.form("delete_facility_form_new"):
+                selected_fac_label = st.selectbox("اختر المنشأة المراد حذفها من النظام:", list(fac_del_map.keys()))
+                if st.form_submit_button("🗑️ تأكيد حذف المنشأة نهائياً", use_container_width=True):
                     fac_id_to_del = fac_del_map[selected_fac_label]
                     delete_facility_db_by_id(fac_id_to_del)
                     audit("delete_facility", "facility", {"id": fac_id_to_del})
-                    st.success(f"✅ تم حذف المنشأة بنجاح!")
+                    st.success(f"✅ تم حذف المنشأة بنجاح وتحديث القوائم!")
                     st.rerun()
-            
+
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار":
         st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
