@@ -204,17 +204,6 @@ def init_db():
             fingerprint TEXT UNIQUE,
             created_at TEXT NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS exam_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب (Pre-Test)',
-            num_questions INTEGER NOT NULL DEFAULT 25,
-            duration_minutes INTEGER NOT NULL DEFAULT 45,
-            pass_percent REAL NOT NULL DEFAULT 60,
-            categories_json TEXT NOT NULL DEFAULT '[]',
-            active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL
-        );
         CREATE TABLE IF NOT EXISTS exam_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             trainee_id INTEGER NOT NULL,
@@ -252,6 +241,28 @@ def init_db():
         );
         """)
         
+        # التأكد من جدول exam_templates بدون قيد UNIQUE على الاسم لمنع فشل الإدخال
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS exam_templates_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب (Pre-Test)',
+            num_questions INTEGER NOT NULL DEFAULT 25,
+            duration_minutes INTEGER NOT NULL DEFAULT 45,
+            pass_percent REAL NOT NULL DEFAULT 60,
+            categories_json TEXT NOT NULL DEFAULT '[]',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+        """)
+        # نقل البيانات القديمة إن وجدت
+        c.execute("""
+        INSERT OR IGNORE INTO exam_templates_new(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, active, created_at)
+        SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, active, created_at FROM exam_templates;
+        """)
+        c.execute("DROP TABLE IF EXISTS exam_templates;")
+        c.execute("ALTER TABLE exam_templates_new RENAME TO exam_templates;")
+
         default_facs = ["الإدارة الصحية بأولاد صقر", "وحدة طب الأسرة بأولاد صقر", "مستشفى أولاد صقر المركزي", "وحدة الشوافين الصحية", "وحدة تلراك الصحية"]
         for f in default_facs:
             c.execute("INSERT OR IGNORE INTO facilities_list(name, created_at) VALUES(?, ?)", (f, now()))
@@ -963,7 +974,7 @@ def admin_dashboard():
                     st.success(f"✅ تم حذف المنشأة ({fac_to_delete}) بنجاح!")
                     st.rerun()
             
-    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار":
+    elif selected_menu == "🧑‍‍🔬 اعتماد المتدربين وتحديد الاختبار":
         st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد نوع قالب الامتحان (قبل أو بعد التدريب)")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         exam_type_options = ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"]
@@ -1150,16 +1161,14 @@ def admin_dashboard():
                 if not new_tpl_name.strip():
                     st.error("الرجاء إدخال اسم قالب الاختبار.")
                 else:
+                    unique_template_name = f"{normalize_text(new_tpl_name)} [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
                     cats_json_str = json.dumps(new_tpl_cats, ensure_ascii=False)
                     with db() as c:
-                        try:
-                            c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
-                                         VALUES(?,?,?,?,?,?,?)""",
-                                      (normalize_text(new_tpl_name), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
-                            st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح وتم إضافته للقائمة!"
-                            st.rerun()
-                        except sqlite3.IntegrityError:
-                            st.error("اسم القالب موجود مسبقاً، يرجى استخدام اسم مختلف.")
+                        c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, created_at)
+                                     VALUES(?,?,?,?,?,?,?)""",
+                                  (unique_template_name, new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
+                    st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بنجاح وتم إضافته للقائمة!"
+                    st.rerun()
 
         else:
             st.subheader("🗑️ حذف قالب امتحان موجود")
