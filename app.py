@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v45.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v46.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v45_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v46_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -112,50 +112,6 @@ html, body, [class*="css"] {{
     display: none !important;
 }}
 
-.print-header {{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 18px 24px;
-    margin-bottom: 35px;
-    border-bottom: 2px solid #006633;
-    background-color: #ffffff !important;
-    border-radius: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}}
-
-.print-logo {{
-    width: 75px;
-    height: 75px;
-    object-fit: contain;
-}}
-
-.header-text {{
-    font-size: 15px;
-    font-weight: bold;
-    color: #2c3e50 !important;
-    text-align: right;
-    line-height: 1.6;
-}}
-
-@media print {{
-    #MainMenu, header, footer, .stButton {{ visibility: hidden; }}
-    body {{ direction: rtl; }}
-    .print-header {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 20px;
-        border-bottom: 2px solid #006633;
-        background: white;
-        z-index: 9999;
-    }}
-}}
-
 .stButton>button {{
     background-color: #059669 !important;
     color: #ffffff !important;
@@ -181,7 +137,7 @@ input, select, textarea {{
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وإعدادات الطباعة
+# 3) دوال النظام وقاعدة البيانات وإعدادات الطباعة (شعارين)
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -319,7 +275,8 @@ def init_db():
             margin_bottom TEXT NOT NULL,
             margin_right TEXT NOT NULL,
             margin_left TEXT NOT NULL,
-            logo_base64 TEXT NOT NULL
+            logo_base64 TEXT NOT NULL,
+            logo2_base64 TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -331,11 +288,17 @@ def init_db():
         );
         """)
 
+        # التأكد من وجود عمود الشعار الثاني في حال تم التحديث من نسخة سابقة
+        try:
+            c.execute("ALTER TABLE print_settings ADD COLUMN logo2_base64 TEXT NOT NULL DEFAULT ''")
+        except:
+            pass
+
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64) VALUES(?,?,?,?,?,?)",
-                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64) VALUES(?,?,?,?,?,?,?)",
+                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, ""))
 
 init_db()
 
@@ -346,14 +309,15 @@ def get_print_settings():
         return {
             "header_text": "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
             "margin_top": "8mm", "margin_bottom": "8mm", "margin_right": "8mm", "margin_left": "8mm",
-            "logo_base64": DEFAULT_LOGO
+            "logo_base64": DEFAULT_LOGO,
+            "logo2_base64": ""
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64) VALUES(?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64) VALUES(?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data))
 
 def get_facilities():
     with db() as c:
@@ -587,7 +551,46 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 # ============================================================
-# 5) دوال توليد الطباعة والتقارير وخطط العمل
+# 5) دالة مساعدة لعمل شعارين متجاورين في أعلى اليسار
+# ============================================================
+def render_logos_html():
+    sett = get_print_settings()
+    logo1 = sett.get("logo_base64", DEFAULT_LOGO)
+    logo2 = sett.get("logo2_base64", "")
+    if logo2:
+        return f"""
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <img src="{logo1}" style="width: 55px; height: 55px; object-fit: contain;" alt="Logo 1">
+            <img src="{logo2}" style="width: 55px; height: 55px; object-fit: contain;" alt="Logo 2">
+        </div>
+        """
+    else:
+        return f"""
+        <div>
+            <img src="{logo1}" style="width: 65px; height: 65px; object-fit: contain;" alt="Logo">
+        </div>
+        """
+
+def render_logos_exam_html():
+    sett = get_print_settings()
+    logo1 = sett.get("logo_base64", DEFAULT_LOGO)
+    logo2 = sett.get("logo2_base64", "")
+    if logo2:
+        return f"""
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <img src="{logo1}" style="width: 48px; height: 48px; object-fit: contain;" alt="Logo 1">
+            <img src="{logo2}" style="width: 48px; height: 48px; object-fit: contain;" alt="Logo 2">
+        </div>
+        """
+    else:
+        return f"""
+        <div>
+            <img src="{logo1}" style="width: 55px; height: 55px; object-fit: contain;" alt="Logo">
+        </div>
+        """
+
+# ============================================================
+# 6) دوال توليد الطباعة والتقارير وخطط العمل (بالشعارين)
 # ============================================================
 def generate_compact_certificate_html(sid, custom_notes=""):
     sett = get_print_settings()
@@ -613,7 +616,6 @@ def generate_compact_certificate_html(sid, custom_notes=""):
                 padding: 16mm 22mm; box-sizing: border-box; position: relative; box-shadow: 0 6px 20px rgba(0,0,0,0.06); 
             }}
             .header-top {{ position: absolute; top: 12mm; left: 18mm; text-align: left; }}
-            .header-top img {{ width: 65px; height: 65px; object-fit: contain; }}
             .header-right {{ position: absolute; top: 12mm; right: 18mm; text-align: right; font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
             .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; }}
             h2 {{ color: #047857; font-size: 19pt; margin-bottom: 4px; }}
@@ -626,7 +628,7 @@ def generate_compact_certificate_html(sid, custom_notes=""):
     <body>
         <div class="cert-wrapper">
             <div class="header-right">{sett['header_text']}</div>
-            <div class="header-top"><img src="{sett['logo_base64']}" alt="Logo"></div>
+            <div class="header-top">{render_logos_html()}</div>
             <div class="cert-body">
                 <h2>شهادة اجتياز اختبار معتمدة</h2>
                 <hr style="width: 45%; border: 1px solid #059669; margin: 6px auto;">
@@ -650,6 +652,181 @@ def generate_compact_certificate_html(sid, custom_notes=""):
     </html>
     """
 
+def generate_comparison_report_html(df_comp, title_desc, period_a_str, period_b_str, custom_notes=""):
+    sett = get_print_settings()
+    html_doc = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 15px; color: #111; }}
+            .header-top {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #065f46; padding-bottom: 10px; margin-bottom: 20px; }}
+            .header-right {{ font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 9.5pt; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 7px 8px; text-align: right; }}
+            th {{ background-color: #065f46; color: #fff; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px; margin-bottom: 10px; font-weight: bold; color: #065f46; }}
+            .footer {{ margin-top: 35px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #065f46; padding-top: 15px; page-break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="header-top">
+            <div class="header-right">{sett['header_text']}</div>
+            <div>{render_logos_html()}</div>
+        </div>
+        <h2>📊 تقرير مقارنة أداء معامل المتوطنة (بين فترتين)</h2>
+        <p><b>{title_desc}</b><br>الفترة الأولى: <b>{period_a_str}</b> | الفترة الثانية: <b>{period_b_str}</b></p>
+        {f'<div class="notes-box">ملاحظات التقرير: {esc(custom_notes)}</div>' if custom_notes else ''}
+        <table>
+            <thead>
+                <tr>
+                    <th>البند / الجهة</th>
+                    <th>متوسط الفترة الأولى %</th>
+                    <th>متوسط الفترة الثانية %</th>
+                    <th>التغير (الفرق %)</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    for _, row in df_comp.iterrows():
+        diff_val = row['الفرق %']
+        diff_color = "green" if diff_val >= 0 else "red"
+        diff_sign = "+" if diff_val > 0 else ""
+        html_doc += f"""
+                <tr>
+                    <td>{esc(row['العنصر'])}</td>
+                    <td>{row['الفترة الأولى %']:.1f}%</td>
+                    <td>{row['الفترة الثانية %']:.1f}%</td>
+                    <td style="color: {diff_color}; font-weight: bold;">{diff_sign}{diff_val:.1f}%</td>
+                </tr>
+        """
+    html_doc += """
+            </tbody>
+        </table>
+        <div class="footer">
+            <div>مسؤول التدريب</div>
+            <div>رئيس قسم المعامل</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_doc
+
+def generate_training_minutes_html(template_id, training_date, facility_name, custom_notes=""):
+    sett = get_print_settings()
+    with db() as c: t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
+    if not t: return "<p>نموذج الاختبار غير موجود</p>"
+    t_dict = dict(t)
+    cats = json.loads(t_dict.get("categories_json", "[]")) if t_dict.get("categories_json") else ["الاستراتيجية العامة", "الفحوص المعملية"]
+    bullets_html = "".join([f"<li>{idx}. محور تدريبي: <b>{esc(cat)}</b> وتطبيقاته العملية.</li>" for idx, cat in enumerate(cats[:5], start=1)])
+    formatted_date = training_date.strftime('%Y/%m/%d')
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 20px; color: #111; line-height: 1.6; }}
+            .minutes-box {{ border: 3px solid #059669; padding: 25px; border-radius: 12px; max-width: 800px; margin: auto; background: #fffdf9; }}
+            .header-top {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #065f46; padding-bottom: 12px; margin-bottom: 20px; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px; margin-top: 15px; font-weight: bold; color: #065f46; }}
+            .signatures {{ margin-top: 45px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="minutes-box">
+            <div class="header-top">
+                <div style="font-weight: bold; color: #065f46; line-height: 1.5;">{sett['header_text']}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>محضر تدريب معتمد - وحدة معامل المتوطنة</h2>
+            <h3>نموذج الاختبار: {esc(t_dict.get('name', ''))}</h3>
+            <p>أنه في يوم الموافق <b>{formatted_date}</b>، تم تدريب أخصائي وفني المختبرات بمنشأة <b>{esc(facility_name)}</b> على المحاور الآتية:</p>
+            <ul>{bullets_html}</ul>
+            {f'<div class="notes-box">ملاحظات تدوين البرنامج: {esc(custom_notes)}</div>' if custom_notes else ''}
+            <div class="signatures">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>يعتمد مدير عام الإدارة</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_compact_exam_html(template_id, custom_notes=""):
+    sett = get_print_settings()
+    with db() as c:
+        t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
+        qs = choose_questions(t) if t else []
+    if not t: return "<p>نموذج الاختبار غير موجود</p>"
+    t_dict = dict(t)
+    html_out = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; direction: rtl; text-align: right; background: #fff; padding: 5px; font-size: 8pt; color: #111; line-height: 1.2; }}
+            .top-right-header {{ float: right; text-align: right; font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
+            .top-left-logo {{ float: left; text-align: left; }}
+            .exam-title-area {{ text-align: center; clear: both; border-bottom: 2px solid #065f46; padding-bottom: 5px; margin-bottom: 6mm; }}
+            .exam-container {{ column-count: 2; column-gap: 8mm; }}
+            .q-box {{ margin-bottom: 5mm; page-break-inside: avoid; border: 1px solid #94a3b8; padding: 5px; border-radius: 4px; background: #fff; }}
+            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 6mm; margin-bottom: 6mm; font-size: 7.5pt; font-weight: bold; color: #065f46; }}
+            .exam-footer {{ margin-top: 15px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 8px; page-break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="top-left-logo">{render_logos_exam_html()}</div>
+        <div class="top-right-header">{sett['header_text']}</div>
+        <div class="exam-title-area">
+            <h2>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h2>
+            <h3>نموذج امتحان: {esc(t_dict.get('name', ''))}</h3>
+            <p>المدة: {t_dict.get('duration_minutes', 60)}د | عدد الأسئلة: {len(qs)} | اسم المتدرب: ........................ | الجهة: ........................</p>
+        </div>
+        {f'<div class="notes-box">ملاحظات الاختبار: {esc(custom_notes)}</div>' if custom_notes else ''}
+        <div class="exam-container">
+    """
+    for idx, q in enumerate(qs):
+        try: opts = json.loads(q["options_json"])
+        except: opts = ["نعم", "لا"]
+        q_raw = q["question"]
+        if q_raw.startswith("IMAGE:"):
+            parts = q_raw.split("\n\n", 1)
+            img_data = parts[0].replace("IMAGE:", "").strip()
+            actual_q = parts[1] if len(parts) > 1 else "تعرف على الصورة المجهرية:"
+            html_out += f"""
+            <div class='q-box'>
+                <div style='font-weight: bold; font-size: 8pt; margin-bottom:3px;'>س {idx+1}: {esc(actual_q)}</div>
+                <div style='text-align: center;'><img src='{img_data}' style='max-width:55px; height:auto; border:1px solid #ccc;' crossorigin='anonymous'></div>
+                <ul style='list-style-type: none; padding-right: 10px; margin: 2px 0;'>
+            """
+        else:
+            cleaned_q = clean_question_text(q_raw)
+            html_out += f"<div class='q-box'><b>س {idx+1}: {cleaned_q}</b><ul style='list-style-type: none; padding-right: 10px; margin: 2px 0;'>"
+        for opt in opts:
+            html_out += f"<li style='font-size: 7.5pt; margin-bottom: 2px;'>[ &nbsp; ] {esc(opt)}</li>"
+        html_out += "</ul></div>"
+    html_out += f"""
+        </div>
+        <div class="exam-footer">
+            <div>مسؤول التدريب</div>
+            <div>رئيس قسم المعامل</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
+        </div>
+    </body></html>
+    """
+    return html_out
+
 def generate_action_plan_html(plan_title, plan_type, target_name, goals_text, schedule_text, custom_notes=""):
     sett = get_print_settings()
     return f"""
@@ -672,7 +849,7 @@ def generate_action_plan_html(plan_title, plan_type, target_name, goals_text, sc
         <div class="plan-box">
             <div class="header-top">
                 <div class="header-right">{sett['header_text']}</div>
-                <img src="{sett['logo_base64']}" style="width:65px; height:65px; object-fit:contain;" alt="Logo">
+                <div>{render_logos_html()}</div>
             </div>
             <h2>📈 خطة عمل تدريبية معتمدة لرفع الكفاءة</h2>
             <h3>عنوان الخطة: {esc(plan_title)}</h3>
@@ -721,13 +898,13 @@ def render_print_button_only(html_content, label_prefix=""):
     """, height=50)
 
 # ============================================================
-# 6) واجهات النظام وتوجيه الشاشات
+# 7) واجهات النظام وتوجيه الشاشات
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "tpl_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v45.0 ACTION PLANS • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v46.0 DUAL LOGOS • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -783,7 +960,7 @@ def admin_dashboard():
 
     menu_options = [
         "📊 لوحة التحكم",
-        "🖨️ إعدادات الطباعة والهوامش والترويسة",
+        "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)",
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار",
         "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
@@ -814,33 +991,46 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة":
-        st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، وشعار اليسار للطباعة")
+    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
+        st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
             new_header_text = st.text_area("نص الترويسة (يدعم HTML مثل <br>):", value=current_set["header_text"], height=90)
+            
             st.markdown("#### 📏 هوامش الورق المطبوع (PDF / طباعة):")
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
-            st.markdown("#### 🖼️ صورة شعار أعلى يسار الصفحات:")
-            uploaded_logo = st.file_uploader("اختر صورة الشعار:", type=["png", "jpg", "jpeg"])
-            current_logo_val = current_set["logo_base64"]
-            if uploaded_logo is not None:
-                current_logo_val = f"data:image/{uploaded_logo.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo.read()).decode("utf-8")
-                st.image(uploaded_logo, width=80, caption="معاينة الشعار الجديد")
-            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة", use_container_width=True):
-                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo_val)
-                st.success("✅ تم حفظ إعدادات الطباعة والهوامش بنجاح!"); st.rerun()
+            
+            st.markdown("#### 🖼️ شعارات أعلى يسار الصفحات (يمكنك رفع شعارين متجاورين):")
+            col_logo1, col_logo2 = st.columns(2)
+            with col_logo1:
+                uploaded_logo1 = st.file_uploader("الشعار الأول (الرئيسي):", type=["png", "jpg", "jpeg"], key="logo1_upload")
+            with col_logo2:
+                uploaded_logo2 = st.file_uploader("الشعار الثاني (الإضافي بجواره):", type=["png", "jpg", "jpeg"], key="logo2_upload")
+
+            current_logo1_val = current_set["logo_base64"]
+            if uploaded_logo1 is not None:
+                current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+                st.image(uploaded_logo1, width=70, caption="معاينة الشعار الأول")
+
+            current_logo2_val = current_set.get("logo2_base64", "")
+            if uploaded_logo2 is not None:
+                current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+                st.image(uploaded_logo2, width=70, caption="معاينة الشعار الثاني")
+
+            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة واللوغوهات", use_container_width=True):
+                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val)
+                st.success("✅ تم حفظ إعدادات الطباعة والشعارات بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 إدارة المنشآت":
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v45", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v46", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -857,7 +1047,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v45", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v46", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -919,7 +1109,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v45")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v46")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1242,7 +1432,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستخلاص قاعدة البيانات")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v45.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات الكاملة (.db)", data=db_bytes, file_name="database_backup_v46.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
@@ -1303,7 +1493,7 @@ def exam_interface(session_id):
         st.rerun()
 
 # ============================================================
-# 7) التوجيه الأساسي للشاشات
+# 8) التوجيه الأساسي للشاشات
 # ============================================================
 if st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
