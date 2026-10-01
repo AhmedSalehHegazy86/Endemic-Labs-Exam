@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v7.4 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v7.5 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_4.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v7_5.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -277,9 +277,6 @@ def delete_facility_db_by_id(fac_id):
         c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
 
 def reorder_template_ids():
-    """
-    إعادة ترقيم قوالب الامتحانات لتكون متسلسلة ونظيفة بدون أي فجوات بعد عمليات الحذف.
-    """
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
         rows = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
@@ -506,51 +503,51 @@ def trainees_df(status=None):
         return pd.read_sql_query(q, c, params=args)
 
 def choose_questions(t):
-    cats = json.loads(t["categories_json"]) if t["categories_json"] else []
-    target = int(t["num_questions"])
+    """
+    استدعاء العدد المحدد بدقة تامة (num_questions) من بنك الأسئلة دون زيادة أو نقصان، مع منع التكرار بنسبة 100%.
+    إذا كانت الأقسام المختارة قليلة، يتم استكمال باقي العدد من البنك العام عشوائياً.
+    """
+    target = int(t["num_questions"]) if t and "num_questions" in t and t["num_questions"] else 25
+    cats = json.loads(t["categories_json"]) if t and t.get("categories_json") else []
     
-    with db() as c:
-        if cats:
-            placeholders = ",".join(["?"] * len(cats))
-            rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
-        else:
-            rows = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
-
     unique_list = []
     seen_ids = set()
     seen_fingerprints = set()
     seen_texts = set()
-    
-    for q in rows:
-        if len(unique_list) >= target:
-            break
-        q_id = q["id"]
-        q_fp = q.get("fingerprint")
-        q_txt = clean_question_text(q["question"])
-        
-        if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
-            seen_ids.add(q_id)
-            if q_fp:
-                seen_fingerprints.add(q_fp)
-            seen_texts.add(q_txt)
-            unique_list.append(q)
-            
-    if len(unique_list) < target:
-        with db() as c:
-            all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
-        for q in all_db_qs:
-            if len(unique_list) >= target:
-                break
-            q_id = q["id"]
-            q_fp = q.get("fingerprint")
-            q_txt = clean_question_text(q["question"])
-            if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
-                seen_ids.add(q_id)
-                if q_fp:
-                    seen_fingerprints.add(q_fp)
-                seen_texts.add(q_txt)
-                unique_list.append(q)
 
+    with db() as c:
+        # 1. محاولة جلب الأسئلة من الأقسام المحددة في القالب أولاً إن وجدت
+        if cats:
+            placeholders = ",".join(["?"] * len(cats))
+            cat_rows = [dict(r) for r in c.execute(f"SELECT * FROM questions WHERE active=1 AND category IN ({placeholders}) ORDER BY RANDOM()", cats).fetchall()]
+            for q in cat_rows:
+                if len(unique_list) >= target:
+                    break
+                q_id = q["id"]
+                q_fp = q.get("fingerprint")
+                q_txt = clean_question_text(q["question"])
+                if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
+                    seen_ids.add(q_id)
+                    if q_fp: seen_fingerprints.add(q_fp)
+                    seen_texts.add(q_txt)
+                    unique_list.append(q)
+
+        # 2. إذا لم يكتمل العدد المطلوب، يتم استكمال الباقي من بنك الأسئلة العام عشوائياً وبدون تكرار
+        if len(unique_list) < target:
+            all_db_qs = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
+            for q in all_db_qs:
+                if len(unique_list) >= target:
+                    break
+                q_id = q["id"]
+                q_fp = q.get("fingerprint")
+                q_txt = clean_question_text(q["question"])
+                if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
+                    seen_ids.add(q_id)
+                    if q_fp: seen_fingerprints.add(q_fp)
+                    seen_texts.add(q_txt)
+                    unique_list.append(q)
+
+    # قص القائمة تماماً لتتوافق مع العدد المطلوب دون أي زيادة
     return unique_list[:target]
 
 def start_session(trainee_id, template_id):
@@ -891,7 +888,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.4 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v7.5 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -983,7 +980,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v74", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v75", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1012,9 +1009,9 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑️ حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v74", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v75", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
-                    submit_del_fac = st.form_submit_button("🗑️️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
+                    submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
                         fac_id_to_del = fac_del_map[selected_fac_label]
                         delete_facility_db_by_id(fac_id_to_del)
@@ -1108,7 +1105,7 @@ def admin_dashboard():
                             st.rerun()
 
         with sub_img_tabs[1]:
-            st.subheader("✏️️ تعديل سؤال موجود")
+            st.subheader("✏️ تعديل سؤال موجود")
             with db() as c:
                 all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
             if not all_questions:
@@ -1185,7 +1182,7 @@ def admin_dashboard():
             else:
                 for t in tpls:
                     with st.container(border=True):
-                        st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة: `{t['num_questions']}` | المعرف: `{t['id']}`")
+                        st.write(f"**{t['name']}** — التصنيف: `{t['exam_type']}` | عدد الأسئلة المحدد: `{t['num_questions']}` | المعرف: `{t['id']}`")
                         col_m1, col_m2 = st.columns(2)
                         with col_m1: m_date = st.date_input(f"تاريخ محضر التدريب ({t['id']})", date.today(), key=f"m_date_{t['id']}")
                         with col_m2: m_facility = st.selectbox(f"المنشأة الصحية ({t['id']})", facilities_list, key=f"m_fac_{t['id']}")
@@ -1209,7 +1206,7 @@ def admin_dashboard():
             with st.form("create_template_direct_form"):
                 new_tpl_name = st.text_input("اسم قالب الاختبار الجديد (مثال: اختبار المتابعة المتقدم):")
                 new_tpl_type = st.selectbox("تصنيف الاختبار:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)", "اختبار تقييمي شامل"])
-                new_tpl_num_q = st.number_input("عدد الأسئلة في الاختبار:", min_value=5, max_value=100, value=25)
+                new_tpl_num_q = st.number_input("عدد الأسئلة الدقيق في الاختبار:", min_value=5, max_value=100, value=25)
                 new_tpl_duration = st.number_input("مدة الاختبار بالدقائق:", min_value=5, max_value=180, value=45)
                 new_tpl_pass = st.slider("نسبة النجاح المطلوبة %:", min_value=30.0, max_value=95.0, value=60.0)
                 new_tpl_cats = st.multiselect("الأقسام المشمولة في القالب:", categories_pool_opts)
@@ -1224,7 +1221,7 @@ def admin_dashboard():
                                          VALUES(?,?,?,?,?,?,?)""",
                                       (new_tpl_name.strip(), new_tpl_type, int(new_tpl_num_q), int(new_tpl_duration), float(new_tpl_pass), cats_json_str, now()))
                         reorder_template_ids()
-                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) وترتيب القوالب بنجاح!"
+                        st.session_state.tpl_success_msg = f"✅ تم إنشاء قالب الاختبار ({new_tpl_name}) بالعدد الدقيق للأسئلة ({new_tpl_num_q}) وترتيب القوالب بنجاح!"
                         st.rerun()
 
         else:
