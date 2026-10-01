@@ -264,7 +264,7 @@ def init_db():
 def get_facilities():
     with db() as c:
         rows = c.execute("SELECT name FROM facilities_list ORDER BY id ASC").fetchall()
-        return [r["name"] for r in rows] if rows else []
+        return [r["name"] for r in rows] if rows else ["الإدارة الصحية بأولاد صقر"]
 
 def add_facility_db(fac_name):
     norm = normalize_text(fac_name)
@@ -276,9 +276,9 @@ def add_facility_db(fac_name):
         except sqlite3.IntegrityError:
             return False
 
-def delete_facility_db_by_name(fac_name):
+def delete_facility_db_by_id(fac_id):
     with db() as c:
-        c.execute("DELETE FROM facilities_list WHERE name=?", (fac_name,))
+        c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
 
 def delete_template_db_by_id(tpl_id):
     with db() as c:
@@ -855,9 +855,10 @@ def header():
 
 def login_portal():
     header()
-    st.markdown("<b>تسجيل وإرسال طلب المتدربين (بدون اختيار مسبق للمنشآت)</b>", unsafe_allow_html=True)
+    st.markdown("<b>تسجيل وإرسال طلب المتدربين (اختر جهة العمل من المنشآت المسجلة)</b>", unsafe_allow_html=True)
     with st.form("trainee_request"):
-        facility = st.text_input("اسم جهة العمل أو المنشأة التابع لها (كتابة يدوية حرة):")
+        facilities_list = get_facilities()
+        facility = st.selectbox("اختر جهة العمل أو المنشأة التابع لها:", facilities_list)
         name = st.text_input("الاسم الرباعي")
         phone = st.text_input("رقم الهاتف")
         assigned_exam = st.selectbox("تحديد نوع الاختبار الأولي عند التسجيل:", ["قبل التدريب (Pre-Test)", "بعد التدريب (Post-Test)"])
@@ -908,7 +909,7 @@ def admin_dashboard():
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار",
         "🧠 بنك الأسئلة الشامل",
-        "⚙️️ إدارة الأسئلة",
+        "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
         "📊 التقارير المتقدمة والتصدير",
@@ -936,7 +937,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🏥 إدارة المنشآت":
-        st.subheader("🏥 إضافة وإدارة المنشآت الصحية يدوياً")
+        st.subheader("🏥 إضافة وإدارة المنشآت الصحية (مع إمكانية الحذف الفوري)")
         with st.form("add_facility_form"):
             new_fac_input = st.text_input("اسم المنشأة الجديدة (مستشفى، وحدة صحية، إدارة...):")
             if st.form_submit_button("إضافة المنشأة لقائمة الاختيار", use_container_width=True):
@@ -952,15 +953,19 @@ def admin_dashboard():
         
         st.markdown("---")
         st.markdown("#### حذف منشأة مسجلة:")
-        current_facs = get_facilities()
-        if not current_facs:
+        with db() as c:
+            facs_rows = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
+        if not facs_rows:
             st.info("لا توجد منشآت مسجلة حالياً.")
         else:
+            fac_del_map = {f"منشأة رقم {f['id']} - {f['name']}": f['id'] for f in facs_rows}
             with st.form("delete_facility_form"):
-                fac_to_delete = st.selectbox("اختر المنشأة المراد حذفها:", current_facs)
-                if st.form_submit_button("🗑️ تأكيد وحذف هذه المنشأة", use_container_width=True):
-                    delete_facility_db_by_name(fac_to_delete)
-                    st.success(f"✅ تم حذف المنشأة ({fac_to_delete}) بنجاح!")
+                selected_fac_label = st.selectbox("اختر المنشأة المراد حذفها:", list(fac_del_map.keys()))
+                if st.form_submit_button("🗑️ تأكيد وحذف هذه المنشأة نهائياً", use_container_width=True):
+                    fac_id_to_del = fac_del_map[selected_fac_label]
+                    delete_facility_db_by_id(fac_id_to_del)
+                    audit("delete_facility", "facility", {"id": fac_id_to_del})
+                    st.success(f"✅ تم حذف المنشأة بنجاح!")
                     st.rerun()
             
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار":
