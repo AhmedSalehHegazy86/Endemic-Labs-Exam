@@ -485,7 +485,7 @@ def choose_questions(t):
     for q in combined_selected:
         q_id = q["id"]
         q_fp = q.get("fingerprint")
-        q_txt = normalize_text(q["question"])
+        q_txt = clean_question_text(q["question"])
         
         if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
             seen_ids.add(q_id)
@@ -502,7 +502,7 @@ def choose_questions(t):
                 break
             q_id = q["id"]
             q_fp = q.get("fingerprint")
-            q_txt = normalize_text(q["question"])
+            q_txt = clean_question_text(q["question"])
             if q_id not in seen_ids and (not q_fp or q_fp not in seen_fingerprints) and q_txt not in seen_texts:
                 seen_ids.add(q_id)
                 if q_fp:
@@ -908,7 +908,7 @@ def admin_dashboard():
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد الاختبار",
         "🧠 بنك الأسئلة الشامل",
-        "⚙️ إدارة الأسئلة",
+        "⚙️️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
         "📊 التقارير المتقدمة والتصدير",
@@ -1178,7 +1178,7 @@ def admin_dashboard():
                         st.success(f"✅ تم حذف القالب بنجاح!")
                         st.rerun()
 
-    elif selected_menu == "✍️️ تسجيل نتيجة يدوي":
+    elif selected_menu == "✍️ تسجيل نتيجة يدوي":
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
         facilities_list = get_facilities() or ["الإدارة الصحية بأولاد صقر"]
         with st.form("manual_score_form"):
