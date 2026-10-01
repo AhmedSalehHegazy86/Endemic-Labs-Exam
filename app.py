@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v6.2 FINAL",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v6.3 FINAL",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v6_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v6_3.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -276,6 +276,16 @@ def add_facility_db(fac_name):
         except sqlite3.IntegrityError:
             return False
 
+def update_facility_db(fac_id, new_name):
+    norm = normalize_text(new_name)
+    if not norm: return False
+    with db() as c:
+        try:
+            c.execute("UPDATE facilities_list SET name=? WHERE id=?", (norm, fac_id))
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
 def delete_facility_db_by_id(fac_id):
     with db() as c:
         c.execute("DELETE FROM facilities_list WHERE id=?", (fac_id,))
@@ -395,7 +405,7 @@ def ensure_admin():
             c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,active,created_at) VALUES(?,?,?,?,?)",
                       ("admin", hash_password("admin"), "admin", 1, now()))
         else:
-            c.execute("UPDATE users SET password_hash=? WHERE role='admin'", (hash_password("admin"),))
+            c.execute("UPDATE users=? WHERE role='admin'", (hash_password("admin"),))
 
 init_db()
 seed_complete_250_question_bank()
@@ -851,7 +861,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.2 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v6.3 FINAL • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -907,7 +917,7 @@ def admin_dashboard():
     menu_options = [
         "📊 لوحة التحكم",
         "🏥 إدارة المنشآت",
-        "🧑‍‍🔬 اعتماد المتدربين وتحديد الاختبار",
+        "🧑‍‍‍🔬 اعتماد المتدربين وتحديد الاختبار",
         "🧠 بنك الأسئلة الشامل",
         "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
@@ -937,13 +947,13 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🏥 إدارة المنشآت":
-        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
+        st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية (إضافة، تعديل، وحذف)")
         
-        col_f1, col_f2 = st.columns(2)
+        tab_fac_1, tab_fac_2, tab_fac_3 = st.tabs(["➕ إضافة منشأة جديدة", "✏️ تعديل اسم وتكويد منشأة", "🗑️️ حذف منشأة"])
         
-        with col_f1:
-            st.markdown("#### ➕ إضافة منشأة جديدة:")
-            with st.form("add_facility_direct_form_v62", clear_on_submit=True):
+        with tab_fac_1:
+            st.markdown("#### إضافة منشأة جديدة للقائمة:")
+            with st.form("add_facility_direct_form_v63", clear_on_submit=True):
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة الجديدة", use_container_width=True)
                 if submit_add_fac:
@@ -956,17 +966,44 @@ def admin_dashboard():
                             st.warning("هذه المنشأة موجودة مسبقاً.")
                     else:
                         st.error("الرجاء كتابة اسم المنشأة.")
-        
-        with col_f2:
+
+        with tab_fac_2:
+            st.markdown("#### ✏️ تعديل اسم المنشأة أو تكويدها:")
+            with db() as c:
+                facs_rows_edit = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
+            
+            if not facs_rows_edit:
+                st.info("لا توجد منشآت مسجلة للتعديل.")
+            else:
+                fac_edit_map = {f"معرف رقم ({f['id']}) - {f['name']}": f for f in facs_rows_edit}
+                selected_fac_edit_label = st.selectbox("اختر المنشأة المراد تعديلها:", list(fac_edit_map.keys()), key="select_edit_fac_box_v63")
+                chosen_fac_obj = fac_edit_map[selected_fac_edit_label]
+                
+                with st.form("edit_facility_direct_form_v63"):
+                    updated_fac_name_input = st.text_input("تعديل اسم المنشأة:", value=chosen_fac_obj["name"])
+                    submit_edit_fac = st.form_submit_button("💾 حفظ وتحديث اسم المنشأة والتكويد", use_container_width=True)
+                    if submit_edit_fac:
+                        if updated_fac_name_input.strip():
+                            success_upd = update_facility_db(chosen_fac_obj["id"], updated_fac_name_input)
+                            if success_upd:
+                                audit("update_facility", "facility", {"id": chosen_fac_obj["id"], "new_name": updated_fac_name_input})
+                                st.success(f"✅ تم تحديث وتعديل المنشأة بنجاح إلى: ({updated_fac_name_input})!")
+                                st.rerun()
+                            else:
+                                st.warning("اسم المنشأة الجديد موجود مسبقاً أو حدث خطأ.")
+                        else:
+                            st.error("الرجاء إدخال اسم صحيح للمنشأة.")
+
+        with tab_fac_3:
             st.markdown("#### 🗑️ حذف منشأة مسجلة:")
             with db() as c:
                 facs_rows = c.execute("SELECT id, name FROM facilities_list ORDER BY id ASC").fetchall()
             
             if not facs_rows:
-                st.info("لا توجد منشآت مسجلة.")
+                st.info("لا توجد منشآت مسجلة للحذف.")
             else:
-                fac_del_map = {f"({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_direct_form_v62", clear_on_submit=True):
+                fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
+                with st.form("delete_facility_direct_form_v63", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑️ تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
