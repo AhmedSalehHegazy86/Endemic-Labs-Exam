@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v21.0 BALANCED BANK",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v22.0 EXCEL SYNC",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v21_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v22_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -113,7 +113,7 @@ html,body,[class*="css"]{{direction:rtl;text-align:right;font-family:"Cairo","Ta
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة الأساسي (بدون توليد)
+# 3) دوال النظام وقاعدة البيانات وبنك الأسئلة
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -387,12 +387,7 @@ def seed_initial_bank():
             ("صعب", "الفحوص المعملية", "أي من الفحوصات التالية يستخدم خصيصاً لتشخيص اليرقات المهاجرة في العضلات؟", ["اختبار الترسيب الجلدي أو الأليسا (ELISA)", "فحص البراز المباشر", "مزرعة الدم الشاملة", "فحص بول صباحي"], 0),
             ("متوسط", "الديدان الأسطوانية", "ما هي أعراض الإصابة الشديدة بدودة الإسكارس في الأطفال؟", ["انسداد الأمعاء وسوء التغذية", "التهاب الكبد الوبائي الحاد", "فشل كلوري مزمن", "تقرحات في الجلد الخارجي"], 0),
             ("سهل", "الديدان الأسطوانية", "ما هي الطريقة المتبعة لفحص دودة الدبوسية دقيقة الحجم؟", ["اختبار اللصق الشفاف (Scotch tape test)", "فحص البراز بالصبغة", "مزرعة البول المعقمة", "فحص سائل النخاع الشوكي"], 0),
-            ("متوسط", "الاستراتيجية العامة ومكافحة البلهارسيا", "ما هو الطفيلي المسبب لمرض البلهارسيا الكبدية المعوية في مصر؟", ["شستوسوما مانسوني", "شستوسوما هيماتوبيوم", "شستوسوما جابونيكوم", "فاشيولا هيباتيكا"], 0),
-            ("متوسط", "الفحوص المعملية", "ما هي الطريقة المثلى لتعقيم أدوات فحص البراز بعد الانتهاء من العمل؟", ["استخدام أوتوكلاف تحت ضغط وحرارة عالية", "غسلها بالماء الفاتر فقط", "تعريضها للهواء الطلق", "مسحها بالكحول الطبي السريع"], 0),
-            ("صعب", "الاستراتيجية العامة ومكافحة البلهارسيا", "أي من الديدان التالية يتميز العائل الوسيط لها بقواقع البلانوربيس؟", ["شستوسوما هيماتوبيوم", "شستوسوما مانسوني", "الفاشيولا", "الهتروفيس"], 0),
-            ("سهل", "الفحوص المعملية", "ما هو لون بيضة دودة الأسكارس عند صبغها باليود في فحص البراز؟", ["تظهر باللون الأصفر البني المميز", "تظهر باللون الأزرق الغامق", "تظهر شفافة تماماً بدون لون", "تظهر باللون الأحمر القاني"], 0),
-            ("متوسط", "الفحوص المعملية", "ما هي الفترة الزمنية القياسية لتحضير شريحة الفحص المباشر للبراز بالملح أو اليود؟", ["دقائق معدودة لتفادي جفاف العينة", "أكثر من 24 ساعة كاملة", "أسبوع كامل في الثلاجة", "شهر في درجة حرارة الغرفة"], 0),
-            ("صعب", "الديدان الشريطية", "أي من الأمراض التالية ينتقل عن طريق تناول لحوم الخنازير غير المطهية جيداً؟", ["التريكينوزيس (Trichinosis)", "الملاريا المزمنة", "التيفوئيد", "الكوليرا"], 0)
+            ("متوسط", "الاستراتيجية العامة ومكافحة البلهارسيا", "ما هو الطفيلي المسبب لمرض البلهارسيا الكبدية المعوية في مصر؟", ["شستوسوما مانسوني", "شستوسوما هيماتوبيوم", "شستوسوما جابونيكوم", "فاشيولا هيباتيكا"], 0)
         ]
 
         for q in core_questions:
@@ -491,11 +486,9 @@ def choose_questions(t):
     with db() as c:
         all_db_questions = [dict(r) for r in c.execute("SELECT * FROM questions WHERE active=1 ORDER BY RANDOM()").fetchall()]
         
-        # تحديد الأقسام المستهدفة
         if not cats:
             cats = list(set(q["category"] for q in all_db_questions))
         
-        # تجميع الأسئلة حسب كل قسم لضمان العدالة والتوازن
         questions_by_cat = {cat: [] for cat in cats}
         other_questions = []
         
@@ -509,12 +502,10 @@ def choose_questions(t):
             else:
                 other_questions.append(q)
 
-        # حساب الحصة التساوية المبدئية لكل قسم
         active_cats = [cat for cat in cats if questions_by_cat[cat]]
         if active_cats:
             per_cat_target = max(1, target // len(active_cats))
             
-            # المرحلة الأولى: السحب المتوازن من كل قسم بحسب حصته
             for cat in active_cats:
                 cat_qs = questions_by_cat[cat]
                 random.shuffle(cat_qs)
@@ -530,7 +521,6 @@ def choose_questions(t):
                         unique_questions.append(q)
                         taken += 1
 
-        # المرحلة الثانية: استكمال باقي العدد المطلوب من البنك العام أو الأقسام الأخرى بدون أي تكرار
         remaining_pool = []
         for cat in cats:
             for q in questions_by_cat[cat]:
@@ -889,7 +879,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v21.0 BALANCED BANK • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v22.0 EXCEL IMPORT/EXPORT • الإدارة الصحية بأولاد صقر</div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -953,7 +943,7 @@ def admin_dashboard():
         "📊 لوحة التحكم",
         "🏥 إدارة المنشآت",
         "🧑‍🔬 اعتماد المتدربين وتحديد القالب",
-        "🧠 بنك الأسئلة الشامل",
+        "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
         "⚙️ إدارة الأسئلة",
         "🧩 قوالب ومحاضر التدريب (للمالك فقط)",
         "✍️ تسجيل نتيجة يدوي",
@@ -988,7 +978,7 @@ def admin_dashboard():
         
         with tab_fac_1:
             st.markdown("#### إضافة منشأة جديدة برقم معرف مخصص يدويّاً:")
-            with st.form("add_facility_manual_form_v21", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v22", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID) المخصص:", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 submit_add_fac = st.form_submit_button("حفظ وإضافة المنشأة بمعرفها اليدوي", use_container_width=True)
@@ -1017,7 +1007,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("#### 🗑 حذف منشأة من القائمة:")
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v21", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v22", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     submit_del_fac = st.form_submit_button("🗑 تأكيد وحذف المنشأة المحددة نهائياً", use_container_width=True)
                     if submit_del_fac:
@@ -1028,7 +1018,7 @@ def admin_dashboard():
                         st.rerun()
 
     elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد القالب":
-        st.subheader("🧑‍‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
+        st.subheader("🧑‍🔬 اعتماد المتدربين وتحديد قالب الاختبار المخصص لهم")
         sub_tabs = st.tabs(["الطلبات المعلقة وإدارة الاختبارات", "جميع المتدربين"])
         
         with db() as c:
@@ -1065,15 +1055,81 @@ def admin_dashboard():
             df_tr = trainees_df()
             st.dataframe(df_tr, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "🧠 بنك الأسئلة الشامل":
-        st.subheader("🧠 بنك الأسئلة الحقيقي والمتوازن عبر الأقسام")
-        with db() as c:
-            df_q = pd.read_sql_query("SELECT id, difficulty, category, question, active FROM questions ORDER BY id ASC", c)
-        st.write(f"إجمالي الأسئلة المتاحة في البنك: **{len(df_q)}** سؤالاً.")
-        st.dataframe(df_q, use_container_width=True, hide_index=True)
+    elif selected_menu == "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)":
+        st.subheader("🧠 بنك الأسئلة الشامل (إدارة الاستيراد والتصدير عبر الإكسيل)")
+        
+        tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد بنك الأسئلة من شيت إكسيل", "📤 تصدير بنك الأسئلة الحالي إلى إكسيل"])
+        
+        with tab_ex_1:
+            st.markdown("#### رفع ملف إكسيل (.xlsx) لإضافة وتحديث بنك الأسئلة:")
+            st.info("يجب أن يحتوي شيت الإكسيل على الأعمدة الآتية: `difficulty`, `category`, `question`, `options`, `answer_index` (أو سيتم اعتماد الإجابة الأولى افتراضياً). الخيارات تفصل بينها بفاصلة أو يتم جلبها من الأعمدة.")
+            
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"])
+            if uploaded_excel is not None:
+                try:
+                    if uploaded_excel.name.endswith('.csv'):
+                        df_import = pd.read_csv(uploaded_excel)
+                    else:
+                        df_import = pd.read_excel(uploaded_excel)
+                    
+                    st.write("معاينة البيانات المرفوعة:", df_import.head())
+                    if st.button("تأكيد وحفظ الأسئلة في قاعدة البيانات", use_container_width=True):
+                        imported_count = 0
+                        with db() as c:
+                            for _, row in df_import.iterrows():
+                                diff = str(row.get("difficulty", "متوسط"))
+                                cat = str(row.get("category", "الفحوص المعملية"))
+                                q_text = str(row.get("question", ""))
+                                
+                                raw_opts = row.get("options", "خيار 1,خيار 2,خيار 3,خيار 4")
+                                if isinstance(raw_opts, str):
+                                    opts_list = [o.strip() for o in raw_opts.split(",") if o.strip()]
+                                else:
+                                    opts_list = ["نعم", "لا"]
+                                
+                                ans_idx = int(row.get("answer_index", 0))
+                                if ans_idx < 0 or ans_idx >= len(opts_list):
+                                    ans_idx = 0
+                                
+                                if q_text.strip() and opts_list:
+                                    fp = hashlib.sha256((q_text + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
+                                    try:
+                                        c.execute("""INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at)
+                                                     VALUES(?,?,?,?,?,?,?,?)""",
+                                                  (diff, cat, q_text, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
+                                        imported_count += 1
+                                    except sqlite3.IntegrityError:
+                                        continue
+                        reorder_question_ids()
+                        st.success(f"✅ تم بنجاح استيراد وإضافة ({imported_count}) سؤالاً جديداً لبنك الأسئلة!")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+
+        with tab_ex_2:
+            st.markdown("#### تصدير بنك الأسئلة الحالي إلى ملف إكسيل:")
+            with db() as c:
+                df_bank = pd.read_sql_query("SELECT id, difficulty, category, question, options_json, answer FROM questions ORDER BY id ASC", c)
+            
+            if df_bank.empty:
+                st.info("بنك الأسئلة فارغ حالياً.")
+            else:
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df_bank.to_excel(writer, index=False, sheet_name='QuestionBank')
+                excel_data = output.getvalue()
+                
+                st.download_button(
+                    label="📥 تحميل شيت إكسيل بنك الأسئلة (.xlsx)",
+                    data=excel_data,
+                    file_name=f"question_bank_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                st.dataframe(df_bank, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙️ إدارة الأسئلة":
-        st.subheader("⚙️️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
+        st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال جديد", "✏️ تعديل سؤال موجود", "🗑 حذف سؤال"])
         categories_list_opts = ["أسئلة الصور والأشكال", "الاستراتيجية العامة ومكافحة البلهارسيا", "الفاشيولا", "الهتروفيس", "الديدان الشريطية", "الديدان الأسطوانية", "الأوليات", "الفحوص المعملية", "الحالات التطبيقية"]
 
