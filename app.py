@@ -651,6 +651,44 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     </html>
     """
 
+def generate_general_report_html(title, content_html):
+    sett = get_print_settings()
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4 auto; margin: 10mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }}
+            .header-right {{ font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.5; }}
+            h2 {{ text-align: center; color: #047857; font-size: 20pt; margin: 15px 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: center; }}
+            th {{ background-color: #059669; color: white; font-weight: bold; }}
+            tr:nth-child(even) {{ background-color: #f0fdf4; }}
+            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; }}
+        </style>
+    </head>
+    <body>
+        <div class="report-header">
+            <div class="header-right">{sett.get('header_text', '')}</div>
+            <div>{render_logos_html()}</div>
+        </div>
+        <h2>{esc(title)}</h2>
+        <div style="text-align: left; font-size: 10pt; color: #6b7280; margin-bottom: 10px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+        {content_html}
+        <div class="footer">
+            <div>مسؤول التدريب</div>
+            <div>رئيس قسم المعامل</div>
+            <div>مدير المتوطنة</div>
+            <div>مدير عام الإدارة</div>
+        </div>
+    </body>
+    </html>
+    """
+
 def render_print_button_only(html_content, label_prefix=""):
     encoded_html = json.dumps(html_content)
     orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
@@ -777,7 +815,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -814,7 +852,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ الطباعة والترويسة":
+    elif selected_menu == "🖨️️ الطباعة والترويسة":
         st.subheader("🖨 إعدادات الطباعة والترويسة والخلفيات (مقاس A4)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -912,7 +950,7 @@ def admin_dashboard():
                     selected_item_to_delete = st.selectbox("اختر العنصر للحذف:", list(facility_map.keys()))
                     c_del_btn, c_empty_all_btn = st.columns(2)
                     with c_del_btn:
-                        single_del = st.form_submit_button("🗑️️ حذف العنصر", use_container_width=True)
+                        single_del = st.form_submit_button("🗑 حذف العنصر", use_container_width=True)
                     with c_empty_all_btn:
                         empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
                     
@@ -1306,12 +1344,89 @@ def admin_dashboard():
                     st.success(f"✅ تم تسجيل المتدرب والنتيجة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
-        st.subheader("📊 تقارير وأداء المعامل")
-        st.info("التقارير متاحة للرصد والإشراف الفني.")
+        st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج (مقاس A4)")
+        
+        rep_tab1, rep_tab2 = st.tabs(["📋 تقرير نتائج المتدربين الشامل", "📈 تقرير أداء الجهات والمنشآت"])
+        
+        with rep_tab1:
+            with db() as c:
+                df_rep = pd.read_sql_query("""
+                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', 
+                           COALESCE(s.percent, 0) AS 'النسبة المئوية %', 
+                           CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة',
+                           s.certificate_id AS 'رقم الشهادة'
+                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    ORDER BY t.id DESC
+                """, c)
+            
+            if df_rep.empty:
+                st.info("لا توجد بيانات متدربين لعرضها في التقرير.")
+            else:
+                st.dataframe(df_rep, use_container_width=True, hide_index=True)
+                table_html = df_rep.to_html(index=False, border=0, classes='table')
+                full_rep_html = generate_general_report_html("تقرير نتائج المتدربين الشامل", f"<div>{table_html}</div>")
+                render_print_button_only(full_rep_html, "تقرير النتائج الشامل")
+
+        with rep_tab2:
+            with db() as c:
+                df_fac = pd.read_sql_query("""
+                    SELECT t.facility AS 'جهة العمل', 
+                           COUNT(t.id) AS 'إجمالي المتدربين',
+                           SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'المجتازين',
+                           COALESCE(AVG(s.percent), 0) AS 'متوسط النسبة %'
+                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    GROUP BY t.facility
+                    ORDER BY COUNT(t.id) DESC
+                """, c)
+            
+            if df_fac.empty:
+                st.info("لا توجد بيانات جهات أو منشآت لتحليلها.")
+            else:
+                st.dataframe(df_fac, use_container_width=True, hide_index=True)
+                table_fac_html = df_fac.to_html(index=False, border=0, classes='table')
+                full_fac_html = generate_general_report_html("تقرير أداء المنشآت والجهات الصحية", f"<div>{table_fac_html}</div>")
+                render_print_button_only(full_fac_html, "تقرير أداء الجهات")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية")
-        st.info("خطط العمل جاهزة لإصدار التقارير.")
+        st.subheader("📈 خطط العمل التدريبية وجداول التغطية المعملية (مقاس A4)")
+        
+        plan_tab1, plan_tab2 = st.tabs(["📅 خطة التغطية المعملية السنوية", "📋 خطة فحص المتوطنة بالوحدات"])
+        
+        with plan_tab1:
+            st.markdown("### جدول التغطية المعملية لفنيي واختصاصيي المعامل (2026/2027)")
+            hier_list = get_hierarchical_data()
+            if not hier_list:
+                st.warning("⚠️ يرجى إضافة منشآت في الهيكل الإداري أولاً لعرض خطة التغطية.")
+            else:
+                plan_data = []
+                for idx, h in enumerate(hier_list[:50], start=1):
+                    plan_data.append({
+                        "م": idx,
+                        "المنشأة الصحية": f"{h['authority']} - {h['governorate']} - {h['administration']} - {h['facility_name']}",
+                        "المسؤول المعملي": "اختصاصي معمل متوطنة",
+                        "أيام التغطية": "السبت والأربعاء أسبوعياً",
+                        "حالة الخطة": "معتمدة ونشطة"
+                    })
+                df_plan = pd.DataFrame(plan_data)
+                st.dataframe(df_plan, use_container_width=True, hide_index=True)
+                
+                plan_table_html = df_plan.to_html(index=False, border=0)
+                full_plan_html = generate_general_report_html("خطة التغطية المعملية لأقسام المتوطنة", f"<div>{plan_table_html}</div>")
+                render_print_button_only(full_plan_html, "خطة التغطية المعملية")
+
+        with plan_tab2:
+            st.markdown("### جدول البرنامج التدريبي وفحص الطفيليات المعوية")
+            campaign_data = [
+                {"م": 1, "النشاط التدريبي": "تدريب فنيي المعامل على تقنيات فحص الطفيليات وفحص البراز", "المدة": "أسبوعين", "المستهدف": "75 فني ومعملي", "الحالة": "مجدول"},
+                {"م": 2, "النشاط التدريبي": "حملة مسح وعلاج الديدان الطفيلية والفاشيولا بالوحدات", "المدة": "شهر كامل", "المستهدف": "جميع وحدات الإدارة", "الحالة": "نشط"},
+                {"م": 3, "النشاط التدريبي": "تقييم أداء المعامل واختبارات الجودة الدورية", "المدة": "فصلي", "المستهدف": "كافة المعامل التابعة", "الحالة": "معتمد"}
+            ]
+            df_camp = pd.DataFrame(campaign_data)
+            st.dataframe(df_camp, use_container_width=True, hide_index=True)
+            
+            camp_table_html = df_camp.to_html(index=False, border=0)
+            full_camp_html = generate_general_report_html("خطة الحملات التدريبية والفحص المعملي", f"<div>{camp_table_html}</div>")
+            render_print_button_only(full_camp_html, "خطة الحملات والتدريب")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
