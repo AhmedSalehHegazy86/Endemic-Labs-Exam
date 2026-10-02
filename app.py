@@ -691,13 +691,11 @@ def login_portal():
         if not hier_data:
             facility_final_str = st.text_input("اسم جهة العمل:", value="")
         else:
-            facs_only_list = sorted(list(set(item["facility_name"] for item in hier_data)))
-            facs_options = ["-- اختر جهة العمل --"] + facs_only_list
-            selected_facility = st.selectbox("اختر جهة العمل:", facs_options, index=0)
+            hier_options = ["-- اختر جهة العمل من الهيكل الإداري --"] + [f"{item['authority']} - {item['governorate']} - {item['administration']} - {item['center']} - {item['facility_name']}" for item in hier_data]
+            selected_facility_full = st.selectbox("جهة العمل (الهيكل الإداري الكامل):", hier_options, index=0)
             
-            matched_item = next((item for item in hier_data if item["facility_name"] == selected_facility), None)
-            if matched_item:
-                facility_final_str = f"{matched_item['authority']} - {matched_item['governorate']} - {matched_item['administration']} - {matched_item['center']} - {matched_item['facility_name']}"
+            if selected_facility_full != "-- اختر جهة العمل من الهيكل الإداري --":
+                facility_final_str = selected_facility_full
             else:
                 facility_final_str = ""
 
@@ -710,7 +708,7 @@ def login_portal():
         
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
             if not facility_final_str:
-                st.warning("⚠️ يرجى اختيار جهة العمل من القائمة.")
+                st.warning("⚠️ يرجى اختيار جهة العمل من الهيكل الإداري.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
                 st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
@@ -1226,7 +1224,7 @@ def admin_dashboard():
         with col_bk2:
             uploaded_db_file = st.file_uploader("استعادة ملف قاعدة بيانات (.db):", type=["db"], key="restore_db_uploader")
             if uploaded_db_file is not None:
-                if st.button("⚠️️ استبدال القاعدة الحالية", use_container_width=True):
+                if st.button("⚠️ استبدال القاعدة الحالية", use_container_width=True):
                     try:
                         with open(DB_PATH, "wb") as f_out: f_out.write(uploaded_db_file.getbuffer())
                         st.success("✅ تمت الاستعادة بنجاح!"); time.sleep(1); st.rerun()
