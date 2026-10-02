@@ -837,6 +837,78 @@ def generate_action_plan_report_html(title, content_html):
     </html>
     """
 
+def generate_exam_template_print_html(template_id):
+    sett = get_print_settings()
+    with db() as c:
+        tpl = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
+        if not tpl: return ""
+        t_dict = dict(tpl)
+        questions_list = choose_questions(t_dict)
+    
+    q_html_content = ""
+    for idx, q in enumerate(questions_list, start=1):
+        try: opts = json.loads(q["options_json"])
+        except: opts = ["نعم", "لا"]
+        
+        raw_q_text = q["question"]
+        img_tag_html = ""
+        if "IMAGE:" in raw_q_text:
+            parts = raw_q_text.split("\n\n")
+            img_uri = parts[0].replace("IMAGE:", "").strip()
+            q_text_clean = parts[1] if len(parts) > 1 else ""
+            if img_uri:
+                img_tag_html = f'<div style="margin: 10px 0; text-align: center;"><img src="{img_uri}" style="max-height: 150px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;"></div>'
+        else:
+            q_text_clean = raw_q_text
+
+        opts_html = "".join([f'<div style="padding: 4px 8px; margin: 4px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">🔲 {esc(opt)}</div>' for opt in opts])
+        
+        q_html_content += f"""
+        <div style="margin-bottom: 16px; padding: 12px; background: #ffffff; border: 1px solid #059669; border-radius: 8px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 6px;">السؤال ({idx}): {esc(q_text_clean)}</div>
+            {img_tag_html}
+            <div style="margin-top: 8px; padding-right: 10px;">{opts_html}</div>
+        </div>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4 auto; margin: 10mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-inside: avoid; break-inside: avoid; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }}
+            .header-right {{ font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.5; }}
+            h2 {{ text-align: center; color: #047857; font-size: 18pt; margin: 15px 0; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 11pt; font-weight: bold; color: #065f46; }}
+            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="report-wrapper">
+            <div class="report-header">
+                <div class="header-right">{sett.get('header_text', '')}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>نموذج امتحان: {esc(t_dict['name'])}</h2>
+            <div class="tpl-info">
+                مدة الاختبار: {t_dict['duration_minutes']} دقيقة | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
+            </div>
+            {q_html_content}
+            <div class="footer">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>مدير عام الإدارة</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
 def render_print_button_only(html_content, label_prefix=""):
     encoded_html = json.dumps(html_content)
     col_opt1, col_opt2 = st.columns(2)
@@ -978,7 +1050,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -1115,7 +1187,7 @@ def admin_dashboard():
                     with c_del_btn:
                         single_del = st.form_submit_button("🗑 حذف العنصر", use_container_width=True)
                     with c_empty_all_btn:
-                        empty_all = st.form_submit_button("⚠️️ تفريغ الكل", use_container_width=True)
+                        empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
                     
                     if single_del:
                         target_id = facility_map[selected_item_to_delete]
@@ -1321,18 +1393,17 @@ def admin_dashboard():
             if all_questions_del:
                 q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
                 selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
-                if st.button("🗑️️ حذف", use_container_width=True):
+                if st.button("🗑 حذف", use_container_width=True):
                     with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
                     st.success("✅ تم الحذف!"); st.rerun()
 
     elif selected_menu == "🧩 مواعيد الاختبارات وشهادات المتدربين":
-        st.subheader("🧩 مواعيد الاختبارات وشهادات المتدربين (نظام 12 ساعة - مقاس A4)")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج والطباعة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد", "🗑 حذف نموذج"], horizontal=True)
+        st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (نظام 12 ساعة - مقاس A4)")
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد", "🗑 حذف نموذج"], horizontal=True)
         
-        if sub_tpl_mode == "📋 عرض النماذج والطباعة":
+        if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             if tpls:
-                curr_sett_for_cert = get_print_settings()
                 for t in tpls:
                     t_dict = dict(t)
                     num_q_display = "مفتوح" if int(t_dict.get('num_questions', 999999)) >= 999900 else t_dict.get('num_questions')
@@ -1351,13 +1422,9 @@ def admin_dashboard():
                         st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')}")
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
                         
-                        sample_sid = 1
-                        with db() as c:
-                            any_s = c.execute("SELECT id FROM exam_sessions WHERE template_id=? LIMIT 1", (t_dict.get('id'),)).fetchone()
-                            if any_s: sample_sid = any_s["id"]
-                        
-                        custom_html_out = generate_customizable_certificate_html(sample_sid, curr_sett_for_cert.get("default_cert_title"), curr_sett_for_cert.get("default_cert_notes"))
-                        render_print_button_only(custom_html_out, f"نموذج {t_dict.get('id')}")
+                        # توليد صفحة طباعة نموذج الأسئلة المحدد
+                        exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
+                        render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
 
         elif sub_tpl_mode == "➕ إنشاء نموذج جديد":
             categories_pool_opts = [
