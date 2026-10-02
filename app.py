@@ -681,7 +681,7 @@ def login_portal():
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
             st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد.")
-            facility_final_str = st.text_input("اسم جهة العمل:", value="مديرية الشئون الصحية - الشرقية - الإدارة الصحية - أولاد صقر - وحدة معملية")
+            facility_final_str = st.text_input("اسم جهة العمل:")
         else:
             auths = sorted(list(set(item["authority"] for item in hier_data)))
             selected_auth = st.selectbox("اختر الهيئة:", auths)
@@ -700,8 +700,8 @@ def login_portal():
             
             facility_final_str = f"{selected_auth} - {selected_gov} - {selected_admin} - {selected_center} - {selected_facility}"
 
-        name = st.text_input("الاسم الرباعي:")
-        phone = st.text_input("رقم الهاتف:")
+        name = st.text_input("الاسم الرباعي:", value="")
+        phone = st.text_input("رقم الهاتف:", value="")
         
         with db() as c: all_tpls_opts = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_choices_list = list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
@@ -727,8 +727,8 @@ def login_portal():
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
-            u = st.text_input("اسم المستخدم")
-            p = st.text_input("كلمة المرور", type="password")
+            u = st.text_input("اسم المستخدم", value="")
+            p = st.text_input("كلمة المرور", type="password", value="")
             if st.form_submit_button("دخول لوحة التحكم", use_container_width=True):
                 user = login_user(u, p)
                 if user:
@@ -845,11 +845,11 @@ def admin_dashboard():
         
         with tab_h1:
             with st.form("manual_hierarchical_form"):
-                m_auth = st.text_input("الهيئة:", value="مديرية الشئون الصحية")
-                m_gov = st.text_input("المحافظة:", value="الشرقية")
-                m_admin = st.text_input("الإدارة الصحية:", value="الإدارة الصحية")
-                m_center = st.text_input("المركز:", value="أولاد صقر")
-                m_fac = st.text_input("اسم المنشأة:")
+                m_auth = st.text_input("الهيئة:", value="")
+                m_gov = st.text_input("المحافظة:", value="")
+                m_admin = st.text_input("الإدارة الصحية:", value="")
+                m_center = st.text_input("المركز:", value="")
+                m_fac = st.text_input("اسم المنشأة:", value="")
                 
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
                     if m_fac.strip():
@@ -1018,12 +1018,12 @@ def admin_dashboard():
             if st.session_state.add_success_msg: st.success(st.session_state.add_success_msg); st.session_state.add_success_msg = ""
             with st.form(key=f"add_q_form_{st.session_state.form_key}"):
                 selected_cat = st.selectbox("القسم:", categories_list_opts)
-                c_text = st.text_area("نص السؤال:")
+                c_text = st.text_area("نص السؤال:", value="")
                 c_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"])
                 uploaded_img = st.file_uploader("رفع صورة (اختياري):", type=["png", "jpg", "jpeg"])
-                opt1, opt2 = st.text_input("خيار 1:"), st.text_input("خيار 2:")
-                opt3, opt4 = st.text_input("خيار 3:"), st.text_input("خيار 4:")
-                correct_ans_text = st.text_input("الإجابة الصحيحة:")
+                opt1, opt2 = st.text_input("خيار 1:", value=""), st.text_input("خيار 2:", value="")
+                opt3, opt4 = st.text_input("خيار 3:", value=""), st.text_input("خيار 4:", value="")
+                correct_ans_text = st.text_input("الإجابة الصحيحة:", value="")
                 if st.form_submit_button("حفظ", use_container_width=True):
                     if c_text and correct_ans_text:
                         img_uri_final = f"data:image/{uploaded_img.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_img.read()).decode("utf-8") if uploaded_img else ""
@@ -1111,7 +1111,7 @@ def admin_dashboard():
                 "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "أسئلة الصور والأشكال"
             ]
             with st.form("create_template_schedule_form"):
-                new_tpl_name = st.text_input("اسم النموذج:")
+                new_tpl_name = st.text_input("اسم النموذج:", value="")
                 is_open_questions = st.checkbox("عدد أسئلة مفتوح (كامل البنك)", value=True)
                 new_tpl_num_q = st.number_input("عدد الأسئلة:", min_value=1, max_value=5000, value=50)
                 new_tpl_duration = st.number_input("المدة (بالدقائق):", min_value=5, max_value=300, value=60)
@@ -1170,18 +1170,18 @@ def admin_dashboard():
                             c.execute("PRAGMA foreign_keys=ON;")
                         st.success("✅ تم الحذف!"); st.rerun()
 
-    elif selected_menu == "✍️ تسجيل نتيجة يدوي":
+    elif selected_menu == "✍️️ تسجيل نتيجة يدوي":
         st.subheader("✍️ تسجيل نتيجة يدوي")
         hier_data = get_hierarchical_data()
-        default_fac_str = hier_data[0]["facility_name"] if hier_data else "وحدة معملية"
+        default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         with st.form("manual_score_form"):
-            m_trainee_name = st.text_input("اسم المتدرب:")
+            m_trainee_name = st.text_input("اسم المتدرب:", value="")
             m_facility_name = st.text_input("جهة العمل:", value=default_fac_str)
             with db() as c: all_tpls = c.execute("SELECT id, name FROM exam_templates").fetchall()
             tpl_choices = {row["name"]: row["id"] for row in all_tpls}
             selected_tpl_name = st.selectbox("نموذج الاختبار:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
             c1, c2 = st.columns(2)
-            with c1: manual_score = st.number_input("الدرجة:", min_value=0, max_value=9999, value=40)
+            with c1: manual_score = st.number_input("الدرجة:", min_value=0, max_value=9999, value=0)
             with c2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
             manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             if st.form_submit_button("💾 حفظ", use_container_width=True):
@@ -1228,8 +1228,8 @@ def admin_dashboard():
         tab_u1, tab_u2 = st.tabs(["➕ إضافة مستخدم", "⚙ التعديل والحذف"])
         with tab_u1:
             with st.form("add_user_form_v1_0"):
-                new_u_name = st.text_input("اسم المستخدم:")
-                new_u_pass = st.text_input("كلمة المرور:", type="password")
+                new_u_name = st.text_input("اسم المستخدم:", value="")
+                new_u_pass = st.text_input("كلمة المرور:", type="password", value="")
                 new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
                 
                 selected_modules_checkboxes = {}
