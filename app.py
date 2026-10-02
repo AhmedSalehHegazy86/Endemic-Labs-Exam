@@ -207,6 +207,23 @@ def reindex_hierarchical_facilities():
             c.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at) VALUES(?,?,?,?,?,?)",
                       (r["authority"], r["governorate"], r["administration"], r["center"], r["facility_name"], r["created_at"]))
 
+def reindex_trainees():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at FROM trainees ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM trainees")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
+        id_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO trainees(id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"]))
+            id_mapping[old_id] = new_id
+        
+        for old_id, new_id in id_mapping.items():
+            c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
 def hash_password(password, salt=None):
     salt = salt or secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210000)
@@ -338,6 +355,18 @@ def init_db():
             is_correct INTEGER,
             FOREIGN KEY(session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
             FOREIGN KEY(question_id) REFERENCES questions(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS action_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            target_type TEXT NOT NULL,
+            target_name TEXT NOT NULL,
+            weakness_areas TEXT NOT NULL,
+            action_steps TEXT NOT NULL,
+            time_frame_type TEXT NOT NULL,
+            specific_date TEXT,
+            specific_month TEXT,
+            specific_year TEXT,
+            created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS print_settings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -588,13 +617,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
-    fac_parts = [p.strip() for p in r["facility"].split(" - ")]
-    auth_str = fac_parts[0] if len(fac_parts) > 0 else "جمهورية مصر العربية"
-    gov_str = format_ba_prefix(fac_parts[1]) if len(fac_parts) > 1 else "وزارة الصحة والسكان"
-    admin_str = fac_parts[2] if len(fac_parts) > 2 else ""
-    center_str = format_ba_prefix(fac_parts[3]) if len(fac_parts) > 3 else ""
-
-    formatted_header = f"جمهورية مصر العربية<br>وزارة الصحة والسكان<br>{auth_str} {gov_str}<br>{admin_str} {center_str}".strip()
+    formatted_header = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
 
     bg_data = sett.get("bg_base64", "")
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
@@ -605,12 +628,41 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #fdfbf7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; }}
+            @page {{ 
+                size: A4 auto; 
+                margin-top: {sett['margin_top']}; 
+                margin-bottom: {sett['margin_bottom']}; 
+                margin-right: {sett['margin_right']}; 
+                margin-left: {sett['margin_left']}; 
+            }}
+            body {{ 
+                font-family: 'Cairo', 'Tahoma', sans-serif; 
+                background: #fdfbf7; 
+                margin: 0; 
+                padding: 0; 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                direction: rtl; 
+                -webkit-print-color-adjust: exact; 
+            }}
             .cert-wrapper {{ 
-                width: 100%; min-height: 100vh; border: 12px double #059669; border-radius: 20px; {bg_style}
-                display: flex; flex-direction: column; justify-content: space-between; align-items: center; 
-                padding: 16mm 22mm; box-sizing: border-box; position: relative; box-shadow: 0 6px 20px rgba(0,0,0,0.06); 
+                width: 100%; 
+                max-width: 210mm;
+                min-height: 297mm;
+                border: 12px double #059669; 
+                border-radius: 20px; 
+                {bg_style}
+                display: flex; 
+                flex-direction: column; 
+                justify-content: space-between; 
+                align-items: center; 
+                padding: 16mm 22mm; 
+                box-sizing: border-box; 
+                position: relative; 
+                box-shadow: 0 6px 20px rgba(0,0,0,0.06); 
+                page-break-inside: avoid;
+                break-inside: avoid;
             }}
             .header-top {{ position: absolute; top: 12mm; left: 18mm; text-align: left; z-index: 2; }}
             .header-right {{ position: absolute; top: 12mm; right: 18mm; text-align: right; font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; z-index: 2; }}
@@ -661,29 +713,38 @@ def generate_general_report_html(title, content_html):
         <style>
             @page {{ size: A4 auto; margin: 10mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{
+                max-width: 210mm;
+                margin: auto;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }}
             .header-right {{ font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.5; }}
             h2 {{ text-align: center; color: #047857; font-size: 20pt; margin: 15px 0; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; page-break-inside: auto; }}
+            tr {{ page-break-inside: avoid; break-inside: avoid; }}
             th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: center; }}
             th {{ background-color: #059669; color: white; font-weight: bold; }}
             tr:nth-child(even) {{ background-color: #f0fdf4; }}
-            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; }}
+            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
-        <div class="report-header">
-            <div class="header-right">{sett.get('header_text', '')}</div>
-            <div>{render_logos_html()}</div>
-        </div>
-        <h2>{esc(title)}</h2>
-        <div style="text-align: left; font-size: 10pt; color: #6b7280; margin-bottom: 10px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
-        {content_html}
-        <div class="footer">
-            <div>مسؤول التدريب</div>
-            <div>رئيس قسم المعامل</div>
-            <div>مدير المتوطنة</div>
-            <div>مدير عام الإدارة</div>
+        <div class="report-wrapper">
+            <div class="report-header">
+                <div class="header-right">{sett.get('header_text', '')}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>{esc(title)}</h2>
+            <div style="text-align: left; font-size: 10pt; color: #6b7280; margin-bottom: 10px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            {content_html}
+            <div class="footer">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>مدير عام الإدارة</div>
+            </div>
         </div>
     </body>
     </html>
@@ -691,27 +752,43 @@ def generate_general_report_html(title, content_html):
 
 def render_print_button_only(html_content, label_prefix=""):
     encoded_html = json.dumps(html_content)
-    orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
-    chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["أفقي (Landscape)", "رأسي (Portrait)"], key=orient_key)
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
+        chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["رأسي (Portrait)", "أفقي (Landscape)"], key=orient_key)
+    with col_opt2:
+        copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
+        num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة:", min_value=1, max_value=50, value=1, key=copies_key)
+        
     orient_css = "landscape" if "أفقي" in chosen_orient else "portrait"
 
     components.html(f"""
         <div style="margin: 4px 0;">
-            <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
-                🖨 طباعة / حفظ المستند (A4 {chosen_orient} - {label_prefix})
+            <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
+                🖨 طباعة / حفظ المستند (A4 {chosen_orient} - {num_pages_to_print} صفحة/نسخة - {label_prefix})
             </button>
         </div>
         <script>
             function printDoc() {{
                 var win = window.open('', '_blank');
-                var styledHtml = {encoded_html}.replace('@page {{ size: A4 auto;', '@page {{ size: A4 {orient_css};');
-                win.document.write(styledHtml);
+                var styledHtml = {encoded_html}.replace('@page {{ size: A4 auto;', '@page {{ size: A4 {orient_css}; @bottom-right {{ content: counter(page); }};');
+                
+                // تكرار المستند بعدد الأوراق أو النسخ المطلوبة مع احتواء النصوص والجدول داخل حدود الصفحات
+                var finalPagesHtml = '';
+                for (var i = 0; i < {num_pages_to_print}; i++) {{
+                    finalPagesHtml += styledHtml;
+                    if (i < {num_pages_to_print} - 1) {{
+                        finalPagesHtml += '<div style="page-break-after: always; break-after: page;"></div>';
+                    }}
+                }}
+                
+                win.document.write(finalPagesHtml);
                 win.document.close();
                 win.focus();
-                setTimeout(function(){{ win.print(); }}, 500);
+                setTimeout(function(){{ win.print(); }}, 600);
             }}
         </script>
-    """, height=85)
+    """, height=100)
 
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
@@ -852,7 +929,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️️ الطباعة والترويسة":
+    elif selected_menu == "🖨️ الطباعة والترويسة":
         st.subheader("🖨 إعدادات الطباعة والترويسة والخلفيات (مقاس A4)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -1025,9 +1102,10 @@ def admin_dashboard():
                                     c.execute("DELETE FROM trainees WHERE id=?", (int(tr_row['id']),))
                                     c.execute("DELETE FROM exam_sessions WHERE trainee_id=?", (int(tr_row['id']),))
                                     c.execute("PRAGMA foreign_keys=ON;")
-                                st.success("✅ تم الحذف!"); st.rerun()
+                                reindex_trainees()
+                                st.success("✅ تم الحذف وإعادة ترتيب أرقام الـ ID بنجاح!"); st.rerun()
         with sub_tabs[2]:
-            st.markdown("#### 🖨️ طباعة شهادات ونتائج الامتحانات على مقاس A4")
+            st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4")
             with db() as c:
                 sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed 
                                              FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""").fetchall()
@@ -1388,45 +1466,108 @@ def admin_dashboard():
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية وجداول التغطية المعملية (مقاس A4)")
+        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بناءً على الدرجات (مقاس A4)")
         
-        plan_tab1, plan_tab2 = st.tabs(["📅 خطة التغطية المعملية السنوية", "📋 خطة فحص المتوطنة بالوحدات"])
+        plan_tabs = st.tabs(["➕ إنشاء خطة عمل مخصصة", "📋 استعراض وإدارة خطط العمل المسجلة"])
         
-        with plan_tab1:
-            st.markdown("### جدول التغطية المعملية لفنيي واختصاصيي المعامل (2026/2027)")
-            hier_list = get_hierarchical_data()
-            if not hier_list:
-                st.warning("⚠️ يرجى إضافة منشآت في الهيكل الإداري أولاً لعرض خطة التغطية.")
-            else:
-                plan_data = []
-                for idx, h in enumerate(hier_list[:50], start=1):
-                    plan_data.append({
-                        "م": idx,
-                        "المنشأة الصحية": f"{h['authority']} - {h['governorate']} - {h['administration']} - {h['facility_name']}",
-                        "المسؤول المعملي": "اختصاصي معمل متوطنة",
-                        "أيام التغطية": "السبت والأربعاء أسبوعياً",
-                        "حالة الخطة": "معتمدة ونشطة"
-                    })
-                df_plan = pd.DataFrame(plan_data)
-                st.dataframe(df_plan, use_container_width=True, hide_index=True)
-                
-                plan_table_html = df_plan.to_html(index=False, border=0)
-                full_plan_html = generate_general_report_html("خطة التغطية المعملية لأقسام المتوطنة", f"<div>{plan_table_html}</div>")
-                render_print_button_only(full_plan_html, "خطة التغطية المعملية")
-
-        with plan_tab2:
-            st.markdown("### جدول البرنامج التدريبي وفحص الطفيليات المعوية")
-            campaign_data = [
-                {"م": 1, "النشاط التدريبي": "تدريب فنيي المعامل على تقنيات فحص الطفيليات وفحص البراز", "المدة": "أسبوعين", "المستهدف": "75 فني ومعملي", "الحالة": "مجدول"},
-                {"م": 2, "النشاط التدريبي": "حملة مسح وعلاج الديدان الطفيلية والفاشيولا بالوحدات", "المدة": "شهر كامل", "المستهدف": "جميع وحدات الإدارة", "الحالة": "نشط"},
-                {"م": 3, "النشاط التدريبي": "تقييم أداء المعامل واختبارات الجودة الدورية", "المدة": "فصلي", "المستهدف": "كافة المعامل التابعة", "الحالة": "معتمد"}
-            ]
-            df_camp = pd.DataFrame(campaign_data)
-            st.dataframe(df_camp, use_container_width=True, hide_index=True)
+        with plan_tabs[0]:
+            with db() as c:
+                all_tr_list = c.execute("SELECT id, name, facility FROM trainees ORDER BY id ASC").fetchall()
+                all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
             
-            camp_table_html = df_camp.to_html(index=False, border=0)
-            full_camp_html = generate_general_report_html("خطة الحملات التدريبية والفحص المعملي", f"<div>{camp_table_html}</div>")
-            render_print_button_only(full_camp_html, "خطة الحملات والتدريب")
+            with st.form("create_action_plan_form"):
+                target_category = st.radio("نطاق الخطة:", ["فرد (متحمس/متدرب محدد)", "جماعة (منشأة صحية بالكامل)"], horizontal=True)
+                
+                if "فرد" in target_category:
+                    if not all_tr_list:
+                        st.warning("⚠️ لا توجد بيانات متدربين مسجلة بعد.")
+                        target_name = ""
+                    else:
+                        tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t['name'] for t in all_tr_list}
+                        sel_tr_label = st.selectbox("اختر المتدرب بناءً على درجاته:", list(tr_choices.keys()))
+                        target_name = tr_choices[sel_tr_label]
+                else:
+                    if not all_fac_list:
+                        st.warning("⚠️ لا توجد جهات صحية مسجلة بعد.")
+                        target_name = ""
+                    else:
+                        target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
+
+                st.markdown("---")
+                st.markdown("#### 🎯 تحديد نقاط الضعف المرصودة من الاختبارات:")
+                weak_areas = st.text_area("أبرز نقاط الضعف والأقسام التي لم يتم اجتيازها (مثل: الفحص المباشر، طفيليات البراز، كاتو كاتو):", value="")
+                action_steps = st.text_area("الخطوات الإجرائية والبرنامج التدريبي المقترح لعلاج نقاط الضعف:", value="")
+
+                st.markdown("---")
+                st.markdown("#### 📅 تحديد الإطار الزمني للخطة (باليوم والشهر والسنة):")
+                time_mode = st.radio("نوع التحديد الزمني:", ["تحديد بيوم وشهر وسنة محددة", "تحديد بشهر وسنة فقط"], horizontal=True)
+                
+                col_d1, col_d2, col_d3 = st.columns(3)
+                with col_d1:
+                    year_val = st.selectbox("السنة:", ["2026", "2027", "2028"], index=0)
+                with col_d2:
+                    month_val = st.selectbox("الشهر:", ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"], index=8)
+                with col_d3:
+                    if "بيوم" in time_mode:
+                        day_val = st.number_input("اليوم:", min_value=1, max_value=31, value=1)
+                        time_frame_str = f"يوم {day_val} من {month_val} لسنة {year_val}"
+                    else:
+                        day_val = 1
+                        time_frame_str = f"شهر {month_val} لسنة {year_val}"
+
+                if st.form_submit_button("💾 حفظ وإنشاء خطة العمل", use_container_width=True):
+                    if not target_name.strip() or not weak_areas.strip():
+                        st.warning("⚠️ يرجى استكمال البيانات الأساسية ونقاط الضعف.")
+                    else:
+                        with db() as c:
+                            c.execute("""INSERT INTO action_plans(target_type, target_name, weakness_areas, action_steps, time_frame_type, specific_date, specific_month, specific_year, created_at)
+                                         VALUES(?,?,?,?,?,?,?,?,?)""",
+                                      (target_category, target_name, weak_areas.strip(), action_steps.strip(), time_mode, str(day_val), month_val, year_val, now()))
+                        st.success("✅ تم حفظ خطة العمل بنجاح!"); st.rerun()
+
+        with plan_tabs[1]:
+            with db() as c:
+                plans_list = c.execute("SELECT * FROM action_plans ORDER BY id DESC").fetchall()
+            
+            if not plans_list:
+                st.info("لا توجد خطط عمل مسجلة حتى الآن.")
+            else:
+                plan_map = {f"خطة رقم ({p['id']}) - [{p['target_type']}] المستهدف: {p['target_name']} ({p['time_frame_type']})": p['id'] for p in plans_list}
+                sel_plan_label = st.selectbox("اختر خطة العمل للمعاينة والطباعة:", list(plan_map.keys()))
+                chosen_plan_id = plan_map[sel_plan_label]
+                
+                with db() as c:
+                    p_data = dict(c.execute("SELECT * FROM action_plans WHERE id=?", (chosen_plan_id,)).fetchone())
+
+                plan_detail_html = f"""
+                <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px; page-break-inside: avoid; break-inside: avoid;">
+                    <h3 style="color: #047857; text-align: center;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء المعملي</h3>
+                    <hr style="border: 1px solid #059669;">
+                    <p><b>نوع النطاق:</b> {esc(p_data['target_type'])}</p>
+                    <p><b>المستهدف (فرد أو جهة):</b> {esc(p_data['target_name'])}</p>
+                    <p><b>الإطار الزمني للتنفيذ:</b> <b>{p_data['specific_day'] if 'بيوم' in p_data['time_frame_type'] else ''} {p_data['specific_month']} {p_data['specific_year']}</b></p>
+                    
+                    <div style="background: #f0fdf4; border: 1px solid #059669; padding: 12px; border-radius: 8px; margin: 15px 0; page-break-inside: avoid; break-inside: avoid;">
+                        <h4 style="color: #065f46; margin-top: 0;">🎯 نقاط الضعف المرصودة (بناءً على الدرجات والتقييمات):</h4>
+                        <p style="white-space: pre-wrap; margin-bottom: 0;">{esc(p_data['weakness_areas'])}</p>
+                    </div>
+                    
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; margin: 15px 0; page-break-inside: avoid; break-inside: avoid;">
+                        <h4 style="color: #065f46; margin-top: 0;">🛠️ الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
+                        <p style="white-space: pre-wrap; margin-bottom: 0;">{esc(p_data['action_steps'])}</p>
+                    </div>
+                </div>
+                """
+                
+                st.markdown(plan_detail_html, unsafe_allow_html=True)
+                
+                full_plan_print_html = generate_general_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
+                render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
+
+                if st.button("🗑️ حذف خطة العمل المحددة", use_container_width=True):
+                    with db() as c:
+                        c.execute("DELETE FROM action_plans WHERE id=?", (chosen_plan_id,))
+                    st.success("✅ تم حذف خطة العمل بنجاح!"); st.rerun()
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
