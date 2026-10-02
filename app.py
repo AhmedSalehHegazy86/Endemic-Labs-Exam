@@ -406,7 +406,7 @@ def init_db():
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
             c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
 init_db()
 
@@ -416,7 +416,7 @@ def get_print_settings():
         if row: return dict(row)
         return {
             "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-            "margin_top": "8mm", "margin_bottom": "8mm", "margin_right": "8mm", "margin_left": "8mm",
+            "margin_top": "3mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
             "logo_base64": DEFAULT_LOGO,
             "logo2_base64": "",
             "bg_base64": "",
@@ -585,15 +585,15 @@ def render_logos_html():
     logo2 = sett.get("logo2_base64", "")
     if logo2:
         return f"""
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <img src="{logo1}" style="width: 55px; height: 55px; object-fit: contain;" alt="Logo 1">
-            <img src="{logo2}" style="width: 55px; height: 55px; object-fit: contain;" alt="Logo 2">
+        <div style="display: flex; gap: 4px; align-items: center;">
+            <img src="{logo1}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 1">
+            <img src="{logo2}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 2">
         </div>
         """
     else:
         return f"""
         <div>
-            <img src="{logo1}" style="width: 65px; height: 65px; object-fit: contain;" alt="Logo">
+            <img src="{logo1}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo">
         </div>
         """
 
@@ -623,10 +623,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin-top: {sett['margin_top']}; 
-                margin-bottom: {sett['margin_bottom']}; 
-                margin-right: {sett['margin_right']}; 
-                margin-left: {sett['margin_left']}; 
+                margin-top: 3mm; 
+                margin-bottom: 3mm; 
+                margin-right: 3mm; 
+                margin-left: 3mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
@@ -642,30 +642,30 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             .cert-wrapper {{ 
                 width: 100%; 
                 max-width: 210mm;
-                min-height: 297mm;
-                border: 12px double #059669; 
-                border-radius: 20px; 
+                min-height: 291mm;
+                border: 8px double #059669; 
+                border-radius: 12px; 
                 {bg_style}
                 display: flex; 
                 flex-direction: column; 
                 justify-content: space-between; 
                 align-items: center; 
-                padding: 16mm 22mm; 
+                padding: 8mm 12mm; 
                 box-sizing: border-box; 
                 position: relative; 
-                box-shadow: 0 6px 20px rgba(0,0,0,0.06); 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
                 page-break-inside: avoid;
                 break-inside: avoid;
             }}
-            .header-top {{ position: absolute; top: 12mm; left: 18mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 12mm; right: 18mm; text-align: right; font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; z-index: 2; }}
-            h2 {{ color: #047857; font-size: 19pt; margin-bottom: 4px; }}
-            h1 {{ color: #065f46; font-size: 28pt; margin: 10px 0; font-weight: 900; }}
-            p {{ font-size: 12pt; line-height: 1.7; color: #1f2937; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 8px 16mm; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12mm; margin-top: 6mm; z-index: 2; }}
-            .cert-watermark {{ font-size: 9pt; color: #059669; font-weight: bold; margin-top: 4px; z-index: 2; }}
+            .header-top {{ position: absolute; top: 6mm; left: 10mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 6mm; right: 10mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 10mm; width: 100%; z-index: 2; }}
+            h2 {{ color: #047857; font-size: 16pt; margin-bottom: 2px; }}
+            h1 {{ color: #065f46; font-size: 24pt; margin: 6px 0; font-weight: 900; }}
+            p {{ font-size: 10.5pt; line-height: 1.5; color: #1f2937; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 6px 10mm; margin: 6px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9.5pt; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 9.5pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 6mm; margin-top: 4mm; z-index: 2; }}
+            .cert-watermark {{ font-size: 8.5pt; color: #059669; font-weight: bold; margin-top: 2px; z-index: 2; }}
         </style>
     </head>
     <body>
@@ -674,7 +674,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div class="header-top">{render_logos_html()}</div>
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
-                <hr style="width: 45%; border: 1px solid #059669; margin: 6px auto;">
+                <hr style="width: 40%; border: 1px solid #059669; margin: 4px auto;">
                 <h1>{esc(r["trainee_name"])}</h1>
                 <p>
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
@@ -706,14 +706,14 @@ def generate_general_report_html(title, content_html, target_pages=1):
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin: 8mm; 
+                margin: 3mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
                 background: #ffffff; 
                 color: #111827; 
                 margin: 0; 
-                padding: 10mm; 
+                padding: 4mm; 
                 direction: rtl; 
                 -webkit-print-color-adjust: exact; 
             }}
@@ -728,30 +728,30 @@ def generate_general_report_html(title, content_html, target_pages=1):
                 justify-content: space-between; 
                 align-items: center; 
                 border-bottom: 2px solid #059669; 
-                padding-bottom: 8px; 
-                margin-bottom: 15px; 
+                padding-bottom: 4px; 
+                margin-bottom: 8px; 
             }}
             .header-right {{ 
-                font-size: 10pt; 
+                font-size: 9pt; 
                 font-weight: bold; 
                 color: #065f46; 
-                line-height: 1.4; 
+                line-height: 1.3; 
             }}
             h2 {{ 
                 text-align: center; 
                 color: #047857; 
-                font-size: 16pt; 
-                margin: 10px 0; 
+                font-size: 13pt; 
+                margin: 6px 0; 
             }}
             table {{ 
                 width: 100%; 
                 border-collapse: collapse; 
-                margin-top: 10px; 
-                font-size: 9.5pt; 
+                margin-top: 6px; 
+                font-size: 8.5pt; 
             }}
             th, td {{ 
                 border: 1px solid #cbd5e1; 
-                padding: 6px 8px; 
+                padding: 4px 6px; 
                 text-align: center; 
             }}
             th {{ 
@@ -763,13 +763,13 @@ def generate_general_report_html(title, content_html, target_pages=1):
                 background-color: #f0fdf4; 
             }}
             .footer {{ 
-                margin-top: 20px; 
+                margin-top: 10px; 
                 display: flex; 
                 justify-content: space-between; 
-                font-size: 9.5pt; 
+                font-size: 9pt; 
                 font-weight: bold; 
                 border-top: 1px dashed #059669; 
-                padding-top: 10px; 
+                padding-top: 6px; 
                 page-break-inside: avoid; 
                 break-inside: avoid; 
             }}
@@ -782,7 +782,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
                 <div>{render_logos_html()}</div>
             </div>
             <h2>{esc(title)}</h2>
-            <div style="text-align: left; font-size: 9pt; color: #6b7280; margin-bottom: 8px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
@@ -803,13 +803,13 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 8mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 10mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            @page {{ size: A4 auto; margin: 3mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; page-break-after: always; break-after: page; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 8px; margin-bottom: 15px; }}
-            .header-right {{ font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
-            h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 10px 0; }}
-            .footer {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 9.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 10px; page-break-inside: avoid; break-inside: avoid; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
+            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; }}
+            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -819,7 +819,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
                 <div>{render_logos_html()}</div>
             </div>
             <h2>{esc(title)}</h2>
-            <div style="text-align: left; font-size: 9pt; color: #6b7280; margin-bottom: 8px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
@@ -852,17 +852,17 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 3px 0; text-align: center;"><img src="{img_uri}" style="max-height: 80px; max-width: 100%; object-fit: contain; border-radius: 4px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 55px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
 
-        opts_html = "".join([f'<div style="padding: 2px 5px; margin: 2px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 8.5pt;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt;">🔲 {esc(opt)}</div>' for opt in opts])
         
         q_html_content += f"""
-        <div style="margin-bottom: 6px; padding: 6px 8px; background: #ffffff; border: 1px solid #059669; border-radius: 4px; page-break-inside: avoid; break-inside: avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 9pt;">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin-bottom: 4px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8.5pt;">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
-            <div style="margin-top: 3px; padding-right: 4px;">{opts_html}</div>
+            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
         """
 
@@ -872,19 +872,19 @@ def generate_exam_template_print_html(template_id):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 6mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 5mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            @page {{ size: A4 auto; margin: 3mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 6mm; margin-bottom: 8px; }}
-            .header-right {{ font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
-            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 4px 0; }}
-            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; font-size: 8.5pt; font-weight: bold; color: #065f46; text-align: center; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 6px; }}
+            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
+            h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; }}
             .questions-grid {{
                 column-count: 2;
-                column-gap: 6mm;
+                column-gap: 4mm;
                 column-fill: auto;
             }}
-            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; }}
+            .footer {{ margin-top: 6px; display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 4px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -895,7 +895,7 @@ def generate_exam_template_print_html(template_id):
             </div>
             <h2>نموذج امتحان: {esc(t_dict['name'])}</h2>
             <div class="tpl-info">
-                مدة الاختبار: {t_dict['duration_minutes']} دقيقة | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
+                مدة الاختبار: {t_dict['duration_minutes']} د | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
             </div>
             <div class="questions-grid">
                 {q_html_content}
@@ -933,7 +933,7 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 8mm; @bottom-right { content: counter(page); }; }';
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 3mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -1834,7 +1834,7 @@ def admin_dashboard():
                     </div>
                     
                     <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; margin: 10px 0; page-break-inside: avoid; break-inside: avoid;">
-                        <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🛠️️ الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
+                        <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🛠 الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
                         <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 9.5pt;">{esc(p_data['action_steps'])}</p>
                     </div>
                 </div>
