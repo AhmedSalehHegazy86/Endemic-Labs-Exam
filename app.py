@@ -248,9 +248,9 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️️ الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
+    "🖨 الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
-    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
@@ -875,7 +875,7 @@ def generate_exam_template_print_html(template_id):
             @page {{ size: A4 auto; margin: 6mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 5mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 6px; margin-bottom: 8px; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 6mm; margin-bottom: 8px; }}
             .header-right {{ font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
             h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 4px 0; }}
             .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; font-size: 8.5pt; font-weight: bold; color: #065f46; text-align: center; }}
@@ -923,32 +923,33 @@ def render_print_button_only(html_content, label_prefix=""):
         
     orient_css = "landscape" if "أفقي" in chosen_orient else "portrait"
 
-    components.html(f"""
+    js_code = """
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
-                🖨 طباعة / حفظ المستند (A4 {chosen_orient} - احتواء ضمن {num_pages_to_print} صفحة - {label_prefix})
+                🖨 طباعة / حفظ المستند (A4 """ + chosen_orient + """ - احتواء ضمن """ + str(num_pages_to_print) + """ صفحة - """ + label_prefix + """)
             </button>
         </div>
         <script>
-            function printDoc() {{
+            function printDoc() {
                 var win = window.open('', '_blank');
-                var targetPages = {num_pages_to_print};
-                var pageRule = '@page {{ size: A4 {orient_css}; margin: 8mm; @bottom-right {{ content: counter(page); }}; }}';
+                var targetPages = """ + str(num_pages_to_print) + """;
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 8mm; @bottom-right { content: counter(page); }; }';
                 
-                var styledHtml = {encoded_html}.replace(/@page\s*\{[^}}]*\}/g, pageRule);
+                var styledHtml = """ + encoded_html + """;
                 
                 var finalPagesHtml = '';
-                for (var i = 0; i < targetPages; i++) {{
+                for (var i = 0; i < targetPages; i++) {
                     finalPagesHtml += styledHtml;
-                }}
+                }
                 
                 win.document.write(finalPagesHtml);
                 win.document.close();
                 win.focus();
-                setTimeout(function(){{ win.print(); }}, 600);
-            }}
+                setTimeout(function(){ win.print(); }, 600);
+            }
         </script>
-    """, height=100)
+    """
+    components.html(js_code, height=100)
 
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
@@ -1833,7 +1834,7 @@ def admin_dashboard():
                     </div>
                     
                     <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; margin: 10px 0; page-break-inside: avoid; break-inside: avoid;">
-                        <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🛠️ الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
+                        <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🛠️️ الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
                         <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 9.5pt;">{esc(p_data['action_steps'])}</p>
                     </div>
                 </div>
