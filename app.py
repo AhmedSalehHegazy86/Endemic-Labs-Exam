@@ -222,7 +222,7 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة",
+    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
@@ -331,7 +331,8 @@ def init_db():
             margin_right TEXT NOT NULL,
             margin_left TEXT NOT NULL,
             logo_base64 TEXT NOT NULL,
-            logo2_base64 TEXT NOT NULL DEFAULT ''
+            logo2_base64 TEXT NOT NULL DEFAULT '',
+            bg_base64 TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -348,7 +349,12 @@ def init_db():
         except:
             pass
 
-        for col_def in [("exam_templates", "start_time", "TEXT"), ("exam_templates", "end_time", "TEXT"), ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''")]:
+        for col_def in [
+            ("exam_templates", "start_time", "TEXT"), 
+            ("exam_templates", "end_time", "TEXT"), 
+            ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''")
+        ]:
             try:
                 c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
             except:
@@ -357,8 +363,8 @@ def init_db():
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64) VALUES(?,?,?,?,?,?,?)",
-                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, ""))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64) VALUES(?,?,?,?,?,?,?,?)",
+                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, "", ""))
 
 init_db()
 
@@ -370,14 +376,15 @@ def get_print_settings():
             "header_text": "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
             "margin_top": "8mm", "margin_bottom": "8mm", "margin_right": "8mm", "margin_left": "8mm",
             "logo_base64": DEFAULT_LOGO,
-            "logo2_base64": ""
+            "logo2_base64": "",
+            "bg_base64": ""
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64) VALUES(?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64) VALUES(?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data))
 
 def get_hierarchical_data():
     with db() as c:
@@ -556,6 +563,9 @@ def generate_compact_certificate_html(sid, custom_notes=""):
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
+    bg_data = sett.get("bg_base64", "")
+    bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
+
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -565,19 +575,19 @@ def generate_compact_certificate_html(sid, custom_notes=""):
             @page {{ size: A4 landscape; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #fdfbf7; margin: 0; padding: 0; width: 297mm; height: 210mm; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; }}
             .cert-wrapper {{ 
-                width: 282mm; height: 195mm; border: 12px double #059669; border-radius: 20px; background: #ffffff; 
+                width: 282mm; height: 195mm; border: 12px double #059669; border-radius: 20px; {bg_style}
                 display: flex; flex-direction: column; justify-content: space-between; align-items: center; 
                 padding: 16mm 22mm; box-sizing: border-box; position: relative; box-shadow: 0 6px 20px rgba(0,0,0,0.06); 
             }}
-            .header-top {{ position: absolute; top: 12mm; left: 18mm; text-align: left; }}
-            .header-right {{ position: absolute; top: 12mm; right: 18mm; text-align: right; font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
-            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; }}
+            .header-top {{ position: absolute; top: 12mm; left: 18mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 12mm; right: 18mm; text-align: right; font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.4; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; z-index: 2; }}
             h2 {{ color: #047857; font-size: 19pt; margin-bottom: 4px; }}
             h1 {{ color: #065f46; font-size: 28pt; margin: 10px 0; font-weight: 900; }}
             p {{ font-size: 12pt; line-height: 1.7; color: #1f2937; }}
-            .notes-box {{ background: #f0fdf4; border: 1px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12px; margin-top: 6mm; }}
-            .cert-watermark {{ font-size: 9pt; color: #059669; font-weight: bold; margin-top: 4px; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12px; margin-top: 6mm; z-index: 2; }}
+            .cert-watermark {{ font-size: 9pt; color: #059669; font-weight: bold; margin-top: 4px; z-index: 2; }}
         </style>
     </head>
     <body>
@@ -762,7 +772,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
+        st.subheader("🖨 تحكم كامل في هوامش الورق، ترويسة اليمين، الشعارين، وخلفية الشهادات والأوراق")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
@@ -780,16 +790,27 @@ def admin_dashboard():
             with col_logo1: uploaded_logo1 = st.file_uploader("الشعار الأول:", type=["png", "jpg", "jpeg"], key="logo1_upload")
             with col_logo2: uploaded_logo2 = st.file_uploader("الشعار الثاني:", type=["png", "jpg", "jpeg"], key="logo2_upload")
 
+            st.markdown("#### 🖼️ خلفية الشهادات والأوراق الرسمية:")
+            uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة أو الورقة (PNG / JPG):", type=["png", "jpg", "jpeg"], key="bg_upload")
+            remove_bg = st.checkbox("حذف الخلفية الحالية (العودة لخلفية بيضاء سادة)")
+
             current_logo1_val = current_set["logo_base64"]
             if uploaded_logo1 is not None:
                 current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+            
             current_logo2_val = current_set.get("logo2_base64", "")
             if uploaded_logo2 is not None:
                 current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
 
-            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة", use_container_width=True):
-                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val)
-                st.success("✅ تم الحفظ بنجاح!"); st.rerun()
+            current_bg_val = current_set.get("bg_base64", "")
+            if remove_bg:
+                current_bg_val = ""
+            elif uploaded_bg is not None:
+                current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
+
+            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة والخلفية", use_container_width=True):
+                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val)
+                st.success("✅ تم الحفظ وتحديث إعدادات الطباعة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (المحافظة ⟵ الهيئة ⟵ المركز ⟵ الإدارة ⟵ المنشأة)")
@@ -854,7 +875,6 @@ def admin_dashboard():
             if not hier_rows:
                 st.info("لا توجد بيانات هيكل إداري مسجلة بعد.")
             else:
-                # إمكانية الحذف الفردي
                 facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['administration']} / {row['facility_name']}": row['id'] for row in hier_rows}
                 with st.form("delete_single_hier_form"):
                     selected_item_to_delete = st.selectbox("اختر المنشأة أو العنصر الإداري للحذف:", list(facility_map.keys()))
