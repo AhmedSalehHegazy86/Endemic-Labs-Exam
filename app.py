@@ -251,10 +251,10 @@ def init_db():
         );
         CREATE TABLE IF NOT EXISTS hierarchical_facilities (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            governorate TEXT NOT NULL,
             authority TEXT NOT NULL,
-            center TEXT NOT NULL,
+            governorate TEXT NOT NULL,
             administration TEXT NOT NULL,
+            center TEXT NOT NULL,
             facility_name TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
@@ -420,14 +420,14 @@ def login_user(u, p):
 def create_trainee(facility, name, phone, assigned_template_id=None):
     with db() as c:
         cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                        (normalize_text(facility), normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now()))
+                        (facility, normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now()))
         tid = cur.lastrowid
     return tid
 
 def trainee_by_credentials(name, facility):
     with db() as c:
         r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active')",
-                      (normalize_text(name), normalize_text(facility))).fetchone()
+                      (normalize_text(name), facility)).fetchone()
         return dict(r) if r else None
 
 def set_trainee_status_and_template(tid, status, assigned_template_id):
@@ -572,6 +572,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
+    # سحب الترويسة المخصصة للممتحن مباشرة من جهة العمل المسجلة
+    trainee_facility_str = r["facility"]
+    formatted_header = trainee_facility_str.replace(" - ", "<br>")
+
     bg_data = sett.get("bg_base64", "")
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
 
@@ -601,14 +605,14 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     </head>
     <body>
         <div class="cert-wrapper">
-            <div class="header-right">{sett['header_text']}</div>
+            <div class="header-right">{formatted_header}</div>
             <div class="header-top">{render_logos_html()}</div>
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
                 <hr style="width: 45%; border: 1px solid #059669; margin: 6px auto;">
                 <h1>{esc(r["trainee_name"])}</h1>
                 <p>
-                    الجهة: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
+                    الجهة: <b>{esc(trainee_facility_str)}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
                     رقم التحقق والشهادة: <code>{r["certificate_id"]}</code>
@@ -652,8 +656,23 @@ def render_print_button_only(html_content, label_prefix=""):
 for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
     if k not in st.session_state: st.session_state[k] = v
 
-def header():
-    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+def header(custom_facility_text=None):
+    if custom_facility_text:
+        formatted_header = custom_facility_text.replace(" - ", "<br>")
+    else:
+        formatted_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
+    
+    st.markdown(f"""
+    <div style="display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, #064e3b, #065f46, #047857); color: #ffffff; padding: 18px 24px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px;">
+        <div style="text-align: right; font-size: 13pt; font-weight: bold; line-height: 1.5;">
+            {formatted_header}
+        </div>
+        <div style="text-align: center;">
+            <h1 style="margin: 0; font-size: 22pt;">🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1>
+            <small style="color:#d1fae5;">System V1.0 • Developed by Dr/Ahmed.S.Hegazy</small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -663,25 +682,25 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً أو رفع ملفات الداتا.")
-            facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="الإدارة الصحية بأولاد صقر")
+            st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً من لوحة التحكم أو رفع ملفات الداتا.")
+            facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="مديرية الشئون الصحية بالشرقية - الشرقية - الإدارة الصحية بأولاد صقر - أولاد صقر - وحدة معملية")
         else:
-            govs = sorted(list(set(item["governorate"] for item in hier_data)))
-            selected_gov = st.selectbox("1️⃣ اختر المحافظة:", govs)
+            auths = sorted(list(set(item["authority"] for item in hier_data)))
+            selected_auth = st.selectbox("1️⃣ اختر الهيئة التابعة (مثل مديرية الشؤون الصحية):", auths)
             
-            auths = sorted(list(set(item["authority"] for item in hier_data if item["governorate"] == selected_gov)))
-            selected_auth = st.selectbox("2️⃣ اختر الهيئة / المديرية التابعة:", auths if auths else ["اختر المحافظة أولاً"])
+            govs = sorted(list(set(item["governorate"] for item in hier_data if item["authority"] == selected_auth)))
+            selected_gov = st.selectbox("2️⃣ اختر المحافظة:", govs if govs else ["اختر الهيئة أولاً"])
             
-            centers = sorted(list(set(item["center"] for item in hier_data if item["governorate"] == selected_gov and item["authority"] == selected_auth)))
-            selected_center = st.selectbox("3️⃣ اختر المركز التابع:", centers if centers else ["اختر الهيئة أولاً"])
+            admins = sorted(list(set(item["administration"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov)))
+            selected_admin = st.selectbox("3️⃣ اختر الإدارة الصحية التابعة (مثل الإدارة الصحية بـ):", admins if admins else ["اختر المحافظة أولاً"])
             
-            admins = sorted(list(set(item["administration"] for item in hier_data if item["governorate"] == selected_gov and item["authority"] == selected_auth and item["center"] == selected_center)))
-            selected_admin = st.selectbox("4️⃣ اختر الإدارة الصحية التابعة:", admins if admins else ["اختر المركز أولاً"])
+            centers = sorted(list(set(item["center"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin)))
+            selected_center = st.selectbox("4️⃣ اختر المركز التابع (مثل أولاد صقر):", centers if centers else ["اختر الإدارة أولاً"])
             
-            facs = sorted(list(set(item["facility_name"] for item in hier_data if item["governorate"] == selected_gov and item["authority"] == selected_auth and item["center"] == selected_center and item["administration"] == selected_admin)))
-            selected_facility = st.selectbox("5️⃣ اختر المنشأة الصحية النهائية:", facs if facs else ["اختر الإدارة أولاً"])
+            facs = sorted(list(set(item["facility_name"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin and item["center"] == selected_center)))
+            selected_facility = st.selectbox("5️⃣ اختر المنشأة الصحية النهائية:", facs if facs else ["اختر المركز أولاً"])
             
-            facility_final_str = f"{selected_gov} - {selected_auth} - {selected_center} - {selected_admin} - {selected_facility}"
+            facility_final_str = f"{selected_auth} - {selected_gov} - {selected_admin} - {selected_center} - {selected_facility}"
 
         name = st.text_input("الاسم الرباعي:")
         phone = st.text_input("رقم الهاتف:")
@@ -743,7 +762,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
+        st.warning("⚠️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -781,12 +800,9 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 تحكم كامل في هوامش الورق، ترويسة اليمين، الشعارين، الخلفية، والنصوص الافتراضية للشهادات")
+        st.subheader("🖨 تحكم كامل في هوامش الورق، الشعارين، الخلفية، والنصوص الافتراضية للشهادات")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
-            st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
-            new_header_text = st.text_area("نص الترويسة (يدعم HTML مثل <br>):", value=current_set["header_text"], height=90)
-            
             st.markdown("#### 📝 النصوص الافتراضية للشهادات:")
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
             def_notes_val = st.text_area("الملاحظات الافتراضية للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
@@ -822,43 +838,34 @@ def admin_dashboard():
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
             if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة والخلفية كإعدادات أساسية", use_container_width=True):
-                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
+                save_print_settings(current_set["header_text"], m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
                 st.success("✅ تم الحفظ وتعميم الإعدادات الجديدة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (المحافظة ⟵ الهيئة ⟵ المركز ⟵ الإدارة ⟵ المنشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (الهيئة ⟵ المحافظة ⟵ الإدارة ⟵ المركز ⟵ المنشأة)")
         
-        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة هيكل إداري يدوياً", "📥 رفع ملفات لكل قائمة (Excel / CSV)", "📋 استعراض وحذف وتفريغ البيانات"])
+        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة هيكل إداري يدوياً", "📥 رفع ملفات (Excel / CSV)", "📋 استعراض وحذف وتفريغ البيانات"])
         
         with tab_h1:
-            st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً:")
+            st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً بالترتيب الجديد:")
             with st.form("manual_hierarchical_form"):
+                m_auth = st.text_input("الهيئة (مثل: مديرية الشؤون الصحية):", value="مديرية الشئون الصحية")
                 m_gov = st.text_input("المحافظة:", value="الشرقية")
-                m_auth = st.text_input("الهيئة / المديرية:", value="مديرية الشئون الصحية بالشرقية")
+                m_admin = st.text_input("الإدارة (مثل: الإدارة الصحية بـ):", value="الإدارة الصحية بأولاد صقر")
                 m_center = st.text_input("المركز:", value="أولاد صقر")
-                m_admin = st.text_input("الإدارة الصحية:", value="الإدارة الصحية بأولاد صقر")
                 m_fac = st.text_input("اسم المنشأة الصحية النهائية (وحدة / معمل / مستشفى):")
                 
                 if st.form_submit_button("💾 حفظ وإضافة الهيكل الإداري", use_container_width=True):
                     if m_fac.strip():
                         with db() as c:
-                            c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at) VALUES(?,?,?,?,?,?)",
-                                      (m_gov.strip(), m_auth.strip(), m_center.strip(), m_admin.strip(), m_fac.strip(), now()))
+                            c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
+                                      (m_auth.strip(), m_gov.strip(), m_admin.strip(), m_center.strip(), m_fac.strip(), now()))
                         st.success(f"✅ تم إضافة المنشأة ({m_fac}) بنجاح إلى الهيكل الإداري!"); st.rerun()
                     else:
                         st.warning("⚠️ يرجى إدخال اسم المنشأة الصحية النهائية على الأقل.")
 
         with tab_h2:
-            st.markdown("#### 📂 إمكانية رفع ملف قاعدة بيانات لكل مستوى على حدة لتحديث واجهة الممتحن تلقائياً:")
-            up_level = st.selectbox("حدد المستوى المراد رفع ملفه:", [
-                "المحافظات (Governorates)",
-                "الهيئات / المديريات (Authorities)",
-                "المراكز (Centers)",
-                "الإدارات (Administrations)",
-                "المنشآت الصحية النهائية (Facilities)",
-                "الملف الشامل المتكامل (يحتوي على الأعمدة الخمسة)"
-            ])
-            
+            st.markdown("#### 📂 إمكانية رفع ملف قاعدة بيانات يحتوي على الأعمدة (authority, governorate, administration, center, facility_name):")
             up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
             if up_file is not None:
                 try:
@@ -868,15 +875,15 @@ def admin_dashboard():
                         added_cnt = 0
                         with db() as c:
                             for _, r in df_up.iterrows():
-                                gov = str(r.get("governorate", r.get("المحافظة", "الشرقية"))).strip()
                                 auth = str(r.get("authority", r.get("الهيئة", "مديرية الشئون الصحية"))).strip()
+                                gov = str(r.get("governorate", r.get("المحافظة", "الشرقية"))).strip()
+                                adm = str(r.get("administration", r.get("الإدارة", "الإدارة الصحية"))).strip()
                                 cent = str(r.get("center", r.get("المركز", "أولاد صقر"))).strip()
-                                adm = str(r.get("administration", r.get("الإدارة", "الإدارة الصحية بأولاد صقر"))).strip()
                                 fac = str(r.get("facility_name", r.get("المنشأة", "وحدة صحية"))).strip()
                                 
                                 if fac:
-                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at) VALUES(?,?,?,?,?,?)",
-                                              (gov, auth, cent, adm, fac, now()))
+                                    c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
+                                              (auth, gov, adm, cent, fac, now()))
                                     added_cnt += 1
                         st.success(f"🎉 تم إضافة وتحديث ({added_cnt}) سجل إداري بنجاح! واجهة الممتحن تم تحديثها فوراً."); st.balloons()
                 except Exception as e:
@@ -888,7 +895,7 @@ def admin_dashboard():
             if not hier_rows:
                 st.info("لا توجد بيانات هيكل إداري مسجلة بعد.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['administration']} / {row['facility_name']}": row['id'] for row in hier_rows}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']}": row['id'] for row in hier_rows}
                 with st.form("delete_single_hier_form"):
                     selected_item_to_delete = st.selectbox("اختر المنشأة أو العنصر الإداري للحذف:", list(facility_map.keys()))
                     c_del_btn, c_empty_all_btn = st.columns(2)
@@ -908,7 +915,7 @@ def admin_dashboard():
                         st.success("✅ تم تفريغ جدول الهيكل الإداري بالكامل!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows)
-                df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء"]
+                df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
@@ -1214,7 +1221,7 @@ def admin_dashboard():
                     with db() as c:
                         tpl_id_val = tpl_choices.get(selected_tpl_name) if tpl_choices else None
                         cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                                           (normalize_text(m_facility_name), normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now()))
+                                           (m_facility_name, normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now()))
                         new_tid = cur_tr.lastrowid
                         pct_val = (manual_score / manual_max) * 100 if manual_max > 0 else 0
                         passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
@@ -1330,7 +1337,7 @@ def admin_dashboard():
 def trainee_portal():
     with db() as c: tr = c.execute("SELECT * FROM trainees WHERE id=?", (st.session_state.trainee_id,)).fetchone()
     if not tr: st.session_state.trainee_id = None; st.rerun()
-    header()
+    header(tr["facility"])
 
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
@@ -1362,7 +1369,7 @@ def trainee_portal():
         start_t = t_dict.get("start_time")
         end_t = t_dict.get("end_time")
         
-        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الجهة: {esc(tr["facility"])} | الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>جهة العمل التابع لها: <b>{esc(tr["facility"])}</b><br>الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
         
         with st.container(border=True):
             st.markdown("#### 📅 موعد وتوقيت الاختبار المجدول:")
@@ -1389,8 +1396,12 @@ def trainee_portal():
 
 def exam_interface(session_id):
     with db() as c:
-        session = c.execute("SELECT * FROM exam_sessions WHERE id=?", (session_id,)).fetchone()
+        session = c.execute("SELECT s.*, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=?", (session_id,)).fetchone()
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
+    
+    if session:
+        header(session["facility"])
+
     answered = 0
     for row in rows:
         try: opts = json.loads(row["options_json"])
@@ -1423,7 +1434,10 @@ if st.session_state.get("exam_session_id"):
 elif st.session_state.trainee_id and not st.session_state.logged_in:
     if st.session_state.get("last_result_id"):
         sid = st.session_state.last_result_id
-        header()
+        with db() as c:
+            tr_res = c.execute("SELECT t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=?", (sid,)).fetchone()
+        header(tr_res["facility"] if tr_res else None)
+        
         st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
         
         curr_sett = get_print_settings()
