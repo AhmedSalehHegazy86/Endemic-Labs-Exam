@@ -248,9 +248,9 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
+    "🖨️️ الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
-    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
@@ -663,7 +663,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             h2 {{ color: #047857; font-size: 19pt; margin-bottom: 4px; }}
             h1 {{ color: #065f46; font-size: 28pt; margin: 10px 0; font-weight: 900; }}
             p {{ font-size: 12pt; line-height: 1.7; color: #1f2937; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 8px 16mm; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
             .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12mm; margin-top: 6mm; z-index: 2; }}
             .cert-watermark {{ font-size: 9pt; color: #059669; font-weight: bold; margin-top: 4px; z-index: 2; }}
         </style>
@@ -696,7 +696,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     </html>
     """
 
-def generate_general_report_html(title, content_html):
+def generate_general_report_html(title, content_html, target_pages=1):
     sett = get_print_settings()
     return f"""
     <!DOCTYPE html>
@@ -706,57 +706,52 @@ def generate_general_report_html(title, content_html):
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin: 10mm; 
+                margin: 8mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
                 background: #ffffff; 
                 color: #111827; 
                 margin: 0; 
-                padding: 15mm; 
+                padding: 10mm; 
                 direction: rtl; 
                 -webkit-print-color-adjust: exact; 
             }}
             .report-wrapper {{
                 max-width: 210mm;
                 margin: auto;
-                page-break-inside: avoid;
-                break-inside: avoid;
+                page-break-after: always;
+                break-after: page;
             }}
             .report-header {{ 
                 display: flex; 
                 justify-content: space-between; 
                 align-items: center; 
-                border-bottom: 3px solid #059669; 
-                padding-bottom: 12px; 
-                margin-bottom: 20px; 
+                border-bottom: 2px solid #059669; 
+                padding-bottom: 8px; 
+                margin-bottom: 15px; 
             }}
             .header-right {{ 
-                font-size: 11pt; 
+                font-size: 10pt; 
                 font-weight: bold; 
                 color: #065f46; 
-                line-height: 1.5; 
+                line-height: 1.4; 
             }}
             h2 {{ 
                 text-align: center; 
                 color: #047857; 
-                font-size: 20pt; 
-                margin: 15px 0; 
+                font-size: 16pt; 
+                margin: 10px 0; 
             }}
             table {{ 
                 width: 100%; 
                 border-collapse: collapse; 
-                margin-top: 15px; 
-                font-size: 11pt; 
-                page-break-inside: auto; 
-            }}
-            tr {{ 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
+                margin-top: 10px; 
+                font-size: 9.5pt; 
             }}
             th, td {{ 
                 border: 1px solid #cbd5e1; 
-                padding: 10px; 
+                padding: 6px 8px; 
                 text-align: center; 
             }}
             th {{ 
@@ -768,13 +763,13 @@ def generate_general_report_html(title, content_html):
                 background-color: #f0fdf4; 
             }}
             .footer {{ 
-                margin-top: 30px; 
+                margin-top: 20px; 
                 display: flex; 
                 justify-content: space-between; 
-                font-size: 11pt; 
+                font-size: 9.5pt; 
                 font-weight: bold; 
-                border-top: 2px dashed #059669; 
-                padding-top: 15px; 
+                border-top: 1px dashed #059669; 
+                padding-top: 10px; 
                 page-break-inside: avoid; 
                 break-inside: avoid; 
             }}
@@ -787,7 +782,7 @@ def generate_general_report_html(title, content_html):
                 <div>{render_logos_html()}</div>
             </div>
             <h2>{esc(title)}</h2>
-            <div style="text-align: left; font-size: 10pt; color: #6b7280; margin-bottom: 10px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            <div style="text-align: left; font-size: 9pt; color: #6b7280; margin-bottom: 8px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
@@ -800,7 +795,7 @@ def generate_general_report_html(title, content_html):
     </html>
     """
 
-def generate_action_plan_report_html(title, content_html):
+def generate_action_plan_report_html(title, content_html, target_pages=1):
     sett = get_print_settings()
     return f"""
     <!DOCTYPE html>
@@ -808,13 +803,13 @@ def generate_action_plan_report_html(title, content_html):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 10mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
-            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-inside: avoid; break-inside: avoid; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }}
-            .header-right {{ font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.5; }}
-            h2 {{ text-align: center; color: #047857; font-size: 20pt; margin: 15px 0; }}
-            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; }}
+            @page {{ size: A4 auto; margin: 8mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 10mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-after: always; break-after: page; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 8px; margin-bottom: 15px; }}
+            .header-right {{ font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
+            h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 10px 0; }}
+            .footer {{ margin-top: 20px; display: flex; justify-content: space-between; font-size: 9.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 10px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -824,7 +819,7 @@ def generate_action_plan_report_html(title, content_html):
                 <div>{render_logos_html()}</div>
             </div>
             <h2>{esc(title)}</h2>
-            <div style="text-align: left; font-size: 10pt; color: #6b7280; margin-bottom: 10px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            <div style="text-align: left; font-size: 9pt; color: #6b7280; margin-bottom: 8px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
@@ -924,27 +919,27 @@ def render_print_button_only(html_content, label_prefix=""):
         chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["رأسي (Portrait)", "أفقي (Landscape)"], key=orient_key)
     with col_opt2:
         copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
-        num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة:", min_value=1, max_value=50, value=1, key=copies_key)
+        num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة (الحد الأقصى للاحتواء):", min_value=1, max_value=50, value=1, key=copies_key)
         
     orient_css = "landscape" if "أفقي" in chosen_orient else "portrait"
 
     components.html(f"""
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
-                🖨 طباعة / حفظ المستند (A4 {chosen_orient} - {num_pages_to_print} صفحة/نسخة - {label_prefix})
+                🖨 طباعة / حفظ المستند (A4 {chosen_orient} - احتواء ضمن {num_pages_to_print} صفحة - {label_prefix})
             </button>
         </div>
         <script>
             function printDoc() {{
                 var win = window.open('', '_blank');
-                var styledHtml = {encoded_html}.replace('@page {{ size: A4 auto;', '@page {{ size: A4 {orient_css}; @bottom-right {{ content: counter(page); }};');
+                var targetPages = {num_pages_to_print};
+                var pageRule = '@page {{ size: A4 {orient_css}; margin: 8mm; @bottom-right {{ content: counter(page); }}; }}';
+                
+                var styledHtml = {encoded_html}.replace(/@page\s*\{[^}}]*\}/g, pageRule);
                 
                 var finalPagesHtml = '';
-                for (var i = 0; i < {num_pages_to_print}; i++) {{
+                for (var i = 0; i < targetPages; i++) {{
                     finalPagesHtml += styledHtml;
-                    if (i < {num_pages_to_print} - 1) {{
-                        finalPagesHtml += '<div style="page-break-after: always; break-after: page;"></div>';
-                    }}
                 }}
                 
                 win.document.write(finalPagesHtml);
@@ -1547,7 +1542,7 @@ def admin_dashboard():
         
         with db() as c: all_tpls_records = c.execute("SELECT id, name FROM exam_templates").fetchall()
         manual_tpl_choices = {row["name"]: row["id"] for row in all_tpls_records} if all_tpls_records else {}
-        manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
+        manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_keys else ["لا توجد نماذج اختبارات مسجلة"]
 
         with st.form("manual_score_form"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
@@ -1719,9 +1714,9 @@ def admin_dashboard():
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بناءً على الدرجات (مقاس A4)")
+        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (بناءً على التقييم والاختبارات)")
         
-        plan_tabs = st.tabs(["➕ إنشاء خطة عمل مخصصة", "📋 استعراض وإدارة خطط العمل المسجلة"])
+        plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
         
         with plan_tabs[0]:
             with db() as c:
@@ -1729,54 +1724,88 @@ def admin_dashboard():
                 all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
             
             with st.form("create_action_plan_form"):
-                target_category = st.radio("نطاق الخطة:", ["فرد (متحمس/متدرب محدد)", "جماعة (منشأة صحية بالكامل)"], horizontal=True)
+                target_category = st.radio("نطاق الخطة:", ["فرد (متدرب محدد)", "جماعة (منشأة صحية بالكامل)"], horizontal=True)
+                
+                auto_weakness_text = ""
+                auto_steps_text = ""
                 
                 if "فرد" in target_category:
                     if not all_tr_list:
                         st.warning("⚠️ لا توجد بيانات متدربين مسجلة بعد.")
                         target_name = ""
                     else:
-                        tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t['name'] for t in all_tr_list}
-                        sel_tr_label = st.selectbox("اختر المتدرب بناءً على درجاته:", list(tr_choices.keys()))
-                        target_name = tr_choices[sel_tr_label]
+                        tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
+                        sel_tr_label = st.selectbox("اختر المتدرب لاستخراج نقاط ضعفه تلقائياً:", list(tr_choices.keys()))
+                        chosen_tr_obj = tr_choices[sel_tr_label]
+                        target_name = chosen_tr_obj['name']
+                        
+                        # التحليل التلقائي الفردي
+                        with db() as c:
+                            incorrect_qs = c.execute("""
+                                SELECT q.category, q.question, eq.selected_option, q.answer 
+                                FROM exam_questions eq 
+                                JOIN questions q ON q.id=eq.question_id 
+                                JOIN exam_sessions s ON s.id=eq.session_id 
+                                WHERE s.trainee_id=? AND eq.is_correct=0
+                            """, (chosen_tr_obj['id'],)).fetchall()
+                            
+                        if incorrect_qs:
+                            failed_cats = list(set([r['category'] for r in incorrect_qs]))
+                            auto_weakness_text = f"تم رصد إخفاقات للمتدرب {target_name} في الأقسام التالية بناءً على نتائج الاختبارات الأخيرة:\n- " + "\n- ".join(failed_cats)
+                            auto_steps_text = f"1. عقد جلسة تدريب مركزة ومكثفة للأقسام التالية: {', '.join(failed_cats)}.\n2. إعادة الاختبار العملي والنظري بعد استكمال البرنامج العلاجي.\n3. متابعة أداء المتدرب الميداني داخل المنشأة."
+                        else:
+                            auto_weakness_text = "لم يتم رصد إخفاقات واضحة أو اجتاز المتدرب كافة الأسئلة بنجاح."
+                            auto_steps_text = "1. استمرار المتابعة الدورية وتحفيز المتدرب.\n2. إدراج المتدرب في دورات تنشيطية متقدمة."
                 else:
                     if not all_fac_list:
                         st.warning("⚠️ لا توجد جهات صحية مسجلة بعد.")
                         target_name = ""
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
+                        
+                        # التحليل التلقائي الجماعي للجهة
+                        with db() as c:
+                            fac_incorrect = c.execute("""
+                                SELECT q.category 
+                                FROM exam_questions eq 
+                                JOIN questions q ON q.id=eq.question_id 
+                                JOIN exam_sessions s ON s.id=eq.session_id 
+                                JOIN trainees t ON t.id=s.trainee_id 
+                                WHERE t.facility=? AND eq.is_correct=0
+                            """, (target_name,)).fetchall()
+                            
+                        if fac_incorrect:
+                            fac_cats = list(set([r['category'] for r in fac_incorrect]))
+                            auto_weakness_text = f"تم رصد نقاط ضعف متكررة لكوادر منشأة ({target_name}) في الأقسام التالية:\n- " + "\n- ".join(fac_cats)
+                            auto_steps_text = f"1. تنفيذ برنامج تدريبي جماعي للعاملين بالمنشأة يركز على: {', '.join(fac_cats)}.\n2. توفير الأدلة الإرشادية والمواد التعليمية داخل معمل المنشأة.\n3. تقييم العاملين بعد أسبوعين من تاريخ الخطة."
+                        else:
+                            auto_weakness_text = "مستوى العاملين بالمنشأة مستقر وتجتاز الاختبارات بكفاءة."
+                            auto_steps_text = "1. الحفاظ على مستوى الأداء المتميز.\n2. إجراء تقييم فصلي دوري."
 
                 st.markdown("---")
-                st.markdown("#### 🎯 تحديد نقاط الضعف المرصودة من الاختبارات:")
-                weak_areas = st.text_area("أبرز نقاط الضعف والأقسام التي لم يتم اجتيازها (مثل: الفحص المباشر، طفيليات البراز، كاتو كاتو):", value="")
-                action_steps = st.text_area("الخطوات الإجرائية والبرنامج التدريبي المقترح لعلاج نقاط الضعف:", value="")
-
-                st.markdown("---")
-                st.markdown("#### 📅 تحديد الإطار الزمني للخطة (باليوم والشهر والسنة):")
-                time_mode = st.radio("نوع التحديد الزمني:", ["تحديد بيوم وشهر وسنة محددة", "تحديد بشهر وسنة فقط"], horizontal=True)
+                st.markdown("#### 🎯 نقاط الضعف (تم استنتاجها وتحليلها تلقائياً):")
+                weak_areas = st.text_area("أبرز نقاط الضعف والأقسام المرصودة:", value=auto_weakness_text)
                 
-                col_d1, col_d2, col_d3 = st.columns(3)
+                st.markdown("#### 🛠️ الخطوات الإجرائية والبرنامج التدريبي المقترح:")
+                action_steps = st.text_area("الخطوات العلاجية:", value=auto_steps_text)
+
+                st.markdown("---")
+                st.markdown("#### 📅 تحديد الإطار الزمني للخطة (بالشهر والسنة):")
+                col_d1, col_d2 = st.columns(2)
                 with col_d1:
                     year_val = st.selectbox("السنة:", ["2026", "2027", "2028"], index=0)
                 with col_d2:
                     month_val = st.selectbox("الشهر:", ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"], index=8)
-                with col_d3:
-                    if "بيوم" in time_mode:
-                        day_val = st.number_input("اليوم:", min_value=1, max_value=31, value=1)
-                        time_frame_str = f"يوم {day_val} من {month_val} لسنة {year_val}"
-                    else:
-                        day_val = 1
-                        time_frame_str = f"شهر {month_val} لسنة {year_val}"
 
-                if st.form_submit_button("💾 حفظ وإنشاء خطة العمل", use_container_width=True):
+                if st.form_submit_button("💾 حفظ وإنشاء خطة العمل الذكية", use_container_width=True):
                     if not target_name.strip() or not weak_areas.strip():
-                        st.warning("⚠️️ يرجى استكمال البيانات الأساسية ونقاط الضعف.")
+                        st.warning("⚠️ يرجى استكمال البيانات.")
                     else:
                         with db() as c:
                             c.execute("""INSERT INTO action_plans(target_type, target_name, weakness_areas, action_steps, time_frame_type, specific_date, specific_month, specific_year, created_at)
                                          VALUES(?,?,?,?,?,?,?,?,?)""",
-                                      (target_category, target_name, weak_areas.strip(), action_steps.strip(), time_mode, str(day_val), month_val, year_val, now()))
-                        st.success("✅ تم حفظ خطة العمل بنجاح!"); st.rerun()
+                                      (target_category, target_name, weak_areas.strip(), action_steps.strip(), "تحديد بشهر وسنة فقط", "1", month_val, year_val, now()))
+                        st.success("✅ تم حفظ خطة العمل بناءً على التحليل التلقائي بنجاح!"); st.rerun()
 
         with plan_tabs[1]:
             with db() as c:
@@ -1785,29 +1814,27 @@ def admin_dashboard():
             if not plans_list:
                 st.info("لا توجد خطط عمل مسجلة حتى الآن.")
             else:
-                plan_map = {f"خطة رقم ({p['id']}) - [{p['target_type']}] المستهدف: {p['target_name']} ({p['time_frame_type']})": p['id'] for p in plans_list}
-                sel_plan_label = st.selectbox("اختر خطة العمل للمعاينة والطباعة:", list(plan_map.keys()))
+                plan_map = {f"خطة رقم ({p['id']}) - [{p['target_type']}] المستهدف: {p['target_name']} (شهر {p['specific_month']} {p['specific_year']})": p['id'] for p in plans_list}
+                sel_plan_label = st.selectbox("اختر خطة العمل للمعاينة والطباعة الذكية:", list(plan_map.keys()))
                 chosen_plan_id = plan_map[sel_plan_label]
                 
                 with db() as c:
                     p_data = dict(c.execute("SELECT * FROM action_plans WHERE id=?", (chosen_plan_id,)).fetchone())
 
                 plan_detail_html = f"""
-                <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px; page-break-inside: avoid; break-inside: avoid;">
-                    <h3 style="color: #047857; text-align: center;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء المعملي</h3>
-                    <hr style="border: 1px solid #059669;">
-                    <p><b>نوع النطاق:</b> {esc(p_data['target_type'])}</p>
-                    <p><b>المستهدف (فرد أو جهة):</b> {esc(p_data['target_name'])}</p>
-                    <p><b>الإطار الزمني للتنفيذ:</b> <b>{p_data['specific_date'] if 'بيوم' in p_data['time_frame_type'] else ''} {p_data['specific_month']} {p_data['specific_year']}</b></p>
+                <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 5px; page-break-inside: avoid; break-inside: avoid;">
+                    <h3 style="color: #047857; text-align: center; font-size: 14pt; margin: 5px 0;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء المعملي</h3>
+                    <hr style="border: 1px solid #059669; margin: 8px 0;">
+                    <p style="font-size: 9.5pt; margin: 4px 0;"><b>نوع النطاق:</b> {esc(p_data['target_type'])} | <b>المستهدف:</b> {esc(p_data['target_name'])} | <b>الإطار الزمني:</b> شهر {p_data['specific_month']} لسنة {p_data['specific_year']}</p>
                     
-                    <div style="background: #f0fdf4; border: 1px solid #059669; padding: 12px; border-radius: 8px; margin: 15px 0; page-break-inside: avoid; break-inside: avoid;">
-                        <h4 style="color: #065f46; margin-top: 0;">🎯 نقاط الضعف المرصودة (بناءً على الدرجات والتقييمات):</h4>
-                        <p style="white-space: pre-wrap; margin-bottom: 0;">{esc(p_data['weakness_areas'])}</p>
+                    <div style="background: #f0fdf4; border: 1px solid #059669; padding: 8px; border-radius: 6px; margin: 10px 0; page-break-inside: avoid; break-inside: avoid;">
+                        <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🎯 نقاط الضعف المرصودة (بناءً على التقييم الآلي):</h4>
+                        <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 9.5pt;">{esc(p_data['weakness_areas'])}</p>
                     </div>
                     
-                    <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; margin: 15px 0; page-break-inside: avoid; break-inside: avoid;">
-                        <h4 style="color: #065f46; margin-top: 0;">🛠️ الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
-                        <p style="white-space: pre-wrap; margin-bottom: 0;">{esc(p_data['action_steps'])}</p>
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; margin: 10px 0; page-break-inside: avoid; break-inside: avoid;">
+                        <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🛠️ الخطوات الإجرائية والبرنامج العلاجي والتدريبي:</h4>
+                        <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 9.5pt;">{esc(p_data['action_steps'])}</p>
                     </div>
                 </div>
                 """
