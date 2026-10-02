@@ -158,7 +158,7 @@ input, select, textarea {
 
 <script>
 document.addEventListener("contextmenu", function(e) { e.preventDefault(); });
-document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
+document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
 </script>
 """, unsafe_allow_html=True)
 
@@ -240,7 +240,7 @@ ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
     "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
-    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
+    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
     "🧩 مواعيد الامتحانات": "نماذج التدريب والمواعيد",
@@ -689,26 +689,21 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            st.warning("⚠️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
             facility_final_str = ""
         else:
-            # 1) الهيئة
             authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
             sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + authorities_list, index=0)
             
-            # 2) المحافظة (مرتبطة بالهيئة المختارَة)
             filtered_govs = sorted(list(set(item["governorate"] for item in hier_data if sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth)))
             sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + filtered_govs, index=0)
             
-            # 3) الإدارة الصحية (مرتبطة بالهيئة والمحافظة)
             filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov))))
             sel_admin = st.selectbox("الإدارة الصحية:", ["-- اختر الإدارة الصحية --"] + filtered_admins, index=0)
             
-            # 4) المركز (مرتبط بالهيئة والمحافظة والإدارة)
             filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin))))
             sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers, index=0)
             
-            # 5) المنشأة (مرتبطة بالهيكل السابق كاملاً)
             filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
             sel_fac = st.selectbox("اسم المنشأة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
             
@@ -728,7 +723,7 @@ def login_portal():
             if not facility_final_str:
                 st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
+                st.warning("⚠️️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
@@ -917,7 +912,7 @@ def admin_dashboard():
                     with c_del_btn:
                         single_del = st.form_submit_button("🗑️ حذف العنصر", use_container_width=True)
                     with c_empty_all_btn:
-                        empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
+                        empty_all = st.form_submit_button("⚠️️ تفريغ الكل", use_container_width=True)
                     
                     if single_del:
                         target_id = facility_map[selected_item_to_delete]
@@ -1303,12 +1298,42 @@ def admin_dashboard():
         st.dataframe(df_audit, use_container_width=True, hide_index=True)
 
 def trainee_portal():
-    with db() as c: tr = c.execute("SELECT * FROM trainees WHERE id=?", (st.session_state.trainee_id,)).fetchone()
-    if not tr: st.session_state.trainee_id = None; st.rerun()
+    with db() as c: 
+        tr = c.execute("SELECT * FROM trainees WHERE id=?", (st.session_state.trainee_id,)).fetchone()
+    if not tr: 
+        st.session_state.trainee_id = None
+        st.rerun()
+    
     header()
 
+    if tr["status"] == "pending":
+        st.markdown("""
+            <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 35px; border-radius: 16px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 40px; font-family: 'Cairo', sans-serif;">
+                <div style="font-size: 26px; font-weight: 900; margin-bottom: 10px;">⏳ حسابك في انتظار اعتماد الإدارة</div>
+                <p style="font-size: 15px; color: #d1fae5;">جاري تحديث الصفحة تلقائياً حتى يتم اعتمادك وتفعيل الاختبار...</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        components.html("""
+            <script>
+                setTimeout(function(){
+                    window.location.reload();
+                }, 5000);
+            </script>
+        """, height=0)
+        
+        if st.button("🔄 تحديث الصفحة يدوياً", use_container_width=True):
+            st.rerun()
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+            st.session_state.trainee_id = None
+            st.rerun()
+        return
+
     assigned_tpl_id = tr["assigned_template_id"]
-    with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
+    with db() as c: 
+        matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
 
     is_exam_open = False
     if matching_template:
@@ -1347,12 +1372,20 @@ def trainee_portal():
             with col_s2: st.markdown(f"🔴 **وقت النهاية:**\n`{format_e}`")
 
         st.success("🟢 **الاختبار مفتوح ومتاح الآن للتنفيذ!**")
-        if st.button("🚀 بدء الاختبار الآن", use_container_width=True):
-            try:
-                sid = start_session(tr["id"], matching_template["id"])
-                st.session_state.exam_session_id = sid
-                st.rerun()
-            except Exception as e: st.error(str(e))
+        
+        try:
+            sid = start_session(tr["id"], matching_template["id"])
+            st.session_state.exam_session_id = sid
+            st.rerun()
+        except Exception as e:
+            if "لديك اختبار نشط بالفعل" in str(e):
+                with db() as c:
+                    active_s = c.execute("SELECT id FROM exam_sessions WHERE trainee_id=? AND status='active' LIMIT 1", (tr["id"],)).fetchone()
+                    if active_s:
+                        st.session_state.exam_session_id = active_s["id"]
+                        st.rerun()
+            else:
+                st.error(str(e))
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_space1, col_btn, col_space2 = st.columns([1, 2, 1])
