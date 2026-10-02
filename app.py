@@ -191,13 +191,6 @@ def normalize_text(x):
     x = "" if x is None else str(x)
     return re.sub(r"\s+", " ", x.strip()).lower()
 
-def format_ba_prefix(text):
-    if not text: return ""
-    text_clean = str(text).strip()
-    if text_clean.startswith("بـ") or text_clean.startswith("ب"):
-        return text_clean
-    return f"بـ{text_clean}"
-
 def reindex_hierarchical_facilities():
     with db() as c:
         rows = c.execute("SELECT authority, governorate, administration, center, facility_name, created_at FROM hierarchical_facilities ORDER BY id ASC").fetchall()
@@ -711,22 +704,116 @@ def generate_general_report_html(title, content_html):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 10mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            @page {{ 
+                size: A4 auto; 
+                margin: 10mm; 
+            }}
+            body {{ 
+                font-family: 'Cairo', 'Tahoma', sans-serif; 
+                background: #ffffff; 
+                color: #111827; 
+                margin: 0; 
+                padding: 15mm; 
+                direction: rtl; 
+                -webkit-print-color-adjust: exact; 
+            }}
             .report-wrapper {{
                 max-width: 210mm;
                 margin: auto;
                 page-break-inside: avoid;
                 break-inside: avoid;
             }}
+            .report-header {{ 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                border-bottom: 3px solid #059669; 
+                padding-bottom: 12px; 
+                margin-bottom: 20px; 
+            }}
+            .header-right {{ 
+                font-size: 11pt; 
+                font-weight: bold; 
+                color: #065f46; 
+                line-height: 1.5; 
+            }}
+            h2 {{ 
+                text-align: center; 
+                color: #047857; 
+                font-size: 20pt; 
+                margin: 15px 0; 
+            }}
+            table {{ 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-top: 15px; 
+                font-size: 11pt; 
+                page-break-inside: auto; 
+            }}
+            tr {{ 
+                page-break-inside: avoid; 
+                break-inside: avoid; 
+            }}
+            th, td {{ 
+                border: 1px solid #cbd5e1; 
+                padding: 10px; 
+                text-align: center; 
+            }}
+            th {{ 
+                background-color: #059669; 
+                color: white; 
+                font-weight: bold; 
+            }}
+            tr:nth-child(even) {{ 
+                background-color: #f0fdf4; 
+            }}
+            .footer {{ 
+                margin-top: 30px; 
+                display: flex; 
+                justify-content: space-between; 
+                font-size: 11pt; 
+                font-weight: bold; 
+                border-top: 2px dashed #059669; 
+                padding-top: 15px; 
+                page-break-inside: avoid; 
+                break-inside: avoid; 
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="report-wrapper">
+            <div class="report-header">
+                <div class="header-right">{sett.get('header_text', '')}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>{esc(title)}</h2>
+            <div style="text-align: left; font-size: 10pt; color: #6b7280; margin-bottom: 10px;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            {content_html}
+            <div class="footer">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>مدير عام الإدارة</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_action_plan_report_html(title, content_html):
+    sett = get_print_settings()
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4 auto; margin: 10mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-inside: avoid; break-inside: avoid; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }}
             .header-right {{ font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.5; }}
             h2 {{ text-align: center; color: #047857; font-size: 20pt; margin: 15px 0; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; page-break-inside: auto; }}
-            tr {{ page-break-inside: avoid; break-inside: avoid; }}
-            th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: center; }}
-            th {{ background-color: #059669; color: white; font-weight: bold; }}
-            tr:nth-child(even) {{ background-color: #f0fdf4; }}
             .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
@@ -773,7 +860,6 @@ def render_print_button_only(html_content, label_prefix=""):
                 var win = window.open('', '_blank');
                 var styledHtml = {encoded_html}.replace('@page {{ size: A4 auto;', '@page {{ size: A4 {orient_css}; @bottom-right {{ content: counter(page); }};');
                 
-                // تكرار المستند بعدد الأوراق أو النسخ المطلوبة مع احتواء النصوص والجدول داخل حدود الصفحات
                 var finalPagesHtml = '';
                 for (var i = 0; i < {num_pages_to_print}; i++) {{
                     finalPagesHtml += styledHtml;
@@ -1029,7 +1115,7 @@ def admin_dashboard():
                     with c_del_btn:
                         single_del = st.form_submit_button("🗑 حذف العنصر", use_container_width=True)
                     with c_empty_all_btn:
-                        empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
+                        empty_all = st.form_submit_button("⚠️️ تفريغ الكل", use_container_width=True)
                     
                     if single_del:
                         target_id = facility_map[selected_item_to_delete]
@@ -1235,7 +1321,7 @@ def admin_dashboard():
             if all_questions_del:
                 q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
                 selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
-                if st.button("🗑️ حذف", use_container_width=True):
+                if st.button("🗑️️ حذف", use_container_width=True):
                     with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
                     st.success("✅ تم الحذف!"); st.rerun()
 
@@ -1561,7 +1647,7 @@ def admin_dashboard():
                 
                 st.markdown(plan_detail_html, unsafe_allow_html=True)
                 
-                full_plan_print_html = generate_general_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
+                full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
                 render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
 
                 if st.button("🗑️ حذف خطة العمل المحددة", use_container_width=True):
