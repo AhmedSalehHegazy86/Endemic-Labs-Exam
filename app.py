@@ -644,7 +644,7 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً أو رفع ملفات الداتا.")
+            st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً أو رفع ملفات الداتا.")
             facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="الإدارة الصحية بأولاد صقر")
         else:
             govs = sorted(list(set(item["governorate"] for item in hier_data)))
@@ -794,7 +794,7 @@ def admin_dashboard():
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (المحافظة ⟵ الهيئة ⟵ المركز ⟵ الإدارة ⟵ المنشأة)")
         
-        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة هيكل إداري يدوياً", "📥 رفع ملفات لكل قائمة (Excel / CSV)", "📋 استعراض وتفريغ البيانات"])
+        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة هيكل إداري يدوياً", "📥 رفع ملفات لكل قائمة (Excel / CSV)", "📋 استعراض وحذف وتفريغ البيانات"])
         
         with tab_h1:
             st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً:")
@@ -813,9 +813,6 @@ def admin_dashboard():
                         st.success(f"✅ تم إضافة المنشأة ({m_fac}) بنجاح إلى الهيكل الإداري!"); st.rerun()
                     else:
                         st.warning("⚠️ يرجى إدخال اسم المنشأة الصحية النهائية على الأقل.")
-
-        with tab_h1: # Note: handled inside tabs above
-            pass
 
         with tab_h2:
             st.markdown("#### 📂 إمكانية رفع ملف قاعدة بيانات لكل مستوى على حدة لتحديث واجهة الممتحن تلقائياً:")
@@ -852,18 +849,34 @@ def admin_dashboard():
                     st.error(f"خطأ في قراءة الملف: {e}")
 
         with tab_h3:
+            st.markdown("#### 📋 استعراض وإدارة بيانات الهيكل الإداري:")
             hier_rows = get_hierarchical_data()
             if not hier_rows:
                 st.info("لا توجد بيانات هيكل إداري مسجلة بعد.")
             else:
+                # إمكانية الحذف الفردي
+                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['administration']} / {row['facility_name']}": row['id'] for row in hier_rows}
+                with st.form("delete_single_hier_form"):
+                    selected_item_to_delete = st.selectbox("اختر المنشأة أو العنصر الإداري للحذف:", list(facility_map.keys()))
+                    c_del_btn, c_empty_all_btn = st.columns(2)
+                    with c_del_btn:
+                        single_del = st.form_submit_button("🗑️ حذف العنصر المختار نهائياً", use_container_width=True)
+                    with c_empty_all_btn:
+                        empty_all = st.form_submit_button("⚠️ تفريغ كافة الهيكل الإداري بالكامل", use_container_width=True)
+                    
+                    if single_del:
+                        target_id = facility_map[selected_item_to_delete]
+                        with db() as c:
+                            c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
+                        st.success("✅ تم حذف العنصر الإداري بنجاح!"); st.rerun()
+                    if empty_all:
+                        with db() as c:
+                            c.execute("DELETE FROM hierarchical_facilities")
+                        st.success("✅ تم تفريغ جدول الهيكل الإداري بالكامل!"); st.rerun()
+
                 df_hier = pd.DataFrame(hier_rows)
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
-                
-                if st.button("🗑️ تفريغ كافة بيانات الهيكل الإداري", use_container_width=True):
-                    with db() as c:
-                        c.execute("DELETE FROM hierarchical_facilities")
-                    st.success("✅ تم تفريغ الجدول بنجاح!"); st.rerun()
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين، تعديل النماذج، وحذف المتدربين نهائياً")
