@@ -657,7 +657,7 @@ def header():
 
 def login_portal():
     header()
-    st.markdown("<b>تسجيل وإرسال طلب المتدربين (تسجيل هرمي تفاعلي بالتبعِيّة)</b>", unsafe_allow_html=True)
+    st.markdown("<b>تسجيل وإرسال طلب المتدربين (برجاء الاختيار و التسجيل)</b>", unsafe_allow_html=True)
     
     hier_data = get_hierarchical_data()
     
