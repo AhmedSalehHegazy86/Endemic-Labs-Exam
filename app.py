@@ -723,7 +723,7 @@ def login_portal():
             if not facility_final_str:
                 st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠️️ يرجى اختيار نموذج الاختبار.")
+                st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
@@ -813,7 +813,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ الطباعة والترويسة":
+    elif selected_menu == "🖨️️ الطباعة والترويسة":
         st.subheader("🖨 إعدادات الطباعة والترويسة والخلفيات")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -912,7 +912,7 @@ def admin_dashboard():
                     with c_del_btn:
                         single_del = st.form_submit_button("🗑️ حذف العنصر", use_container_width=True)
                     with c_empty_all_btn:
-                        empty_all = st.form_submit_button("⚠️️ تفريغ الكل", use_container_width=True)
+                        empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
                     
                     if single_del:
                         target_id = facility_map[selected_item_to_delete]
@@ -1229,23 +1229,69 @@ def admin_dashboard():
         st.info("خطط العمل جاهزة لإصدار التقارير.")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
-        st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات")
+        st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
             with open(DB_PATH, "rb") as f: db_bytes = f.read()
             st.download_button("📥 تحميل النسخة (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_0.db", mime="application/octet-stream", use_container_width=True)
         with col_bk2:
-            uploaded_db_file = st.file_uploader("استعادة ملف قاعدة بيانات (.db):", type=["db"], key="restore_db_uploader")
+            uploaded_db_file = st.file_uploader("رفع ملف قاعدة بيانات (.db):", type=["db"], key="restore_db_uploader")
             if uploaded_db_file is not None:
-                if st.button("⚠️ استبدال القاعدة الحالية", use_container_width=True):
-                    try:
-                        with open(DB_PATH, "wb") as f_out: f_out.write(uploaded_db_file.getbuffer())
-                        st.success("✅ تمت الاستعادة بنجاح!"); time.sleep(1); st.rerun()
-                    except Exception as e: st.error(f"خطأ: {e}")
+                c_btn_res, c_btn_merge = st.columns(2)
+                with c_btn_res:
+                    if st.button("⚠️ استبدال القاعدة الحالية بالكامل", use_container_width=True):
+                        try:
+                            with open(DB_PATH, "wb") as f_out: f_out.write(uploaded_db_file.getbuffer())
+                            st.success("✅ تمت الاستعادة بنجاح!"); time.sleep(1); st.rerun()
+                        except Exception as e: st.error(f"خطأ: {e}")
+                with c_btn_merge:
+                    if st.button("🔄 دمج البيانات المرفوعة بالبرنامج", use_container_width=True):
+                        try:
+                            temp_db_path = os.path.join(BASE, "temp_merge.db")
+                            with open(temp_db_path, "wb") as f_out:
+                                f_out.write(uploaded_db_file.getbuffer())
+                            
+                            src_conn = sqlite3.connect(temp_db_path)
+                            src_conn.row_factory = sqlite3.Row
+                            
+                            with db() as dest_conn:
+                                # دمج الأسئلة (بدون تكرار بناءً على الـ fingerprint)
+                                src_qs = src_conn.execute("SELECT * FROM questions").fetchall()
+                                merged_q_count = 0
+                                for q in src_qs:
+                                    try:
+                                        dest_conn.execute("INSERT INTO questions(difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                                          (q["difficulty"], q["category"], q["question"], q["options_json"], q["answer"], q["explanation"], q["reference"], q["active"], q["fingerprint"], q["created_at"]))
+                                        merged_q_count += 1
+                                    except sqlite3.IntegrityError:
+                                        pass
+                                
+                                # دمج الهيكل الإداري
+                                src_hier = src_conn.execute("SELECT * FROM hierarchical_facilities").fetchall()
+                                merged_h_count = 0
+                                for h in src_hier:
+                                    exists = dest_conn.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND governorate=? AND administration=? AND center=? AND facility_name=?",
+                                                               (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"])).fetchone()
+                                    if not exists:
+                                        dest_conn.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at) VALUES(?,?,?,?,?,?)",
+                                                          (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"], h["created_at"]))
+                                        merged_h_count += 1
+
+                            src_conn.close()
+                            if os.path.exists(temp_db_path):
+                                os.remove(temp_db_path)
+                            
+                            reindex_hierarchical_facilities()
+                            st.success(f"🎉 تم الدمج بنجاح! (تم إضافة {merged_q_count} سؤالاً، و {merged_h_count} منشأة جديدة دون فقدان البيانات السابقة).")
+                            time.sleep(1.5)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"خطأ أثناء الدمج: {e}")
 
     elif selected_menu == "👥 إدارة المستخدمين":
-        st.subheader("👥 إدارة المستخدمين وصلاحياتهم")
-        tab_u1, tab_u2 = st.tabs(["➕ إضافة مستخدم", "⚙ التعديل والحذف"])
+        st.subheader("👥 إدارة المستخدمين وصلاحياتهم وتعديل بيانات الاعتماد")
+        tab_u1, tab_u2, tab_u3 = st.tabs(["➕ إضافة مستخدم", "⚙ الصلاحيات والحذف", "🔑 تعديل اسم وكلمة المرور"])
+        
         with tab_u1:
             with st.form("add_user_form_v1_0"):
                 new_u_name = st.text_input("اسم المستخدم:", value="")
@@ -1266,6 +1312,7 @@ def admin_dashboard():
                                 st.success("✅ تم الإضافة!")
                             except sqlite3.IntegrityError: st.error("مستخدم مسبقاً.")
                     else: st.warning("أدخل البيانات.")
+                    
         with tab_u2:
             with db() as c: all_users = c.execute("SELECT id, username, role, permissions_json FROM users WHERE role != 'admin'").fetchall()
             if not all_users: st.info("لا توجد مستخدمين.")
@@ -1291,6 +1338,57 @@ def admin_dashboard():
                     if del_btn:
                         with db() as c: c.execute("DELETE FROM users WHERE id=?", (target_user["id"],))
                         st.success("✅ تم الحذف!"); st.rerun()
+                        
+        with tab_u3:
+            st.markdown("#### 🔑 تعديل اسم المستخدم وكلمة المرور للمالك أو المستخدمين")
+            st.info("📌 **شروط التعديل:** يجب إدخال كلمة المرور الحالية بشكل صحيح (أو كلمة مرور المالك الأساسية في حال تعديل حساب آخر) لضمان الأمان.")
+            
+            with db() as c: all_sys_users = c.execute("SELECT id, username, role FROM users").fetchall()
+            sys_user_choices = {f"{u['username']} ({ROLES.get(u['role'], u['role'])})": u for u in all_sys_users}
+            
+            with st.form("edit_credentials_form"):
+                sel_target_user_label = st.selectbox("اختر الحساب المراد تعديله:", list(sys_user_choices.keys()))
+                chosen_target = sys_user_choices[sel_target_user_label]
+                
+                new_username_input = st.text_input("اسم المستخدم الجديد:", value=chosen_target["username"])
+                current_password_input = st.text_input("كلمة المرور الحالية (للتأكيد):", type="password", value="")
+                new_password_input = st.text_input("كلمة المرور الجديدة (اتركها فارغة إن لم ترد تغييرها):", type="password", value="")
+                
+                if st.form_submit_button("🔒 تحديث بيانات الدخول", use_container_width=True):
+                    if not current_password_input.strip():
+                        st.warning("⚠️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
+                    else:
+                        with db() as c:
+                            actor_user = c.execute("SELECT * FROM users WHERE username=?", (st.session_state.username,)).fetchone()
+                            target_db_rec = c.execute("SELECT * FROM users WHERE id=?", (chosen_target["id"],)).fetchone()
+                        
+                        is_admin_actor = actor_user and actor_user["role"] == "admin"
+                        verified_actor = actor_user and verify_password(current_password_input, actor_user["password_hash"])
+                        verified_target = target_db_rec and verify_password(current_password_input, target_db_rec["password_hash"])
+                        
+                        if verified_actor or verified_target or (is_admin_actor and st.session_state.username == "admin" and current_password_input == "admin"):
+                            new_uname_clean = new_username_input.strip()
+                            if not new_uname_clean:
+                                st.error("❌ اسم المستخدم لا يمكن أن يكون فارغاً.")
+                            else:
+                                with db() as c:
+                                    try:
+                                        if new_password_input.strip():
+                                            new_hash = hash_password(new_password_input.strip())
+                                            c.execute("UPDATE users SET username=?, password_hash=? WHERE id=?", (new_uname_clean, new_hash, chosen_target["id"]))
+                                        else:
+                                            c.execute("UPDATE users SET username=? WHERE id=?", (new_uname_clean, chosen_target["id"]))
+                                        
+                                        st.success("✅ تم تحديث بيانات الدخول بنجاح! يرجى إعادة تسجيل الدخول.")
+                                        time.sleep(1.5)
+                                        st.session_state.logged_in = False
+                                        st.session_state.username = ""
+                                        st.session_state.role = ""
+                                        st.rerun()
+                                    except sqlite3.IntegrityError:
+                                        st.error("❌ اسم المستخدم الجديد مستخدم مسبقاً، اختر اسمًا آخر.")
+                        else:
+                            st.error("❌ كلمة المرور الحالية غير صحيحة.")
 
     elif selected_menu == "🧾 سجل التدقيق":
         st.subheader("🧾 سجل التدقيق")
