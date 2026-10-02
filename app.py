@@ -158,7 +158,7 @@ input, select, textarea {
 
 <script>
 document.addEventListener("contextmenu", function(e) { e.preventDefault(); });
-document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
+document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
 </script>
 """, unsafe_allow_html=True)
 
@@ -689,13 +689,31 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            facility_final_str = st.text_input("اسم جهة العمل:", value="")
+            st.warning("⚠️️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            facility_final_str = ""
         else:
-            hier_options = ["-- اختر جهة العمل من الهيكل الإداري --"] + [f"{item['authority']} - {item['governorate']} - {item['administration']} - {item['center']} - {item['facility_name']}" for item in hier_data]
-            selected_facility_full = st.selectbox("جهة العمل (الهيكل الإداري الكامل):", hier_options, index=0)
+            # 1) الهيئة
+            authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
+            sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + authorities_list, index=0)
             
-            if selected_facility_full != "-- اختر جهة العمل من الهيكل الإداري --":
-                facility_final_str = selected_facility_full
+            # 2) المحافظة (مرتبطة بالهيئة المختارَة)
+            filtered_govs = sorted(list(set(item["governorate"] for item in hier_data if sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth)))
+            sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + filtered_govs, index=0)
+            
+            # 3) الإدارة الصحية (مرتبطة بالهيئة والمحافظة)
+            filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov))))
+            sel_admin = st.selectbox("الإدارة الصحية:", ["-- اختر الإدارة الصحية --"] + filtered_admins, index=0)
+            
+            # 4) المركز (مرتبط بالهيئة والمحافظة والإدارة)
+            filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin))))
+            sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers, index=0)
+            
+            # 5) المنشأة (مرتبطة بالهيكل السابق كاملاً)
+            filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
+            sel_fac = st.selectbox("اسم المنشأة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
+            
+            if sel_auth != "-- اختر الهيئة --" and sel_gov != "-- اختر المحافظة --" and sel_admin != "-- اختر الإدارة الصحية --" and sel_center != "-- اختر المركز --" and sel_fac != "-- اختر المنشأة --":
+                facility_final_str = f"{sel_auth} - {sel_gov} - {sel_admin} - {sel_center} - {sel_fac}"
             else:
                 facility_final_str = ""
 
@@ -708,7 +726,7 @@ def login_portal():
         
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
             if not facility_final_str:
-                st.warning("⚠️ يرجى اختيار جهة العمل من الهيكل الإداري.")
+                st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
                 st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
@@ -962,7 +980,7 @@ def admin_dashboard():
                             new_chosen_tpl = st.selectbox("تعديل النموذج:", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
                             c_upd, c_del = st.columns(2)
                             with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                            with c_del: del_btn = st.form_submit_button("🗑️ حذف", use_container_width=True)
+                            with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
                             if upd_btn and all_tpls_map:
                                 set_trainee_status_and_template(int(tr_row['id']), tr_row['status'], all_tpls_map[new_chosen_tpl])
                                 st.success("✅ تم التحديث!"); st.rerun()
