@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v67.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v68.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v67_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v68_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,7 +40,7 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) وحماية الأمان الفائق وحقوق الملكية
+# 2) حقن التنسيقات (CSS) وحماية الأمان وحقوق الملكية
 # ============================================================
 st.markdown("""
 <style>
@@ -156,7 +156,7 @@ input, select, textarea {
 }
 </style>
 
-<!-- سكريبت الأمان المتقدم ومنع فحص الأكواد وسرقة البيانات -->
+<!-- سكريبت الأمان المتقدم وحماية الحقوق -->
 <script>
 document.addEventListener("contextmenu", function(e) {
     e.preventDefault();
@@ -187,15 +187,14 @@ document.addEventListener("keydown", function(e) {
     }
 });
 
-// كشف فتح أدوات المطور (DevTools Detection)
 let devtoolsOpen = function() {};
 devtoolsOpen.toString = function() {
-    document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم اكتشاف محاولة فحص الأكواد البرمجية. تم حظر الجلسة للأمان.</h1>";
+    document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم اكتشاف أدوات المطورين. تم حظر الجلسة.</h1>";
 };
 setInterval(function() {
     let threshold = 160;
     if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
-        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم إيقاف النظام لأسباب أمنية (تم رصد أدوات المطورين).</h1>";
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم إيقاف النظام لأسباب أمنية.</h1>";
     }
 }, 1000);
 
@@ -216,7 +215,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وإعدادات المواعيد
+# 3) دوال النظام وقاعدة البيانات وإعدادات الصلاحيات
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -267,6 +266,22 @@ def db():
     finally:
         conn.close()
 
+ALL_MENU_MODULES = {
+    "📊 لوحة التحكم": "لوحة المؤشرات العامة",
+    "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)": "إعدادات الطباعة والترويسة",
+    "🏥 إدارة المنشآت": "إدارة المنشآت الصحية",
+    "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار": "اعتماد المتدربين والنماذج",
+    "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)": "بنك الأسئلة الشامل وإكسيل",
+    "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
+    "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات": "نماذج التدريب والمواعيد",
+    "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
+    "📊 التقارير وتحليل الأداء والرسوم البيانية": "التقارير وتحليل الأداء",
+    "📈 خطط العمل التدريبية ورفع الكفاءة": "خطط العمل التدريبية",
+    "💾 النسخ الاحتياطي": "النسخ الاحتياطي لقاعدة البيانات",
+    "👥 إدارة المستخدمين": "إدارة المستخدمين والصلاحيات",
+    "🧾 سجل التدقيق": "سجل التدقيق والأحداث"
+}
+
 def init_db():
     with db() as c:
         c.executescript("""
@@ -275,6 +290,7 @@ def init_db():
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'viewer',
+            permissions_json TEXT NOT NULL DEFAULT '[]',
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             last_login TEXT
@@ -368,6 +384,11 @@ def init_db():
             created_at TEXT NOT NULL
         );
         """)
+
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN permissions_json TEXT NOT NULL DEFAULT '[]'")
+        except:
+            pass
 
         for col_def in [("exam_templates", "start_time", "TEXT"), ("exam_templates", "end_time", "TEXT"), ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''")]:
             try:
@@ -506,25 +527,17 @@ def reorder_question_ids():
 def ensure_admin():
     with db() as c:
         u = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
+        all_modules = list(ALL_MENU_MODULES.keys())
         if not u:
-            c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,active,created_at) VALUES(?,?,?,?,?)",
-                      ("admin", hash_password("admin"), "admin", 1, now()))
+            c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,permissions_json,active,created_at) VALUES(?,?,?,?,?,?)",
+                      ("admin", hash_password("admin"), "admin", json.dumps(all_modules, ensure_ascii=False), 1, now()))
         else:
-            c.execute("UPDATE users SET password_hash=? WHERE role='admin'", (hash_password("admin"),))
+            c.execute("UPDATE users SET password_hash=?, permissions_json=? WHERE role='admin'", (hash_password("admin"), json.dumps(all_modules, ensure_ascii=False)))
 
 ensure_admin()
 reorder_question_ids()
 reorder_template_ids()
 
-def audit(action, entity=None, details=None):
-    actor = st.session_state.get("username") or st.session_state.get("trainee_name") or "system"
-    with db() as c:
-        c.execute("INSERT INTO audit_logs(actor,action,entity,details,created_at) VALUES(?,?,?,?,?)",
-                  (actor, action, entity, json.dumps(details, ensure_ascii=False) if isinstance(details, dict) else details, now()))
-
-# ============================================================
-# 4) دوال المتدربين والاختبارات
-# ============================================================
 def login_user(u, p):
     with db() as c:
         user = c.execute("SELECT * FROM users WHERE username=? AND active=1", (u.strip(),)).fetchone()
@@ -657,9 +670,6 @@ def submit_session(sid):
         c.execute("UPDATE trainees SET status='completed', updated_at=? WHERE id=?", (now(), s["trainee_id"]))
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
-# ============================================================
-# 5) دوال العرض والشعارات والشهادات
-# ============================================================
 def render_logos_html():
     sett = get_print_settings()
     logo1 = sett.get("logo_base64", DEFAULT_LOGO)
@@ -762,11 +772,11 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "tpl_success_msg": ""}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "tpl_success_msg": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v67.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v68.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -808,6 +818,10 @@ def login_portal():
                     st.session_state.logged_in = True
                     st.session_state.username = user["username"]
                     st.session_state.role = user["role"]
+                    try:
+                        st.session_state.permissions = json.loads(user["permissions_json"]) if user["permissions_json"] else []
+                    except:
+                        st.session_state.permissions = list(ALL_MENU_MODULES.keys())
                     st.rerun()
                 else:
                     st.error("بيانات الدخول الإدارية غير صحيحة.")
@@ -821,24 +835,19 @@ def admin_dashboard():
             st.session_state.logged_in = False
             st.session_state.username = ""
             st.session_state.role = ""
+            st.session_state.permissions = []
             st.rerun()
 
-    menu_options = [
-        "📊 لوحة التحكم",
-        "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)",
-        "🏥 إدارة المنشآت",
-        "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار",
-        "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)",
-        "⚙ إدارة الأسئلة",
-        "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات",
-        "✍ تسجيل نتيجة يدوي",
-        "📊 التقارير وتحليل الأداء والرسوم البيانية",
-        "📈 خطط العمل التدريبية ورفع الكفاءة",
-        "💾 النسخ الاحتياطي"
-    ]
-    if st.session_state.role == "admin": menu_options += ["👥 إدارة المستخدمين", "🧾 سجل التدقيق"]
+    all_modules_list = list(ALL_MENU_MODULES.keys())
+    user_perms = st.session_state.permissions if st.session_state.role != "admin" else all_modules_list
+    
+    available_menus = [m for m in all_modules_list if m in user_perms]
 
-    selected_menu = st.selectbox("📌 القائمة الرئيسية لإدارة المنصة:", menu_options, label_visibility="collapsed")
+    if not available_menus:
+        st.warning("⚠️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها. يرجى مراجعة مالك المنصة (Admin).")
+        return
+
+    selected_menu = st.selectbox("📌 القائمة الرئيسية لإدارة المنصة:", available_menus, label_visibility="collapsed")
     st.markdown("---")
 
     if selected_menu == "📊 لوحة التحكم":
@@ -856,7 +865,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
+    elif selected_menu == "🖨️️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
         st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -890,14 +899,14 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v67", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v68", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
                     if new_fac_input.strip():
                         success, msg = add_facility_manual_db(manual_id_input, new_fac_input)
                         if success: st.success(f"✅ تم إضافة المنشأة بنجاح!"); st.rerun()
-                        else: st.warning(f"⚠️ {msg}")
+                        else: st.warning(f"⚠️️ {msg}")
                     else: st.error("الرجاء كتابة اسم المنشأة.")
         with tab_fac_2:
             facs_rows = get_facilities()
@@ -907,7 +916,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v67", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v68", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -979,7 +988,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v67")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v68")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1224,12 +1233,73 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v67.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v68.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
-        st.subheader("👥 إدارة المستخدمين")
-        with db() as c: users_list = c.execute("SELECT id, username, role, active, created_at FROM users").fetchall()
-        st.dataframe(pd.DataFrame([dict(u) for u in users_list]), use_container_width=True, hide_index=True)
+        st.subheader("👥 إدارة المستخدمين وتحديد الصلاحيات التفصيلية لكل مكون")
+        
+        tab_u1, tab_u2 = st.tabs(["➕ إضافة مستخدم جديد وتحديد صلاحياته", "⚙ تعديل صلاحيات وحذف المستخدمين"])
+        
+        with tab_u1:
+            with st.form("add_user_form_v68"):
+                new_u_name = st.text_input("اسم المستخدم الجديد:")
+                new_u_pass = st.text_input("كلمة المرور:", type="password")
+                new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
+                
+                st.markdown("#### 🔐 تحديد صلاحيات الوصول لمكونات النظام:")
+                selected_modules_checkboxes = {}
+                for mod_key, mod_desc in ALL_MENU_MODULES.items():
+                    selected_modules_checkboxes[mod_key] = st.checkbox(f"{mod_key} ({mod_desc})", value=True)
+                
+                if st.form_submit_button("💾 إنشاء المستخدم وحفظ الصلاحيات", use_container_width=True):
+                    if new_u_name.strip() and new_u_pass.strip():
+                        assigned_perms = [k for k, v in selected_modules_checkboxes.items() if v]
+                        with db() as c:
+                            try:
+                                c.execute("INSERT INTO users(username, password_hash, role, permissions_json, active, created_at) VALUES(?,?,?,?,?,?)",
+                                          (new_u_name.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), 1, now()))
+                                st.success("✅ تم إضافة المستخدم وصلاحياته بنجاح!")
+                            except sqlite3.IntegrityError:
+                                st.error("⚠️ اسم المستخدم مستخدم مسبقاً.")
+                    else:
+                        st.warning("الرجاء إدخال اسم المستخدم وكلمة المرور.")
+
+        with tab_u2:
+            with db() as c: all_users = c.execute("SELECT id, username, role, permissions_json FROM users WHERE role != 'admin'").fetchall()
+            if not all_users:
+                st.info("لا توجد حسابات مستخدمين فرعيين مسجلة.")
+            else:
+                user_map = {f"مستخدم: {u['username']} ({ROLES.get(u['role'], u['role'])})": u for u in all_users}
+                sel_user_label = st.selectbox("اختر المستخدم للتعديل أو الحذف:", list(user_map.keys()))
+                target_user = user_map[sel_user_label]
+                
+                try:
+                    curr_user_perms = json.loads(target_user["permissions_json"]) if target_user["permissions_json"] else []
+                except:
+                    curr_user_perms = []
+
+                with st.form(f"edit_user_perms_{target_user['id']}"):
+                    st.markdown(f"#### ⚙️ تعديل صلاحيات المستخدم: `{target_user['username']}`")
+                    edit_checkboxes = {}
+                    for mod_key, mod_desc in ALL_MENU_MODULES.items():
+                        is_checked = mod_key in curr_user_perms
+                        edit_checkboxes[mod_key] = st.checkbox(f"{mod_key} ({mod_desc})", value=is_checked, key=f"mod_chk_{target_user['id']}_{mod_key}")
+                    
+                    c_save, c_del = st.columns(2)
+                    with c_save:
+                        save_btn = st.form_submit_button("💾 حفظ الصلاحيات الجديدة", use_container_width=True)
+                    with c_del:
+                        del_btn = st.form_submit_button("🗑️ حذف المستخدم نهائياً", use_container_width=True)
+                    
+                    if save_btn:
+                        new_assigned = [k for k, v in edit_checkboxes.items() if v]
+                        with db() as c:
+                            c.execute("UPDATE users SET permissions_json=? WHERE id=?", (json.dumps(new_assigned, ensure_ascii=False), target_user["id"]))
+                        st.success("✅ تم تحديث صلاحيات المستخدم بنجاح!"); st.rerun()
+                    if del_btn:
+                        with db() as c:
+                            c.execute("DELETE FROM users WHERE id=?", (target_user["id"],))
+                        st.success(f"✅ تم حذف المستخدم ({target_user['username']}) بنجاح!"); st.rerun()
 
     elif selected_menu == "🧾 سجل التدقيق":
         st.subheader("🧾 سجل التدقيق")
