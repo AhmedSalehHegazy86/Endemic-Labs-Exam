@@ -169,7 +169,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات
+# 3) دوال النظام وقاعدة البيانات وإعادة الترتيب التلقائي للـ ID
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -197,6 +197,15 @@ def format_ba_prefix(text):
     if text_clean.startswith("بـ") or text_clean.startswith("ب"):
         return text_clean
     return f"بـ{text_clean}"
+
+def reindex_hierarchical_facilities():
+    with db() as c:
+        rows = c.execute("SELECT authority, governorate, administration, center, facility_name, created_at FROM hierarchical_facilities ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM hierarchical_facilities")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
+        for r in rows:
+            c.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at) VALUES(?,?,?,?,?,?)",
+                      (r["authority"], r["governorate"], r["administration"], r["center"], r["facility_name"], r["created_at"]))
 
 def hash_password(password, salt=None):
     salt = salt or secrets.token_bytes(16)
@@ -680,35 +689,31 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد.")
-            facility_final_str = st.text_input("اسم جهة العمل:")
+            facility_final_str = st.text_input("اسم جهة العمل:", value="")
         else:
-            auths = sorted(list(set(item["authority"] for item in hier_data)))
-            selected_auth = st.selectbox("اختر الهيئة:", auths)
+            facs_only_list = sorted(list(set(item["facility_name"] for item in hier_data)))
+            facs_options = ["-- اختر جهة العمل --"] + facs_only_list
+            selected_facility = st.selectbox("اختر جهة العمل:", facs_options, index=0)
             
-            govs = sorted(list(set(item["governorate"] for item in hier_data if item["authority"] == selected_auth)))
-            selected_gov = st.selectbox("اختر المحافظة:", govs if govs else ["اختر الهيئة أولاً"])
-            
-            admins = sorted(list(set(item["administration"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov)))
-            selected_admin = st.selectbox("اختر الإدارة التابعة:", admins if admins else ["اختر المحافظة أولاً"])
-            
-            centers = sorted(list(set(item["center"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin)))
-            selected_center = st.selectbox("اختر المركز:", centers if centers else ["اختر الإدارة أولاً"])
-            
-            facs = sorted(list(set(item["facility_name"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin and item["center"] == selected_center)))
-            selected_facility = st.selectbox("اختر المنشأة الصحية:", facs if facs else ["اختر المركز أولاً"])
-            
-            facility_final_str = f"{selected_auth} - {selected_gov} - {selected_admin} - {selected_center} - {selected_facility}"
+            matched_item = next((item for item in hier_data if item["facility_name"] == selected_facility), None)
+            if matched_item:
+                facility_final_str = f"{matched_item['authority']} - {matched_item['governorate']} - {matched_item['administration']} - {matched_item['center']} - {matched_item['facility_name']}"
+            else:
+                facility_final_str = ""
 
         name = st.text_input("الاسم الرباعي:", value="")
         phone = st.text_input("رقم الهاتف:", value="")
         
         with db() as c: all_tpls_opts = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
-        tpl_choices_list = list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
-        selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list)
+        tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
+        selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list, index=0)
         
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
-            if name.strip() and all_tpls_opts:
+            if not facility_final_str:
+                st.warning("⚠️ يرجى اختيار جهة العمل من القائمة.")
+            elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
+                st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
+            elif name.strip() and all_tpls_opts:
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
                 if existing:
@@ -856,7 +861,8 @@ def admin_dashboard():
                         with db() as c:
                             c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
                                       (m_auth.strip(), m_gov.strip(), m_admin.strip(), m_center.strip(), m_fac.strip(), now()))
-                        st.success("✅ تمت الإضافة بنجاح!"); st.rerun()
+                        reindex_hierarchical_facilities()
+                        st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!"); st.rerun()
                     else:
                         st.warning("أدخل اسم المنشأة.")
 
@@ -878,7 +884,8 @@ def admin_dashboard():
                                     c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
                                               (auth, gov, adm, cent, fac, now()))
                                     added_cnt += 1
-                        st.success(f"🎉 تم إضافة ({added_cnt}) سجل بنجاح!"); st.balloons()
+                        reindex_hierarchical_facilities()
+                        st.success(f"🎉 تم إضافة ({added_cnt}) سجل وإعادة الترتيب بنجاح!"); st.balloons()
                 except Exception as e:
                     st.error(f"خطأ: {e}")
 
@@ -899,10 +906,12 @@ def admin_dashboard():
                     if single_del:
                         target_id = facility_map[selected_item_to_delete]
                         with db() as c: c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
-                        st.success("✅ تم الحذف!"); st.rerun()
+                        reindex_hierarchical_facilities()
+                        st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
                     if empty_all:
                         with db() as c: c.execute("DELETE FROM hierarchical_facilities")
-                        st.success("✅ تم التفريغ!"); st.rerun()
+                        reindex_hierarchical_facilities()
+                        st.success("✅ تم التفريغ وإعادة الترتيب!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows)
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء"]
@@ -1170,8 +1179,8 @@ def admin_dashboard():
                             c.execute("PRAGMA foreign_keys=ON;")
                         st.success("✅ تم الحذف!"); st.rerun()
 
-    elif selected_menu == "✍️️ تسجيل نتيجة يدوي":
-        st.subheader("✍️ تسجيل نتيجة يدوي")
+    elif selected_menu == "✍ تسجيل نتيجة يدوي":
+        st.subheader("✍ تسجيل نتيجة يدوي")
         hier_data = get_hierarchical_data()
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         with st.form("manual_score_form"):
@@ -1217,7 +1226,7 @@ def admin_dashboard():
         with col_bk2:
             uploaded_db_file = st.file_uploader("استعادة ملف قاعدة بيانات (.db):", type=["db"], key="restore_db_uploader")
             if uploaded_db_file is not None:
-                if st.button("⚠️ استبدال القاعدة الحالية", use_container_width=True):
+                if st.button("⚠️️ استبدال القاعدة الحالية", use_container_width=True):
                     try:
                         with open(DB_PATH, "wb") as f_out: f_out.write(uploaded_db_file.getbuffer())
                         st.success("✅ تمت الاستعادة بنجاح!"); time.sleep(1); st.rerun()
