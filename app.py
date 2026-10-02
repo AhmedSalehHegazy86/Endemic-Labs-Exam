@@ -238,12 +238,12 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
+    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
-    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
+    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
-    "🧩 مواعيد الاختبارات وشهادات المتدربين": "نماذج التدريب والمواعيد والشهادات",
+    "🧩 مواعيد الاختبارات وشهادات المتدربين": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "📊 التقارير": "التقارير وتحليل الأداء",
     "📈 خطط العمل": "خطط العمل التدريبية",
@@ -605,10 +605,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 landscape; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #fdfbf7; margin: 0; padding: 0; width: 297mm; height: 210mm; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; }}
+            @page {{ size: A4 auto; margin-top: {sett['margin_top']}; margin-bottom: {sett['margin_bottom']}; margin-right: {sett['margin_right']}; margin-left: {sett['margin_left']}; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #fdfbf7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; }}
             .cert-wrapper {{ 
-                width: 282mm; height: 195mm; border: 12px double #059669; border-radius: 20px; {bg_style}
+                width: 100%; min-height: 100vh; border: 12px double #059669; border-radius: 20px; {bg_style}
                 display: flex; flex-direction: column; justify-content: space-between; align-items: center; 
                 padding: 16mm 22mm; box-sizing: border-box; position: relative; box-shadow: 0 6px 20px rgba(0,0,0,0.06); 
             }}
@@ -653,22 +653,27 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
 def render_print_button_only(html_content, label_prefix=""):
     encoded_html = json.dumps(html_content)
+    orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
+    chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["أفقي (Landscape)", "رأسي (Portrait)"], key=orient_key)
+    orient_css = "landscape" if "أفقي" in chosen_orient else "portrait"
+
     components.html(f"""
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
-                🖨 طباعة / حفظ المستند (A4 أفقي - {label_prefix})
+                🖨 طباعة / حفظ المستند (A4 {chosen_orient} - {label_prefix})
             </button>
         </div>
         <script>
             function printDoc() {{
                 var win = window.open('', '_blank');
-                win.document.write({encoded_html});
+                var styledHtml = {encoded_html}.replace('@page {{ size: A4 auto;', '@page {{ size: A4 {orient_css};');
+                win.document.write(styledHtml);
                 win.document.close();
                 win.focus();
                 setTimeout(function(){{ win.print(); }}, 500);
             }}
         </script>
-    """, height=50)
+    """, height=85)
 
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
@@ -772,7 +777,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -810,14 +815,15 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة والصيغ المخصصة (مقاس A4 أفقي)")
+        st.subheader("🖨 إعدادات الطباعة والترويسة والخلفيات (مقاس A4)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
-            st.markdown("#### 📝 تعديل الصيغ والنصوص الافتراضية للشهادات قبل الطباعة:")
+            st.markdown("#### 📝 تعديل النصوص والترويسة الافتراضية:")
+            header_text_val = st.text_area("نص ترويسة الجهة (أعلى يمين الصفحة):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
             def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
-            st.markdown("#### 📏 هوامش الورق المطبوع (A4 أفقي):")
+            st.markdown("#### 📏 هوامش الورق المطبوع (مقاس A4):")
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
@@ -847,9 +853,9 @@ def admin_dashboard():
             elif uploaded_bg is not None:
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
-            if st.form_submit_button("💾 حفظ الإعدادات والصيغ", use_container_width=True):
-                save_print_settings(current_set["header_text"], m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
-                st.success("✅ تم حفظ وتحديث الصيغ والإعدادات بنجاح!"); st.rerun()
+            if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
+                st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية")
@@ -906,7 +912,7 @@ def admin_dashboard():
                     selected_item_to_delete = st.selectbox("اختر العنصر للحذف:", list(facility_map.keys()))
                     c_del_btn, c_empty_all_btn = st.columns(2)
                     with c_del_btn:
-                        single_del = st.form_submit_button("🗑️ حذف العنصر", use_container_width=True)
+                        single_del = st.form_submit_button("🗑️️ حذف العنصر", use_container_width=True)
                     with c_empty_all_btn:
                         empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
                     
@@ -925,7 +931,7 @@ def admin_dashboard():
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة نتائج الامتحانات")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
 
@@ -937,7 +943,7 @@ def admin_dashboard():
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
                         st.success("✅ تم التعميم بنجاح!"); st.rerun()
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨️ طباعة النتائج (فردي أو جماعي)"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
             if df_pend.empty: st.info("لا توجد طلبات معلقة.")
@@ -982,6 +988,30 @@ def admin_dashboard():
                                     c.execute("DELETE FROM exam_sessions WHERE trainee_id=?", (int(tr_row['id']),))
                                     c.execute("PRAGMA foreign_keys=ON;")
                                 st.success("✅ تم الحذف!"); st.rerun()
+        with sub_tabs[2]:
+            st.markdown("#### 🖨️ طباعة شهادات ونتائج الامتحانات على مقاس A4")
+            with db() as c:
+                sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed 
+                                             FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""").fetchall()
+            
+            if not sessions_list:
+                st.info("لا توجد اختبارات مسجلة أو مكتملة حتى الآن.")
+            else:
+                print_mode = st.radio("اختر وضع الطباعة:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية (لكل النتائج المكتملة)"], horizontal=True)
+                if "فردية" in print_mode:
+                    sess_choices = {f"مجلد رقم ({s['id']}) - المتدرب: {s['trainee_name']} - الجهة: {s['facility']} (النتيجة: {s['percent']}%)": s['id'] for s in sessions_list}
+                    sel_sess_label = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
+                    chosen_sid = sess_choices[sel_sess_label]
+                    
+                    curr_set = get_print_settings()
+                    cert_html_single = generate_customizable_certificate_html(chosen_sid, curr_set.get("default_cert_title"), curr_set.get("default_cert_notes"))
+                    render_print_button_only(cert_html_single, f"شهادة متدرب رقم {chosen_sid}")
+                else:
+                    st.markdown("##### 📚 طباعة وتصدير كافة الشهادات دفعة واحدة:")
+                    combined_all_html = ""
+                    for s in sessions_list:
+                        combined_all_html += generate_customizable_certificate_html(s['id']) + "<div style='page-break-after: always;'></div>"
+                    render_print_button_only(combined_all_html, "طباعة جماعية لكل الشهادات")
 
     elif selected_menu == "🧠 بنك الأسئلة":
         st.subheader("🧠 بنك الأسئلة الشامل")
@@ -1094,7 +1124,7 @@ def admin_dashboard():
                     st.success("✅ تم الحذف!"); st.rerun()
 
     elif selected_menu == "🧩 مواعيد الاختبارات وشهادات المتدربين":
-        st.subheader("🧩 مواعيد الاختبارات وشهادات المتدربين (نظام 12 ساعة - A4 أفقي)")
+        st.subheader("🧩 مواعيد الاختبارات وشهادات المتدربين (نظام 12 ساعة - مقاس A4)")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج والطباعة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد", "🗑 حذف نموذج"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج والطباعة":
