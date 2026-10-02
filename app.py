@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة - System V1.0",
+    page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -164,7 +164,7 @@ document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠�
 
 st.markdown("""
 <div class="ownership-watermark">
-  جميع الحقوق محفوظة © 2026 | تصميم و تطوير: <b>Dr/Ahmed.S.Hegazy</b>
+🔬 جميع الحقوق محفوظة © 2026 | تصميم و تطوير: <b>Dr/Ahmed.S.Hegazy</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -653,7 +653,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 نظام التقييم والاختبار للعاملين بمعامل المتوطنة</h1><div>System V1.0 • <br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 نظام 🔬 التقييم والاختبار للعاملين بمعامل المتوطنة</h1><div>System V1.0 • <br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -765,7 +765,7 @@ def admin_dashboard():
     selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
 
-    if selected_menu == "📊 لوحة المؤشرات العامة":
+    if selected_menu == "📊 لوحة التكحم العامة":
         st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
             cnts = c.execute("""SELECT
