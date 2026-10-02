@@ -664,7 +664,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             h1 {{ color: #065f46; font-size: 28pt; margin: 10px 0; font-weight: 900; }}
             p {{ font-size: 12pt; line-height: 1.7; color: #1f2937; }}
             .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 85%; border-radius: 8px; font-weight: bold; color: #065f46; font-size: 10.5pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12px; margin-top: 6mm; z-index: 2; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 12mm; margin-top: 6mm; z-index: 2; }}
             .cert-watermark {{ font-size: 9pt; color: #059669; font-weight: bold; margin-top: 4px; z-index: 2; }}
         </style>
     </head>
@@ -857,17 +857,17 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 10px 0; text-align: center;"><img src="{img_uri}" style="max-height: 150px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 3px 0; text-align: center;"><img src="{img_uri}" style="max-height: 80px; max-width: 100%; object-fit: contain; border-radius: 4px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
 
-        opts_html = "".join([f'<div style="padding: 4px 8px; margin: 4px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 2px 5px; margin: 2px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 8.5pt;">🔲 {esc(opt)}</div>' for opt in opts])
         
         q_html_content += f"""
-        <div style="margin-bottom: 16px; padding: 12px; background: #ffffff; border: 1px solid #059669; border-radius: 8px; page-break-inside: avoid; break-inside: avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 6px;">السؤال ({idx}): {esc(q_text_clean)}</div>
+        <div style="margin-bottom: 6px; padding: 6px 8px; background: #ffffff; border: 1px solid #059669; border-radius: 4px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 9pt;">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
-            <div style="margin-top: 8px; padding-right: 10px;">{opts_html}</div>
+            <div style="margin-top: 3px; padding-right: 4px;">{opts_html}</div>
         </div>
         """
 
@@ -877,14 +877,19 @@ def generate_exam_template_print_html(template_id):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 10mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 15mm; direction: rtl; -webkit-print-color-adjust: exact; }}
-            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-inside: avoid; break-inside: avoid; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }}
-            .header-right {{ font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.5; }}
-            h2 {{ text-align: center; color: #047857; font-size: 18pt; margin: 15px 0; }}
-            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 11pt; font-weight: bold; color: #065f46; }}
-            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 2px dashed #059669; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; }}
+            @page {{ size: A4 auto; margin: 6mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 5mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 6px; margin-bottom: 8px; }}
+            .header-right {{ font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 4px 0; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; font-size: 8.5pt; font-weight: bold; color: #065f46; text-align: center; }}
+            .questions-grid {{
+                column-count: 2;
+                column-gap: 6mm;
+                column-fill: auto;
+            }}
+            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -897,7 +902,9 @@ def generate_exam_template_print_html(template_id):
             <div class="tpl-info">
                 مدة الاختبار: {t_dict['duration_minutes']} دقيقة | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
             </div>
-            {q_html_content}
+            <div class="questions-grid">
+                {q_html_content}
+            </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
                 <div>رئيس قسم المعامل</div>
@@ -1216,7 +1223,7 @@ def admin_dashboard():
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
                         st.success("✅ تم التعميم بنجاح!"); st.rerun()
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨️️ طباعة النتائج (فردي أو جماعي)"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨 طباعة النتائج (فردي أو جماعي)"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
             if df_pend.empty: st.info("لا توجد طلبات معلقة.")
@@ -1576,9 +1583,102 @@ def admin_dashboard():
     elif selected_menu == "📊 التقارير":
         st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج (مقاس A4)")
         
-        rep_tab1, rep_tab2 = st.tabs(["📋 تقرير نتائج المتدربين الشامل", "📈 تقرير أداء الجهات والمنشآت"])
+        rep_tab1, rep_tab2, rep_tab3, rep_tab4 = st.tabs([
+            "👤 تقرير فردي (لمتدرب)", 
+            "🏢 تقرير جماعي (لمنشأة)", 
+            "📋 تقرير النتائج الشامل", 
+            "📈 تقرير أداء الجهات"
+        ])
         
+        # 1) التقرير الفردي
         with rep_tab1:
+            with db() as c:
+                tr_list_rep = c.execute("SELECT id, name, facility FROM trainees ORDER BY id DESC").fetchall()
+            
+            if not tr_list_rep:
+                st.info("لا توجد بيانات متدربين متاحة.")
+            else:
+                tr_choices_rep = {f"متدرب: {t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t['id'] for t in tr_list_rep}
+                sel_tr_rep_label = st.selectbox("اختر المتدرب لاستعراض تقريره الفردي:", list(tr_choices_rep.keys()), key="sel_ind_tr_rep")
+                chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
+                
+                with db() as c:
+                    ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=?", (chosen_tr_id,)).fetchone()
+                    ind_sess_data = c.execute("SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.trainee_id=? ORDER BY s.id DESC LIMIT 1", (chosen_tr_id,)).fetchone()
+                
+                if ind_tr_data:
+                    score_v = ind_sess_data["score"] if ind_sess_data and ind_sess_data["score"] is not None else "لم يختبر"
+                    max_v = ind_sess_data["max_score"] if ind_sess_data and ind_sess_data["max_score"] is not None else "-"
+                    pct_v = f"{ind_sess_data['percent']:.1f}%" if ind_sess_data and ind_sess_data["percent"] is not None else "-"
+                    status_v = "اجتزت بنجاح" if ind_sess_data and ind_sess_data["passed"] == 1 else ("لم تجتز" if ind_sess_data else "قيد الانتظار/نشط")
+                    cert_v = ind_sess_data["certificate_id"] if ind_sess_data and ind_sess_data["certificate_id"] else "غير متاح"
+                    
+                    individual_report_html = f"""
+                    <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
+                        <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب</h3>
+                        <hr style="border: 1px solid #059669;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt;">
+                            <tr>
+                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">اسم المتدرب</th>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px;">{esc(ind_tr_data['name'])}</td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">جهة العمل والمنشأة</th>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px;">{esc(ind_tr_data['facility'])}</td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">نموذج الاختبار</th>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px;">{esc(ind_sess_data['tpl_name'] if ind_sess_data else 'غير محدد')}</td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">الدرجة والنسبة</th>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px;"><b>{score_v} / {max_v}</b> ({pct_v})</td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">حالة الاجتياز</th>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px; font-weight: bold; color: {'green' if status_v=='اجتزت بنجاح' else 'red'};">{status_v}</td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">رقم الشهادة / التحقق</th>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px;"><code>{cert_v}</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                    """
+                    st.markdown(individual_report_html, unsafe_allow_html=True)
+                    full_ind_html = generate_general_report_html(f"تقرير تفصيلي للمتدرب: {ind_tr_data['name']}", individual_report_html)
+                    render_print_button_only(full_ind_html, f"تقرير فردي للمتدرب {chosen_tr_id}")
+
+        # 2) التقرير الجماعي
+        with rep_tab2:
+            with db() as c:
+                facs_list_rep = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
+            
+            if not facs_list_rep:
+                st.info("لا توجد جهات أو منشآت مسجلة.")
+            else:
+                sel_fac_rep = st.selectbox("اختر الجهة / المنشأة لاستعراض تقريرها الجماعي:", facs_list_rep, key="sel_group_fac_rep")
+                with db() as c:
+                    df_group = pd.read_sql_query("""
+                        SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.phone AS 'الهاتف',
+                               COALESCE(s.score, 0) || ' / ' || COALESCE(s.max_score, 0) AS 'الدرجة',
+                               COALESCE(s.percent, 0) AS 'النسبة %',
+                               CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة'
+                        FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                        WHERE t.facility=?
+                        ORDER BY t.id DESC
+                    """, c, params=(sel_fac_rep,))
+                
+                if df_group.empty:
+                    st.info("لا توجد بيانات متدربين مسجلة لهذه الجهة.")
+                else:
+                    st.dataframe(df_group, use_container_width=True, hide_index=True)
+                    table_group_html = df_group.to_html(index=False, border=0, classes='table')
+                    full_group_html = generate_general_report_html(f"التقرير الجماعي لأداء العاملين - {sel_fac_rep}", f"<div>{table_group_html}</div>")
+                    render_print_button_only(full_group_html, f"تقرير جماعي - {sel_fac_rep}")
+
+        # 3) التقرير الشامل
+        with rep_tab3:
             with db() as c:
                 df_rep = pd.read_sql_query("""
                     SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', 
@@ -1597,7 +1697,8 @@ def admin_dashboard():
                 full_rep_html = generate_general_report_html("تقرير نتائج المتدربين الشامل", f"<div>{table_html}</div>")
                 render_print_button_only(full_rep_html, "تقرير النتائج الشامل")
 
-        with rep_tab2:
+        # 4) تقرير أداء الجهات
+        with rep_tab4:
             with db() as c:
                 df_fac = pd.read_sql_query("""
                     SELECT t.facility AS 'جهة العمل', 
@@ -1640,7 +1741,7 @@ def admin_dashboard():
                         target_name = tr_choices[sel_tr_label]
                 else:
                     if not all_fac_list:
-                        st.warning("⚠️️ لا توجد جهات صحية مسجلة بعد.")
+                        st.warning("⚠️ لا توجد جهات صحية مسجلة بعد.")
                         target_name = ""
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
@@ -1669,7 +1770,7 @@ def admin_dashboard():
 
                 if st.form_submit_button("💾 حفظ وإنشاء خطة العمل", use_container_width=True):
                     if not target_name.strip() or not weak_areas.strip():
-                        st.warning("⚠️ يرجى استكمال البيانات الأساسية ونقاط الضعف.")
+                        st.warning("⚠️️ يرجى استكمال البيانات الأساسية ونقاط الضعف.")
                     else:
                         with db() as c:
                             c.execute("""INSERT INTO action_plans(target_type, target_name, weakness_areas, action_steps, time_frame_type, specific_date, specific_month, specific_year, created_at)
@@ -1697,7 +1798,7 @@ def admin_dashboard():
                     <hr style="border: 1px solid #059669;">
                     <p><b>نوع النطاق:</b> {esc(p_data['target_type'])}</p>
                     <p><b>المستهدف (فرد أو جهة):</b> {esc(p_data['target_name'])}</p>
-                    <p><b>الإطار الزمني للتنفيذ:</b> <b>{p_data['specific_day'] if 'بيوم' in p_data['time_frame_type'] else ''} {p_data['specific_month']} {p_data['specific_year']}</b></p>
+                    <p><b>الإطار الزمني للتنفيذ:</b> <b>{p_data['specific_date'] if 'بيوم' in p_data['time_frame_type'] else ''} {p_data['specific_month']} {p_data['specific_year']}</b></p>
                     
                     <div style="background: #f0fdf4; border: 1px solid #059669; padding: 12px; border-radius: 8px; margin: 15px 0; page-break-inside: avoid; break-inside: avoid;">
                         <h4 style="color: #065f46; margin-top: 0;">🎯 نقاط الضعف المرصودة (بناءً على الدرجات والتقييمات):</h4>
