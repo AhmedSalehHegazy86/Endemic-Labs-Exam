@@ -164,7 +164,7 @@ document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠�
 
 st.markdown("""
 <div class="ownership-watermark">
-🔬 جميع الحقوق محفوظة © 2026 | تصميم و تطوير: <b>Dr/Ahmed.S.Hegazy</b>
+🔬 جميع الحقوق محفوظة © 2026 | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -366,7 +366,7 @@ def init_db():
 
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
-            default_header = "جمهورية مصر العربية><br> وزارة الصحة والسكان<br>مديرية الشئون الصحية ....<br>الإدارة الصحية .... "
+            default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
             c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?)",
                       (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
@@ -377,7 +377,7 @@ def get_print_settings():
         row = c.execute("SELECT * FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
         if row: return dict(row)
         return {
-            "header_text": "جمهورية مصر العربية <br> وزارة الصحة والسكان<br> ....مديرية الشئون الصحية <br> ....الإدارة الصحية ",
+            "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
             "margin_top": "8mm", "margin_bottom": "8mm", "margin_right": "8mm", "margin_left": "8mm",
             "logo_base64": DEFAULT_LOGO,
             "logo2_base64": "",
@@ -617,8 +617,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             </div>
             <div class="footer-bottom">
                 <div>مسؤول التدريب</div>
-                <div> قسم المعامل</div>
-                <div>قسم المتوطنة</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
             </div>
             <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
@@ -649,15 +649,15 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة المؤشرات"}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 نظام 🔬 التقييم والاختبار للعاملين بمعامل المتوطنة</h1><div>System V1.0 • <br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown("<b>تسجيل وإرسال طلب المتدربين (برجاء الاختيار و التسجيل)</b>", unsafe_allow_html=True)
+    st.markdown("<b>تسجيل وإرسال طلب المتدربين (تسجيل هرمي تفاعلي بالتبعِيّة)</b>", unsafe_allow_html=True)
     
     hier_data = get_hierarchical_data()
     
@@ -743,7 +743,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
+        st.warning("⚠️️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -765,7 +765,7 @@ def admin_dashboard():
     selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
 
-    if selected_menu == "📊 لوحة التكحم العامة":
+    if selected_menu == "📊 لوحة التحكم":
         st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
             cnts = c.execute("""SELECT
@@ -1105,10 +1105,10 @@ def admin_dashboard():
                         st.markdown(f"#### 🏷 نموذج اختبار ({t_dict.get('id')}): {t_dict.get('name')}")
                         st.write(f"🔹 **البدء:** {s_t.replace('T', ' الساعة ')} | 🔸 **النهاية:** {e_t.replace('T', ' الساعة ')} | 📝 **الأسئلة:** {num_q_display}")
                         
-                        st.markdown("##### ✏️️ تخصيص وتعديل نصوص الشهادة والوثائق:")
+                        st.markdown("##### ✏ تخصيص وتعديل نصوص الشهادة والوثائق:")
                         with st.form(f"custom_print_form_{t_dict.get('id')}"):
                             edit_title = st.text_input("عنوان الشهادة أو المستند:", value=curr_sett_for_cert.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"), key=f"t_{t_dict.get('id')}")
-                            edit_notes = st.text_area("الملاحظات / التوجيهات الإضافية:", value=curr_sett_for_cert.get("default_cert_notes", " تقرير أداء المعامل والإشراف الفني المعتمد"), key=f"n_{t_dict.get('id')}")
+                            edit_notes = st.text_area("الملاحظات / التوجيهات الإضافية:", value=curr_sett_for_cert.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"), key=f"n_{t_dict.get('id')}")
                             
                             save_as_default = st.checkbox("💾 حفظ هذه التعديلات وتعميمها كإعداد افتراضي دائم لكل الشهادات والوثائق القادمة")
                             submitted_preview = st.form_submit_button("🔄 تحديث وعرض معاينة الطباعة", use_container_width=True)
@@ -1234,9 +1234,27 @@ def admin_dashboard():
         st.info("قسم خطط العمل التدريبية الشهرية والسنوية جاهز لإصدار التقارير المعتمدة.")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
-        st.subheader("💾 النسخ الاحتياطي")
-        with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v1_0.db", mime="application/octet-stream", use_container_width=True)
+        st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات")
+        
+        col_bk1, col_bk2 = st.columns(2)
+        with col_bk1:
+            st.markdown("#### 📥 تحميل نسخة احتياطية للحفظ:")
+            with open(DB_PATH, "rb") as f: db_bytes = f.read()
+            st.download_button("📥 تحميل ملف قاعدة البيانات الحالي (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_0.db", mime="application/octet-stream", use_container_width=True)
+        
+        with col_bk2:
+            st.markdown("#### 📤 استعادة قاعدة البيانات (في حال الفقد أو التغيير):")
+            uploaded_db_file = st.file_uploader("اختر ملف قاعدة البيانات القديم (.db) لاستعادته:", type=["db"], key="restore_db_uploader")
+            if uploaded_db_file is not None:
+                if st.button("⚠️ تأكيد واستبدال قاعدة البيانات الحالية بالملف المرفوع", use_container_width=True):
+                    try:
+                        with open(DB_PATH, "wb") as f_out:
+                            f_out.write(uploaded_db_file.getbuffer())
+                        st.success("✅ تمت استعادة قاعدة البيانات بنجاح تام! يتم إعادة تحميل النظام الآن...")
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"خطأ في استعادة الملف: {e}")
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين وتحديد الصلاحيات التفصيلية لكل مكون")
