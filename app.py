@@ -238,7 +238,7 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
+    "🖨️️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
@@ -772,7 +772,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -810,7 +810,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة والصيغ المخصصة (مقاَس A4 أفقي)")
+        st.subheader("🖨 إعدادات الطباعة والترويسة والصيغ المخصصة (مقاس A4 أفقي)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📝 تعديل الصيغ والنصوص الافتراضية للشهادات قبل الطباعة:")
@@ -1236,23 +1236,33 @@ def admin_dashboard():
                         st.success("✅ تم الحذف!"); st.rerun()
 
     elif selected_menu == "✍ تسجيل نتيجة يدوي":
-        st.subheader("✍ تسجيل نتيجة يدوي")
+        st.subheader("✍ تسجيل نتيجة يدوي (مع اختيار قالب الامتحان)")
         hier_data = get_hierarchical_data()
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
+        
+        with db() as c: all_tpls_records = c.execute("SELECT id, name FROM exam_templates").fetchall()
+        manual_tpl_choices = {row["name"]: row["id"] for row in all_tpls_records} if all_tpls_records else {}
+        manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
+
         with st.form("manual_score_form"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
             m_facility_name = st.text_input("جهة العمل:", value=default_fac_str)
-            with db() as c: all_tpls = c.execute("SELECT id, name FROM exam_templates").fetchall()
-            tpl_choices = {row["name"]: row["id"] for row in all_tpls}
-            selected_tpl_name = st.selectbox("نموذج الاختبار:", list(tpl_choices.keys()) if tpl_choices else ["افتراضي"])
+            selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
+            
             c1, c2 = st.columns(2)
             with c1: manual_score = st.number_input("الدرجة:", min_value=0, max_value=9999, value=0)
             with c2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
+            
             manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
-            if st.form_submit_button("💾 حفظ", use_container_width=True):
-                if m_trainee_name:
+            
+            if st.form_submit_button("💾 حفظ النتيجة وتسجيل المتدرب", use_container_width=True):
+                if not m_trainee_name.strip():
+                    st.warning("⚠️ يرجى إدخال اسم المتدرب.")
+                elif not manual_tpl_choices:
+                    st.warning("⚠️ يرجى إنشاء نماذج اختبارات أولاً.")
+                else:
                     with db() as c:
-                        tpl_id_val = tpl_choices.get(selected_tpl_name) if tpl_choices else None
+                        tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
                         cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
                                            (m_facility_name, normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now()))
                         new_tid = cur_tr.lastrowid
@@ -1263,7 +1273,7 @@ def admin_dashboard():
                         new_sid = cur_sess.lastrowid
                         cert_code = f"ELX-{new_sid:06d}"
                         c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
-                    st.success(f"✅ برقم الشهادة: **{cert_code}**")
+                    st.success(f"✅ تم تسجيل المتدرب والنتيجة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
         st.subheader("📊 تقارير وأداء المعامل")
