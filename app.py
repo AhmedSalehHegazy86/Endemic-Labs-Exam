@@ -63,11 +63,11 @@ html, body, [class*="css"] {
 }
 
 .block-container {
-    max-width: 1100px !important;
+    max-width: 1150px !important;
     margin: auto !important;
-    padding-left: 2.5rem !important;
-    padding-right: 2.5rem !important;
-    padding-top: 5.5rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-top: 4.5rem !important;
     padding-bottom: 7rem !important;
 }
 
@@ -78,7 +78,7 @@ html, body, [class*="css"] {
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
 .card, .question {
@@ -121,8 +121,8 @@ html, body, [class*="css"] {
     color: #ffffff !important;
     border-radius: 8px !important;
     font-weight: 800 !important;
-    min-height: 40px !important;
-    padding: 6px 18px;
+    min-height: 42px !important;
+    padding: 6px 14px;
     border: none !important;
     transition: all 0.2s ease;
 }
@@ -156,55 +156,9 @@ input, select, textarea {
 }
 </style>
 
-<!-- سكريبت الأمان المتقدم وحماية الحقوق -->
 <script>
-document.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-    alert("⚠️ عذراً، النقر بزر الماوس الأيمن محظور حفاظاً على سرية النظام والأسئلة.");
-});
-
-document.addEventListener("copy", function(e) {
-    e.preventDefault();
-    alert("⚠️️ عذراً، نسخ النصوص أو الأسئلة محظور تماماً!");
-});
-
-document.addEventListener("cut", function(e) {
-    e.preventDefault();
-});
-
-document.addEventListener("keydown", function(e) {
-    if (e.key === "F12" || 
-        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c" || e.key === "U" || e.key === "u")) ||
-        (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "C" || e.key === "c" || e.key === "A" || e.key === "a" || e.key === "P" || e.key === "p" || e.key === "S" || e.key === "s"))) {
-        e.preventDefault();
-        alert("⚠️ محاولة فحص الأكواد أو تصدير البيانات محظورة أمنياً!");
-        return false;
-    }
-    if (e.key === "PrintScreen") {
-        navigator.clipboard.writeText("تم حظر لقطة الشاشة.");
-        alert("⚠️ تم حظر التقاط الشاشة (PrintScreen) لحماية السرية!");
-        e.preventDefault();
-    }
-});
-
-let devtoolsOpen = function() {};
-devtoolsOpen.toString = function() {
-    document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم اكتشاف أدوات المطورين. تم حظر الجلسة.</h1>";
-};
-setInterval(function() {
-    let threshold = 160;
-    if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
-        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم إيقاف النظام لأسباب أمنية.</h1>";
-    }
-}, 1000);
-
-document.addEventListener("visibilitychange", function() {
-    if (document.hidden) {
-        document.body.style.filter = "blur(15px)";
-    } else {
-        document.body.style.filter = "none";
-    }
-});
+document.addEventListener("contextmenu", function(e) { e.preventDefault(); });
+document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
 </script>
 """, unsafe_allow_html=True)
 
@@ -215,7 +169,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 3) دوال النظام وقاعدة البيانات وهيكلة المنشآت الهرمية
+# 3) دوال النظام وقاعدة البيانات
 # ============================================================
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -268,15 +222,15 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)": "إعدادات الطباعة والترويسة",
-    "🏥 الهيكلة الإدارية والمنشآت (5 مستويات) ورفع الملفات": "الهيكل الإداري والمنشآت ورفع البيانات",
-    "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار": "اعتماد المتدربين والنماذج",
-    "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)": "بنك الأسئلة الشامل وإكسيل",
+    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة",
+    "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
+    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
+    "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
-    "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات": "نماذج التدريب والمواعيد",
+    "🧩 مواعيد الامتحانات": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
-    "📊 التقارير وتحليل الأداء والرسوم البيانية": "التقارير وتحليل الأداء",
-    "📈 خطط العمل التدريبية ورفع الكفاءة": "خطط العمل التدريبية",
+    "📊 التقارير": "التقارير وتحليل الأداء",
+    "📈 خطط العمل": "خطط العمل التدريبية",
     "💾 النسخ الاحتياطي": "النسخ الاحتياطي لقاعدة البيانات",
     "👥 إدارة المستخدمين": "إدارة المستخدمين والصلاحيات",
     "🧾 سجل التدقيق": "سجل التدقيق والأحداث"
@@ -676,7 +630,7 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "selected_menu_val": "📊 لوحة التحكم"}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
@@ -773,12 +727,24 @@ def admin_dashboard():
         st.warning("⚠️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
         return
 
-    current_idx = available_menus.index(st.session_state.selected_menu_val) if st.session_state.selected_menu_val in available_menus else 0
-    selected_menu = st.selectbox("📌 القائمة الرئيسية لإدارة المنصة:", available_menus, index=current_idx, key="global_main_menu_select")
-    if selected_menu != st.session_state.selected_menu_val:
-        st.session_state.selected_menu_val = selected_menu
-        st.rerun()
+    st.markdown("### 📌 لوحة التحكم وأقسام الإدارة:")
+    
+    # نظام أزرار شبكية (Grid Buttons) لتجنب فتح لوحة المفاتيح تماماً
+    cols_per_row = 3
+    menu_keys = available_menus
+    for i in range(0, len(menu_keys), cols_per_row):
+        row_cols = st.columns(cols_per_row)
+        for j in range(cols_per_row):
+            if i + j < len(menu_keys):
+                m_key = menu_keys[i + j]
+                is_active = (st.session_state.active_admin_tab == m_key)
+                button_label = f"📍 {m_key}" if is_active else m_key
+                with row_cols[j]:
+                    if st.button(button_label, use_container_width=True, key=f"btn_menu_{i+j}"):
+                        st.session_state.active_admin_tab = m_key
+                        st.rerun()
 
+    selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
 
     if selected_menu == "📊 لوحة التحكم":
@@ -796,8 +762,8 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
-        st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
+    elif selected_menu == "🖨️ الطباعة والترويسة":
+        st.subheader("🖨️️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
@@ -826,7 +792,7 @@ def admin_dashboard():
                 save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val)
                 st.success("✅ تم الحفظ بنجاح!"); st.rerun()
 
-    elif selected_menu == "🏥 الهيكلة الإدارية والمنشآت (5 مستويات) ورفع الملفات":
+    elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (المحافظة ⟵ الهيئة ⟵ المركز ⟵ الإدارة ⟵ المنشأة)")
         
         tab_h1, tab_h2 = st.tabs(["📥 رفع ملفات منفصلة لكل قائمة (Excel / CSV)", "📋 استعراض وهيكلة وتفريغ البيانات"])
@@ -879,7 +845,7 @@ def admin_dashboard():
                         c.execute("DELETE FROM hierarchical_facilities")
                     st.success("✅ تم تفريغ الجدول بنجاح!"); st.rerun()
 
-    elif selected_menu == "🧑‍🔬 اعتماد المتدربين وتحديد نموذج الاختبار":
+    elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين، تعديل النماذج، وحذف المتدربين نهائياً")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
@@ -945,7 +911,7 @@ def admin_dashboard():
                                 st.success(f"✅ تم حذف المتدرب ({tr_row['name']}) وسجلاته نهائياً!")
                                 st.rerun()
 
-    elif selected_menu == "🧠 بنك الأسئلة الشامل (استيراد/تصدير Excel)":
+    elif selected_menu == "🧠 بنك الأسئلة":
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
@@ -983,7 +949,7 @@ def admin_dashboard():
                 st.download_button("📥 تحميل إكسيل بنك الأسئلة (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                 st.dataframe(df_bank, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "⚙️ إدارة الأسئلة":
+    elif selected_menu == "⚙ إدارة الأسئلة":
         st.subheader("⚙️ إدارة الأسئلة (إضافة، تعديل، وحذف)")
         sub_img_tabs = st.tabs(["➕ إضافة سؤال", "✏️ تعديل سؤال", "🗑 حذف سؤال"])
         categories_list_opts = [
@@ -1056,7 +1022,7 @@ def admin_dashboard():
                     with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
                     st.success("✅ تم الحذف بنجاح!"); st.rerun()
 
-    elif selected_menu == "🧩 نماذج ومحاضر التدريب وتحديد مواعيد الامتحانات":
+    elif selected_menu == "🧩 مواعيد الامتحانات":
         st.subheader("🧩 إنشاء نماذج الاختبارات وتحديد مواعيد الفتح والغلق للممتحنين")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج ومواعيدها والطباعة", "➕ إنشاء نموذج اختبار جديد وتحديد موعده", "⚙ تعديل موعد اختبار", "🗑 حذف نموذج اختبار"], horizontal=True)
         
@@ -1109,7 +1075,7 @@ def admin_dashboard():
                                       (new_tpl_name.strip(), "اختبار مخصص للمالك", final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
                         st.success("✅ تم إنشاء نموذج الاختبار وموعده بنجاح!"); st.rerun()
 
-        elif sub_tpl_mode == "⚙️ تعديل موعد اختبار":
+        elif sub_tpl_mode == "⚙️️ تعديل موعد اختبار":
             with db() as c: tpls_mod = c.execute("SELECT id, name, start_time, end_time FROM exam_templates ORDER BY id ASC").fetchall()
             if tpls_mod:
                 tpl_mod_map = {f"نموذج ({t['id']}) - {t['name']}": t['id'] for t in tpls_mod}
@@ -1174,11 +1140,11 @@ def admin_dashboard():
                         c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
                     st.success(f"✅ تم التسجيل بنجاح برقم شهادة: **{cert_code}**")
 
-    elif selected_menu == "📊 التقارير وتحليل الأداء والرسوم البيانية":
+    elif selected_menu == "📊 التقارير":
         st.subheader("📊 تقارير ومقارنة أداء المعامل")
         st.info("تقارير أداء المعامل ومقارنة الفترات متاحة للرصد والإشراف الفني.")
 
-    elif selected_menu == "📈 خطط العمل التدريبية ورفع الكفاءة":
+    elif selected_menu == "📈 خطط العمل":
         st.subheader("📈 خطط العمل التدريبية")
         st.info("قسم خطط العمل التدريبية الشهرية والسنوية جاهز لإصدار التقارير المعتمدة.")
 
