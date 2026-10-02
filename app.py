@@ -253,7 +253,7 @@ ALL_MENU_MODULES = {
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
-    "🧩 مواعيد الاختبارات وشهادات المتدربين": "نماذج التدريب والمواعيد",
+    "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "📊 التقارير": "التقارير وتحليل الأداء",
     "📈 خطط العمل": "خطط العمل التدريبية",
@@ -1050,7 +1050,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -1216,7 +1216,7 @@ def admin_dashboard():
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
                         st.success("✅ تم التعميم بنجاح!"); st.rerun()
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨️ طباعة النتائج (فردي أو جماعي)"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨️️ طباعة النتائج (فردي أو جماعي)"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
             if df_pend.empty: st.info("لا توجد طلبات معلقة.")
@@ -1397,7 +1397,7 @@ def admin_dashboard():
                     with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
                     st.success("✅ تم الحذف!"); st.rerun()
 
-    elif selected_menu == "🧩 مواعيد الاختبارات وشهادات المتدربين":
+    elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
         st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (نظام 12 ساعة - مقاس A4)")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد", "🗑 حذف نموذج"], horizontal=True)
         
@@ -1422,7 +1422,6 @@ def admin_dashboard():
                         st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')}")
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
                         
-                        # توليد صفحة طباعة نموذج الأسئلة المحدد
                         exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
                         render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
 
@@ -1641,7 +1640,7 @@ def admin_dashboard():
                         target_name = tr_choices[sel_tr_label]
                 else:
                     if not all_fac_list:
-                        st.warning("⚠️ لا توجد جهات صحية مسجلة بعد.")
+                        st.warning("⚠️️ لا توجد جهات صحية مسجلة بعد.")
                         target_name = ""
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
