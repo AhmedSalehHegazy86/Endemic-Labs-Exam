@@ -191,6 +191,15 @@ def normalize_text(x):
     x = "" if x is None else str(x)
     return re.sub(r"\s+", " ", x.strip()).lower()
 
+def format_ba_prefix(text):
+    """تأكيد ربط اسم الهيئة أو الإدارة بالمحافظة أو المركز بحرف الجر بـ"""
+    if not text: return ""
+    text_clean = str(text).strip()
+    if text_clean.startswith("بـ") or text_clean.startswith("ب"):
+        return text_clean
+    # إذا لم يبدأ بحرف الجر ب وكان مربوطاً بكلمات مثل (الشرقية، أولاد صقر)
+    return f"بـ{text_clean}"
+
 def hash_password(password, salt=None):
     salt = salt or secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210000)
@@ -572,9 +581,20 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
-    # سحب الترويسة المخصصة للممتحن مباشرة من جهة العمل المسجلة
-    trainee_facility_str = r["facility"]
-    formatted_header = trainee_facility_str.replace(" - ", "<br>")
+    # تحليل الهيكل الإداري المسجل للممتحن وربط الأسماء بحرف الجر بـ
+    fac_parts = [p.strip() for p in r["facility"].split(" - ")]
+    # التنسيق المطلوب للأوراق والشهادات: الهيئة بالمحافظة، والإدارة بالمركز
+    auth_str = fac_parts[0] if len(fac_parts) > 0 else ""
+    gov_str = format_ba_prefix(fac_parts[1]) if len(fac_parts) > 1 else ""
+    admin_str = fac_parts[2] if len(fac_parts) > 2 else ""
+    center_str = format_ba_prefix(fac_parts[3]) if len(fac_parts) > 3 else ""
+    fac_final_str = fac_parts[4] if len(fac_parts) > 4 else ""
+
+    line1 = "جمهورية مصر العربية"
+    line2 = "وزارة الصحة والسكان"
+    line3 = f"{auth_str} {gov_str}".strip()
+    line4 = f"{admin_str} {center_str}".strip()
+    formatted_header = f"{line1}<br>{line2}<br>{line3}<br>{line4}"
 
     bg_data = sett.get("bg_base64", "")
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
@@ -612,7 +632,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <hr style="width: 45%; border: 1px solid #059669; margin: 6px auto;">
                 <h1>{esc(r["trainee_name"])}</h1>
                 <p>
-                    الجهة: <b>{esc(trainee_facility_str)}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
+                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
                     رقم التحقق والشهادة: <code>{r["certificate_id"]}</code>
@@ -656,23 +676,8 @@ def render_print_button_only(html_content, label_prefix=""):
 for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
     if k not in st.session_state: st.session_state[k] = v
 
-def header(custom_facility_text=None):
-    if custom_facility_text:
-        formatted_header = custom_facility_text.replace(" - ", "<br>")
-    else:
-        formatted_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-    
-    st.markdown(f"""
-    <div style="display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, #064e3b, #065f46, #047857); color: #ffffff; padding: 18px 24px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px;">
-        <div style="text-align: right; font-size: 13pt; font-weight: bold; line-height: 1.5;">
-            {formatted_header}
-        </div>
-        <div style="text-align: center;">
-            <h1 style="margin: 0; font-size: 22pt;">🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1>
-            <small style="color:#d1fae5;">System V1.0 • Developed by Dr/Ahmed.S.Hegazy</small>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+def header():
+    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -683,7 +688,7 @@ def login_portal():
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
             st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً من لوحة التحكم أو رفع ملفات الداتا.")
-            facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="مديرية الشئون الصحية بالشرقية - الشرقية - الإدارة الصحية بأولاد صقر - أولاد صقر - وحدة معملية")
+            facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="مديرية الشئون الصحية - الشرقية - الإدارة الصحية بأولاد صقر - أولاد صقر - وحدة معملية")
         else:
             auths = sorted(list(set(item["authority"] for item in hier_data)))
             selected_auth = st.selectbox("1️⃣ اختر الهيئة التابعة (مثل مديرية الشؤون الصحية):", auths)
@@ -1337,7 +1342,7 @@ def admin_dashboard():
 def trainee_portal():
     with db() as c: tr = c.execute("SELECT * FROM trainees WHERE id=?", (st.session_state.trainee_id,)).fetchone()
     if not tr: st.session_state.trainee_id = None; st.rerun()
-    header(tr["facility"])
+    header()
 
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c: matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
@@ -1398,9 +1403,6 @@ def exam_interface(session_id):
     with db() as c:
         session = c.execute("SELECT s.*, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=?", (session_id,)).fetchone()
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
-    
-    if session:
-        header(session["facility"])
 
     answered = 0
     for row in rows:
@@ -1434,10 +1436,7 @@ if st.session_state.get("exam_session_id"):
 elif st.session_state.trainee_id and not st.session_state.logged_in:
     if st.session_state.get("last_result_id"):
         sid = st.session_state.last_result_id
-        with db() as c:
-            tr_res = c.execute("SELECT t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=?", (sid,)).fetchone()
-        header(tr_res["facility"] if tr_res else None)
-        
+        header()
         st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
         
         curr_sett = get_print_settings()
