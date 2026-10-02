@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (إلغاء الشريط الجانبي تماماً)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v66.0",
+    page_title="منصة اختبارات معامل المتوطنة - Professional v67.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v66_0.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v67_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -40,7 +40,7 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) حقن التنسيقات (CSS) وحماية الأمان وحقوق الملكية
+# 2) حقن التنسيقات (CSS) وحماية الأمان الفائق وحقوق الملكية
 # ============================================================
 st.markdown("""
 <style>
@@ -138,7 +138,6 @@ input, select, textarea {
     border: 1px solid #cbd5e1 !important;
 }
 
-/* شريط حقوق الملكية الثابت والغير قابل للإزالة */
 .ownership-watermark {
     position: fixed;
     bottom: 0;
@@ -157,16 +156,16 @@ input, select, textarea {
 }
 </style>
 
-<!-- سكريبت الأمان المتقدم وحماية الحقوق -->
+<!-- سكريبت الأمان المتقدم ومنع فحص الأكواد وسرقة البيانات -->
 <script>
 document.addEventListener("contextmenu", function(e) {
     e.preventDefault();
-    alert("⚠️ عذراً، النقر بزر الماوس الأيمن محظور حفاظاً على سرية محتوى الاختبار.");
+    alert("⚠️ عذراً، النقر بزر الماوس الأيمن محظور حفاظاً على سرية النظام والأسئلة.");
 });
 
 document.addEventListener("copy", function(e) {
     e.preventDefault();
-    alert("⚠️ عذراً، نسخ الأسئلة أو النصوص محظور تماماً!");
+    alert("⚠️ عذراً، نسخ النصوص أو الأسئلة محظور تماماً!");
 });
 
 document.addEventListener("cut", function(e) {
@@ -175,18 +174,30 @@ document.addEventListener("cut", function(e) {
 
 document.addEventListener("keydown", function(e) {
     if (e.key === "F12" || 
-        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c")) ||
+        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c" || e.key === "U" || e.key === "u")) ||
         (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "C" || e.key === "c" || e.key === "A" || e.key === "a" || e.key === "P" || e.key === "p" || e.key === "S" || e.key === "s"))) {
         e.preventDefault();
-        alert("⚠️ هذا الإجراء غير مسموح به أثناء أداء الاختبار الأمني.");
+        alert("⚠️ محاولة فحص الأكواد أو تصدير البيانات محظورة أمنياً!");
         return false;
     }
     if (e.key === "PrintScreen") {
-        navigator.clipboard.writeText("تم حظر محتوى لقطة الشاشة لأسباب أمنية.");
-        alert("⚠️ تم حظر التقاط الشاشة (PrintScreen) لحماية سرية الأسئلة!");
+        navigator.clipboard.writeText("تم حظر لقطة الشاشة.");
+        alert("⚠️ تم حظر التقاط الشاشة (PrintScreen) لحماية السرية!");
         e.preventDefault();
     }
 });
+
+// كشف فتح أدوات المطور (DevTools Detection)
+let devtoolsOpen = function() {};
+devtoolsOpen.toString = function() {
+    document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم اكتشاف محاولة فحص الأكواد البرمجية. تم حظر الجلسة للأمان.</h1>";
+};
+setInterval(function() {
+    let threshold = 160;
+    if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20vh; color:red; font-family:Cairo;'>⚠️ تم إيقاف النظام لأسباب أمنية (تم رصد أدوات المطورين).</h1>";
+    }
+}, 1000);
 
 document.addEventListener("visibilitychange", function() {
     if (document.hidden) {
@@ -198,7 +209,6 @@ document.addEventListener("visibilitychange", function() {
 </script>
 """, unsafe_allow_html=True)
 
-# حقن شريط حقوق الملكية الثابت أسفل الشاشة برمجياً
 st.markdown("""
 <div class="ownership-watermark">
     جميع الحقوق محفوظة © 2026 | نظام اختبارات معامل المتوطنة • تصميم وتطوير النظام: <b>Dr/Ahmed.S.Hegazy</b>
@@ -756,7 +766,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "trainee_id": None,
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v66.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v67.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -880,7 +890,7 @@ def admin_dashboard():
         st.subheader("🏥 نظام إدارة وتكويد المنشآت الصحية")
         tab_fac_1, tab_fac_2 = st.tabs(["➕ إضافة منشأة بمعرف يدوي", "📋 قائمة المنشآت الحالية"])
         with tab_fac_1:
-            with st.form("add_facility_manual_form_v66", clear_on_submit=True):
+            with st.form("add_facility_manual_form_v67", clear_on_submit=True):
                 manual_id_input = st.number_input("رقم المعرف (ID):", min_value=1, max_value=99999, value=1)
                 new_fac_input = st.text_input("اسم المنشأة الجديدة:")
                 if st.form_submit_button("حفظ وإضافة المنشأة", use_container_width=True):
@@ -897,7 +907,7 @@ def admin_dashboard():
                 df_facs.columns = ["رقم المعرف (ID)", "اسم المنشأة"]
                 st.dataframe(df_facs, use_container_width=True, hide_index=True)
                 fac_del_map = {f"معرف رقم ({f['id']}) - {f['name']}": f['id'] for f in facs_rows}
-                with st.form("delete_facility_manual_form_v66", clear_on_submit=True):
+                with st.form("delete_facility_manual_form_v67", clear_on_submit=True):
                     selected_fac_label = st.selectbox("اختر المنشأة للحذف:", list(fac_del_map.keys()))
                     if st.form_submit_button("🗑 حذف المنشأة نهائياً", use_container_width=True):
                         delete_facility_db_by_id(fac_del_map[selected_fac_label])
@@ -969,7 +979,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v66")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v67")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1214,7 +1224,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v66.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v67.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين")
