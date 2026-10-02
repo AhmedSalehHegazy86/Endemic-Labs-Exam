@@ -243,7 +243,7 @@ ALL_MENU_MODULES = {
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
-    "🧩 مواعيد الامتحانات": "نماذج التدريب والمواعيد",
+    "🧩 مواعيد الاختبارات وشهادات المتدربين": "نماذج التدريب والمواعيد والشهادات",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "📊 التقارير": "التقارير وتحليل الأداء",
     "📈 خطط العمل": "خطط العمل التدريبية",
@@ -589,16 +589,12 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
     fac_parts = [p.strip() for p in r["facility"].split(" - ")]
-    auth_str = fac_parts[0] if len(fac_parts) > 0 else ""
-    gov_str = format_ba_prefix(fac_parts[1]) if len(fac_parts) > 1 else ""
+    auth_str = fac_parts[0] if len(fac_parts) > 0 else "جمهورية مصر العربية"
+    gov_str = format_ba_prefix(fac_parts[1]) if len(fac_parts) > 1 else "وزارة الصحة والسكان"
     admin_str = fac_parts[2] if len(fac_parts) > 2 else ""
     center_str = format_ba_prefix(fac_parts[3]) if len(fac_parts) > 3 else ""
 
-    line1 = "جمهورية مصر العربية"
-    line2 = "وزارة الصحة والسكان"
-    line3 = f"{auth_str} {gov_str}".strip()
-    line4 = f"{admin_str} {center_str}".strip()
-    formatted_header = f"{line1}<br>{line2}<br>{line3}<br>{line4}"
+    formatted_header = f"جمهورية مصر العربية<br>وزارة الصحة والسكان<br>{auth_str} {gov_str}<br>{admin_str} {center_str}".strip()
 
     bg_data = sett.get("bg_base64", "")
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
@@ -660,7 +656,7 @@ def render_print_button_only(html_content, label_prefix=""):
     components.html(f"""
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
-                🖨 طباعة / حفظ الشهادة ({label_prefix})
+                🖨 طباعة / حفظ المستند (A4 أفقي - {label_prefix})
             </button>
         </div>
         <script>
@@ -776,7 +772,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -814,14 +810,14 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة والخلفيات")
+        st.subheader("🖨 إعدادات الطباعة والترويسة والصيغ المخصصة (مقاَس A4 أفقي)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
-            st.markdown("#### 📝 النصوص الافتراضية للشهادات:")
+            st.markdown("#### 📝 تعديل الصيغ والنصوص الافتراضية للشهادات قبل الطباعة:")
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
-            def_notes_val = st.text_area("الملاحظات الافتراضية للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+            def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
-            st.markdown("#### 📏 هوامش الورق المطبوع:")
+            st.markdown("#### 📏 هوامش الورق المطبوع (A4 أفقي):")
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
@@ -851,9 +847,9 @@ def admin_dashboard():
             elif uploaded_bg is not None:
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
-            if st.form_submit_button("💾 حفظ الإعدادات", use_container_width=True):
+            if st.form_submit_button("💾 حفظ الإعدادات والصيغ", use_container_width=True):
                 save_print_settings(current_set["header_text"], m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
-                st.success("✅ تم الحفظ بنجاح!"); st.rerun()
+                st.success("✅ تم حفظ وتحديث الصيغ والإعدادات بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية")
@@ -1097,8 +1093,8 @@ def admin_dashboard():
                     with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
                     st.success("✅ تم الحذف!"); st.rerun()
 
-    elif selected_menu == "🧩 مواعيد الامتحانات":
-        st.subheader("🧩 نماذج ومواعيد الاختبارات (نظام 12 ساعة)")
+    elif selected_menu == "🧩 مواعيد الاختبارات وشهادات المتدربين":
+        st.subheader("🧩 مواعيد الاختبارات وشهادات المتدربين (نظام 12 ساعة - A4 أفقي)")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج والطباعة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد", "🗑 حذف نموذج"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج والطباعة":
