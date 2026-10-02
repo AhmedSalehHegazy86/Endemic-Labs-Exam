@@ -1111,12 +1111,11 @@ def admin_dashboard():
                     s_t = t_dict.get('start_time') or "غير محدد"
                     e_t = t_dict.get('end_time') or "غير محدد"
                     
-                    # تحويل وقت العرض لـ 12 ساعة
                     def format_12h(iso_str):
                         if not iso_str or "T" not in iso_str: return iso_str
                         try:
                             dt = datetime.fromisoformat(iso_str)
-                            return dt.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صاحاً (AM)").replace("PM", "مساءً (PM)")
+                            return dt.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
                         except:
                             return iso_str
 
@@ -1140,12 +1139,6 @@ def admin_dashboard():
                 "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة",
                 "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "أسئلة الصور والأشكال"
             ]
-            
-            # تهيئة حالة الجلسة لأزرار الزيادة والنقصان للوقت
-            if "start_hour" not in st.session_state: st.session_state.start_hour = 9
-            if "start_minute" not in st.session_state: st.session_state.start_minute = 0
-            if "end_hour" not in st.session_state: st.session_state.end_hour = 5
-            if "end_minute" not in st.session_state: st.session_state.end_minute = 0
 
             with st.form("create_template_schedule_form"):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
@@ -1164,7 +1157,7 @@ def admin_dashboard():
                     sh_col1, sh_col2, sh_col3 = st.columns(3)
                     with sh_col1: start_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=9, key="sh_in")
                     with sh_col2: start_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="sm_in")
-                    with sh_col3: start_ampm = st.selectbox("الفترة:", ["صاحاً (AM)", "مساءً (PM)"], key="sap_in")
+                    with sh_col3: start_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], key="sap_in")
 
                 with col_d2:
                     end_d = st.date_input("تاريخ النهاية:", date.today() + timedelta(days=1))
@@ -1172,12 +1165,11 @@ def admin_dashboard():
                     eh_col1, eh_col2, eh_col3 = st.columns(3)
                     with eh_col1: end_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=5, key="eh_in")
                     with eh_col2: end_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="em_in")
-                    with eh_col3: end_ampm = st.selectbox("الفترة:", ["صاحاً (AM)", "مساءً (PM)"], index=1, key="eap_in")
+                    with eh_col3: end_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="eap_in")
 
                 new_tpl_cats = st.multiselect("الأقسام:", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ النموذج والمواعيد", use_container_width=True):
                     if new_tpl_name.strip():
-                        # تحويل التوقيت من 12 ساعة لـ 24 ساعة للتخزين
                         def convert_to_24h(h, m, ampm):
                             h_24 = h % 12
                             if "مساءً" in ampm:
@@ -1211,13 +1203,13 @@ def admin_dashboard():
                         uh1, uh2, uh3 = st.columns(3)
                         with uh1: ns_h = st.number_input("الساعة:", 1, 12, 9, key="ns_h")
                         with uh2: ns_m = st.number_input("الدقيقة:", 0, 59, 0, key="ns_m")
-                        with uh3: ns_ampm = st.selectbox("الفترة:", ["صاحاً (AM)", "مساءً (PM)"], key="ns_ampm")
+                        with uh3: ns_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], key="ns_ampm")
                     with col_u2:
                         new_ed = st.date_input("النهاية الجديدة:", date.today() + timedelta(days=1))
                         ne1, ne2, ne3 = st.columns(3)
                         with ne1: ne_h = st.number_input("الساعة:", 1, 12, 5, key="ne_h")
                         with ne2: ne_m = st.number_input("الدقيقة:", 0, 59, 0, key="ne_m")
-                        with ne3: ne_ampm = st.selectbox("الفترة:", ["صاحاً (AM)", "مساءً (PM)"], index=1, key="ne_ampm")
+                        with ne3: ne_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="ne_ampm")
                     
                     if st.form_submit_button("💾 تحديث الموعد", use_container_width=True):
                         def convert_to_24h(h, m, ampm):
@@ -1312,7 +1304,6 @@ def admin_dashboard():
                             src_conn.row_factory = sqlite3.Row
                             
                             with db() as dest_conn:
-                                # دمج الأسئلة (بدون تكرار بناءً على الـ fingerprint)
                                 src_qs = src_conn.execute("SELECT * FROM questions").fetchall()
                                 merged_q_count = 0
                                 for q in src_qs:
@@ -1323,7 +1314,6 @@ def admin_dashboard():
                                     except sqlite3.IntegrityError:
                                         pass
                                 
-                                # دمج الهيكل الإداري
                                 src_hier = src_conn.execute("SELECT * FROM hierarchical_facilities").fetchall()
                                 merged_h_count = 0
                                 for h in src_hier:
@@ -1521,7 +1511,7 @@ def trainee_portal():
             if not iso_str or "T" not in iso_str: return iso_str
             try:
                 dt = datetime.fromisoformat(iso_str)
-                return dt.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صاحاً").replace("PM", "مساءً")
+                return dt.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
             except:
                 return iso_str
 
