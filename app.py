@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional V1.0",
+    page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة - System V1.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -164,7 +164,7 @@ document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠�
 
 st.markdown("""
 <div class="ownership-watermark">
-    جميع الحقوق محفوظة © 2026 | نظام اختبارات معامل المتوطنة • تصميم وتطوير النظام: <b>Dr/Ahmed.S.Hegazy</b>
+  جميع الحقوق محفوظة © 2026 | تصميم و تطوير: <b>Dr/Ahmed.S.Hegazy</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -332,7 +332,9 @@ def init_db():
             margin_left TEXT NOT NULL,
             logo_base64 TEXT NOT NULL,
             logo2_base64 TEXT NOT NULL DEFAULT '',
-            bg_base64 TEXT NOT NULL DEFAULT ''
+            bg_base64 TEXT NOT NULL DEFAULT '',
+            default_cert_title TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة',
+            default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -353,7 +355,9 @@ def init_db():
             ("exam_templates", "start_time", "TEXT"), 
             ("exam_templates", "end_time", "TEXT"), 
             ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
-            ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''")
+            ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة'"),
+            ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'")
         ]:
             try:
                 c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
@@ -362,9 +366,9 @@ def init_db():
 
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
-            default_header = "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64) VALUES(?,?,?,?,?,?,?,?)",
-                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, "", ""))
+            default_header = "جمهورية مصر العربية><br> وزارة الصحة والسكان<br>مديرية الشئون الصحية ....<br>الإدارة الصحية .... "
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                      (default_header, "8mm", "8mm", "8mm", "8mm", DEFAULT_LOGO, "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
 init_db()
 
@@ -373,18 +377,20 @@ def get_print_settings():
         row = c.execute("SELECT * FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
         if row: return dict(row)
         return {
-            "header_text": "جمهورية مصر العربية - وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
+            "header_text": "جمهورية مصر العربية <br> وزارة الصحة والسكان<br> ....مديرية الشئون الصحية <br> ....الإدارة الصحية ",
             "margin_top": "8mm", "margin_bottom": "8mm", "margin_right": "8mm", "margin_left": "8mm",
             "logo_base64": DEFAULT_LOGO,
             "logo2_base64": "",
-            "bg_base64": ""
+            "bg_base64": "",
+            "default_cert_title": "شهادة اجتياز اختبار معتمدة",
+            "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد"
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data, def_title, def_notes):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64) VALUES(?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data, def_title, def_notes))
 
 def get_hierarchical_data():
     with db() as c:
@@ -553,8 +559,11 @@ def render_logos_html():
         </div>
         """
 
-def generate_compact_certificate_html(sid, custom_notes=""):
+def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     sett = get_print_settings()
+    title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة اجتياز اختبار معتمدة")
+    notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد")
+
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
@@ -595,7 +604,7 @@ def generate_compact_certificate_html(sid, custom_notes=""):
             <div class="header-right">{sett['header_text']}</div>
             <div class="header-top">{render_logos_html()}</div>
             <div class="cert-body">
-                <h2>شهادة اجتياز اختبار معتمدة</h2>
+                <h2>{esc(title_val)}</h2>
                 <hr style="width: 45%; border: 1px solid #059669; margin: 6px auto;">
                 <h1>{esc(r["trainee_name"])}</h1>
                 <p>
@@ -604,12 +613,12 @@ def generate_compact_certificate_html(sid, custom_notes=""):
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
                     رقم التحقق والشهادة: <code>{r["certificate_id"]}</code>
                 </p>
-                {f'<div class="notes-box">ملاحظات إضافية: {esc(custom_notes)}</div>' if custom_notes else ''}
+                {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
             </div>
             <div class="footer-bottom">
                 <div>مسؤول التدريب</div>
-                <div>رئيس قسم المعامل</div>
-                <div>مدير المتوطنة</div>
+                <div> قسم المعامل</div>
+                <div>قسم المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
             </div>
             <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
@@ -640,11 +649,11 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة المؤشرات"}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional V1.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 نظام التقييم والاختبار للعاملين بمعامل المتوطنة</h1><div>System V1.0 • <br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -737,7 +746,7 @@ def admin_dashboard():
         st.warning("⚠️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
         return
 
-    st.markdown("### 📌 لوحة التحكم وأقسام الإدارة:")
+    st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
     
     cols_per_row = 3
     menu_keys = available_menus
@@ -756,7 +765,7 @@ def admin_dashboard():
     selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
 
-    if selected_menu == "📊 لوحة التحكم":
+    if selected_menu == "📊 لوحة المؤشرات العامة":
         st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
             cnts = c.execute("""SELECT
@@ -772,12 +781,16 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 تحكم كامل في هوامش الورق، ترويسة اليمين، الشعارين، وخلفية الشهادات والأوراق")
+        st.subheader("🖨 تحكم كامل في هوامش الورق، ترويسة اليمين، الشعارين، الخلفية، والنصوص الافتراضية للشهادات")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
             new_header_text = st.text_area("نص الترويسة (يدعم HTML مثل <br>):", value=current_set["header_text"], height=90)
             
+            st.markdown("#### 📝 النصوص الافتراضية للشهادات:")
+            def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
+            def_notes_val = st.text_area("الملاحظات الافتراضية للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+
             st.markdown("#### 📏 هوامش الورق المطبوع (PDF / طباعة):")
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
@@ -808,9 +821,9 @@ def admin_dashboard():
             elif uploaded_bg is not None:
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
-            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة والخلفية", use_container_width=True):
-                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val)
-                st.success("✅ تم الحفظ وتحديث إعدادات الطباعة بنجاح!"); st.rerun()
+            if st.form_submit_button("💾 حفظ وتطبيق إعدادات الطباعة والخلفية كإعدادات أساسية", use_container_width=True):
+                save_print_settings(new_header_text, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
+                st.success("✅ تم الحفظ وتعميم الإعدادات الجديدة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (المحافظة ⟵ الهيئة ⟵ المركز ⟵ الإدارة ⟵ المنشأة)")
@@ -1082,6 +1095,7 @@ def admin_dashboard():
         if sub_tpl_mode == "📋 عرض النماذج ومواعيدها والطباعة":
             with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
             if tpls:
+                curr_sett_for_cert = get_print_settings()
                 for t in tpls:
                     t_dict = dict(t)
                     num_q_display = "مفتوح (كامل البنك)" if int(t_dict.get('num_questions', 999999)) >= 999900 else t_dict.get('num_questions')
@@ -1090,9 +1104,27 @@ def admin_dashboard():
                     with st.container(border=True):
                         st.markdown(f"#### 🏷 نموذج اختبار ({t_dict.get('id')}): {t_dict.get('name')}")
                         st.write(f"🔹 **البدء:** {s_t.replace('T', ' الساعة ')} | 🔸 **النهاية:** {e_t.replace('T', ' الساعة ')} | 📝 **الأسئلة:** {num_q_display}")
-                        b1, b2 = st.columns(2)
-                        with b1: render_print_button_only(f"<h3>محضر - {t_dict.get('name')}</h3>", f"محضر {t_dict.get('id')}")
-                        with b2: render_print_button_only(f"<h3>امتحان - {t_dict.get('name')}</h3>", f"نموذج {t_dict.get('id')}")
+                        
+                        st.markdown("##### ✏️️ تخصيص وتعديل نصوص الشهادة والوثائق:")
+                        with st.form(f"custom_print_form_{t_dict.get('id')}"):
+                            edit_title = st.text_input("عنوان الشهادة أو المستند:", value=curr_sett_for_cert.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"), key=f"t_{t_dict.get('id')}")
+                            edit_notes = st.text_area("الملاحظات / التوجيهات الإضافية:", value=curr_sett_for_cert.get("default_cert_notes", " تقرير أداء المعامل والإشراف الفني المعتمد"), key=f"n_{t_dict.get('id')}")
+                            
+                            save_as_default = st.checkbox("💾 حفظ هذه التعديلات وتعميمها كإعداد افتراضي دائم لكل الشهادات والوثائق القادمة")
+                            submitted_preview = st.form_submit_button("🔄 تحديث وعرض معاينة الطباعة", use_container_width=True)
+                            
+                            if submitted_preview and save_as_default:
+                                with db() as c:
+                                    c.execute("UPDATE print_settings SET default_cert_title=?, default_cert_notes=?", (edit_title, edit_notes))
+                                st.success("✅ تم حفظ وتعميم هذه التعديلات لتصبح الإعداد الافتراضي للوثائق القادمة!")
+                        
+                        sample_sid = 1
+                        with db() as c:
+                            any_s = c.execute("SELECT id FROM exam_sessions WHERE template_id=? LIMIT 1", (t_dict.get('id'),)).fetchone()
+                            if any_s: sample_sid = any_s["id"]
+                        
+                        custom_html_out = generate_customizable_certificate_html(sample_sid, edit_title, edit_notes)
+                        render_print_button_only(custom_html_out, f"طباعة نموذج {t_dict.get('id')}")
 
         elif sub_tpl_mode == "➕ إنشاء نموذج اختبار جديد وتحديد موعده":
             categories_pool_opts = [
@@ -1375,7 +1407,23 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         sid = st.session_state.last_result_id
         header()
         st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
-        cert_html = generate_compact_certificate_html(sid, "تقرير أداء المعامل والإشراف الفني المعتمد")
+        
+        curr_sett = get_print_settings()
+        with st.form("custom_trainee_cert_form"):
+            st.markdown("### ✏️ تخصيص وتعديل نصوص الشهادة قبل الطباعة:")
+            c_title = st.text_input("عنوان الشهادة الرئيسي:", value=curr_sett.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
+            c_notes = st.text_area("الملاحظات / التوجيهات الإضافية:", value=curr_sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+            save_default_flag = st.checkbox("💾 تعميم هذه التعديلات كإعداد افتراضي دائم")
+            
+            if st.form_submit_button("🔄 تحديث وحفظ التعديلات", use_container_width=True):
+                if save_default_flag:
+                    with db() as c:
+                        c.execute("UPDATE print_settings SET default_cert_title=?, default_cert_notes=?", (c_title, c_notes))
+                    st.success("✅ تم تحديث وتعميم النصوص بنجاح!")
+                else:
+                    st.success("✅ تم تحديث المعاينة للطباعة الحالية فقط.")
+        
+        cert_html = generate_customizable_certificate_html(sid, c_title, c_notes)
         st.download_button("📥 تحميل شهادة الاجتياز المعتمدة .html", data=cert_html.encode("utf-8"), file_name=f"certificate_{sid}.html", mime="text/html")
         render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
         if st.button("العودة للرئيسية"): st.session_state.trainee_id = None; st.session_state.last_result_id = None; st.rerun()
