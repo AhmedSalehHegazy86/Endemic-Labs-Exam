@@ -7,17 +7,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار الأول v1.00)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="منصة اختبارات معامل المتوطنة - Professional v1.00",
+    page_title="منصة اختبارات معامل المتوطنة - Professional V1.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v1_00.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v1_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -165,7 +165,7 @@ document.addEventListener("contextmenu", function(e) {
 
 document.addEventListener("copy", function(e) {
     e.preventDefault();
-    alert("⚠️ عذراً، نسخ النصوص أو الأسئلة محظور تماماً!");
+    alert("⚠️️ عذراً، نسخ النصوص أو الأسئلة محظور تماماً!");
 });
 
 document.addEventListener("cut", function(e) {
@@ -676,11 +676,11 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 6) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": ""}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "selected_menu_val": "📊 لوحة التحكم"}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional v1.00 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 المنصة الرقمية لاختبارات معامل المتوطنة</h1><div>Professional V1.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
@@ -773,7 +773,12 @@ def admin_dashboard():
         st.warning("⚠️ عذراً، لا توجد أي صلاحيات مصرحة لك بالدخول إليها.")
         return
 
-    selected_menu = st.selectbox("📌 القائمة الرئيسية لإدارة المنصة:", available_menus, label_visibility="collapsed")
+    current_idx = available_menus.index(st.session_state.selected_menu_val) if st.session_state.selected_menu_val in available_menus else 0
+    selected_menu = st.selectbox("📌 القائمة الرئيسية لإدارة المنصة:", available_menus, index=current_idx, key="global_main_menu_select")
+    if selected_menu != st.session_state.selected_menu_val:
+        st.session_state.selected_menu_val = selected_menu
+        st.rerun()
+
     st.markdown("---")
 
     if selected_menu == "📊 لوحة التحكم":
@@ -791,7 +796,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
+    elif selected_menu == "🖨️ إعدادات الطباعة والهوامش والترويسة (شعارين)":
         st.subheader("🖨️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -837,7 +842,7 @@ def admin_dashboard():
                 "الملف الشامل المتكامل (يحتوي على الأعمدة الخمسة)"
             ])
             
-            up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1")
+            up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
             if up_file is not None:
                 try:
                     df_up = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
@@ -944,7 +949,7 @@ def admin_dashboard():
         st.subheader("🧠 بنك الأسئلة الشامل (استيراد وتصدير Excel)")
         tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير إلى إكسيل"])
         with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1")
+            uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_0")
             if uploaded_excel is not None:
                 try:
                     df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1180,7 +1185,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي")
         with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v1_00.db", mime="application/octet-stream", use_container_width=True)
+        st.download_button("📥 تحميل قاعدة البيانات (.db)", data=db_bytes, file_name="database_backup_v1_0.db", mime="application/octet-stream", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
         st.subheader("👥 إدارة المستخدمين وتحديد الصلاحيات التفصيلية لكل مكون")
@@ -1188,7 +1193,7 @@ def admin_dashboard():
         tab_u1, tab_u2 = st.tabs(["➕ إضافة مستخدم جديد وتحديد صلاحياته", "⚙ تعديل صلاحيات وحذف المستخدمين"])
         
         with tab_u1:
-            with st.form("add_user_form_v1"):
+            with st.form("add_user_form_v1_0"):
                 new_u_name = st.text_input("اسم المستخدم الجديد:")
                 new_u_pass = st.text_input("كلمة المرور:", type="password")
                 new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
