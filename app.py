@@ -644,7 +644,7 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها من لوحة تحكم المالك أو رفع ملفات الداتا.")
+            st.warning("⚠️️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً أو رفع ملفات الداتا.")
             facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="الإدارة الصحية بأولاد صقر")
         else:
             govs = sorted(list(set(item["governorate"] for item in hier_data)))
@@ -729,7 +729,6 @@ def admin_dashboard():
 
     st.markdown("### 📌 لوحة التحكم وأقسام الإدارة:")
     
-    # نظام أزرار شبكية (Grid Buttons) لتجنب فتح لوحة المفاتيح تماماً
     cols_per_row = 3
     menu_keys = available_menus
     for i in range(0, len(menu_keys), cols_per_row):
@@ -763,7 +762,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨️️ تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
+        st.subheader("🖨 تحكم كامل في هوامش الورق، ترويسة اليمين، والشعارين في أعلى اليسار")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📄 ترويسة أعلى يمين الصفحات والشهادات:")
@@ -795,9 +794,30 @@ def admin_dashboard():
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (المحافظة ⟵ الهيئة ⟵ المركز ⟵ الإدارة ⟵ المنشأة)")
         
-        tab_h1, tab_h2 = st.tabs(["📥 رفع ملفات منفصلة لكل قائمة (Excel / CSV)", "📋 استعراض وهيكلة وتفريغ البيانات"])
+        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة هيكل إداري يدوياً", "📥 رفع ملفات لكل قائمة (Excel / CSV)", "📋 استعراض وتفريغ البيانات"])
         
         with tab_h1:
+            st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً:")
+            with st.form("manual_hierarchical_form"):
+                m_gov = st.text_input("المحافظة:", value="الشرقية")
+                m_auth = st.text_input("الهيئة / المديرية:", value="مديرية الشئون الصحية بالشرقية")
+                m_center = st.text_input("المركز:", value="أولاد صقر")
+                m_admin = st.text_input("الإدارة الصحية:", value="الإدارة الصحية بأولاد صقر")
+                m_fac = st.text_input("اسم المنشأة الصحية النهائية (وحدة / معمل / مستشفى):")
+                
+                if st.form_submit_button("💾 حفظ وإضافة الهيكل الإداري", use_container_width=True):
+                    if m_fac.strip():
+                        with db() as c:
+                            c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at) VALUES(?,?,?,?,?,?)",
+                                      (m_gov.strip(), m_auth.strip(), m_center.strip(), m_admin.strip(), m_fac.strip(), now()))
+                        st.success(f"✅ تم إضافة المنشأة ({m_fac}) بنجاح إلى الهيكل الإداري!"); st.rerun()
+                    else:
+                        st.warning("⚠️ يرجى إدخال اسم المنشأة الصحية النهائية على الأقل.")
+
+        with tab_h1: # Note: handled inside tabs above
+            pass
+
+        with tab_h2:
             st.markdown("#### 📂 إمكانية رفع ملف قاعدة بيانات لكل مستوى على حدة لتحديث واجهة الممتحن تلقائياً:")
             up_level = st.selectbox("حدد المستوى المراد رفع ملفه:", [
                 "المحافظات (Governorates)",
@@ -831,7 +851,7 @@ def admin_dashboard():
                 except Exception as e:
                     st.error(f"خطأ في قراءة الملف: {e}")
 
-        with tab_h2:
+        with tab_h3:
             hier_rows = get_hierarchical_data()
             if not hier_rows:
                 st.info("لا توجد بيانات هيكل إداري مسجلة بعد.")
@@ -1075,7 +1095,7 @@ def admin_dashboard():
                                       (new_tpl_name.strip(), "اختبار مخصص للمالك", final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
                         st.success("✅ تم إنشاء نموذج الاختبار وموعده بنجاح!"); st.rerun()
 
-        elif sub_tpl_mode == "⚙️️ تعديل موعد اختبار":
+        elif sub_tpl_mode == "⚙ تعديل موعد اختبار":
             with db() as c: tpls_mod = c.execute("SELECT id, name, start_time, end_time FROM exam_templates ORDER BY id ASC").fetchall()
             if tpls_mod:
                 tpl_mod_map = {f"نموذج ({t['id']}) - {t['name']}": t['id'] for t in tpls_mod}
