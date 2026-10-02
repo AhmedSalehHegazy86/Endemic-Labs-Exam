@@ -192,12 +192,10 @@ def normalize_text(x):
     return re.sub(r"\s+", " ", x.strip()).lower()
 
 def format_ba_prefix(text):
-    """تأكيد ربط اسم الهيئة أو الإدارة بالمحافظة أو المركز بحرف الجر بـ"""
     if not text: return ""
     text_clean = str(text).strip()
     if text_clean.startswith("بـ") or text_clean.startswith("ب"):
         return text_clean
-    # إذا لم يبدأ بحرف الجر ب وكان مربوطاً بكلمات مثل (الشرقية، أولاد صقر)
     return f"بـ{text_clean}"
 
 def hash_password(password, salt=None):
@@ -231,7 +229,7 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
+    "🖨️️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
@@ -581,14 +579,12 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
-    # تحليل الهيكل الإداري المسجل للممتحن وربط الأسماء بحرف الجر بـ
+    # تحليل الهيكل الإداري وربطه بحرف الجر بـ حصرياً في الأوراق
     fac_parts = [p.strip() for p in r["facility"].split(" - ")]
-    # التنسيق المطلوب للأوراق والشهادات: الهيئة بالمحافظة، والإدارة بالمركز
     auth_str = fac_parts[0] if len(fac_parts) > 0 else ""
     gov_str = format_ba_prefix(fac_parts[1]) if len(fac_parts) > 1 else ""
     admin_str = fac_parts[2] if len(fac_parts) > 2 else ""
     center_str = format_ba_prefix(fac_parts[3]) if len(fac_parts) > 3 else ""
-    fac_final_str = fac_parts[4] if len(fac_parts) > 4 else ""
 
     line1 = "جمهورية مصر العربية"
     line2 = "وزارة الصحة والسكان"
@@ -691,16 +687,16 @@ def login_portal():
             facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="مديرية الشئون الصحية - الشرقية - الإدارة الصحية بأولاد صقر - أولاد صقر - وحدة معملية")
         else:
             auths = sorted(list(set(item["authority"] for item in hier_data)))
-            selected_auth = st.selectbox("1️⃣ اختر الهيئة التابعة (مثل مديرية الشؤون الصحية):", auths)
+            selected_auth = st.selectbox("1️⃣ اختر الهيئة التابعة:", auths)
             
             govs = sorted(list(set(item["governorate"] for item in hier_data if item["authority"] == selected_auth)))
             selected_gov = st.selectbox("2️⃣ اختر المحافظة:", govs if govs else ["اختر الهيئة أولاً"])
             
             admins = sorted(list(set(item["administration"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov)))
-            selected_admin = st.selectbox("3️⃣ اختر الإدارة الصحية التابعة (مثل الإدارة الصحية بـ):", admins if admins else ["اختر المحافظة أولاً"])
+            selected_admin = st.selectbox("3️⃣ اختر الإدارة الصحية التابعة:", admins if admins else ["اختر المحافظة أولاً"])
             
             centers = sorted(list(set(item["center"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin)))
-            selected_center = st.selectbox("4️⃣ اختر المركز التابع (مثل أولاد صقر):", centers if centers else ["اختر الإدارة أولاً"])
+            selected_center = st.selectbox("4️⃣ اختر المركز التابع:", centers if centers else ["اختر الإدارة أولاً"])
             
             facs = sorted(list(set(item["facility_name"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin and item["center"] == selected_center)))
             selected_facility = st.selectbox("5️⃣ اختر المنشأة الصحية النهائية:", facs if facs else ["اختر المركز أولاً"])
@@ -847,16 +843,16 @@ def admin_dashboard():
                 st.success("✅ تم الحفظ وتعميم الإعدادات الجديدة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (الهيئة ⟵ المحافظة ⟵ الإدارة ⟵ المركز ⟵ المنشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية")
         
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة هيكل إداري يدوياً", "📥 رفع ملفات (Excel / CSV)", "📋 استعراض وحذف وتفريغ البيانات"])
         
         with tab_h1:
-            st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً بالترتيب الجديد:")
+            st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً:")
             with st.form("manual_hierarchical_form"):
                 m_auth = st.text_input("الهيئة (مثل: مديرية الشؤون الصحية):", value="مديرية الشئون الصحية")
                 m_gov = st.text_input("المحافظة:", value="الشرقية")
-                m_admin = st.text_input("الإدارة (مثل: الإدارة الصحية بـ):", value="الإدارة الصحية بأولاد صقر")
+                m_admin = st.text_input("الإدارة (مثل: الإدارة الصحية):", value="الإدارة الصحية بأولاد صقر")
                 m_center = st.text_input("المركز:", value="أولاد صقر")
                 m_fac = st.text_input("اسم المنشأة الصحية النهائية (وحدة / معمل / مستشفى):")
                 
@@ -870,7 +866,7 @@ def admin_dashboard():
                         st.warning("⚠️ يرجى إدخال اسم المنشأة الصحية النهائية على الأقل.")
 
         with tab_h2:
-            st.markdown("#### 📂 إمكانية رفع ملف قاعدة بيانات يحتوي على الأعمدة (authority, governorate, administration, center, facility_name):")
+            st.markdown("#### 📂 إمكانية رفع ملف قاعدة بيانات:")
             up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
             if up_file is not None:
                 try:
@@ -890,7 +886,7 @@ def admin_dashboard():
                                     c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
                                               (auth, gov, adm, cent, fac, now()))
                                     added_cnt += 1
-                        st.success(f"🎉 تم إضافة وتحديث ({added_cnt}) سجل إداري بنجاح! واجهة الممتحن تم تحديثها فوراً."); st.balloons()
+                        st.success(f"🎉 تم إضافة وتحديث ({added_cnt}) سجل إداري بنجاح!"); st.balloons()
                 except Exception as e:
                     st.error(f"خطأ في قراءة الملف: {e}")
 
@@ -1374,7 +1370,7 @@ def trainee_portal():
         start_t = t_dict.get("start_time")
         end_t = t_dict.get("end_time")
         
-        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>جهة العمل التابع لها: <b>{esc(tr["facility"])}</b><br>الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
         
         with st.container(border=True):
             st.markdown("#### 📅 موعد وتوقيت الاختبار المجدول:")
