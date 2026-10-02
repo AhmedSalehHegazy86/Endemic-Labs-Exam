@@ -229,7 +229,7 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨️️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
+    "🖨️ الطباعة والترويسة": "إعدادات الطباعة والترويسة والخلفيات",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
@@ -579,7 +579,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     
-    # تحليل الهيكل الإداري وربطه بحرف الجر بـ حصرياً في الأوراق
+    # استخراج وربط عناصر الهيكل الإداري للأوراق والشهادات الرسمية فقط (مع حرف الجر بـ)
     fac_parts = [p.strip() for p in r["facility"].split(" - ")]
     auth_str = fac_parts[0] if len(fac_parts) > 0 else ""
     gov_str = format_ba_prefix(fac_parts[1]) if len(fac_parts) > 1 else ""
@@ -673,30 +673,30 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.0 • الإدارة الصحية بأولاد صقر<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.0<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def login_portal():
     header()
-    st.markdown("<b>تسجيل وإرسال طلب المتدربين (تسجيل هرمي تفاعلي بالتبعِيّة)</b>", unsafe_allow_html=True)
+    st.markdown("<b>تسجيل وإرسال طلب المتدربين (اختر اختياراتك دون تداخل أسماء المحافظات والمراكز في العرض)</b>", unsafe_allow_html=True)
     
     hier_data = get_hierarchical_data()
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
             st.warning("⚠️ لا توجد بيانات هيكل إداري مضافة بعد. يرجى إضافتها يدوياً من لوحة التحكم أو رفع ملفات الداتا.")
-            facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="مديرية الشئون الصحية - الشرقية - الإدارة الصحية بأولاد صقر - أولاد صقر - وحدة معملية")
+            facility_final_str = st.text_input("اسم جهة العمل (يدوي مؤقتاً):", value="مديرية الشئون الصحية - الشرقية - الإدارة الصحية - أولاد صقر - وحدة معملية")
         else:
             auths = sorted(list(set(item["authority"] for item in hier_data)))
-            selected_auth = st.selectbox("1️⃣ اختر الهيئة التابعة:", auths)
+            selected_auth = st.selectbox("1️⃣ اختر الهيئة (تظهر مجردة للممتحن):", auths)
             
             govs = sorted(list(set(item["governorate"] for item in hier_data if item["authority"] == selected_auth)))
-            selected_gov = st.selectbox("2️⃣ اختر المحافظة:", govs if govs else ["اختر الهيئة أولاً"])
+            selected_gov = st.selectbox("2️⃣ اختر المحافظة (لربطها خلفياً بالأوراق):", govs if govs else ["اختر الهيئة أولاً"])
             
             admins = sorted(list(set(item["administration"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov)))
-            selected_admin = st.selectbox("3️⃣ اختر الإدارة الصحية التابعة:", admins if admins else ["اختر المحافظة أولاً"])
+            selected_admin = st.selectbox("3️⃣ اختر الإدارة (تظهر مجردة للممتحن):", admins if admins else ["اختر المحافظة أولاً"])
             
             centers = sorted(list(set(item["center"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin)))
-            selected_center = st.selectbox("4️⃣ اختر المركز التابع:", centers if centers else ["اختر الإدارة أولاً"])
+            selected_center = st.selectbox("4️⃣ اختر المركز (لربطه خلفياً بالأوراق):", centers if centers else ["اختر الإدارة أولاً"])
             
             facs = sorted(list(set(item["facility_name"] for item in hier_data if item["authority"] == selected_auth and item["governorate"] == selected_gov and item["administration"] == selected_admin and item["center"] == selected_center)))
             selected_facility = st.selectbox("5️⃣ اختر المنشأة الصحية النهائية:", facs if facs else ["اختر المركز أولاً"])
@@ -800,7 +800,7 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ الطباعة والترويسة":
+    elif selected_menu == "🖨️️ الطباعة والترويسة":
         st.subheader("🖨 تحكم كامل في هوامش الورق، الشعارين، الخلفية، والنصوص الافتراضية للشهادات")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
@@ -850,9 +850,9 @@ def admin_dashboard():
         with tab_h1:
             st.markdown("#### ✍️ تسجيل منشأة صحية أو وحدة إدارية جديدة يدوياً:")
             with st.form("manual_hierarchical_form"):
-                m_auth = st.text_input("الهيئة (مثل: مديرية الشؤون الصحية):", value="مديرية الشئون الصحية")
+                m_auth = st.text_input("الهيئة (مثل: مديرية الشئون الصحية):", value="مديرية الشئون الصحية")
                 m_gov = st.text_input("المحافظة:", value="الشرقية")
-                m_admin = st.text_input("الإدارة (مثل: الإدارة الصحية):", value="الإدارة الصحية بأولاد صقر")
+                m_admin = st.text_input("الإدارة (مثل: الإدارة الصحية):", value="الإدارة الصحية")
                 m_center = st.text_input("المركز:", value="أولاد صقر")
                 m_fac = st.text_input("اسم المنشأة الصحية النهائية (وحدة / معمل / مستشفى):")
                 
@@ -1206,7 +1206,7 @@ def admin_dashboard():
     elif selected_menu == "✍️ تسجيل نتيجة يدوي":
         st.subheader("✍️ تسجيل نتيجة متدرب يدوياً من الإدارة")
         hier_data = get_hierarchical_data()
-        default_fac_str = hier_data[0]["facility_name"] if hier_data else "الإدارة الصحية بأولاد صقر"
+        default_fac_str = hier_data[0]["facility_name"] if hier_data else "وحدة معملية"
         with st.form("manual_score_form"):
             m_trainee_name = st.text_input("اسم المتدرب الرباعي:")
             m_facility_name = st.text_input("جهة العمل أو المنشأة:", value=default_fac_str)
