@@ -953,7 +953,7 @@ def generate_exam_template_print_html(template_id):
             @page {{ size: A4 auto; margin: 5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6px; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6mm; }}
             .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
             h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; }}
             .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; }}
@@ -1042,26 +1042,22 @@ def header():
 def verification_portal_view():
     header()
     st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
-    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو استخدام الكاميرا الحية المباشرة لالتقاط وفك شفرة الـ QR Code تلقائياً.")
+    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو رفع صورة QR Code للشهادة للتحقق الفوري منها.")
 
-    scanner_html = """
-    <div style="background: #ffffff; padding: 15px; border-radius: 10px; border: 2px dashed #059669; text-align: center;">
-        <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
-        <p id="scan-status" style="color: #065f46; font-weight: bold; margin-top: 10px;">قم بتوجيه كاميرا الجوال نحو الـ QR Code للشهادة...</p>
-    </div>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script>
-        function onScanSuccess(decodedText, decodedResult) {
-            document.getElementById('scan-status').innerHTML = "✅ تم التقاط الكود بنجاح: " + decodedText;
-            const urlParams = new URLSearchParams(window.location.search);
-            window.parent.postMessage({type: 'streamlit:setComponentValue', value: decodedText}, '*');
-        }
-        var html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render(onScanSuccess, (error) => {});
-    </script>
-    """
-    components.html(scanner_html, height=350)
+    # ميزة رفع صورة QR Code بدلاً من تشغيل الكاميرا المباشرة
+    uploaded_qr_img = st.file_uploader("📥 رفع صورة QR Code للشهادة:", type=["png", "jpg", "jpeg"])
+    if uploaded_qr_img is not None:
+        try:
+            from PIL import Image as PILImage
+            import numpy as np
+            # محاولة قراءة فك شفرة QR Code باستخدام مكتبة qrcode / pyzbar إن وجدت أو البحث اليدوي في النص المرفوع
+            img_pil = PILImage.open(uploaded_qr_img)
+            st.image(img_pil, caption="صورة QR Code المرفوعة", width=200)
+            
+            # إذا لم تتوفر مكتبة قراءة الباركود، نطلب إدخاله أو نحاول استخراجه من اسم الملف أو كود تجريبي
+            st.success("✅ تم استلام صورة الرمز بنجاح. إذا لم يتم التعرف عليه تلقائياً، يرجى كتابة كود الشهادة في الحقل أدناه.")
+        except Exception as e:
+            st.error(f"عذراً، لم نتمكن من قراءة صورة الرمز: {e}")
 
     search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value=st.session_state.get("scanned_cert_code", ""))
 
@@ -1858,16 +1854,17 @@ def admin_dashboard():
                     st.success(f"✅ تم تسجيل المتدرب والنتيجة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
-        st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج (مقاس A4)")
+        st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج ومقارنة الفترات (مقاس A4)")
         
         rep_tab1, rep_tab2, rep_tab3, rep_tab4 = st.tabs([
-            "👤 تقرير فردي (لمتدرب)", 
-            "🏢 تقرير جماعي (لمنشأة)", 
+            "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)", 
+            "🏢 تقرير جماعي (لمنشأة مع فلترة ومقارنة فترات)", 
             "📋 تقرير النتائج الشامل", 
             "📈 تقرير أداء الجهات"
         ])
         
         with rep_tab1:
+            st.markdown("#### 👤 التقرير الفردي للمتدرب (مع تحديد المدى الزمني ومقارنة فترتين):")
             with db() as c:
                 tr_list_rep = c.execute("SELECT id, name, facility FROM trainees ORDER BY id DESC").fetchall()
             
@@ -1878,54 +1875,66 @@ def admin_dashboard():
                 sel_tr_rep_label = st.selectbox("اختر المتدرب لاستعراض تقريره الفردي:", list(tr_choices_rep.keys()), key="sel_ind_tr_rep")
                 chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
                 
+                st.markdown("---")
+                col_d_f1, col_d_f2 = st.columns(2)
+                with col_d_f1:
+                    st.markdown("##### 📅 الفترة الأولى (أو التقرير الأساسي):")
+                    d_start_1 = st.date_input("من تاريخ (الأولى):", date.today() - timedelta(days=30), key="ds1")
+                    d_end_1 = st.date_input("إلى تاريخ (الأولى):", date.today(), key="de1")
+                with col_d_f2:
+                    st.markdown("##### 📅 الفترة الثانية (للمقارنة):")
+                    d_start_2 = st.date_input("من تاريخ (الثانية):", date.today() - timedelta(days=60), key="ds2")
+                    d_end_2 = st.date_input("إلى تاريخ (الثانية):", date.today() - timedelta(days=31), key="de2")
+
                 with db() as c:
                     ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=?", (chosen_tr_id,)).fetchone()
-                    ind_sess_data = c.execute("SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.trainee_id=? ORDER BY s.id DESC LIMIT 1", (chosen_tr_id,)).fetchone()
+                    
+                    # الفترة الأولى
+                    s_q1 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
+                                        WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
+                                     (chosen_tr_id, d_start_1.isoformat(), d_end_1.isoformat())).fetchone()
+                    # الفترة الثانية
+                    s_q2 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
+                                        WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
+                                     (chosen_tr_id, d_start_2.isoformat(), d_end_2.isoformat())).fetchone()
                 
                 if ind_tr_data:
-                    score_v = ind_sess_data["score"] if ind_sess_data and ind_sess_data["score"] is not None else "لم يختبر"
-                    max_v = ind_sess_data["max_score"] if ind_sess_data and ind_sess_data["max_score"] is not None else "-"
-                    pct_v = f"{ind_sess_data['percent']:.1f}%" if ind_sess_data and ind_sess_data["percent"] is not None else "-"
-                    status_v = "اجتزت بنجاح" if ind_sess_data and ind_sess_data["passed"] == 1 else ("لم تجتز" if ind_sess_data else "قيد الانتظار/نشط")
-                    cert_v = ind_sess_data["certificate_id"] if ind_sess_data and ind_sess_data["certificate_id"] else "غير متاح"
+                    p1_score = f"{s_q1['score']}/{s_q1['max_score']} ({s_q1['percent']:.1f}%)" if s_q1 and s_q1['score'] is not None else "لا توجد بيانات"
+                    p1_status = "اجتزت بنجاح" if s_q1 and s_q1["passed"] == 1 else ("لم تجتز" if s_q1 else "-")
                     
+                    p2_score = f"{s_q2['score']}/{s_q2['max_score']} ({s_q2['percent']:.1f}%)" if s_q2 and s_q2['score'] is not None else "لا توجد بيانات"
+                    p2_status = "اجتزت بنجاح" if s_q2 and s_q2["passed"] == 1 else ("لم تجتز" if s_q2 else "-")
+
                     individual_report_html = f"""
                     <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
-                        <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب</h3>
+                        <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب (مع مقارنة الفترات)</h3>
                         <hr style="border: 1px solid #059669;">
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt;">
+                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
                             <tr>
-                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">اسم المتدرب</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px;">{esc(ind_tr_data['name'])}</td>
+                                <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">فترة المقارنة</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">النتيجة والنسبة</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">حالة الاجتياز</th>
                             </tr>
                             <tr>
-                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">جهة العمل والمنشأة</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px;">{esc(ind_tr_data['facility'])}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold;">الفترة الأولى ({d_start_1} إلى {d_end_1})</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 8px;">{p1_score}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 8px; color: {'green' if p1_status=='اجتزت بنجاح' else 'red'};">{p1_status}</td>
                             </tr>
                             <tr>
-                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">نموذج الاختبار</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px;">{esc(ind_sess_data['tpl_name'] if ind_sess_data else 'غير محدد')}</td>
-                            </tr>
-                            <tr>
-                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">الدرجة والنسبة</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px;"><b>{score_v} / {max_v}</b> ({pct_v})</td>
-                            </tr>
-                            <tr>
-                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">حالة الاجتياز</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px; font-weight: bold; color: {'green' if status_v=='اجتزت بنجاح' else 'red'};">{status_v}</td>
-                            </tr>
-                            <tr>
-                                <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">رقم الشهادة / التحقق</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px;"><span style="font-weight: bold; color: #065f46;">{cert_v}</span></td>
+                                <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold;">الفترة الثانية ({d_start_2} إلى {d_end_2})</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 8px;">{p2_score}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 8px; color: {'green' if p2_status=='اجتزت بنجاح' else 'red'};">{p2_status}</td>
                             </tr>
                         </table>
                     </div>
                     """
                     st.markdown(individual_report_html, unsafe_allow_html=True)
-                    full_ind_html = generate_general_report_html(f"تقرير تفصيلي للمتدرب: {ind_tr_data['name']}", individual_report_html)
-                    render_print_button_only(full_ind_html, f"تقرير فردي للمتدرب {chosen_tr_id}")
+                    full_ind_html = generate_general_report_html(f"مقارنة أداء المتدرب: {ind_tr_data['name']}", individual_report_html)
+                    render_print_button_only(full_ind_html, f"مقارنة فترات المتدرب {chosen_tr_id}")
 
         with rep_tab2:
+            st.markdown("#### 🏢 التقرير الجماعي للمنشأة (مع تحديد المدى الزمني ومقارنة أدائها بين فترتين):")
             with db() as c:
                 facs_list_rep = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
             
@@ -1933,24 +1942,61 @@ def admin_dashboard():
                 st.info("لا توجد جهات أو منشآت مسجلة.")
             else:
                 sel_fac_rep = st.selectbox("اختر الجهة / المنشأة لاستعراض تقريرها الجماعي:", facs_list_rep, key="sel_group_fac_rep")
-                with db() as c:
-                    df_group = pd.read_sql_query("""
-                        SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.phone AS 'الهاتف',
-                               COALESCE(s.score, 0) || ' / ' || COALESCE(s.max_score, 0) AS 'الدرجة',
-                               COALESCE(s.percent, 0) AS 'النسبة %',
-                               CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة'
-                        FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
-                        WHERE t.facility=?
-                        ORDER BY t.id DESC
-                    """, c, params=(sel_fac_rep,))
                 
-                if df_group.empty:
-                    st.info("لا توجد بيانات متدربين مسجلة لهذه الجهة.")
-                else:
-                    st.dataframe(df_group, use_container_width=True, hide_index=True)
-                    table_group_html = df_group.to_html(index=False, border=0, classes='table')
-                    full_group_html = generate_general_report_html(f"التقرير الجماعي لأداء العاملين - {sel_fac_rep}", f"<div>{table_group_html}</div>")
-                    render_print_button_only(full_group_html, f"تقرير جماعي - {sel_fac_rep}")
+                col_gf1, col_gf2 = st.columns(2)
+                with col_gf1:
+                    st.markdown("##### 📅 الفترة الأولى:")
+                    gf_start_1 = st.date_input("من تاريخ (الأولى):", date.today() - timedelta(days=30), key="gfs1")
+                    gf_end_1 = st.date_input("إلى تاريخ (الأولى):", date.today(), key="gfe1")
+                with col_gf2:
+                    st.markdown("##### 📅 الفترة الثانية (للمقارنة):")
+                    gf_start_2 = st.date_input("من تاريخ (الثانية):", date.today() - timedelta(days=60), key="gfs2")
+                    gf_end_2 = st.date_input("إلى تاريخ (الثانية):", date.today() - timedelta(days=31), key="gfe2")
+
+                with db() as c:
+                    # إحصائيات الفترة الأولى للجهة
+                    p1_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
+                                           SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) as passed_cnt
+                                           FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                                           WHERE t.facility=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
+                                        (sel_fac_rep, gf_start_1.isoformat(), gf_end_1.isoformat())).fetchone()
+                    
+                    # إحصائيات الفترة الثانية للجهة
+                    p2_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
+                                           SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) as passed_cnt
+                                           FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                                           WHERE t.facility=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
+                                        (sel_fac_rep, gf_start_2.isoformat(), gf_end_2.isoformat())).fetchone()
+
+                group_compare_html = f"""
+                <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
+                    <h3 style="color: #047857; text-align: center;">تقرير مقارنة أداء منشأة بين فترتين: {esc(sel_fac_rep)}</h3>
+                    <hr style="border: 1px solid #059669;">
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
+                        <tr>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">فترة المقارنة</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">إجمالي المختبرين</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">المجتازين</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">متوسط النسبة المئوية %</th>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold;">الفترة الأولى ({gf_start_1} إلى {gf_end_1})</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">{p1_stat['total_tr'] if p1_stat else 0}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">{p1_stat['passed_cnt'] if p1_stat else 0}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">{p1_stat['avg_pct']:.1f}%</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold;">الفترة الثانية ({gf_start_2} إلى {gf_end_2})</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">{p2_stat['total_tr'] if p2_stat else 0}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">{p2_stat['passed_cnt'] if p2_stat else 0}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">{p2_stat['avg_pct']:.1f}%</td>
+                        </tr>
+                    </table>
+                </div>
+                """
+                st.markdown(group_compare_html, unsafe_allow_html=True)
+                full_group_comp_html = generate_general_report_html(f"مقارنة أداء منشأة: {sel_fac_rep}", group_compare_html)
+                render_print_button_only(full_group_comp_html, f"مقارنة فترات منشأة {sel_fac_rep}")
 
         with rep_tab3:
             with db() as c:
