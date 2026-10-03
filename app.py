@@ -60,14 +60,12 @@ html, body, [class*="css"] {
     -webkit-touch-callout: none !important;
 }
 
-/* طبقة حجب وظلال لمنع وضوح لقطات الشاشة والتصوير */
 .stApp {
     background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 45%, #bbf7d0 100%) !important;
     background-attachment: fixed !important;
     -webkit-filter: contrast(102%);
 }
 
-/* فلتر تستر وحماية على المحتوى */
 body::after {
     content: "";
     position: fixed;
@@ -172,11 +170,9 @@ input, select, textarea {
 </style>
 
 <script>
-// منع النقر بزر الماوس الأيمن والنسخ
 document.addEventListener("contextmenu", function(e) { e.preventDefault(); });
 document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة والبيانات!"); });
 
-// رصد محاولات أخذ لقطة شاشة عبر اختصارات لوحة المفاتيح (PrintScreen, Win+Shift+S, F12, Ctrl+Shift+I)
 document.addEventListener("keydown", function(e) {
     if (
         e.key === "PrintScreen" || 
@@ -194,7 +190,6 @@ document.addEventListener("keydown", function(e) {
     }
 });
 
-// تشويش الشاشة تلقائياً عند محاولة مغادرة النافذة أو أخذ لقطة عبر أدوات خارجية
 window.addEventListener("blur", function() {
     document.body.style.filter = "blur(8px)";
 });
@@ -412,6 +407,7 @@ def init_db():
             margin_bottom TEXT NOT NULL,
             margin_right TEXT NOT NULL,
             margin_left TEXT NOT NULL,
+            line_spacing REAL NOT NULL DEFAULT 1.25,
             logo_base64 TEXT NOT NULL,
             logo2_base64 TEXT NOT NULL DEFAULT '',
             logo3_base64 TEXT NOT NULL DEFAULT '',
@@ -440,6 +436,7 @@ def init_db():
             ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
             ("exam_templates", "start_time", "TEXT"), 
             ("exam_templates", "end_time", "TEXT"), 
+            ("print_settings", "line_spacing", "REAL NOT NULL DEFAULT 1.25"),
             ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "logo3_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
@@ -463,8 +460,8 @@ def init_db():
                 "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
                 "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
             ]
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
 
 init_db()
 
@@ -477,10 +474,13 @@ def get_print_settings():
                 res["professions_list"] = json.loads(res.get("professions_list_json", "[]"))
             except:
                 res["professions_list"] = ["أخصائي تحاليل طبية", "طبيب بيطري", "فني معمل"]
+            if "line_spacing" not in res or res["line_spacing"] is None:
+                res["line_spacing"] = 1.25
             return res
         return {
             "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
             "margin_top": "3mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
+            "line_spacing": 1.25,
             "logo_base64": DEFAULT_LOGO,
             "logo2_base64": "",
             "logo3_base64": "",
@@ -494,11 +494,11 @@ def get_print_settings():
             "professions_list": ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"]
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
 
 def get_hierarchical_data(include_hidden=False):
     with db() as c:
@@ -700,6 +700,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     prefix_val = sett.get("trainee_prefix", "").strip()
     title_role_val = sett.get("trainee_title", "").strip()
     profession_val = sett.get("trainee_profession", "").strip()
+    line_sp = sett.get("line_spacing", 1.25)
 
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
@@ -726,7 +727,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     profession_str = f" - {profession_val}" if profession_val else ""
     
     full_line_text = f"{prefix_str}{title_role_str}{r['trainee_name']}{profession_str}"
-    line_html = f"<div style='font-size: 14pt; color: #065f46; font-weight: 900; margin: 4px 0;'>{esc(full_line_text)}</div>"
+    line_html = f"<div style='font-size: 14pt; color: #065f46; font-weight: 900; margin: 4px 0; line-height: {line_sp};'>{esc(full_line_text)}</div>"
 
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
@@ -751,6 +752,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 align-items: center; 
                 direction: rtl; 
                 -webkit-print-color-adjust: exact; 
+                line-height: {line_sp};
             }}
             .cert-wrapper {{ 
                 width: 90%;
@@ -772,11 +774,11 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 break-inside: avoid;
             }}
             .header-top {{ position: absolute; top: 8mm; left: 12mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 8mm; right: 12mm; text-align: right; font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.15; z-index: 2; }}
+            .header-right {{ position: absolute; top: 8mm; right: 12mm; text-align: right; font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: {line_sp}; z-index: 2; }}
             .cert-body {{ text-align: center; margin-top: 8mm; width: 100%; z-index: 2; }}
-            h2 {{ color: #047857; font-size: 13pt; margin-bottom: 2px; }}
-            p {{ font-size: 9pt; line-height: 1.25; color: #1f2937; margin: 4px 0; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 8pt; }}
+            h2 {{ color: #047857; font-size: 13pt; margin-bottom: 2px; line-height: {line_sp}; }}
+            p {{ font-size: 9pt; line-height: {line_sp}; color: #1f2937; margin: 4px 0; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 8pt; line-height: {line_sp}; }}
             .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 2mm; margin-top: 2mm; z-index: 2; }}
             .cert-watermark {{ font-size: 7pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
         </style>
@@ -816,6 +818,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
 def generate_trainee_exam_sheet_html(sid):
     sett = get_print_settings()
+    line_sp = sett.get("line_spacing", 1.25)
     with db() as c:
         s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
@@ -865,13 +868,13 @@ def generate_trainee_exam_sheet_html(sid):
                 border_color = "#dc2626"
                 icon_str = "❌"
             
-            opts_html += f'<div style="padding: 1px 4px; margin: 1px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7.5pt;">{icon_str} {esc(opt_text)}</div>'
+            opts_html += f'<div style="padding: 1px 4px; margin: 1px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7.5pt; line-height: {line_sp};">{icon_str} {esc(opt_text)}</div>'
         
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         
         q_html_content += f"""
         <div style="margin-bottom: 4px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid; break-inside: avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8pt;">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
             {img_tag_html}
             <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
@@ -886,18 +889,18 @@ def generate_trainee_exam_sheet_html(sid):
         <meta charset="UTF-8">
         <style>
             @page {{ size: A4 auto; margin: 5mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 3mm; margin-bottom: 4mm; }}
-            .header-right {{ font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
-            h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 2px 0; }}
-            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 5px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; }}
+            .header-right {{ font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
+            h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 2px 0; line-height: {line_sp}; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 5px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
             .questions-grid {{
                 column-count: 2;
                 column-gap: 4mm;
                 column-fill: auto;
             }}
-            .footer {{ margin-top: 5px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; }}
+            .footer {{ margin-top: 5px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
         </style>
     </head>
     <body>
@@ -927,6 +930,7 @@ def generate_trainee_exam_sheet_html(sid):
 
 def generate_general_report_html(title, content_html, target_pages=1):
     sett = get_print_settings()
+    line_sp = sett.get("line_spacing", 1.25)
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -934,16 +938,16 @@ def generate_general_report_html(title, content_html, target_pages=1):
         <meta charset="UTF-8">
         <style>
             @page {{ size: A4 auto; margin: 5mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
-            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
-            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; }}
+            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
+            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 8.5pt; }}
-            th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; }}
             th {{ background-color: #059669; color: white; font-weight: bold; }}
             tr:nth-child(even) {{ background-color: #f0fdf4; }}
-            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; }}
+            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
         </style>
     </head>
     <body>
@@ -969,6 +973,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
 
 def generate_action_plan_report_html(title, content_html, target_pages=1):
     sett = get_print_settings()
+    line_sp = sett.get("line_spacing", 1.25)
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -976,12 +981,12 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         <meta charset="UTF-8">
         <style>
             @page {{ size: A4 auto; margin: 5mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
-            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
-            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; }}
-            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; }}
+            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
+            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
+            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
         </style>
     </head>
     <body>
@@ -1007,6 +1012,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
 
 def generate_exam_template_print_html(template_id):
     sett = get_print_settings()
+    line_sp = sett.get("line_spacing", 1.25)
     with db() as c:
         tpl = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         if not tpl: return ""
@@ -1029,11 +1035,11 @@ def generate_exam_template_print_html(template_id):
         else:
             q_text_clean = raw_q_text
 
-        opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
         
         q_html_content += f"""
         <div style="margin-bottom: 4px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid; break-inside: avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8.5pt;">({idx}) {esc(q_text_clean)}</div>
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
             <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
@@ -1046,18 +1052,18 @@ def generate_exam_template_print_html(template_id):
         <meta charset="UTF-8">
         <style>
             @page {{ size: A4 auto; margin: 5mm; }}
-            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6mm; }}
-            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
-            h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; }}
-            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; }}
+            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
+            h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; line-height: {line_sp}; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
             .questions-grid {{
                 column-count: 2;
                 column-gap: 4mm;
                 column-fill: auto;
             }}
-            .footer {{ margin-top: 6px; display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 4mm; page-break-inside: avoid; break-inside: avoid; }}
+            .footer {{ margin-top: 6px; display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 4mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
         </style>
     </head>
     <body>
@@ -1394,12 +1400,13 @@ def admin_dashboard():
 
             def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
-            st.markdown("#### 📏 هوامش الورق المطبوع (مقاس A4):")
-            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            st.markdown("#### 📏 هوامش الورق المطبوع والمسافات بين الأسطر (مقاس A4):")
+            col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
             with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
+            with col_m5: line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
             
             st.markdown("#### 🖼 شعارات الصفحات والشهادات:")
             col_logo1, col_logo2, col_logo3 = st.columns(3)
@@ -1453,7 +1460,7 @@ def admin_dashboard():
                 current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
 
             if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, def_title_val, def_notes_val, trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list)
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, line_spacing_val, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, def_title_val, def_notes_val, trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list)
                 st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
 
         st.markdown("---")
@@ -1468,7 +1475,7 @@ def admin_dashboard():
                         professions_options_list.append(new_prof_input.strip())
                         save_print_settings(
                             current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
-                            current_set["margin_right"], current_set["margin_left"], current_set["logo_base64"], 
+                            current_set["margin_right"], current_set["margin_left"], current_set.get("line_spacing", 1.25), current_set["logo_base64"], 
                             current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), 
                             current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
                             current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
@@ -1489,7 +1496,7 @@ def admin_dashboard():
                             professions_options_list.remove(prof_to_remove)
                             save_print_settings(
                                 current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
-                                current_set["margin_right"], current_set["margin_left"], current_set["logo_base64"], 
+                                current_set["margin_right"], current_set["margin_left"], current_set.get("line_spacing", 1.25), current_set["logo_base64"], 
                                 current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), 
                                 current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
                                 current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
@@ -1580,7 +1587,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁️️‍🗨️" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨️" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
