@@ -1,4 +1,4 @@
-import os, io, re, ast, json, sqlite3, hashlib, secrets, random, time
+import os, io, re, ast, json, sqlite3, hashlib, secrets, random, time, html
 from datetime import datetime, timedelta, date
 from contextlib import contextmanager
 
@@ -9,7 +9,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - النسخة النظيفة الكاملة)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - مع ميزة الإخفاء والإظهار)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.0",
@@ -160,7 +160,7 @@ input, select, textarea {
 
 <script>
 document.addEventListener("contextmenu", function(e) { e.preventDefault(); });
-document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
+document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠️️ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة!"); });
 </script>
 """, unsafe_allow_html=True)
 
@@ -195,24 +195,24 @@ def normalize_text(x):
 
 def reindex_hierarchical_facilities():
     with db() as c:
-        rows = c.execute("SELECT authority, governorate, administration, center, facility_name, created_at FROM hierarchical_facilities ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT authority, governorate, administration, center, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM hierarchical_facilities")
         c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
         for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at) VALUES(?,?,?,?,?,?)",
-                      (r["authority"], r["governorate"], r["administration"], r["center"], r["facility_name"], r["created_at"]))
+            c.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                      (r["authority"], r["governorate"], r["administration"], r["center"], r["facility_name"], r["created_at"], r.get("hidden", 0)))
 
 def reindex_trainees():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at FROM trainees ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM trainees")
         c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["facility"], r["name"], r["phone"], r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"]))
+            c.execute("INSERT INTO trainees(id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r.get("hidden", 0)))
             id_mapping[old_id] = new_id
         
         for old_id, new_id in id_mapping.items():
@@ -284,7 +284,8 @@ def init_db():
             administration TEXT NOT NULL,
             center TEXT NOT NULL,
             facility_name TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            hidden INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS trainees (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -296,6 +297,7 @@ def init_db():
             created_at TEXT NOT NULL,
             approved_at TEXT,
             updated_at TEXT NOT NULL,
+            hidden INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY(assigned_template_id) REFERENCES exam_templates(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS questions (
@@ -392,12 +394,10 @@ def init_db():
         );
         """)
 
-        try:
-            c.execute("ALTER TABLE users ADD COLUMN permissions_json TEXT NOT NULL DEFAULT '[]'")
-        except:
-            pass
-
-        for col_def in [
+        for col_table, col_name, col_type in [
+            ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
+            ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
+            ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
             ("exam_templates", "start_time", "TEXT"), 
             ("exam_templates", "end_time", "TEXT"), 
             ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
@@ -412,7 +412,7 @@ def init_db():
             ("print_settings", "professions_list_json", "TEXT NOT NULL DEFAULT '[]'")
         ]:
             try:
-                c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
+                c.execute(f"ALTER TABLE {col_table} ADD COLUMN {col_name} {col_type}")
             except:
                 pass
 
@@ -425,14 +425,6 @@ def init_db():
             ]
             c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                       (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
-        else:
-            row = c.execute("SELECT professions_list_json FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
-            if row and (not row["professions_list_json"] or row["professions_list_json"] == "[]"):
-                default_professions = [
-                    "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
-                    "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
-                ]
-                c.execute("UPDATE print_settings SET professions_list_json=?", (json.dumps(default_professions, ensure_ascii=False),))
 
 init_db()
 
@@ -468,9 +460,13 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_
         c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
 
-def get_hierarchical_data():
+def get_hierarchical_data(include_hidden=False):
     with db() as c:
-        rows = c.execute("SELECT * FROM hierarchical_facilities ORDER BY id ASC").fetchall()
+        q = "SELECT * FROM hierarchical_facilities"
+        if not include_hidden:
+            q += " WHERE hidden = 0"
+        q += " ORDER BY id ASC"
+        rows = c.execute(q).fetchall()
         return [dict(r) for r in rows] if rows else []
 
 def ensure_admin():
@@ -495,14 +491,14 @@ def login_user(u, p):
 
 def create_trainee(facility, name, phone, assigned_template_id=None):
     with db() as c:
-        cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                        (facility, normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now()))
+        cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?)",
+                        (facility, normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now(), 0))
         tid = cur.lastrowid
     return tid
 
 def trainee_by_credentials(name, facility):
     with db() as c:
-        r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active')",
+        r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active') AND hidden=0",
                       (normalize_text(name), facility)).fetchone()
         return dict(r) if r else None
 
@@ -520,16 +516,21 @@ def set_bulk_template_for_all(assigned_template_id):
                      SET assigned_template_id=?, 
                          status=CASE WHEN status='pending' THEN 'approved' ELSE status END,
                          approved_at=CASE WHEN status='pending' THEN ? ELSE approved_at END,
-                         updated_at=? """,
+                         updated_at=? WHERE hidden=0""",
                   (assigned_template_id, now(), now()))
 
-def trainees_df(status=None):
+def trainees_df(status=None, include_hidden=False):
     with db() as c:
-        q = "SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at FROM trainees"
+        q = "SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at, hidden FROM trainees"
+        conditions = []
         args = []
         if status:
-            q += " WHERE status=?"
-            args = [status]
+            conditions.append("status=?")
+            args.append(status)
+        if not include_hidden:
+            conditions.append("hidden=0")
+        if conditions:
+            q += " WHERE " + " AND ".join(conditions)
         q += " ORDER BY id DESC"
         return pd.read_sql_query(q, c, params=args)
 
@@ -1116,7 +1117,7 @@ def verification_portal_view():
         with db() as c:
             cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
                                            FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
-                                           WHERE s.certificate_id LIKE ? OR s.id=?""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
+                                           WHERE (s.certificate_id LIKE ? OR s.id=?) AND t.hidden=0""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
 
     if cert_to_verify:
         r = cert_to_verify
@@ -1197,7 +1198,7 @@ def login_portal():
             st.session_state.show_verification_portal = True
             st.rerun()
 
-    hier_data = get_hierarchical_data()
+    hier_data = get_hierarchical_data(include_hidden=False)
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
@@ -1314,11 +1315,11 @@ def admin_dashboard():
         st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
             cnts = c.execute("""SELECT
-                (SELECT COUNT(*) FROM trainees) tr,
-                (SELECT COUNT(*) FROM trainees WHERE status='pending') pend,
+                (SELECT COUNT(*) FROM trainees WHERE hidden=0) tr,
+                (SELECT COUNT(*) FROM trainees WHERE status='pending' AND hidden=0) pend,
                 (SELECT COUNT(*) FROM questions) qs,
-                (SELECT COUNT(*) FROM exam_sessions WHERE status='submitted') ex,
-                (SELECT COALESCE(AVG(percent),0) FROM exam_sessions WHERE status='submitted') avgp
+                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) ex,
+                (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) avgp
             """).fetchone()
         cols = st.columns(5)
         for box, l, v in zip(cols, ["إجمالي المتدربين", "الطلبات المعلقة", "بنك الأسئلة", "الاختبارات المقدمة", "متوسط النتائج"],
@@ -1371,7 +1372,7 @@ def admin_dashboard():
                 uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الصفحة):", type=["png", "jpg", "jpeg"], key="logo3_upload")
                 remove_logo3 = st.checkbox("حذف الشعار الثالث")
 
-            st.markdown("#### 🖼️️ إطار وخلفية الشهادات:")
+            st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
             col_bg_up, col_frame_up = st.columns(2)
             with col_bg_up:
                 uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة:", type=["png", "jpg", "jpeg"], key="bg_upload")
@@ -1460,8 +1461,8 @@ def admin_dashboard():
                         st.warning("⚠️ يجب أن تحتوي القائمة على مهنة واحدة على الأقل.")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية")
-        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة يدوية", "📥 رفع ملفات", "📋 استعراض وحذف"])
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الإخفاء والإظهار)")
+        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة يدوية", "📥 رفع ملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
             with st.form("manual_hierarchical_form"):
@@ -1474,8 +1475,8 @@ def admin_dashboard():
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
                     if m_fac.strip():
                         with db() as c:
-                            c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
-                                      (m_auth.strip(), m_gov.strip(), m_admin.strip(), m_center.strip(), m_fac.strip(), now()))
+                            c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
+                                      (m_auth.strip(), m_gov.strip(), m_admin.strip(), m_center.strip(), m_fac.strip(), now(), 0))
                         reindex_hierarchical_facilities()
                         st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!"); st.rerun()
                     else:
@@ -1496,8 +1497,8 @@ def admin_dashboard():
                                 cent = str(r.get("center", r.get("المركز", "أولاد صقر"))).strip()
                                 fac = str(r.get("facility_name", r.get("المنشأة", "وحدة صحية"))).strip()
                                 if fac:
-                                    c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at) VALUES(?,?,?,?,?,?)",
-                                              (auth, gov, adm, cent, fac, now()))
+                                    c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
+                                              (auth, gov, adm, cent, fac, now(), 0))
                                     added_cnt += 1
                         reindex_hierarchical_facilities()
                         st.success(f"🎉 تم إضافة ({added_cnt}) سجل وإعادة الترتيب بنجاح!"); st.balloons()
@@ -1505,35 +1506,45 @@ def admin_dashboard():
                     st.error(f"خطأ: {e}")
 
         with tab_h3:
-            hier_rows = get_hierarchical_data()
-            if not hier_rows:
+            hier_rows_all = get_hierarchical_data(include_hidden=True)
+            if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']}": row['id'] for row in hier_rows}
-                with st.form("delete_single_hier_form"):
-                    selected_item_to_delete = st.selectbox("اختر العنصر للحذف:", list(facility_map.keys()))
-                    c_del_btn, c_empty_all_btn = st.columns(2)
-                    with c_del_btn:
-                        single_del = st.form_submit_button("🗑 حذف العنصر", use_container_width=True)
-                    with c_empty_all_btn:
-                        empty_all = st.form_submit_button("⚠️ تفريغ الكل", use_container_width=True)
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁️‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                with st.form("manage_single_hier_form"):
+                    selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
+                    target_id = facility_map[selected_item_manage]
                     
+                    with db() as c:
+                        curr_fac_rec = c.execute("SELECT hidden FROM hierarchical_facilities WHERE id=?", (target_id,)).fetchone()
+                    is_currently_hidden = curr_fac_rec["hidden"] == 1 if curr_fac_rec else False
+                    
+                    c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
+                    with c_hide_btn:
+                        hide_fac_submit = st.form_submit_button("👁️‍🗨️ إخفاء المنشأة من التقارير", use_container_width=True)
+                    with c_show_btn:
+                        show_fac_submit = st.form_submit_button("✅ إظهار المنشأة بالتقارير", use_container_width=True)
+                    with c_del_btn:
+                        single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
+                    
+                    if hide_fac_submit:
+                        with db() as c: c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
+                        st.success("✅ تم إخفاء المنشأة من جميع التقارير بنجاح!"); st.rerun()
+                    if show_fac_submit:
+                        with db() as c: c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
+                        st.success("✅ تم إظهار المنشأة في التقارير بنجاح!"); st.rerun()
                     if single_del:
-                        target_id = facility_map[selected_item_to_delete]
                         with db() as c: c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
                         reindex_hierarchical_facilities()
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
-                    if empty_all:
-                        with db() as c: c.execute("DELETE FROM hierarchical_facilities")
-                        reindex_hierarchical_facilities()
-                        st.success("✅ تم التفريغ وإعادة الترتيب!"); st.rerun()
 
-                df_hier = pd.DataFrame(hier_rows)
-                df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء"]
+                df_hier = pd.DataFrame(hier_rows_all)
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁️‍🗨️" if x==1 else "ظاهر ✅")
+                df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة النتائج وأوراق إجابة الممتحنين")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (مع إمكانية الإخفاء والإظهار الفردي أو الجماعي)")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
 
@@ -1545,9 +1556,9 @@ def admin_dashboard():
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
                         st.success("✅ تم التعميم بنجاح!"); st.rerun()
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨 طباعة النتائج والشهادات", "📝 طباعة نموذج امتحان الممتحن"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار)", "🖨 طباعة النتائج والشهادات", "📝 طباعة نموذج امتحان الممتحن"])
         with sub_tabs[0]:
-            df_pend = trainees_df("pending")
+            df_pend = trainees_df("pending", include_hidden=False)
             if df_pend.empty: st.info("لا توجد طلبات معلقة.")
             else:
                 for _, r in df_pend.iterrows():
@@ -1565,24 +1576,36 @@ def admin_dashboard():
                                 set_trainee_status_and_template(int(r['id']), "rejected", r.get('assigned_template_id'))
                                 st.warning("تم الرفض."); st.rerun()
         with sub_tabs[1]:
-            df_all_tr = trainees_df()
-            if df_all_tr.empty: st.info("لا توجد بيانات.")
+            df_all_tr_include_hidden = trainees_df(include_hidden=True)
+            if df_all_tr_include_hidden.empty: st.info("لا توجد بيانات.")
             else:
-                for _, tr_row in df_all_tr.iterrows():
+                for _, tr_row in df_all_tr_include_hidden.iterrows():
+                    is_hidden_tr = tr_row.get("hidden", 0) == 1
+                    hidden_badge = " [مخفي 👁️‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
-                        st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
+                        st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
                             curr_id = tr_row['assigned_template_id']
                             curr_name = [k for k, v in all_tpls_map.items() if v == curr_id]
                             def_name = curr_name[0] if curr_name else (tpl_names_list[0] if tpl_names_list else "")
                             def_idx = tpl_names_list.index(def_name) if def_name in tpl_names_list else 0
                             new_chosen_tpl = st.selectbox("تعديل النموذج:", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
-                            c_upd, c_del = st.columns(2)
+                            
+                            c_upd, c_hide, c_show, c_del = st.columns(4)
                             with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
+                            with c_hide: hide_btn = st.form_submit_button("👁️️‍🗨️ إخفاء", use_container_width=True)
+                            with c_show: show_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
                             with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
+                            
                             if upd_btn and all_tpls_map:
                                 set_trainee_status_and_template(int(tr_row['id']), tr_row['status'], all_tpls_map[new_chosen_tpl])
                                 st.success("✅ تم التحديث!"); st.rerun()
+                            if hide_btn:
+                                with db() as c: c.execute("UPDATE trainees SET hidden=1 WHERE id=?", (int(tr_row['id']),))
+                                st.success("✅ تم إخفاء المتدرب بنجاح من جميع التقارير!"); st.rerun()
+                            if show_btn:
+                                with db() as c: c.execute("UPDATE trainees SET hidden=0 WHERE id=?", (int(tr_row['id']),))
+                                st.success("✅ تم إظهار المتدرب في التقارير بنجاح!"); st.rerun()
                             if del_btn:
                                 with db() as c:
                                     c.execute("PRAGMA foreign_keys=OFF;")
@@ -1592,13 +1615,13 @@ def admin_dashboard():
                                 reindex_trainees()
                                 st.success("✅ تم الحذف وإعادة ترتيب أرقام الـ ID بنجاح!"); st.rerun()
         with sub_tabs[2]:
-            st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4 (بدون مسافات زائدة)")
+            st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4 (تتجاهل المخفيين تلقائياً)")
             with db() as c:
                 sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed 
-                                             FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""").fetchall()
+                                             FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
             
             if not sessions_list:
-                st.info("لا توجد اختبارات مسجلة أو مكتملة حتى الآن.")
+                st.info("لا توجد اختبارات مسجلة أو مكتملة حتى الآن للمتدربين الظاهرين.")
             else:
                 print_mode = st.radio("اختر وضع الطباعة:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية (لكل النتائج المكتملة)"], horizontal=True)
                 if "فردية" in print_mode:
@@ -1624,11 +1647,11 @@ def admin_dashboard():
                     FROM exam_sessions s 
                     JOIN trainees t ON t.id=s.trainee_id 
                     LEFT JOIN exam_templates e ON e.id=s.template_id 
-                    WHERE s.status='submitted' ORDER BY s.id DESC
+                    WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC
                 """).fetchall()
 
             if not completed_sessions:
-                st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين حتى الآن.")
+                st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين الظاهرين حتى الآن.")
             else:
                 exam_records_map = {f"المتدرب: {r['trainee_name']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
                 sel_exam_rec_label = st.selectbox("اختر الممتحن وتاريخ الامتحان:", list(exam_records_map.keys()))
@@ -1886,7 +1909,7 @@ def admin_dashboard():
 
     elif selected_menu == "✍ تسجيل نتيجة يدوي":
         st.subheader("✍ تسجيل نتيجة يدوي (مع اختيار الأسئلة الخاطئة لضمان الدقة)")
-        hier_data = get_hierarchical_data()
+        hier_data = get_hierarchical_data(include_hidden=False)
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         
         with db() as c: all_tpls_records = c.execute("SELECT id, name FROM exam_templates").fetchall()
@@ -1926,8 +1949,8 @@ def admin_dashboard():
                 else:
                     with db() as c:
                         tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
-                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                                           (m_facility_name, normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now()))
+                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?)",
+                                           (m_facility_name, normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now(), 0))
                         new_tid = cur_tr.lastrowid
                         
                         passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
@@ -1952,7 +1975,7 @@ def admin_dashboard():
                     st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
-        st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج ومقارنة الفترات (مقاس A4)")
+        st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج (تستبعد المخفيين تلقائياً)")
         
         rep_tab1, rep_tab2, rep_tab3, rep_tab4 = st.tabs([
             "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)", 
@@ -1964,10 +1987,10 @@ def admin_dashboard():
         with rep_tab1:
             st.markdown("#### 👤 التقرير الفردي للمتدرب (مع تحديد المدى الزمني ومقارنة فترتين):")
             with db() as c:
-                tr_list_rep = c.execute("SELECT id, name, facility FROM trainees ORDER BY id DESC").fetchall()
+                tr_list_rep = c.execute("SELECT id, name, facility FROM trainees WHERE hidden=0 ORDER BY id DESC").fetchall()
             
             if not tr_list_rep:
-                st.info("لا توجد بيانات متدربين متاحة.")
+                st.info("لا توجد بيانات متدربين ظاهرة متاحة.")
             else:
                 tr_choices_rep = {f"متدرب: {t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t['id'] for t in tr_list_rep}
                 sel_tr_rep_label = st.selectbox("اختر المتدرب لاستعراض تقريره الفردي:", list(tr_choices_rep.keys()), key="sel_ind_tr_rep")
@@ -1985,7 +2008,7 @@ def admin_dashboard():
                     d_end_2 = st.date_input("إلى تاريخ (الثانية):", date.today() - timedelta(days=31), key="de2")
 
                 with db() as c:
-                    ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=?", (chosen_tr_id,)).fetchone()
+                    ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (chosen_tr_id,)).fetchone()
                     s_q1 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
                                         WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
                                      (chosen_tr_id, d_start_1.isoformat(), d_end_1.isoformat())).fetchone()
@@ -2031,10 +2054,10 @@ def admin_dashboard():
         with rep_tab2:
             st.markdown("#### 🏢 التقرير الجماعي للمنشأة (مع تحديد المدى الزمني ومقارنة أدائها بين فترتين):")
             with db() as c:
-                facs_list_rep = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
+                facs_list_rep = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
             
             if not facs_list_rep:
-                st.info("لا توجد جهات أو منشآت مسجلة.")
+                st.info("لا توجد جهات أو منشآت ظاهرة مسجلة.")
             else:
                 sel_fac_rep = st.selectbox("اختر الجهة / المنشأة لاستعراض تقريرها الجماعي:", facs_list_rep, key="sel_group_fac_rep")
                 
@@ -2052,13 +2075,13 @@ def admin_dashboard():
                     p1_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
                                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) as passed_cnt
                                            FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
-                                           WHERE t.facility=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
+                                           WHERE t.facility=? AND t.hidden=0 AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
                                         (sel_fac_rep, gf_start_1.isoformat(), gf_end_1.isoformat())).fetchone()
                     
                     p2_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
                                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) as passed_cnt
                                            FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
-                                           WHERE t.facility=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
+                                           WHERE t.facility=? AND t.hidden=0 AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
                                         (sel_fac_rep, gf_start_2.isoformat(), gf_end_2.isoformat())).fetchone()
 
                 group_compare_html = f"""
@@ -2099,11 +2122,12 @@ def admin_dashboard():
                            CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة',
                            s.certificate_id AS 'رقم الشهادة'
                     FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    WHERE t.hidden=0
                     ORDER BY t.id DESC
                 """, c)
             
             if df_rep.empty:
-                st.info("لا توجد بيانات متدربين لعرضها في التقرير.")
+                st.info("لا توجد بيانات متدربين ظاهرة لعرضها في التقرير.")
             else:
                 st.dataframe(df_rep, use_container_width=True, hide_index=True)
                 table_html = df_rep.to_html(index=False, border=0, classes='table')
@@ -2118,6 +2142,7 @@ def admin_dashboard():
                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'المجتازين',
                            COALESCE(AVG(s.percent), 0) AS 'متوسط النسبة %'
                     FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    WHERE t.hidden=0
                     GROUP BY t.facility
                     ORDER BY COUNT(t.id) DESC
                 """, c)
@@ -2131,14 +2156,14 @@ def admin_dashboard():
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (بناءً على التقييم والاختبارات)")
+        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (تستبعد المخفيين تلقائياً)")
         
         plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
         
         with plan_tabs[0]:
             with db() as c:
-                all_tr_list = c.execute("SELECT id, name, facility FROM trainees ORDER BY id ASC").fetchall()
-                all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
+                all_tr_list = c.execute("SELECT id, name, facility FROM trainees WHERE hidden=0 ORDER BY id ASC").fetchall()
+                all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
             
             with st.form("create_action_plan_form"):
                 target_category = st.radio("نطاق الخطة:", ["فرد (متدرب محدد)", "جماعة (منشأة صحية بالكامل)"], horizontal=True)
@@ -2148,7 +2173,7 @@ def admin_dashboard():
                 
                 if "فرد" in target_category:
                     if not all_tr_list:
-                        st.warning("⚠️ لا توجد بيانات متدربين مسجلة بعد.")
+                        st.warning("⚠️ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
                         tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
@@ -2174,7 +2199,7 @@ def admin_dashboard():
                             auto_steps_text = "1. استمرار المتابعة الدورية وتحفيز المتدرب.\n2. إدراج المتدرب في دورات تنشيطية متقدمة."
                 else:
                     if not all_fac_list:
-                        st.warning("⚠ لا توجد جهات صحية مسجلة بعد.")
+                        st.warning("⚠ لا توجد جهات صحية ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
@@ -2186,7 +2211,7 @@ def admin_dashboard():
                                 JOIN questions q ON q.id=eq.question_id 
                                 JOIN exam_sessions s ON s.id=eq.session_id 
                                 JOIN trainees t ON t.id=s.trainee_id 
-                                WHERE t.facility=? AND eq.is_correct=0
+                                WHERE t.facility=? AND t.hidden=0 AND eq.is_correct=0
                             """, (target_name,)).fetchall()
                             
                         if fac_incorrect:
@@ -2267,7 +2292,6 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
         
-        # دالة تفرغ القاعدة الحالية بالكامل لجعلها نظيفة وخالية من البيانات
         if st.button("🗑️ تفرغ جميع بيانات النظام (تصفير قاعدة البيانات)", use_container_width=True):
             with db() as c:
                 c.execute("DELETE FROM exam_questions")
@@ -2322,8 +2346,8 @@ def admin_dashboard():
                                     exists = dest_conn.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND governorate=? AND administration=? AND center=? AND facility_name=?",
                                                                (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"])).fetchone()
                                     if not exists:
-                                        dest_conn.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at) VALUES(?,?,?,?,?,?)",
-                                                          (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"], h["created_at"]))
+                                        dest_conn.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                                                          (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"], h["created_at"], h.get("hidden", 0)))
                                         merged_h_count += 1
 
                             src_conn.close()
@@ -2446,7 +2470,7 @@ def admin_dashboard():
 
 def trainee_portal():
     with db() as c: 
-        tr = c.execute("SELECT * FROM trainees WHERE id=?", (st.session_state.trainee_id,)).fetchone()
+        tr = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (st.session_state.trainee_id,)).fetchone()
     if not tr: 
         st.session_state.trainee_id = None
         st.rerun()
@@ -2552,7 +2576,7 @@ def trainee_portal():
 def exam_interface(session_id):
     header()
     with db() as c:
-        session = c.execute("SELECT s.*, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=?", (session_id,)).fetchone()
+        session = c.execute("SELECT s.*, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=? AND t.hidden=0", (session_id,)).fetchone()
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
 
     answered = 0
