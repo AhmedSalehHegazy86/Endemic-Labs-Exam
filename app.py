@@ -9,7 +9,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - مسافات مضغوطة للحد الأقصى)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.0",
@@ -658,9 +658,9 @@ def render_logos_html():
     logo1 = sett.get("logo_base64", DEFAULT_LOGO)
     logo2 = sett.get("logo2_base64", "")
     
-    logos_list_html = f'<img src="{logo1}" style="width: 28px; height: 28px; object-fit: contain;" alt="Logo 1">'
+    logos_list_html = f'<img src="{logo1}" style="width: 25px; height: 25px; object-fit: contain;" alt="Logo 1">'
     if logo2:
-        logos_list_html += f'<img src="{logo2}" style="width: 28px; height: 28px; object-fit: contain;" alt="Logo 2">'
+        logos_list_html += f'<img src="{logo2}" style="width: 25px; height: 25px; object-fit: contain;" alt="Logo 2">'
         
     return f"""
     <div style="display: flex; gap: 2px; align-items: center;">
@@ -673,8 +673,8 @@ def render_top_left_logo_html():
     logo3 = sett.get("logo3_base64", "")
     if logo3:
         return f"""
-        <div style="position: absolute; top: 2mm; left: 4mm; text-align: left; z-index: 2;">
-            <img src="{logo3}" style="width: 28px; height: 28px; object-fit: contain;" alt="Logo 3">
+        <div style="position: absolute; top: 1.5mm; left: 3mm; text-align: left; z-index: 2;">
+            <img src="{logo3}" style="width: 25px; height: 25px; object-fit: contain;" alt="Logo 3">
         </div>
         """
     return ""
@@ -708,17 +708,17 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 1px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 1px 0; text-align: center;"><img src="{img_uri}" style="max-height: 30px; max-width: 100%; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
 
-        opts_html = "".join([f'<div style="padding: 0.5px 2px; margin: 0.5px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1px; font-size: 6.5pt; line-height: 1.05;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 0.3px 1.5px; margin: 0.3px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1px; font-size: 6pt; line-height: 1.0;">🔲 {esc(opt)}</div>' for opt in opts])
         
         q_html_content += f"""
-        <div style="margin-bottom: 2px; padding: 2px 3px; background: #ffffff; border: 1px solid #059669; border-radius: 2px; page-break-inside: avoid; break-inside: avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7pt; line-height: 1.1;">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin-bottom: 1.5px; padding: 1.5px 2px; background: #ffffff; border: 1px solid #059669; border-radius: 1px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.5px; font-size: 6.5pt; line-height: 1.05;">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
-            <div style="margin-top: 1px; padding-right: 1px;">{opts_html}</div>
+            <div style="margin-top: 0.5px; padding-right: 1px;">{opts_html}</div>
         </div>
         """
 
@@ -728,19 +728,19 @@ def generate_exam_template_print_html(template_id):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 2mm; }}
+            @page {{ size: A4 auto; margin: 1.5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 1mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
-            .header-right {{ font-size: 7.5pt; font-weight: bold; color: #065f46; line-height: 1.1; }}
-            h2 {{ text-align: center; color: #047857; font-size: 9.5pt; margin: 1px 0; }}
-            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 4px; border-radius: 2px; margin-bottom: 3px; font-size: 7pt; font-weight: bold; color: #065f46; text-align: center; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #059669; padding-bottom: 1.5mm; margin-bottom: 1.5mm; }}
+            .header-right {{ font-size: 7pt; font-weight: bold; color: #065f46; line-height: 1.05; }}
+            h2 {{ text-align: center; color: #047857; font-size: 9pt; margin: 1px 0; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 1.5px 3px; border-radius: 2px; margin-bottom: 2mm; font-size: 6.5pt; font-weight: bold; color: #065f46; text-align: center; }}
             .questions-grid {{
                 column-count: 3;
-                column-gap: 2mm;
+                column-gap: 1.5mm;
                 column-fill: auto;
             }}
-            .footer {{ margin-top: 3px; display: flex; justify-content: space-between; font-size: 7pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 2mm; page-break-inside: avoid; break-inside: avoid; }}
+            .footer {{ margin-top: 2mm; display: flex; justify-content: space-between; font-size: 6.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 1.5mm; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -757,6 +757,86 @@ def generate_exam_template_print_html(template_id):
             <div class="questions-grid">
                 {q_html_content}
             </div>
+            <div class="footer">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>مدير عام الإدارة</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_general_report_html(title, content_html, target_pages=1):
+    sett = get_print_settings()
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4 auto; margin: 2mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 2mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
+            .header-right {{ font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.1; }}
+            h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 3px 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 3mm; font-size: 7.5pt; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 2px 4px; text-align: center; line-height: 1.1; }}
+            th {{ background-color: #059669; color: white; font-weight: bold; }}
+            tr:nth-child(even) {{ background-color: #f0fdf4; }}
+            .footer {{ margin-top: 4mm; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 2mm; page-break-inside: avoid; break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="report-wrapper">
+            {render_top_left_logo_html()}
+            <div class="report-header">
+                <div class="header-right">{sett.get('header_text', '')}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>{esc(title)}</h2>
+            <div style="text-align: left; font-size: 7pt; color: #6b7280; margin-bottom: 2mm;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            {content_html}
+            <div class="footer">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>مدير عام الإدارة</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_action_plan_report_html(title, content_html, target_pages=1):
+    sett = get_print_settings()
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4 auto; margin: 10mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 6mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6mm; }}
+            .header-right {{ font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+            h2 {{ text-align: center; color: #047857; font-size: 14pt; margin: 10px 0; }}
+            .footer {{ margin-top: 25mm; display: flex; justify-content: space-between; font-size: 9.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 8mm; page-break-inside: avoid; break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="report-wrapper">
+            {render_top_left_logo_html()}
+            <div class="report-header">
+                <div class="header-right">{sett.get('header_text', '')}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>{esc(title)}</h2>
+            <div style="text-align: left; font-size: 8.5pt; color: #6b7280; margin-bottom: 6mm;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}</div>
+            {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
                 <div>رئيس قسم المعامل</div>
@@ -795,7 +875,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     title_role_str = f"{title_role_val} " if title_role_val else ""
     profession_str = f" - {profession_val}" if profession_val else ""
     full_line_text = f"{prefix_str}{title_role_str}{r['trainee_name']}{profession_str}"
-    line_html = f"<div style='font-size: 13pt; color: #065f46; font-weight: 900; margin: 2px 0;'>{esc(full_line_text)}</div>"
+    line_html = f"<div style='font-size: 12pt; color: #065f46; font-weight: 900; margin: 1px 0;'>{esc(full_line_text)}</div>"
 
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
@@ -806,23 +886,23 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 portrait; margin: 2mm; }}
+            @page {{ size: A4 portrait; margin: 1.5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #fdfbf7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; }}
             .cert-wrapper {{ 
-                width: 95%; max-width: 190mm; min-height: 240mm; max-height: 285mm;
+                width: 98%; max-width: 200mm; min-height: 250mm; max-height: 292mm;
                 {frame_style} {bg_style}
                 display: flex; flex-direction: column; justify-content: space-between; align-items: center; 
-                padding: 4mm 6mm; box-sizing: border-box; position: relative; margin: auto;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.06); page-break-inside: avoid; break-inside: avoid;
+                padding: 2mm 4mm; box-sizing: border-box; position: relative; margin: auto;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06); page-break-inside: avoid; break-inside: avoid;
             }}
-            .header-top {{ position: absolute; top: 4mm; left: 6mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 4mm; right: 6mm; text-align: right; font-size: 7.5pt; font-weight: bold; color: #065f46; line-height: 1.1; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 4mm; width: 100%; z-index: 2; }}
-            h2 {{ color: #047857; font-size: 11.5pt; margin-bottom: 1px; }}
-            p {{ font-size: 8pt; line-height: 1.15; color: #1f2937; margin: 2px 0; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 2px 2mm; margin: 2px auto; width: 85%; border-radius: 4px; font-weight: bold; color: #065f46; font-size: 7.5pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 7.5pt; font-weight: bold; text-align: center; border-top: 1.5px dashed #059669; padding-top: 1mm; margin-top: 1mm; z-index: 2; }}
-            .cert-watermark {{ font-size: 6pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
+            .header-top {{ position: absolute; top: 2mm; left: 4mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 2mm; right: 4mm; text-align: right; font-size: 7pt; font-weight: bold; color: #065f46; line-height: 1.05; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 2mm; width: 100%; z-index: 2; }}
+            h2 {{ color: #047857; font-size: 10.5pt; margin-bottom: 1px; }}
+            p {{ font-size: 7.5pt; line-height: 1.1; color: #1f2937; margin: 1px 0; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 1.5px 2mm; margin: 1px auto; width: 85%; border-radius: 3px; font-weight: bold; color: #065f46; font-size: 7pt; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 7pt; font-weight: bold; text-align: center; border-top: 1px dashed #059669; padding-top: 1mm; margin-top: 1mm; z-index: 2; }}
+            .cert-watermark {{ font-size: 5.5pt; color: #065f46; font-weight: bold; margin-top: 0.5px; z-index: 2; }}
         </style>
     </head>
     <body>
@@ -832,9 +912,9 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             {render_top_left_logo_html()}
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
-                <hr style="width: 25%; border: 1px solid #059669; margin: 1px auto 3px auto;">
+                <hr style="width: 25%; border: 1px solid #059669; margin: 1px auto 2px auto;">
                 {line_html}
-                <p style="margin-top: 2px;">
+                <p style="margin-top: 1px;">
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -848,8 +928,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <div>مدير المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
                 <div style="background: transparent; padding: 0px; text-align: center;">
-                    <img src="{qr_base64}" style="width: 32px; height: 32px; display: block; margin: auto;" alt="QR Code">
-                    <div style="font-size: 4.5pt; color: #065f46; margin-top: 0.5px;">مسح للتحقق</div>
+                    <img src="{qr_base64}" style="width: 28px; height: 28px; display: block; margin: auto;" alt="QR Code">
+                    <div style="font-size: 4pt; color: #065f46; margin-top: 0.5px;">مسح للتحقق</div>
                 </div>
             </div>
             <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
@@ -880,7 +960,7 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 2mm; @bottom-right { content: counter(page); }; }';
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 1.5mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -910,136 +990,68 @@ def header():
 def verification_portal_view():
     header()
     st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
-    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو رفع صورة QR Code للشهادة للتحقق الفوري منها.")
-
-    uploaded_qr_img = st.file_uploader("📥 رفع صورة QR Code للشهادة:", type=["png", "jpg", "jpeg"])
-    if uploaded_qr_img is not None:
-        try:
-            from PIL import Image as PILImage
-            import numpy as np
-            img_pil = PILImage.open(uploaded_qr_img)
-            st.image(img_pil, caption="صورة QR Code المرفوعة", width=200)
-            st.success("✅ تم استلام صورة الرمز بنجاح. إذا لم يتم التعرف عليه تلقائياً، يرجى كتابة كود الشهادة في الحقل أدناه.")
-        except Exception as e:
-            st.error(f"عذراً، لم نتمكن من قراءة صورة الرمز: {e}")
-
-    search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value=st.session_state.get("scanned_cert_code", ""))
-
-    cert_to_verify = None
+    search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value="")
     if search_cert_code.strip():
-        cert_code_clean = search_cert_code.strip().upper()
         with db() as c:
-            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
-                                           FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
-                                           WHERE (s.certificate_id LIKE ? OR s.id=?) AND t.hidden=0""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
-
-    if cert_to_verify:
-        r = cert_to_verify
-        status_str = "معتمدة وصحيحة بنسبة 100%" if r["passed"] else "غير اجتياز / غير معتمدة"
-        score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
-        
-        st.markdown(f"""
-        <div style="background: #f0fdf4; border: 2px solid #059669; padding: 20px; border-radius: 12px; margin-top: 15px;">
-            <h3 style="color: #065f46; margin-top: 0;">✅ نتيجة التحقق وصحة البيانات الواردة:</h3>
-            <p style="font-size: 11pt; color: #111827; line-height: 1.6;">
-                👤 <b>اسم المتدرب:</b> {esc(r['trainee_name'])}<br>
-                🏥 <b>جهة العمل والمنشأة:</b> {esc(r['facility'])}<br>
-                📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')}<br>
-                📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
-                🏷️ <b>حالة الاعتماد:</b> <b style="color: {'green' if r['passed'] else 'red'};">{status_str}</b><br>
-                🔖 <b>رقم الشهادة الرسمي:</b> <span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span><br>
-                ⏰ <b>تاريخ إصدار الاعتماد:</b> {r['submitted_at'] or r['started_at']}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    elif search_cert_code.strip():
-        st.warning("⚠️ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("العودة لتسجيل الدخول / الرئيسية"):
+            r = c.execute("SELECT s.*, t.name trainee_name, t.facility, e.name template_name FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.certificate_id LIKE ? AND t.hidden=0", (f"%{search_cert_code.strip().upper()}%",)).fetchone()
+        if r:
+            st.success(f"✅ الشهادة صحيحة ومعتمدة للمتدرب: {esc(r['trainee_name'])} - الجهة: {esc(r['facility'])}")
+        else:
+            st.warning("⚠️ لم يتم العثور على شهادة بهذا الكود.")
+    if st.button("العودة"):
         st.session_state.show_verification_portal = False
         st.rerun()
 
 def login_portal():
     header()
-    col_v_btn1, col_v_btn2 = st.columns([2, 1])
-    with col_v_btn1:
-        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بمعامل المتوطنة.")
-    with col_v_btn2:
+    col1, col2 = st.columns([2, 1])
+    with col1: st.markdown("#### بوابة اختبارات العاملين بمعامل المتوطنة.")
+    with col2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
             st.rerun()
 
     hier_data = get_hierarchical_data(include_hidden=False)
     with st.form("trainee_request_hierarchical"):
-        if not hier_data:
-            st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
-            facility_final_str = ""
+        if hier_data:
+            sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + sorted(list(set(i["authority"] for i in hier_data))))
+            sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + sorted(list(set(i["governorate"] for i in hier_data))))
+            sel_admin = st.selectbox("الإدارة الصحية:", ["-- اختر الإدارة الصحية --"] + sorted(list(set(i["administration"] for i in hier_data))))
+            sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + sorted(list(set(i["center"] for i in hier_data))))
+            sel_fac = st.selectbox("اسم المنشأة:", ["-- اختر المنشأة --"] + sorted(list(set(i["facility_name"] for i in hier_data))))
+            facility_final_str = f"{sel_auth} - {sel_gov} - {sel_admin} - {sel_center} - {sel_fac}" if all(x != "-- اختر الهيئة --" and x != "-- اختر المحافظة --" and x != "-- اختر الإدارة الصحية --" and x != "-- اختر المركز --" and x != "-- اختر المنشأة --" for x in [sel_auth, sel_gov, sel_admin, sel_center, sel_fac]) else ""
         else:
-            authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
-            sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + authorities_list, index=0)
-            
-            filtered_govs = sorted(list(set(item["governorate"] for item in hier_data if sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth)))
-            sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + filtered_govs, index=0)
-            
-            filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov))))
-            sel_admin = st.selectbox("الإدارة الصحية:", ["-- اختر الإدارة الصحية --"] + filtered_admins, index=0)
-            
-            filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin))))
-            sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers, index=0)
-            
-            filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
-            sel_fac = st.selectbox("اسم المنشأة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
-            
-            if sel_auth != "-- اختر الهيئة --" and sel_gov != "-- اختر المحافظة --" and sel_admin != "-- اختر الإدارة الصحية --" and sel_center != "-- اختر المركز --" and sel_fac != "-- اختر المنشأة --":
-                facility_final_str = f"{sel_auth} - {sel_gov} - {sel_admin} - {sel_center} - {sel_fac}"
-            else:
-                facility_final_str = ""
+            facility_final_str = ""
 
-        name = st.text_input("الاسم الرباعي:", value="")
-        phone = st.text_input("رقم الهاتف:", value="")
-        
+        name = st.text_input("الاسم الرباعي:")
+        phone = st.text_input("رقم الهاتف:")
         with db() as c: all_tpls_opts = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
-        tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
-        selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list, index=0)
-        
+        selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", ["-- اختر --"] + list(all_tpls_opts.keys()))
+
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
-            if not facility_final_str:
-                st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
-            elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
-            elif name.strip() and all_tpls_opts:
+            if facility_final_str and selected_req_tpl_name != "-- اختر --" and name.strip():
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
                 if existing:
                     st.session_state.trainee_id = existing["id"]
-                    st.session_state.trainee_name = existing["name"]
-                    st.success("تم الدخول بنجاح...")
                     st.rerun()
                 else:
                     tid = create_trainee(facility_final_str, name, phone, assigned_tpl_id)
                     st.session_state.trainee_id = tid
-                    st.session_state.trainee_name = name
-                    st.success("✅ تم التسجيل بنجاح!")
                     st.rerun()
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
-            u = st.text_input("اسم المستخدم", value="")
-            p = st.text_input("كلمة المرور", type="password", value="")
-            if st.form_submit_button("دخول لوحة التحكم", use_container_width=True):
+            u = st.text_input("اسم المستخدم")
+            p = st.text_input("كلمة المرور", type="password")
+            if st.form_submit_button("دخول", use_container_width=True):
                 user = login_user(u, p)
                 if user:
                     st.session_state.logged_in = True
                     st.session_state.username = user["username"]
                     st.session_state.role = user["role"]
-                    try:
-                        st.session_state.permissions = json.loads(user["permissions_json"]) if user["permissions_json"] else []
-                    except:
-                        st.session_state.permissions = list(ALL_MENU_MODULES.keys())
+                    st.session_state.permissions = json.loads(user["permissions_json"]) if user["permissions_json"] else list(ALL_MENU_MODULES.keys())
                     st.rerun()
-                else:
-                    st.error("بيانات غير صحيحة.")
 
 def admin_dashboard():
     header()
@@ -1048,33 +1060,18 @@ def admin_dashboard():
     with c_btn:
         if st.button("تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
-            st.session_state.username = ""
-            st.session_state.role = ""
-            st.session_state.permissions = []
             st.rerun()
 
-    all_modules_list = list(ALL_MENU_MODULES.keys())
-    user_perms = st.session_state.permissions if st.session_state.role != "admin" else all_modules_list
-    available_menus = [m for m in all_modules_list if m in user_perms]
-
-    if not available_menus:
-        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
-        return
-
-    st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
+    available_menus = [m for m in ALL_MENU_MODULES.keys() if m in st.session_state.permissions or st.session_state.role == "admin"]
     cols_per_row = 3
-    menu_keys = available_menus
-    for i in range(0, len(menu_keys), cols_per_row):
+    for i in range(0, len(available_menus), cols_per_row):
         row_cols = st.columns(cols_per_row)
         for j in range(cols_per_row):
-            if i + j < len(menu_keys):
-                m_key = menu_keys[i + j]
-                is_active = (st.session_state.active_admin_tab == m_key)
-                button_label = f"📍 {m_key}" if is_active else m_key
-                with row_cols[j]:
-                    if st.button(button_label, use_container_width=True, key=f"btn_menu_{i+j}"):
-                        st.session_state.active_admin_tab = m_key
-                        st.rerun()
+            if i + j < len(available_menus):
+                m_key = available_menus[i + j]
+                if row_cols[j].button(f"📍 {m_key}" if st.session_state.active_admin_tab == m_key else m_key, use_container_width=True, key=f"btn_{i+j}"):
+                    st.session_state.active_admin_tab = m_key
+                    st.rerun()
 
     selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
@@ -1082,117 +1079,108 @@ def admin_dashboard():
     if selected_menu == "📊 لوحة التحكم":
         st.subheader("📊 لوحة المؤشرات العامة")
         with db() as c:
-            cnts = c.execute("""SELECT
-                (SELECT COUNT(*) FROM trainees WHERE hidden=0) tr,
-                (SELECT COUNT(*) FROM trainees WHERE status='pending' AND hidden=0) pend,
-                (SELECT COUNT(*) FROM questions) qs,
-                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) ex,
-                (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) avgp
-            """).fetchone()
-        cols = st.columns(5)
-        for box, l, v in zip(cols, ["إجمالي المتدربين", "الطلبات المعلقة", "بنك الأسئلة", "الاختبارات المقدمة", "متوسط النتائج"],
-                             [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
-            box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
+            cnts = c.execute("SELECT (SELECT COUNT(*) FROM trainees WHERE hidden=0) tr, (SELECT COUNT(*) FROM questions) qs").fetchone()
+        st.metric("إجمالي المتدربين الظاهرين", cnts["tr"])
+        st.metric("إجمالي الأسئلة", cnts["qs"])
 
     elif selected_menu == "🖨 الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة وخلفيات وإطارات الشهادات (مقاس A4)")
+        st.subheader("🖨 إعدادات الطباعة والترويسة")
         current_set = get_print_settings()
-        professions_options_list = current_set.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "فني معمل"])
-        
         with st.form("print_settings_form"):
             header_text_val = st.text_area("نص ترويسة الجهة:", value=current_set.get("header_text", ""))
-            def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", ""))
-            def_notes_val = st.text_area("الملاحظات الافتراضية:", value=current_set.get("default_cert_notes", ""))
-            
-            if st.form_submit_button("💾 حفظ الإعدادات", use_container_width=True):
-                save_print_settings(header_text_val, "2mm", "2mm", "2mm", "2mm", current_set["logo_base64"], current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), current_set.get("bg_base64",""), current_set.get("frame_base64",""), def_title_val, def_notes_val, current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), current_set.get("trainee_profession",""), professions_options_list)
-                st.success("✅ تم الحفظ!"); st.rerun()
+            def_title_val = st.text_input("عنوان الشهادة:", value=current_set.get("default_cert_title", ""))
+            if st.form_submit_button("حفظ", use_container_width=True):
+                save_print_settings(header_text_val, "1.5mm", "1.5mm", "1.5mm", "1.5mm", current_set["logo_base64"], "", "", "", "", def_title_val, "", "", "", "", current_set.get("professions_list", []))
+                st.success("تم الحفظ!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية")
-        hier_rows_all = get_hierarchical_data(include_hidden=True)
-        df_hier = pd.DataFrame(hier_rows_all)
-        if not df_hier.empty:
-            st.dataframe(df_hier, use_container_width=True, hide_index=True)
+        st.subheader("🏥 الهيكل الإداري")
+        df = pd.DataFrame(get_hierarchical_data(include_hidden=True))
+        if not df.empty: st.dataframe(df, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة النتائج")
-        with db() as c:
-            sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed 
-                                         FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
+        st.subheader("🧑‍🔬 المتدربين والشهادات المضغوطة")
+        with db() as c: sessions_list = c.execute("SELECT s.id, t.name, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0").fetchall()
         if sessions_list:
-            sess_choices = {f"مجلد رقم ({s['id']}) - المتدرب: {s['trainee_name']} - الجهة: {s['facility']}": s['id'] for s in sessions_list}
-            sel_sess_label = st.selectbox("اختر المتدرب لطباعة شهادته:", list(sess_choices.keys()))
-            chosen_sid = sess_choices[sel_sess_label]
-            cert_html_single = generate_customizable_certificate_html(chosen_sid)
-            render_print_button_only(cert_html_single, f"شهادة متدرب رقم {chosen_sid}")
+            sel = st.selectbox("اختر المتدرب:", [f"{s['id']} - {s['name']} ({s['facility']})" for s in sessions_list])
+            sid = int(sel.split(" - ")[0])
+            render_print_button_only(generate_customizable_certificate_html(sid), f"شهادة متدرب {sid}")
 
     elif selected_menu == "🧠 بنك الأسئلة":
-        st.subheader("🧠 بنك الأسئلة الشامل وإكسيل")
-        with db() as c: df_bank = pd.read_sql_query("SELECT id, difficulty, category, question, answer FROM questions ORDER BY id ASC", c)
-        st.dataframe(df_bank, use_container_width=True, hide_index=True)
+        st.subheader("🧠 بنك الأسئلة")
+        with db() as c: df = pd.read_sql_query("SELECT * FROM questions", c)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️ إدارة الأسئلة الفردية")
-        st.info("إدارة الأسئلة وإضافتها وتعديلها مفعلة وجاهزة.")
+        st.subheader("⚙️ إدارة الأسئلة")
+        st.info("إدارة الأسئلة المفردة.")
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
-        st.subheader("🧩 نماذج التدريب ومواعيد الاختبارات وطباعة الأسئلة المكثفة")
-        with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
-        if tpls:
-            for t in tpls:
-                t_dict = dict(t)
-                with st.container(border=True):
-                    st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')}")
-                    exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
-                    render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
+        st.subheader("🧩 نماذج الاختبارات والأسئلة (3 أعمدة مكثفة)")
+        with db() as c: tpls = c.execute("SELECT id, name FROM exam_templates").fetchall()
+        for t in tpls:
+            st.write(f"نموذج: {t['name']}")
+            render_print_button_only(generate_exam_template_print_html(t["id"]), f"نموذج امتحان {t['id']}")
 
     elif selected_menu == "✍ تسجيل نتيجة يدوي":
-        st.subheader("✍ التسجيل اليدوي للنتائج")
-        st.info("قسم التسجيل اليدوي للنتائج.")
+        st.subheader("✍ تسجيل نتيجة يدوي")
+        st.info("قسم التسجيل اليدوي.")
 
     elif selected_menu == "📊 التقارير":
-        st.subheader("📊 التقارير وتحليل الأداء")
+        st.subheader("📊 التقارير وتحليل الأداء (مضغوطة لزيادة الاستيعاب)")
         with db() as c:
             df_rep = pd.read_sql_query("SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', COALESCE(s.percent, 0) AS 'النسبة %' FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id WHERE t.hidden=0", c)
-        st.dataframe(df_rep, use_container_width=True, hide_index=True)
+        if not df_rep.empty:
+            st.dataframe(df_rep, use_container_width=True, hide_index=True)
+            render_print_button_only(generate_general_report_html("تقرير النتائج الشامل", df_rep.to_html(index=False, border=0)), "التقرير الشامل")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف")
-        st.info("قسم خطط العمل.")
+        st.subheader("📈 خطط العمل التدريبية ومعالجة الضعف (مسافات معتدلة ومريحة)")
+        with db() as c: plans = c.execute("SELECT * FROM action_plans").fetchall()
+        if not plans:
+            st.info("لا توجد خطط عمل مسجلة.")
+        else:
+            for p in plans:
+                st.write(f"خطة رقم ({p['id']}) - المستهدف: {p['target_name']}")
+                html_p = f"""
+                <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 12px; line-height: 1.6;">
+                    <p style="font-size: 11pt; margin-bottom: 8px;"><b>نطاق الخطة:</b> {esc(p['target_type'])} | <b>المستهدف:</b> {esc(p['target_name'])} | <b>الإطار الزمني:</b> شهر {esc(p['specific_month'])} لسنة {esc(p['specific_year'])}</p>
+                    <div style="background: #f0fdf4; border: 1px solid #059669; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                        <h4 style="color: #065f46; margin-top: 0; font-size: 12pt;">🎯 نقاط الضعف والأقسام المرصودة:</h4>
+                        <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 10.5pt; color: #1f2937;">{esc(p['weakness_areas'])}</p>
+                    </div>
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                        <h4 style="color: #065f46; margin-top: 0; font-size: 12pt;">🛠 الخطوات الإجرائية والبرنامج العلاجي:</h4>
+                        <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 10.5pt; color: #1f2937;">{esc(p['action_steps'])}</p>
+                    </div>
+                </div>
+                """
+                render_print_button_only(generate_action_plan_report_html(f"خطة عمل - {p['target_name']}", html_p), f"خطة عمل {p['id']}")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
-        st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات")
-        with open(DB_PATH, "rb") as f: db_bytes = f.read()
-        st.download_button("📥 تحميل النسخة (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_0.db", mime="application/octet-stream", use_container_width=True)
+        st.subheader("💾 النسخ الاحتياطي")
+        with open(DB_PATH, "rb") as f: st.download_button("تحميل قاعدة البيانات", f, file_name="db.db", use_container_width=True)
 
     elif selected_menu == "👥 إدارة المستخدمين":
-        st.subheader("👥 إدارة المستخدمين والصلاحيات")
-        st.info("إدارة الصلاحيات والمستخدمين.")
+        st.subheader("👥 المستخدمين")
+        st.info("إدارة المستخدمين.")
 
     elif selected_menu == "🧾 سجل التدقيق":
-        st.subheader("🧾 سجل التدقيق والأحداث")
-        with db() as c: df_audit = pd.read_sql_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 50", c)
-        st.dataframe(df_audit, use_container_width=True, hide_index=True)
+        st.subheader("🧾 سجل التدقيق")
+        with db() as c: df = pd.read_sql_query("SELECT * FROM audit_logs LIMIT 50", c)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 def trainee_portal():
-    with db() as c: 
-        tr = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (st.session_state.trainee_id,)).fetchone()
-    if not tr: 
-        st.session_state.trainee_id = None
-        st.rerun()
+    with db() as c: tr = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (st.session_state.trainee_id,)).fetchone()
+    if not tr: st.session_state.trainee_id = None; st.rerun()
     header()
     if tr["status"] == "pending":
         st.info("⏳ حسابك في انتظار اعتماد الإدارة...")
         return
-
-    assigned_tpl_id = tr["assigned_template_id"]
-    with db() as c: 
-        matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
-
-    if matching_template:
+    with db() as c: tpl = c.execute("SELECT * FROM exam_templates WHERE id=?", (tr["assigned_template_id"],)).fetchone()
+    if tpl:
         try:
-            sid = start_session(tr["id"], matching_template["id"])
+            sid = start_session(tr["id"], tpl["id"])
             st.session_state.exam_session_id = sid
             st.rerun()
         except Exception as e:
@@ -1200,25 +1188,21 @@ def trainee_portal():
 
 def exam_interface(session_id):
     header()
-    with db() as c:
-        rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
-
+    with db() as c: rows = c.execute("SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=?", (session_id,)).fetchall()
     for row in rows:
         try: opts = json.loads(row["options_json"])
         except: opts = ["نعم", "لا"]
         order = json.loads(row["option_order_json"])
         disp_opts = [opts[i] for i in order]
         st.markdown(f'<div class="question"><b>س ({row["position"]+1}):</b> {clean_question_text(row["question"])}</div>', unsafe_allow_html=True)
-        choice = st.radio("اختر الإجابة:", disp_opts, key=f"q_{row['id']}", label_visibility="collapsed")
+        choice = st.radio("اختر:", disp_opts, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
             sel = order[disp_opts.index(choice)]
             with db() as c: c.execute("UPDATE exam_questions SET selected_option=?, is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END WHERE id=?", (sel, sel, row["id"]))
-            
-    if st.button("تسليم الاختبار نهائياً", use_container_width=True):
-        res = submit_session(session_id)
-        if res: st.session_state.last_result_id = session_id
+    if st.button("تسليم الاختبار", use_container_width=True):
+        submit_session(session_id)
         st.session_state.exam_session_id = None
-        st.success("🎉 تم تسليم الاختبار بنجاح!")
+        st.success("تم التسليم!")
         st.rerun()
 
 # ============================================================
@@ -1232,11 +1216,9 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
     if st.session_state.get("last_result_id"):
         sid = st.session_state.last_result_id
         header()
-        st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
-        curr_sett = get_print_settings()
-        cert_html = generate_customizable_certificate_html(sid)
-        render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
-        if st.button("العودة للرئيسية"): st.session_state.trainee_id = None; st.session_state.last_result_id = None; st.rerun()
+        st.success("النتيجة جاهزة!")
+        render_print_button_only(generate_customizable_certificate_html(sid), f"الشهادة {sid}")
+        if st.button("العودة"): st.session_state.trainee_id = None; st.session_state.last_result_id = None; st.rerun()
     else:
         trainee_portal()
 elif not st.session_state.logged_in:
