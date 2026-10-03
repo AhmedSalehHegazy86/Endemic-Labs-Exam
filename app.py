@@ -990,15 +990,52 @@ def header():
 def verification_portal_view():
     header()
     st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
+    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو رفع صورة QR Code للشهادة للتحقق الفوري منها.")
+
+    uploaded_qr_img = st.file_uploader("📥 رفع صورة QR Code للشهادة:", type=["png", "jpg", "jpeg"])
+    if uploaded_qr_img is not None:
+        try:
+            from PIL import Image as PILImage
+            img_pil = PILImage.open(uploaded_qr_img)
+            st.image(img_pil, caption="صورة QR Code المرفوعة", width=200)
+            st.success("✅ تم استلام صورة الرمز بنجاح. يرجى كتابة كود الشهادة في الحقل أدناه.")
+        except Exception as e:
+            st.error(f"عذراً، لم نتمكن من قراءة صورة الرمز: {e}")
+
     search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value="")
+
+    cert_to_verify = None
     if search_cert_code.strip():
+        cert_code_clean = search_cert_code.strip().upper()
         with db() as c:
-            r = c.execute("SELECT s.*, t.name trainee_name, t.facility, e.name template_name FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.certificate_id LIKE ? AND t.hidden=0", (f"%{search_cert_code.strip().upper()}%",)).fetchone()
-        if r:
-            st.success(f"✅ الشهادة صحيحة ومعتمدة للمتدرب: {esc(r['trainee_name'])} - الجهة: {esc(r['facility'])}")
-        else:
-            st.warning("⚠️ لم يتم العثور على شهادة بهذا الكود.")
-    if st.button("العودة"):
+            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+                                           FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
+                                           WHERE (s.certificate_id LIKE ? OR s.id=?) AND t.hidden=0""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
+
+    if cert_to_verify:
+        r = cert_to_verify
+        status_str = "معتمدة وصحيحة بنسبة 100%" if r["passed"] else "غير اجتياز / غير معتمدة"
+        score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
+        
+        st.markdown(f"""
+        <div style="background: #f0fdf4; border: 2px solid #059669; padding: 20px; border-radius: 12px; margin-top: 15px;">
+            <h3 style="color: #065f46; margin-top: 0;">✅ نتيجة التحقق وصحة البيانات الواردة:</h3>
+            <p style="font-size: 11pt; color: #111827; line-height: 1.6;">
+                👤 <b>اسم المتدرب:</b> {esc(r['trainee_name'])}<br>
+                🏥 <b>جهة العمل والمنشأة:</b> {esc(r['facility'])}<br>
+                📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')}<br>
+                📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
+                🏷️ <b>حالة الاعتماد:</b> <b style="color: {'green' if r['passed'] else 'red'};">{status_str}</b><br>
+                🔖 <b>رقم الشهادة الرسمي:</b> <span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span><br>
+                ⏰ <b>تاريخ إصدار الاعتماد:</b> {r['submitted_at'] or r['started_at']}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    elif search_cert_code.strip():
+        st.warning("⚠️ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("العودة لتسجيل الدخول / الرئيسية"):
         st.session_state.show_verification_portal = False
         st.rerun()
 
@@ -1098,7 +1135,7 @@ def admin_dashboard():
         df = pd.DataFrame(get_hierarchical_data(include_hidden=True))
         if not df.empty: st.dataframe(df, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
+    elif selected_menu == "🧑‍‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 المتدربين والشهادات المضغوطة")
         with db() as c: sessions_list = c.execute("SELECT s.id, t.name, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0").fetchall()
         if sessions_list:
