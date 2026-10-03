@@ -9,7 +9,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - النسخة النهائية الفحص الشامل)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.0",
@@ -1148,7 +1148,7 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
             facility_final_str = ""
         else:
             authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
@@ -1829,11 +1829,9 @@ def admin_dashboard():
             
             manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             
-            # حساب النسبة المئوية فوراً في النموذج
             calc_pct = (manual_score / manual_max) * 100 if manual_max > 0 else 0
             st.info(f"📊 النسبة المئوية المحسوبة: **{calc_pct:.1f}%**")
 
-            # جلب أسئلة بنك الأسئلة أو النموذج لتحديد الأسئلة الخاطئة في حال كانت النسبة أقل من 100%
             with db() as c:
                 all_questions_db = c.execute("SELECT id, question, category FROM questions WHERE active=1").fetchall()
             
@@ -1847,7 +1845,7 @@ def admin_dashboard():
 
             if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
                 if not m_trainee_name.strip():
-                    st.warning("⚠️️ يرجى إدخال اسم المتدرب.")
+                    st.warning("⚠ يرجى إدخال اسم المتدرب.")
                 elif not manual_tpl_choices:
                     st.warning("⚠️ يرجى إنشاء نماذج اختبارات أولاً.")
                 else:
@@ -1864,18 +1862,15 @@ def admin_dashboard():
                         cert_code = f"ELX-{new_sid:06d}"
                         c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
                         
-                        # تسجيل أسئلة الاختبار وسجل الأخطاء في جدول exam_questions لضمان دقة خطط العمل وتقارير الضعف
                         all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
                         for pos, q_item in enumerate(all_bank_qs):
                             q_id = q_item["id"]
                             correct_ans = q_item["answer"]
-                            # إذا كان السؤال ضمن الأسئلة الخاطئة المحددة يدوياً
                             if q_id in selected_wrong_q_ids:
-                                wrong_opt = (correct_ans + 1) % 4 # خيار خاطئ مقصود
+                                wrong_opt = (correct_ans + 1) % 4
                                 c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
                                           (new_sid, q_id, pos, json.dumps([0,1,2,3]), wrong_opt, 0))
                             else:
-                                # يعتبر إجابة صحيحة افتراضية لتوافق النسبة
                                 c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
                                           (new_sid, q_id, pos, json.dumps([0,1,2,3]), correct_ans, 1))
 
