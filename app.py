@@ -660,7 +660,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <style>
             @page {{ 
                 size: A4 auto; 
-                /* هوامش واسعة جداً من الخارج لإفساح مجال واسع للإطار المحيط بالصفحة */
                 margin: 12mm; 
             }}
             body {{ 
@@ -683,7 +682,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 flex-direction: column; 
                 justify-content: space-between; 
                 align-items: center; 
-                /* هوامش داخلية متوازنة لكي يظهر المحتوى بداخل الإطار الكبير بوضوح وبدون تداخل */
                 padding: 22mm 25mm; 
                 box-sizing: border-box; 
                 position: relative; 
@@ -1006,7 +1004,7 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            st.warning("⚠️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
             facility_final_str = ""
         else:
             authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
@@ -1284,7 +1282,7 @@ def admin_dashboard():
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "🧑‍‍🔬 المتدربين والنماذج":
+    elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة نتائج الامتحانات")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
@@ -1638,7 +1636,7 @@ def admin_dashboard():
                 if not m_trainee_name.strip():
                     st.warning("⚠️ يرجى إدخال اسم المتدرب.")
                 elif not manual_tpl_choices:
-                    st.warning("⚠️ يرجى إنشاء نماذج اختبارات أولاً.")
+                    st.warning("⚠️️ يرجى إنشاء نماذج اختبارات أولاً.")
                 else:
                     with db() as c:
                         tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
