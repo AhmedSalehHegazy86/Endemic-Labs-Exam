@@ -624,9 +624,9 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     sett = get_print_settings()
     title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة اجتياز اختبار معتمدة")
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد")
-    prefix_val = sett.get("trainee_prefix", "")
-    title_role_val = sett.get("trainee_title", "")
-    profession_val = sett.get("trainee_profession", "")
+    prefix_val = sett.get("trainee_prefix", "").strip()
+    title_role_val = sett.get("trainee_title", "").strip()
+    profession_val = sett.get("trainee_profession", "").strip()
 
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
@@ -644,13 +644,11 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
     frame_style = f"background: url('{frame_data}') no-repeat center center; background-size: 100% 100%;" if frame_data else "border: 8px double #059669;"
 
-    name_parts = []
-    if prefix_val: name_parts.append(prefix_val)
-    if title_role_val: name_parts.append(title_role_val)
-    name_parts.append(r['trainee_name'])
-    full_trainee_name = " ".join(name_parts)
-
-    profession_html = f"<div style='font-size: 11pt; color: #047857; font-weight: bold; margin-top: 3px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
+    # فصل اللقب والاسم في أسطر مستقلة وحدها
+    prefix_line_html = f"<div style='font-size: 13pt; color: #047857; font-weight: 700; margin-bottom: 2px;'>{esc(prefix_val)}</div>" if prefix_val else ""
+    title_role_line_html = f"<div style='font-size: 14pt; color: #059669; font-weight: 800; margin-bottom: 4px;'>{esc(title_role_val)}</div>" if title_role_val else ""
+    name_line_html = f"<div style='font-size: 22pt; color: #065f46; font-weight: 900; margin: 2px 0;'>{esc(r['trainee_name'])}</div>"
+    profession_html = f"<div style='font-size: 11pt; color: #047857; font-weight: bold; margin-top: 4px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
 
     return f"""
     <!DOCTYPE html>
@@ -691,9 +689,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             }}
             .header-top {{ position: absolute; top: 18mm; left: 20mm; text-align: left; z-index: 2; }}
             .header-right {{ position: absolute; top: 18mm; right: 20mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 16mm; width: 100%; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; z-index: 2; }}
             h2 {{ color: #047857; font-size: 15pt; margin-bottom: 2px; }}
-            h1 {{ color: #065f46; font-size: 22pt; margin: 4px 0; font-weight: 900; }}
             p {{ font-size: 10pt; line-height: 1.4; color: #1f2937; }}
             .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 5px 8mm; margin: 4px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9pt; }}
             .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 5mm; margin-top: 2mm; z-index: 2; }}
@@ -707,10 +704,12 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             {render_top_left_logo_html()}
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
-                <hr style="width: 35%; border: 1px solid #059669; margin: 3px auto;">
-                <h1>{esc(full_trainee_name)}</h1>
+                <hr style="width: 35%; border: 1px solid #059669; margin: 3px auto 10px auto;">
+                {prefix_line_html}
+                {title_role_line_html}
+                {name_line_html}
                 {profession_html}
-                <p style="margin-top: 6px;">
+                <p style="margin-top: 8px;">
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -740,7 +739,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin: 3mm; 
+                margin: 5mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
@@ -839,7 +838,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 3mm; }}
+            @page {{ size: A4 auto; margin: 5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; page-break-after: always; break-after: page; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
@@ -909,7 +908,7 @@ def generate_exam_template_print_html(template_id):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ size: A4 auto; margin: 3mm; }}
+            @page {{ size: A4 auto; margin: 5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 6px; }}
@@ -971,7 +970,7 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 12mm; @bottom-right { content: counter(page); }; }';
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 10mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -1141,7 +1140,7 @@ def admin_dashboard():
             with col_p1:
                 trainee_prefix_val = st.text_input("1. البادئة قبل الاسم:", value=current_set.get("trainee_prefix", ""))
             with col_p2:
-                trainee_title_val = st.text_input("2. اللقب (بعد البادئة وقبل الاسم):", value=current_set.get("trainee_title", ""))
+                trainee_title_val = st.text_input("2. اللقب (في سطر مستقل):", value=current_set.get("trainee_title", ""))
             with col_p3:
                 trainee_profession_val = st.text_input("3. المهنة / الوظيفة:", value=current_set.get("trainee_profession", ""))
 
@@ -1636,7 +1635,7 @@ def admin_dashboard():
                 if not m_trainee_name.strip():
                     st.warning("⚠️ يرجى إدخال اسم المتدرب.")
                 elif not manual_tpl_choices:
-                    st.warning("⚠️️ يرجى إنشاء نماذج اختبارات أولاً.")
+                    st.warning("⚠️ يرجى إنشاء نماذج اختبارات أولاً.")
                 else:
                     with db() as c:
                         tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
@@ -1830,7 +1829,7 @@ def admin_dashboard():
                             auto_steps_text = "1. استمرار المتابعة الدورية وتحفيز المتدرب.\n2. إدراج المتدرب في دورات تنشيطية متقدمة."
                 else:
                     if not all_fac_list:
-                        st.warning("⚠️ لا توجد جهات صحية مسجلة بعد.")
+                        st.warning("⚠️️ لا توجد جهات صحية مسجلة بعد.")
                         target_name = ""
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
