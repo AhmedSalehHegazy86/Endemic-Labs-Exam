@@ -285,13 +285,13 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨 الطباعة والترويسة": "إعدادات هوامش وترويسات التقارير العامة",
-    "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
+    "🖨 الطباعة والترويسة": "إعدادات هوامش وترويسات التقارير العامة",
+    "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل",
     "📊 التقارير": "التقارير وتحليل الأداء",
     "📈 خطط العمل": "خطط العمل التدريبية",
     "💾 النسخ الاحتياطي": "النسخ الاحتياطي لقاعدة البيانات",
@@ -1134,7 +1134,7 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 7) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم", "scanned_cert_code": ""}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": "", "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم", "scanned_cert_code": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
@@ -1562,7 +1562,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1633,7 +1633,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
@@ -2551,7 +2551,7 @@ def admin_dashboard():
                 
                 if st.form_submit_button("🔒 تحديث بيانات الدخول", use_container_width=True):
                     if not current_password_input.strip():
-                        st.warning("⚠️️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
+                        st.warning("⚠️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
                     else:
                         with db() as c:
                             actor_user = c.execute("SELECT * FROM users WHERE username=?", (st.session_state.username,)).fetchone()
@@ -2594,7 +2594,7 @@ def trainee_portal():
     with db() as c: 
         tr = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (st.session_state.trainee_id,)).fetchone()
     if not tr: 
-        st.session_state.trainee_id = None
+        st.session_state.trainee_id = ""
         st.rerun()
     
     header()
@@ -2620,7 +2620,7 @@ def trainee_portal():
             
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
-            st.session_state.trainee_id = None
+            st.session_state.trainee_id = ""
             st.rerun()
         return
 
@@ -2692,7 +2692,7 @@ def trainee_portal():
     col_space1, col_btn, col_space2 = st.columns([1, 2, 1])
     with col_btn:
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
-            st.session_state.trainee_id = None
+            st.session_state.trainee_id = ""
             st.rerun()
 
 def exam_interface(session_id):
@@ -2744,7 +2744,7 @@ elif st.session_state.trainee_id and not st.session_state.logged_in:
         curr_sett = get_print_settings()
         cert_html = generate_customizable_certificate_html(sid, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
         render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
-        if st.button("العودة للرئيسية"): st.session_state.trainee_id = None; st.session_state.last_result_id = None; st.rerun()
+        if st.button("العودة للرئيسية"): st.session_state.trainee_id = ""; st.session_state.last_result_id = None; st.rerun()
     else:
         trainee_portal()
 elif not st.session_state.logged_in:
