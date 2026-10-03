@@ -1044,17 +1044,13 @@ def verification_portal_view():
     st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
     st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو رفع صورة QR Code للشهادة للتحقق الفوري منها.")
 
-    # ميزة رفع صورة QR Code بدلاً من تشغيل الكاميرا المباشرة
     uploaded_qr_img = st.file_uploader("📥 رفع صورة QR Code للشهادة:", type=["png", "jpg", "jpeg"])
     if uploaded_qr_img is not None:
         try:
             from PIL import Image as PILImage
             import numpy as np
-            # محاولة قراءة فك شفرة QR Code باستخدام مكتبة qrcode / pyzbar إن وجدت أو البحث اليدوي في النص المرفوع
             img_pil = PILImage.open(uploaded_qr_img)
             st.image(img_pil, caption="صورة QR Code المرفوعة", width=200)
-            
-            # إذا لم تتوفر مكتبة قراءة الباركود، نطلب إدخاله أو نحاول استخراجه من اسم الملف أو كود تجريبي
             st.success("✅ تم استلام صورة الرمز بنجاح. إذا لم يتم التعرف عليه تلقائياً، يرجى كتابة كود الشهادة في الحقل أدناه.")
         except Exception as e:
             st.error(f"عذراً، لم نتمكن من قراءة صورة الرمز: {e}")
@@ -1152,7 +1148,7 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            st.warning("⚠️️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
             facility_final_str = ""
         else:
             authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
@@ -1814,7 +1810,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف!"); st.rerun()
 
     elif selected_menu == "✍ تسجيل نتيجة يدوي":
-        st.subheader("✍ تسجيل نتيجة يدوي (مع اختيار قالب الامتحان)")
+        st.subheader("✍ تسجيل نتيجة يدوي (مع اختيار الأسئلة الخاطئة لضمان الدقة)")
         hier_data = get_hierarchical_data()
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         
@@ -1822,20 +1818,36 @@ def admin_dashboard():
         manual_tpl_choices = {row["name"]: row["id"] for row in all_tpls_records} if all_tpls_records else {}
         manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_keys else ["لا توجد نماذج اختبارات مسجلة"]
 
-        with st.form("manual_score_form"):
+        with st.form("manual_score_form_enhanced"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
             m_facility_name = st.text_input("جهة العمل:", value=default_fac_str)
             selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
             
             c1, c2 = st.columns(2)
-            with c1: manual_score = st.number_input("الدرجة:", min_value=0, max_value=9999, value=0)
+            with c1: manual_score = st.number_input("الدرجة الحاصل عليها:", min_value=0, max_value=9999, value=45)
             with c2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
             
             manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             
-            if st.form_submit_button("💾 حفظ النتيجة وتسجيل المتدرب", use_container_width=True):
+            # حساب النسبة المئوية فوراً في النموذج
+            calc_pct = (manual_score / manual_max) * 100 if manual_max > 0 else 0
+            st.info(f"📊 النسبة المئوية المحسوبة: **{calc_pct:.1f}%**")
+
+            # جلب أسئلة بنك الأسئلة أو النموذج لتحديد الأسئلة الخاطئة في حال كانت النسبة أقل من 100%
+            with db() as c:
+                all_questions_db = c.execute("SELECT id, question, category FROM questions WHERE active=1").fetchall()
+            
+            selected_wrong_q_ids = []
+            if calc_pct < 100.0 and all_questions_db:
+                st.markdown("---")
+                st.markdown("#### ❌ حدد الأسئلة التي أخطأ فيها المتدرب (لضمان دقة خطط العمل وتقارير الضعف):")
+                q_options_dict = {f"سؤال ({q['id']}) - [{q['category']}] {q['question'][:50]}...": q['id'] for q in all_questions_db}
+                selected_wrong_labels = st.multiselect("اختر الأسئلة الخاطئة من القائمة:", list(q_options_dict.keys()))
+                selected_wrong_q_ids = [q_options_dict[lbl] for lbl in selected_wrong_labels]
+
+            if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
                 if not m_trainee_name.strip():
-                    st.warning("⚠️ يرجى إدخال اسم المتدرب.")
+                    st.warning("⚠️️ يرجى إدخال اسم المتدرب.")
                 elif not manual_tpl_choices:
                     st.warning("⚠️ يرجى إنشاء نماذج اختبارات أولاً.")
                 else:
@@ -1844,14 +1856,30 @@ def admin_dashboard():
                         cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
                                            (m_facility_name, normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now()))
                         new_tid = cur_tr.lastrowid
-                        pct_val = (manual_score / manual_max) * 100 if manual_max > 0 else 0
+                        
                         passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
                         cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                                             (new_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, pct_val, passed_flag))
+                                             (new_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, calc_pct, passed_flag))
                         new_sid = cur_sess.lastrowid
                         cert_code = f"ELX-{new_sid:06d}"
                         c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
-                    st.success(f"✅ تم تسجيل المتدرب والنتيجة بنجاح برقم الشهادة: **{cert_code}**")
+                        
+                        # تسجيل أسئلة الاختبار وسجل الأخطاء في جدول exam_questions لضمان دقة خطط العمل وتقارير الضعف
+                        all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
+                        for pos, q_item in enumerate(all_bank_qs):
+                            q_id = q_item["id"]
+                            correct_ans = q_item["answer"]
+                            # إذا كان السؤال ضمن الأسئلة الخاطئة المحددة يدوياً
+                            if q_id in selected_wrong_q_ids:
+                                wrong_opt = (correct_ans + 1) % 4 # خيار خاطئ مقصود
+                                c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
+                                          (new_sid, q_id, pos, json.dumps([0,1,2,3]), wrong_opt, 0))
+                            else:
+                                # يعتبر إجابة صحيحة افتراضية لتوافق النسبة
+                                c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
+                                          (new_sid, q_id, pos, json.dumps([0,1,2,3]), correct_ans, 1))
+
+                    st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
         st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج ومقارنة الفترات (مقاس A4)")
@@ -1888,12 +1916,9 @@ def admin_dashboard():
 
                 with db() as c:
                     ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=?", (chosen_tr_id,)).fetchone()
-                    
-                    # الفترة الأولى
                     s_q1 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
                                         WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
                                      (chosen_tr_id, d_start_1.isoformat(), d_end_1.isoformat())).fetchone()
-                    # الفترة الثانية
                     s_q2 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
                                         WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
                                      (chosen_tr_id, d_start_2.isoformat(), d_end_2.isoformat())).fetchone()
@@ -1954,14 +1979,12 @@ def admin_dashboard():
                     gf_end_2 = st.date_input("إلى تاريخ (الثانية):", date.today() - timedelta(days=31), key="gfe2")
 
                 with db() as c:
-                    # إحصائيات الفترة الأولى للجهة
                     p1_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
                                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) as passed_cnt
                                            FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                                            WHERE t.facility=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?)""",
                                         (sel_fac_rep, gf_start_1.isoformat(), gf_end_1.isoformat())).fetchone()
                     
-                    # إحصائيات الفترة الثانية للجهة
                     p2_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
                                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) as passed_cnt
                                            FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
