@@ -370,6 +370,7 @@ def init_db():
             margin_left TEXT NOT NULL,
             logo_base64 TEXT NOT NULL,
             logo2_base64 TEXT NOT NULL DEFAULT '',
+            logo3_base64 TEXT NOT NULL DEFAULT '',
             bg_base64 TEXT NOT NULL DEFAULT '',
             default_cert_title TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة',
             default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'
@@ -393,6 +394,7 @@ def init_db():
             ("exam_templates", "start_time", "TEXT"), 
             ("exam_templates", "end_time", "TEXT"), 
             ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "logo3_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة'"),
             ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'")
@@ -405,8 +407,8 @@ def init_db():
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
 init_db()
 
@@ -419,16 +421,17 @@ def get_print_settings():
             "margin_top": "3mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
             "logo_base64": DEFAULT_LOGO,
             "logo2_base64": "",
+            "logo3_base64": "",
             "bg_base64": "",
             "default_cert_title": "شهادة اجتياز اختبار معتمدة",
             "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد"
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data, def_title, def_notes):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, bg_data, def_title, def_notes))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes))
 
 def get_hierarchical_data():
     with db() as c:
@@ -583,19 +586,27 @@ def render_logos_html():
     sett = get_print_settings()
     logo1 = sett.get("logo_base64", DEFAULT_LOGO)
     logo2 = sett.get("logo2_base64", "")
+    
+    logos_list_html = f'<img src="{logo1}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 1">'
     if logo2:
+        logos_list_html += f'<img src="{logo2}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 2">'
+        
+    return f"""
+    <div style="display: flex; gap: 4px; align-items: center;">
+        {logos_list_html}
+    </div>
+    """
+
+def render_top_left_logo_html():
+    sett = get_print_settings()
+    logo3 = sett.get("logo3_base64", "")
+    if logo3:
         return f"""
-        <div style="display: flex; gap: 4px; align-items: center;">
-            <img src="{logo1}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 1">
-            <img src="{logo2}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 2">
+        <div style="position: absolute; top: 6mm; left: 10mm; text-align: left; z-index: 2;">
+            <img src="{logo3}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 3">
         </div>
         """
-    else:
-        return f"""
-        <div>
-            <img src="{logo1}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo">
-        </div>
-        """
+    return ""
 
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     sett = get_print_settings()
@@ -672,6 +683,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <div class="cert-wrapper">
             <div class="header-right">{formatted_header}</div>
             <div class="header-top">{render_logos_html()}</div>
+            {render_top_left_logo_html()}
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
                 <hr style="width: 40%; border: 1px solid #059669; margin: 4px auto;">
@@ -722,6 +734,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
                 margin: auto;
                 page-break-after: always;
                 break-after: page;
+                position: relative;
             }}
             .report-header {{ 
                 display: flex; 
@@ -777,6 +790,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     </head>
     <body>
         <div class="report-wrapper">
+            {render_top_left_logo_html()}
             <div class="report-header">
                 <div class="header-right">{sett.get('header_text', '')}</div>
                 <div>{render_logos_html()}</div>
@@ -805,7 +819,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         <style>
             @page {{ size: A4 auto; margin: 3mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
-            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-after: always; break-after: page; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-after: always; break-after: page; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
             .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
             h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; }}
@@ -814,6 +828,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     </head>
     <body>
         <div class="report-wrapper">
+            {render_top_left_logo_html()}
             <div class="report-header">
                 <div class="header-right">{sett.get('header_text', '')}</div>
                 <div>{render_logos_html()}</div>
@@ -874,7 +889,7 @@ def generate_exam_template_print_html(template_id):
         <style>
             @page {{ size: A4 auto; margin: 3mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
-            .report-wrapper {{ max-width: 210mm; margin: auto; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 6px; }}
             .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
             h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; }}
@@ -889,6 +904,7 @@ def generate_exam_template_print_html(template_id):
     </head>
     <body>
         <div class="report-wrapper">
+            {render_top_left_logo_html()}
             <div class="report-header">
                 <div class="header-right">{sett.get('header_text', '')}</div>
                 <div>{render_logos_html()}</div>
@@ -1000,7 +1016,7 @@ def login_portal():
             if not facility_final_str:
                 st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
+                st.warning("⚠️️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
@@ -1090,8 +1106,8 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨️ الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة والخلفيات (مقاس A4)")
+    elif selected_menu == "🖨 الطباعة والترويسة":
+        st.subheader("🖨 إعدادات الطباعة والترويسة وخلفيات الشهادات (مقاس A4)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📝 تعديل النصوص والترويسة الافتراضية:")
@@ -1106,22 +1122,39 @@ def admin_dashboard():
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
             
-            st.markdown("#### 🖼 الشعارات:")
-            col_logo1, col_logo2 = st.columns(2)
-            with col_logo1: uploaded_logo1 = st.file_uploader("الشعار الأول:", type=["png", "jpg", "jpeg"], key="logo1_upload")
-            with col_logo2: uploaded_logo2 = st.file_uploader("الشعار الثاني:", type=["png", "jpg", "jpeg"], key="logo2_upload")
+            st.markdown("#### 🖼 شعارات الصفحات والشهادات:")
+            col_logo1, col_logo2, col_logo3 = st.columns(3)
+            with col_logo1: 
+                uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="logo1_upload")
+                remove_logo1 = st.checkbox("حذف الشعار الأول")
+            with col_logo2: 
+                uploaded_logo2 = st.file_uploader("الشعار الثاني (أعلى يمين - 2):", type=["png", "jpg", "jpeg"], key="logo2_upload")
+                remove_logo2 = st.checkbox("حذف الشعار الثاني")
+            with col_logo3: 
+                uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الصفحة):", type=["png", "jpg", "jpeg"], key="logo3_upload")
+                remove_logo3 = st.checkbox("حذف الشعار الثالث")
 
             st.markdown("#### 🖼️ خلفية الشهادات:")
             uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة:", type=["png", "jpg", "jpeg"], key="bg_upload")
             remove_bg = st.checkbox("حذف الخلفية الحالية")
 
             current_logo1_val = current_set["logo_base64"]
-            if uploaded_logo1 is not None:
+            if remove_logo1:
+                current_logo1_val = DEFAULT_LOGO
+            elif uploaded_logo1 is not None:
                 current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
             
             current_logo2_val = current_set.get("logo2_base64", "")
-            if uploaded_logo2 is not None:
+            if remove_logo2:
+                current_logo2_val = ""
+            elif uploaded_logo2 is not None:
                 current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+
+            current_logo3_val = current_set.get("logo3_base64", "")
+            if remove_logo3:
+                current_logo3_val = ""
+            elif uploaded_logo3 is not None:
+                current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
 
             current_bg_val = current_set.get("bg_base64", "")
             if remove_bg:
@@ -1130,7 +1163,7 @@ def admin_dashboard():
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
             if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_bg_val, def_title_val, def_notes_val)
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, def_title_val, def_notes_val)
                 st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
