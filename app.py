@@ -687,8 +687,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     name_line_html = f"<div style='font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0;'>{esc(full_name_line)}</div>"
     profession_html = f"<div style='font-size: 12pt; color: #047857; font-weight: bold; margin-top: 4px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
 
-    # توليد QR Code للتحقق برقم الشهادة أو كود التحقق
-    qr_data_str = f"VERIFY-CERT:{r['certificate_id']}|NAME:{r['trainee_name']}|FACILITY:{r['facility']}|STATUS:{status_text}"
+    qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
 
     return f"""
@@ -735,7 +734,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             p {{ font-size: 10pt; line-height: 1.4; color: #1f2937; }}
             .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 5px 8mm; margin: 6px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9pt; }}
             .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 9pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 4mm; margin-top: 2mm; z-index: 2; }}
-            .cert-watermark {{ font-size: 8pt; color: #059669; font-weight: bold; margin-top: 2px; z-index: 2; }}
+            .cert-watermark {{ font-size: 8pt; color: #065f46; font-weight: bold; margin-top: 2px; z-index: 2; }}
         </style>
     </head>
     <body>
@@ -752,7 +751,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
-                    رقم التحقق والشهادة: <code>{r["certificate_id"]}</code>
+                    رقم التحقق والشهادة: <span style="font-weight: bold; color: #065f46;">{r["certificate_id"]}</span>
                 </p>
                 {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
             </div>
@@ -761,9 +760,9 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <div>رئيس قسم المعامل</div>
                 <div>مدير المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
-                <div style="background: white; padding: 3px; border-radius: 4px; border: 1px solid #059669;">
-                    <img src="{qr_base64}" style="width: 50px; height: 50px; display: block;" alt="QR Code">
-                    <div style="font-size: 6pt; color: #065f46;">مسح للتحقق</div>
+                <div style="background: transparent; padding: 0px; text-align: center;">
+                    <img src="{qr_base64}" style="width: 50px; height: 50px; display: block; margin: auto;" alt="QR Code">
+                    <div style="font-size: 6pt; color: #065f46; margin-top: 1px;">مسح للتحقق</div>
                 </div>
             </div>
             <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
@@ -963,7 +962,7 @@ def generate_exam_template_print_html(template_id):
                 column-gap: 4mm;
                 column-fill: auto;
             }}
-            .footer {{ margin-top: 6px; display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 4px; page-break-inside: avoid; break-inside: avoid; }}
+            .footer {{ margin-top: 6px; display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 4mm; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -1034,7 +1033,7 @@ def render_print_button_only(html_content, label_prefix=""):
 # ============================================================
 # 7) واجهات النظام وتوجيه الشاشات
 # ============================================================
-for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
+for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم", "scanned_cert_code": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
@@ -1043,14 +1042,28 @@ def header():
 def verification_portal_view():
     header()
     st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
-    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو استخدام الكاميرا لالتقاط الـ QR Code للتحقق الفوري وإصدار وثيقة صحة البيانات.")
+    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو استخدام الكاميرا الحية المباشرة لالتقاط وفك شفرة الـ QR Code تلقائياً.")
 
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value="")
-    with col_v2:
-        st.markdown("##### أو التقاط QR Code بالكاميرا المباشرة:")
-        cam_qr_input = st.camera_image_input("فتح الكاميرا للمسح الضوئي للـ QR Code:")
+    scanner_html = """
+    <div style="background: #ffffff; padding: 15px; border-radius: 10px; border: 2px dashed #059669; text-align: center;">
+        <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
+        <p id="scan-status" style="color: #065f46; font-weight: bold; margin-top: 10px;">قم بتوجيه كاميرا الجوال نحو الـ QR Code للشهادة...</p>
+    </div>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script>
+        function onScanSuccess(decodedText, decodedResult) {
+            document.getElementById('scan-status').innerHTML = "✅ تم التقاط الكود بنجاح: " + decodedText;
+            const urlParams = new URLSearchParams(window.location.search);
+            window.parent.postMessage({type: 'streamlit:setComponentValue', value: decodedText}, '*');
+        }
+        var html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render(onScanSuccess, (error) => {});
+    </script>
+    """
+    components.html(scanner_html, height=350)
+
+    search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value=st.session_state.get("scanned_cert_code", ""))
 
     cert_to_verify = None
     if search_cert_code.strip():
@@ -1059,13 +1072,6 @@ def verification_portal_view():
             cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
                                            FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
                                            WHERE s.certificate_id LIKE ? OR s.id=?""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
-    elif cam_qr_input is not None:
-        st.success("✅ تم التقاط الصورة عبر الكاميرا بنجاح! جاري معالجة بيانات الـ QR Code...")
-        # محاكاة استخراج البيانات أو البحث المباشر في أحدث الشهادات للتوضيح التفاعلي
-        with db() as c:
-            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
-                                           FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
-                                           WHERE s.status='submitted' ORDER BY s.id DESC LIMIT 1""").fetchone()
 
     if cert_to_verify:
         r = cert_to_verify
@@ -1081,7 +1087,7 @@ def verification_portal_view():
                 📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')}<br>
                 📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
                 🏷️ <b>حالة الاعتماد:</b> <b style="color: {'green' if r['passed'] else 'red'};">{status_str}</b><br>
-                🔖 <b>رقم الشهادة الرسمي:</b> <code>{r['certificate_id']}</code><br>
+                🔖 <b>رقم الشهادة الرسمي:</b> <span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span><br>
                 ⏰ <b>تاريخ إصدار الاعتماد:</b> {r['submitted_at'] or r['started_at']}
             </p>
         </div>
@@ -1113,7 +1119,7 @@ def verification_portal_view():
                     <tr><th>اسم الاختبار</th><td>{esc(r['template_name'] or 'اختبار معتمد')}</td></tr>
                     <tr><th>النتيجة والنسبة</th><td>{score_val} / {max_score_val} ({percent_val:.1f}%)</td></tr>
                     <tr><th>حالة التحقق</th><td style="color: green; font-weight: bold;">{status_str}</td></tr>
-                    <tr><th>رقم الشهادة</th><td><code>{r['certificate_id']}</code></td></tr>
+                    <tr><th>رقم الشهادة</th><td><span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span></td></tr>
                     <tr><th>تاريخ الاعتماد</th><td>{r['submitted_at'] or r['started_at']}</td></tr>
                 </table>
                 <div class="footer">
@@ -1132,14 +1138,12 @@ def verification_portal_view():
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("العودة لتسجيل الدخول / الرئيسية"):
-        st.session_state.trainee_id = None
-        st.session_state.logged_in = False
+        st.session_state.show_verification_portal = False
         st.rerun()
 
 def login_portal():
     header()
     
-    # زر أو تبويب الانتقال لصفحة التحقق من الشهادات بالـ QR Code في تبويب جديد مستقل
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
         st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بمعامل المتوطنة.")
@@ -1912,7 +1916,7 @@ def admin_dashboard():
                             </tr>
                             <tr>
                                 <th style="border: 1px solid #cbd5e1; padding: 10px; background-color: #059669; color: white;">رقم الشهادة / التحقق</th>
-                                <td style="border: 1px solid #cbd5e1; padding: 10px;"><code>{cert_v}</code></td>
+                                <td style="border: 1px solid #cbd5e1; padding: 10px;"><span style="font-weight: bold; color: #065f46;">{cert_v}</span></td>
                             </tr>
                         </table>
                     </div>
@@ -2005,7 +2009,7 @@ def admin_dashboard():
                 
                 if "فرد" in target_category:
                     if not all_tr_list:
-                        st.warning("⚠ لا توجد بيانات متدربين مسجلة بعد.")
+                        st.warning("⚠️ لا توجد بيانات متدربين مسجلة بعد.")
                         target_name = ""
                     else:
                         tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
