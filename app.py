@@ -614,7 +614,7 @@ def render_top_left_logo_html():
     logo3 = sett.get("logo3_base64", "")
     if logo3:
         return f"""
-        <div style="position: absolute; top: 14mm; left: 16mm; text-align: left; z-index: 2;">
+        <div style="position: absolute; top: 18mm; left: 20mm; text-align: left; z-index: 2;">
             <img src="{logo3}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 3">
         </div>
         """
@@ -646,8 +646,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
     name_parts = []
     if prefix_val: name_parts.append(prefix_val)
+    if title_role_val: name_parts.append(title_role_val)
     name_parts.append(r['trainee_name'])
-    if title_role_val: name_parts.append(f"({title_role_val})")
     full_trainee_name = " ".join(name_parts)
 
     profession_html = f"<div style='font-size: 11pt; color: #047857; font-weight: bold; margin-top: 3px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
@@ -660,7 +660,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin: 0mm; 
+                /* هوامش واسعة جداً من الخارج لإفساح مجال واسع للإطار المحيط بالصفحة */
+                margin: 12mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
@@ -674,27 +675,25 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 -webkit-print-color-adjust: exact; 
             }}
             .cert-wrapper {{ 
-                width: 210mm;
-                height: 297mm;
-                max-width: 210mm;
-                max-height: 297mm;
+                width: 100%;
+                min-height: 270mm;
                 {frame_style}
                 {bg_style}
                 display: flex; 
                 flex-direction: column; 
                 justify-content: space-between; 
                 align-items: center; 
-                /* هوامش واسعة جداً من الداخل (Padding كبير) لاستيعاب الإطار الكبير بأمان */
-                padding: 18mm 22mm; 
+                /* هوامش داخلية متوازنة لكي يظهر المحتوى بداخل الإطار الكبير بوضوح وبدون تداخل */
+                padding: 22mm 25mm; 
                 box-sizing: border-box; 
                 position: relative; 
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
                 page-break-inside: avoid;
                 break-inside: avoid;
             }}
-            .header-top {{ position: absolute; top: 14mm; left: 16mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 14mm; right: 16mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; z-index: 2; }}
+            .header-top {{ position: absolute; top: 18mm; left: 20mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 18mm; right: 20mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 16mm; width: 100%; z-index: 2; }}
             h2 {{ color: #047857; font-size: 15pt; margin-bottom: 2px; }}
             h1 {{ color: #065f46; font-size: 22pt; margin: 4px 0; font-weight: 900; }}
             p {{ font-size: 10pt; line-height: 1.4; color: #1f2937; }}
@@ -974,7 +973,7 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 0mm; @bottom-right { content: counter(page); }; }';
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 12mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -993,7 +992,7 @@ def render_print_button_only(html_content, label_prefix=""):
     components.html(js_code, height=100)
 
 # ============================================================
-# 6) واجهات النظام وتوجيه الشاشات
+# 7) واجهات النظام وتوجيه الشاشات
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": None, "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم"}.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -1007,7 +1006,7 @@ def login_portal():
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
-            st.warning("⚠️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            st.warning("⚠️️ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
             facility_final_str = ""
         else:
             authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
@@ -1144,7 +1143,7 @@ def admin_dashboard():
             with col_p1:
                 trainee_prefix_val = st.text_input("1. البادئة قبل الاسم:", value=current_set.get("trainee_prefix", ""))
             with col_p2:
-                trainee_title_val = st.text_input("2. اللقب بعد الاسم:", value=current_set.get("trainee_title", ""))
+                trainee_title_val = st.text_input("2. اللقب (بعد البادئة وقبل الاسم):", value=current_set.get("trainee_title", ""))
             with col_p3:
                 trainee_profession_val = st.text_input("3. المهنة / الوظيفة:", value=current_set.get("trainee_profession", ""))
 
@@ -1285,7 +1284,7 @@ def admin_dashboard():
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
-    elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
+    elif selected_menu == "🧑‍‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة نتائج الامتحانات")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
