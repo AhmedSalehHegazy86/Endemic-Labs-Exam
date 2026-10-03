@@ -1228,7 +1228,7 @@ def verification_portal_view():
         st.markdown("<br>", unsafe_allow_html=True)
         render_print_button_only(verification_doc_html, f"توثيق صحة شهادة {r['certificate_id']}")
     elif search_cert_code.strip():
-        st.warning("⚠️️ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
+        st.warning("⚠ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("العودة لتسجيل الدخول / الرئيسية"):
@@ -1434,7 +1434,7 @@ def admin_dashboard():
             "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
         ])
 
-        with st.form(" dedicated_certificate_settings_form"):
+        with st.form("dedicated_certificate_settings_form"):
             st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
@@ -1502,7 +1502,7 @@ def admin_dashboard():
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الإخفاء والإظهار)")
-        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️ إضافة يدوية", "📥 رفع ملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
+        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️️ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
             with st.form("manual_hierarchical_form"):
@@ -1545,12 +1545,25 @@ def admin_dashboard():
                 except Exception as e:
                     st.error(f"خطأ: {e}")
 
+            st.markdown("---")
+            st.markdown("##### 📥 تحميل شيت إكسيل الهيكل الإداري الحالي:")
+            hier_all_data = get_hierarchical_data(include_hidden=True)
+            if hier_all_data:
+                df_hier_download = pd.DataFrame(hier_all_data)
+                df_hier_download.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                output_hier = io.BytesIO()
+                with pd.ExcelWriter(output_hier, engine='openpyxl') as writer:
+                    df_hier_download.to_excel(writer, index=False, sheet_name='HierarchicalFacilities')
+                st.download_button("📥 تحميل شيت الهيكل الإداري (.xlsx)", data=output_hier.getvalue(), file_name="hierarchical_facilities.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            else:
+                st.info("لا توجد بيانات مسجلة في الهيكل الإداري للتحميل حالياً.")
+
         with tab_h3:
             hier_rows_all = get_hierarchical_data(include_hidden=True)
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁️️‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1669,8 +1682,8 @@ def admin_dashboard():
                     sel_sess_label = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
                     chosen_sid = sess_choices[sel_sess_label]
                     
-                    curr_set = get_print_settings()
-                    cert_html_single = generate_customizable_certificate_html(chosen_sid, curr_set.get("default_cert_title"), curr_set.get("default_cert_notes"))
+                    curr_sett = get_print_settings()
+                    cert_html_single = generate_customizable_certificate_html(chosen_sid, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
                     render_print_button_only(cert_html_single, f"شهادة متدرب رقم {chosen_sid}")
                 else:
                     st.markdown("##### 📚 طباعة وتصدير كافة الشهادات دفعة واحدة:")
@@ -1985,7 +1998,7 @@ def admin_dashboard():
                 if not m_trainee_name.strip():
                     st.warning("⚠ يرجى إدخال اسم المتدرب.")
                 elif not manual_tpl_choices:
-                    st.warning("⚠️️ يرجى إنشاء نماذج اختبارات أولاً.")
+                    st.warning("⚠ يرجى إنشاء نماذج اختبارات أولاً.")
                 else:
                     with db() as c:
                         tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
@@ -2088,6 +2101,23 @@ def admin_dashboard():
                     </div>
                     """
                     st.markdown(individual_report_html, unsafe_allow_html=True)
+                    
+                    # زر تحميل إكسيل للتقرير الفردي
+                    df_ind_excel = pd.DataFrame([{
+                        "اسم المتدرب": ind_tr_data['name'],
+                        "جهة العمل": ind_tr_data['facility'],
+                        "الفترة الأولى": f"{d_start_1} إلى {d_end_1}",
+                        "نتيجة الفترة الأولى": p1_score,
+                        "حالة الفترة الأولى": p1_status,
+                        "الفترة الثانية": f"{d_start_2} إلى {d_end_2}",
+                        "نتيجة الفترة الثانية": p2_score,
+                        "حالة الفترة الثانية": p2_status
+                    }])
+                    out_ind = io.BytesIO()
+                    with pd.ExcelWriter(out_ind, engine='openpyxl') as writer:
+                        df_ind_excel.to_excel(writer, index=False, sheet_name='IndividualReport')
+                    st.download_button("📥 تحميل التقرير الفردي (.xlsx)", data=out_ind.getvalue(), file_name=f"individual_report_{chosen_tr_id}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
                     full_ind_html = generate_general_report_html(f"مقارنة أداء المتدرب: {ind_tr_data['name']}", individual_report_html)
                     render_print_button_only(full_ind_html, f"مقارنة فترات المتدرب {chosen_tr_id}")
 
@@ -2151,6 +2181,29 @@ def admin_dashboard():
                 </div>
                 """
                 st.markdown(group_compare_html, unsafe_allow_html=True)
+                
+                # زر تحميل إكسيل للتقرير الجماعي للمنشأة
+                df_group_excel = pd.DataFrame([
+                    {
+                        "المنشأة": sel_fac_rep,
+                        "فترة المقارنة": f"الفترة الأولى ({gf_start_1} إلى {gf_end_1})",
+                        "إجمالي المختبرين": p1_stat['total_tr'] if p1_stat else 0,
+                        "المجتازين": p1_stat['passed_cnt'] if p1_stat else 0,
+                        "متوسط النسبة %": f"{p1_stat['avg_pct']:.1f}%" if p1_stat else "0.0%"
+                    },
+                    {
+                        "المنشأة": sel_fac_rep,
+                        "فترة المقارنة": f"الفترة الثانية ({gf_start_2} إلى {gf_end_2})",
+                        "إجمالي المختبرين": p2_stat['total_tr'] if p2_stat else 0,
+                        "المجتازين": p2_stat['passed_cnt'] if p2_stat else 0,
+                        "متوسط النسبة %": f"{p2_stat['avg_pct']:.1f}%" if p2_stat else "0.0%"
+                    }
+                ])
+                out_group = io.BytesIO()
+                with pd.ExcelWriter(out_group, engine='openpyxl') as writer:
+                    df_group_excel.to_excel(writer, index=False, sheet_name='FacilityComparison')
+                st.download_button("📥 تحميل التقرير الجماعي للمنشأة (.xlsx)", data=out_group.getvalue(), file_name=f"facility_report_{sel_fac_rep}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
                 full_group_comp_html = generate_general_report_html(f"مقارنة أداء منشأة: {sel_fac_rep}", group_compare_html)
                 render_print_button_only(full_group_comp_html, f"مقارنة فترات منشأة {sel_fac_rep}")
 
@@ -2170,6 +2223,13 @@ def admin_dashboard():
                 st.info("لا توجد بيانات متدربين ظاهرة لعرضها في التقرير.")
             else:
                 st.dataframe(df_rep, use_container_width=True, hide_index=True)
+                
+                # زر تحميل إكسيل لتقرير النتائج الشامل
+                out_all_res = io.BytesIO()
+                with pd.ExcelWriter(out_all_res, engine='openpyxl') as writer:
+                    df_rep.to_excel(writer, index=False, sheet_name='AllTraineesResults')
+                st.download_button("📥 تحميل تقرير النتائج الشامل (.xlsx)", data=out_all_res.getvalue(), file_name="all_trainees_results.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
                 table_html = df_rep.to_html(index=False, border=0, classes='table')
                 full_rep_html = generate_general_report_html("تقرير نتائج المتدربين الشامل", f"<div>{table_html}</div>")
                 render_print_button_only(full_rep_html, "تقرير النتائج الشامل")
@@ -2191,6 +2251,13 @@ def admin_dashboard():
                 st.info("لا توجد بيانات جهات أو منشآت لتحليلها.")
             else:
                 st.dataframe(df_fac, use_container_width=True, hide_index=True)
+                
+                # زر تحميل إكسيل لتقرير أداء الجهات
+                out_fac_rep = io.BytesIO()
+                with pd.ExcelWriter(out_fac_rep, engine='openpyxl') as writer:
+                    df_fac.to_excel(writer, index=False, sheet_name='FacilitiesPerformance')
+                st.download_button("📥 تحميل تقرير أداء الجهات (.xlsx)", data=out_fac_rep.getvalue(), file_name="facilities_performance_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
                 table_fac_html = df_fac.to_html(index=False, border=0, classes='table')
                 full_fac_html = generate_general_report_html("تقرير أداء المنشآت والجهات الصحية", f"<div>{table_fac_html}</div>")
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
@@ -2324,7 +2391,7 @@ def admin_dashboard():
                 full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
                 render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
 
-                if st.button("🗑️️ حذف خطة العمل المحددة", use_container_width=True):
+                if st.button("🗑 حذف خطة العمل المحددة", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM action_plans WHERE id=?", (chosen_plan_id,))
                     st.success("✅ تم حذف خطة العمل بنجاح!"); st.rerun()
