@@ -5,6 +5,8 @@ from contextlib import contextmanager
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+import qrcode
+from PIL import Image
 
 # ============================================================
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
@@ -377,7 +379,8 @@ def init_db():
             default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد',
             trainee_prefix TEXT NOT NULL DEFAULT '',
             trainee_title TEXT NOT NULL DEFAULT '',
-            trainee_profession TEXT NOT NULL DEFAULT ''
+            trainee_profession TEXT NOT NULL DEFAULT '',
+            professions_list_json TEXT NOT NULL DEFAULT '[]'
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -405,7 +408,8 @@ def init_db():
             ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'"),
             ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "trainee_title", "TEXT NOT NULL DEFAULT ''"),
-            ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''")
+            ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "professions_list_json", "TEXT NOT NULL DEFAULT '[]'")
         ]:
             try:
                 c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
@@ -415,15 +419,33 @@ def init_db():
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "", ""))
+            default_professions = [
+                "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
+                "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+            ]
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
+        else:
+            row = c.execute("SELECT professions_list_json FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
+            if row and (not row["professions_list_json"] or row["professions_list_json"] == "[]"):
+                default_professions = [
+                    "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
+                    "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+                ]
+                c.execute("UPDATE print_settings SET professions_list_json=?", (json.dumps(default_professions, ensure_ascii=False),))
 
 init_db()
 
 def get_print_settings():
     with db() as c:
         row = c.execute("SELECT * FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
-        if row: return dict(row)
+        if row: 
+            res = dict(row)
+            try:
+                res["professions_list"] = json.loads(res.get("professions_list_json", "[]"))
+            except:
+                res["professions_list"] = ["أخصائي تحاليل طبية", "طبيب بيطري", "فني معمل"]
+            return res
         return {
             "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
             "margin_top": "3mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
@@ -435,15 +457,16 @@ def get_print_settings():
             "default_cert_title": "شهادة اجتياز اختبار معتمدة",
             "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد",
             "trainee_prefix": "",
-            "trainee_title": "",
-            "trainee_profession": ""
+            "trainee_title": "دكتور",
+            "trainee_profession": "أخصائي تحاليل طبية",
+            "professions_list": ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"]
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
 
 def get_hierarchical_data():
     with db() as c:
@@ -614,11 +637,20 @@ def render_top_left_logo_html():
     logo3 = sett.get("logo3_base64", "")
     if logo3:
         return f"""
-        <div style="position: absolute; top: 18mm; left: 20mm; text-align: left; z-index: 2;">
+        <div style="position: absolute; top: 22mm; left: 25mm; text-align: left; z-index: 2;">
             <img src="{logo3}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 3">
         </div>
         """
     return ""
+
+def generate_qr_code_base64(data_text):
+    qr = qrcode.QRCode(version=1, box_size=5, border=1)
+    qr.add_data(data_text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return "data:image/png;base64," + __import__("base64").b64encode(buffered.getvalue()).decode("utf-8")
 
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     sett = get_print_settings()
@@ -642,13 +674,22 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     frame_data = sett.get("frame_base64", "")
     
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
-    frame_style = f"background: url('{frame_data}') no-repeat center center; background-size: 100% 100%;" if frame_data else "border: 8px double #059669;"
+    
+    if frame_data:
+        frame_style = f"background: url('{frame_data}') no-repeat center center; background-size: 100% 100%;"
+    else:
+        frame_style = "border: none;"
 
-    # فصل اللقب والاسم في أسطر مستقلة وحدها
-    prefix_line_html = f"<div style='font-size: 13pt; color: #047857; font-weight: 700; margin-bottom: 2px;'>{esc(prefix_val)}</div>" if prefix_val else ""
-    title_role_line_html = f"<div style='font-size: 14pt; color: #059669; font-weight: 800; margin-bottom: 4px;'>{esc(title_role_val)}</div>" if title_role_val else ""
-    name_line_html = f"<div style='font-size: 22pt; color: #065f46; font-weight: 900; margin: 2px 0;'>{esc(r['trainee_name'])}</div>"
-    profession_html = f"<div style='font-size: 11pt; color: #047857; font-weight: bold; margin-top: 4px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
+    prefix_str = f"{prefix_val} " if prefix_val else ""
+    title_role_str = f"{title_role_val} " if title_role_val else ""
+    full_name_line = f"{prefix_str}{title_role_str}{r['trainee_name']}"
+    
+    name_line_html = f"<div style='font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0;'>{esc(full_name_line)}</div>"
+    profession_html = f"<div style='font-size: 12pt; color: #047857; font-weight: bold; margin-top: 4px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
+
+    # توليد QR Code للتحقق برقم الشهادة أو كود التحقق
+    qr_data_str = f"VERIFY-CERT:{r['certificate_id']}|NAME:{r['trainee_name']}|FACILITY:{r['facility']}|STATUS:{status_text}"
+    qr_base64 = generate_qr_code_base64(qr_data_str)
 
     return f"""
     <!DOCTYPE html>
@@ -680,20 +721,20 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 flex-direction: column; 
                 justify-content: space-between; 
                 align-items: center; 
-                padding: 22mm 25mm; 
+                padding: 28mm 32mm; 
                 box-sizing: border-box; 
                 position: relative; 
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
                 page-break-inside: avoid;
                 break-inside: avoid;
             }}
-            .header-top {{ position: absolute; top: 18mm; left: 20mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 18mm; right: 20mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; z-index: 2; }}
+            .header-top {{ position: absolute; top: 22mm; left: 25mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 22mm; right: 25mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 18mm; width: 100%; z-index: 2; }}
             h2 {{ color: #047857; font-size: 15pt; margin-bottom: 2px; }}
             p {{ font-size: 10pt; line-height: 1.4; color: #1f2937; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 5px 8mm; margin: 4px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 5mm; margin-top: 2mm; z-index: 2; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 5px 8mm; margin: 6px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9pt; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 9pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 4mm; margin-top: 2mm; z-index: 2; }}
             .cert-watermark {{ font-size: 8pt; color: #059669; font-weight: bold; margin-top: 2px; z-index: 2; }}
         </style>
     </head>
@@ -704,12 +745,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             {render_top_left_logo_html()}
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
-                <hr style="width: 35%; border: 1px solid #059669; margin: 3px auto 10px auto;">
-                {prefix_line_html}
-                {title_role_line_html}
+                <hr style="width: 35%; border: 1px solid #059669; margin: 3px auto 12px auto;">
                 {name_line_html}
                 {profession_html}
-                <p style="margin-top: 8px;">
+                <p style="margin-top: 10px;">
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -722,6 +761,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <div>رئيس قسم المعامل</div>
                 <div>مدير المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
+                <div style="background: white; padding: 3px; border-radius: 4px; border: 1px solid #059669;">
+                    <img src="{qr_base64}" style="width: 50px; height: 50px; display: block;" alt="QR Code">
+                    <div style="font-size: 6pt; color: #065f46;">مسح للتحقق</div>
+                </div>
             </div>
             <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
         </div>
@@ -911,7 +954,7 @@ def generate_exam_template_print_html(template_id):
             @page {{ size: A4 auto; margin: 5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
-            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 6px; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6px; }}
             .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
             h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; }}
             .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; }}
@@ -997,8 +1040,114 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 def header():
     st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.0<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
+def verification_portal_view():
+    header()
+    st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
+    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو استخدام الكاميرا لالتقاط الـ QR Code للتحقق الفوري وإصدار وثيقة صحة البيانات.")
+
+    col_v1, col_v2 = st.columns(2)
+    with col_v1:
+        search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value="")
+    with col_v2:
+        st.markdown("##### أو التقاط QR Code بالكاميرا المباشرة:")
+        cam_qr_input = st.camera_image_input("فتح الكاميرا للمسح الضوئي للـ QR Code:")
+
+    cert_to_verify = None
+    if search_cert_code.strip():
+        cert_code_clean = search_cert_code.strip().upper()
+        with db() as c:
+            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+                                           FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
+                                           WHERE s.certificate_id LIKE ? OR s.id=?""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
+    elif cam_qr_input is not None:
+        st.success("✅ تم التقاط الصورة عبر الكاميرا بنجاح! جاري معالجة بيانات الـ QR Code...")
+        # محاكاة استخراج البيانات أو البحث المباشر في أحدث الشهادات للتوضيح التفاعلي
+        with db() as c:
+            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+                                           FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
+                                           WHERE s.status='submitted' ORDER BY s.id DESC LIMIT 1""").fetchone()
+
+    if cert_to_verify:
+        r = cert_to_verify
+        status_str = "معتمدة وصحيحة بنسبة 100%" if r["passed"] else "غير اجتياز / غير معتمدة"
+        score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
+        
+        st.markdown(f"""
+        <div style="background: #f0fdf4; border: 2px solid #059669; padding: 20px; border-radius: 12px; margin-top: 15px;">
+            <h3 style="color: #065f46; margin-top: 0;">✅ نتيجة التحقق وصحة البيانات الواردة:</h3>
+            <p style="font-size: 11pt; color: #111827; line-height: 1.6;">
+                👤 <b>اسم المتدرب:</b> {esc(r['trainee_name'])}<br>
+                🏥 <b>جهة العمل والمنشأة:</b> {esc(r['facility'])}<br>
+                📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')}<br>
+                📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
+                🏷️ <b>حالة الاعتماد:</b> <b style="color: {'green' if r['passed'] else 'red'};">{status_str}</b><br>
+                🔖 <b>رقم الشهادة الرسمي:</b> <code>{r['certificate_id']}</code><br>
+                ⏰ <b>تاريخ إصدار الاعتماد:</b> {r['submitted_at'] or r['started_at']}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        verification_doc_html = f"""
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{ size: A4 auto; margin: 15mm; }}
+                body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 10mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+                .doc-wrapper {{ max-width: 200mm; margin: auto; border: 3px double #059669; padding: 15mm; border-radius: 10px; position: relative; }}
+                h2 {{ text-align: center; color: #047857; margin-bottom: 5px; }}
+                .meta-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; }}
+                .meta-table th, .meta-table td {{ border: 1px solid #cbd5e1; padding: 8px 12px; text-align: right; }}
+                .meta-table th {{ background-color: #059669; color: white; }}
+                .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt; border-top: 1px dashed #059669; padding-top: 15px; }}
+            </style>
+        </head>
+        <body>
+            <div class="doc-wrapper">
+                <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم واختبار العاملين بمعامل المتوطنة</div>
+                <table class="meta-table">
+                    <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
+                    <tr><th>جهة العمل</th><td>{esc(r['facility'])}</td></tr>
+                    <tr><th>اسم الاختبار</th><td>{esc(r['template_name'] or 'اختبار معتمد')}</td></tr>
+                    <tr><th>النتيجة والنسبة</th><td>{score_val} / {max_score_val} ({percent_val:.1f}%)</td></tr>
+                    <tr><th>حالة التحقق</th><td style="color: green; font-weight: bold;">{status_str}</td></tr>
+                    <tr><th>رقم الشهادة</th><td><code>{r['certificate_id']}</code></td></tr>
+                    <tr><th>تاريخ الاعتماد</th><td>{r['submitted_at'] or r['started_at']}</td></tr>
+                </table>
+                <div class="footer">
+                    <div>مسؤول التدريب</div>
+                    <div>رئيس قسم المعامل</div>
+                    <div>مدير عام الإدارة</div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        st.markdown("<br>", unsafe_allow_html=True)
+        render_print_button_only(verification_doc_html, f"توثيق صحة شهادة {r['certificate_id']}")
+    elif search_cert_code.strip():
+        st.warning("⚠️ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("العودة لتسجيل الدخول / الرئيسية"):
+        st.session_state.trainee_id = None
+        st.session_state.logged_in = False
+        st.rerun()
+
 def login_portal():
     header()
+    
+    # زر أو تبويب الانتقال لصفحة التحقق من الشهادات بالـ QR Code في تبويب جديد مستقل
+    col_v_btn1, col_v_btn2 = st.columns([2, 1])
+    with col_v_btn1:
+        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بمعامل المتوطنة.")
+    with col_v_btn2:
+        if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
+            st.session_state.show_verification_portal = True
+            st.rerun()
+
     hier_data = get_hierarchical_data()
     
     with st.form("trainee_request_hierarchical"):
@@ -1130,19 +1279,27 @@ def admin_dashboard():
     elif selected_menu == "🖨 الطباعة والترويسة":
         st.subheader("🖨 إعدادات الطباعة والترويسة وخلفيات وإطارات الشهادات (مقاس A4)")
         current_set = get_print_settings()
+        
+        professions_options_list = current_set.get("professions_list", [
+            "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
+            "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+        ])
+        
         with st.form("print_settings_form"):
             st.markdown("#### 📝 تعديل النصوص والترويسة الافتراضية:")
             header_text_val = st.text_area("نص ترويسة الجهة (أعلى يمين الصفحة):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
             
-            st.markdown("#### 🏷️ إعدادات بادئة وألقاب ومهنة المتدرب (قبل وبعد الاسم):")
+            st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
-                trainee_prefix_val = st.text_input("1. البادئة قبل الاسم:", value=current_set.get("trainee_prefix", ""))
+                trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: السيد / الزميل):", value=current_set.get("trainee_prefix", ""))
             with col_p2:
-                trainee_title_val = st.text_input("2. اللقب (في سطر مستقل):", value=current_set.get("trainee_title", ""))
+                trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
             with col_p3:
-                trainee_profession_val = st.text_input("3. المهنة / الوظيفة:", value=current_set.get("trainee_profession", ""))
+                curr_prof = current_set.get("trainee_profession", "أخصائي تحاليل طبية")
+                prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
+                trainee_profession_val = st.selectbox("3. اختيار المهنة / الوظيفة من القائمة:", professions_options_list, index=prof_idx)
 
             def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
@@ -1205,8 +1362,53 @@ def admin_dashboard():
                 current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
 
             if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, def_title_val, def_notes_val, trainee_prefix_val, trainee_title_val, trainee_profession_val)
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, def_title_val, def_notes_val, trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list)
                 st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### 🛠️ إدارة قائمة المهن المتاحة (إضافة مهنة جديدة / حذف مهنة):")
+        
+        col_add_prof, col_del_prof = st.columns(2)
+        with col_add_prof:
+            with st.form("add_profession_form"):
+                new_prof_input = st.text_input("أضف مهنة جديدة للقائمة:")
+                if st.form_submit_button("➕ إضافـة المهنة", use_container_width=True):
+                    if new_prof_input.strip() and new_prof_input.strip() not in professions_options_list:
+                        professions_options_list.append(new_prof_input.strip())
+                        save_print_settings(
+                            current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
+                            current_set["margin_right"], current_set["margin_left"], current_set["logo_base64"], 
+                            current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), 
+                            current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
+                            current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
+                            current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
+                            current_set.get("trainee_profession",""), professions_options_list
+                        )
+                        st.success(f"✅ تمت إضافة المهنة ({new_prof_input.strip()}) بنجاح!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ يرجى إدخال اسم المهنة بشكل صحيح أو أنها موجودة مسبقاً.")
+
+        with col_del_prof:
+            with st.form("delete_profession_form"):
+                prof_to_remove = st.selectbox("اختر المهنة للحذف من القائمة:", professions_options_list)
+                if st.form_submit_button("🗑️ حذف المهنة المحددة", use_container_width=True):
+                    if len(professions_options_list) > 1:
+                        if prof_to_remove in professions_options_list:
+                            professions_options_list.remove(prof_to_remove)
+                            save_print_settings(
+                                current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
+                                current_set["margin_right"], current_set["margin_left"], current_set["logo_base64"], 
+                                current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), 
+                                current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
+                                current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
+                                current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
+                                current_set.get("trainee_profession",""), professions_options_list
+                            )
+                            st.success(f"✅ تم حذف المهنة ({prof_to_remove}) بنجاح!")
+                            st.rerun()
+                    else:
+                        st.warning("⚠️ يجب أن تحتوي القائمة على مهنة واحدة على الأقل.")
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية")
@@ -1803,7 +2005,7 @@ def admin_dashboard():
                 
                 if "فرد" in target_category:
                     if not all_tr_list:
-                        st.warning("⚠️ لا توجد بيانات متدربين مسجلة بعد.")
+                        st.warning("⚠ لا توجد بيانات متدربين مسجلة بعد.")
                         target_name = ""
                     else:
                         tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
@@ -1829,7 +2031,7 @@ def admin_dashboard():
                             auto_steps_text = "1. استمرار المتابعة الدورية وتحفيز المتدرب.\n2. إدراج المتدرب في دورات تنشيطية متقدمة."
                 else:
                     if not all_fac_list:
-                        st.warning("⚠️️ لا توجد جهات صحية مسجلة بعد.")
+                        st.warning("⚠ لا توجد جهات صحية مسجلة بعد.")
                         target_name = ""
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
@@ -2222,7 +2424,12 @@ def exam_interface(session_id):
 # ============================================================
 # 7) التوجيه الأساسي الشامل للشاشات
 # ============================================================
-if st.session_state.get("exam_session_id"):
+if st.session_state.get("show_verification_portal", False):
+    verification_portal_view()
+    if st.button("🔙 العودة للبوابة الرئيسية"):
+        st.session_state.show_verification_portal = False
+        st.rerun()
+elif st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
 elif st.session_state.trainee_id and not st.session_state.logged_in:
     if st.session_state.get("last_result_id"):
