@@ -286,6 +286,7 @@ def db():
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
     "🖨 الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
+    "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
@@ -1374,7 +1375,7 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨 الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة وخلفيات وإطارات الشهادات (مقاس A4)")
+        st.subheader("🖨 إعدادات الطباعة والترويسة العامة (مقاس A4)")
         current_set = get_print_settings()
         
         professions_options_list = current_set.get("professions_list", [
@@ -1383,14 +1384,36 @@ def admin_dashboard():
         ])
         
         with st.form("print_settings_form"):
-            st.markdown("#### 📝 تعديل النصوص والترويسة الافتراضية:")
             header_text_val = st.text_area("نص ترويسة الجهة (أعلى يمين الصفحة):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
-            
+            def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+
+            st.markdown("#### 📏 هوامش الورق المطبوع (مقاس A4):")
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
+            with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
+            with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
+            with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
+
+            if st.form_submit_button("💾 حفظ الإعدادات العامة", use_container_width=True):
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_set.get("line_spacing", 1.25), current_set["logo_base64"], current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), current_set.get("bg_base64",""), current_set.get("frame_base64",""), def_title_val, def_notes_val, current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), current_set.get("trainee_profession",""), professions_options_list)
+                st.success("✅ تم حفظ الإعدادات العامة بنجاح!"); st.rerun()
+
+    elif selected_menu == "🎨 إعدادات الشهادات المخصصة":
+        st.subheader("🎨 صفحة إدارة وضبط الشهادات المستقلة")
+        st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي الصفحات.")
+        
+        current_set = get_print_settings()
+        professions_options_list = current_set.get("professions_list", [
+            "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
+            "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+        ])
+
+        with st.form("dedicated_certificate_settings_form"):
             st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
-                trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: السيد / الزميل):", value=current_set.get("trainee_prefix", ""))
+                trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
             with col_p2:
                 trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
             with col_p3:
@@ -1398,115 +1421,59 @@ def admin_dashboard():
                 prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
                 trainee_profession_val = st.selectbox("3. اختيار المهنة / الوظيفة من القائمة:", professions_options_list, index=prof_idx)
 
-            def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+            st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
+            line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
 
-            st.markdown("#### 📏 هوامش الورق المطبوع والمسافات بين الأسطر (مقاس A4):")
-            col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-            with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
-            with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
-            with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
-            with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
-            with col_m5: line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
-            
-            st.markdown("#### 🖼 شعارات الصفحات والشهادات:")
+            st.markdown("#### 🖼 شعارات الشهادات المخصصة:")
             col_logo1, col_logo2, col_logo3 = st.columns(3)
             with col_logo1: 
-                uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="logo1_upload")
-                remove_logo1 = st.checkbox("حذف الشعار الأول")
+                uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="cert_logo1")
+                remove_logo1 = st.checkbox("حذف الشعار الأول", key="c_rem1")
             with col_logo2: 
-                uploaded_logo2 = st.file_uploader("الشعار الثاني (أعلى يمين - 2):", type=["png", "jpg", "jpeg"], key="logo2_upload")
-                remove_logo2 = st.checkbox("حذف الشعار الثاني")
+                uploaded_logo2 = st.file_uploader("الشعار الثاني (أعلى يمين - 2):", type=["png", "jpg", "jpeg"], key="cert_logo2")
+                remove_logo2 = st.checkbox("حذف الشعار الثاني", key="c_rem2")
             with col_logo3: 
-                uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الصفحة):", type=["png", "jpg", "jpeg"], key="logo3_upload")
-                remove_logo3 = st.checkbox("حذف الشعار الثالث")
+                uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الشهادة):", type=["png", "jpg", "jpeg"], key="cert_logo3")
+                remove_logo3 = st.checkbox("حذف الشعار الثالث", key="c_rem3")
 
             st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
             col_bg_up, col_frame_up = st.columns(2)
             with col_bg_up:
-                uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة:", type=["png", "jpg", "jpeg"], key="bg_upload")
-                remove_bg = st.checkbox("حذف الخلفية الحالية")
+                uploaded_bg = st.file_uploader("رفع خلفية الشهادة (صورة):", type=["png", "jpg", "jpeg"], key="cert_bg")
+                remove_bg = st.checkbox("حذف الخلفية الحالية", key="c_rem_bg")
             with col_frame_up:
-                uploaded_frame = st.file_uploader("رفع صورة إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="frame_upload")
-                remove_frame = st.checkbox("حذف الإطار الحالي")
+                uploaded_frame = st.file_uploader("رفع إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="cert_frame")
+                remove_frame = st.checkbox("حذف الإطار الحالي", key="c_rem_frame")
 
             current_logo1_val = current_set["logo_base64"]
-            if remove_logo1:
-                current_logo1_val = DEFAULT_LOGO
-            elif uploaded_logo1 is not None:
-                current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+            if remove_logo1: current_logo1_val = DEFAULT_LOGO
+            elif uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
             
             current_logo2_val = current_set.get("logo2_base64", "")
-            if remove_logo2:
-                current_logo2_val = ""
-            elif uploaded_logo2 is not None:
-                current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+            if remove_logo2: current_logo2_val = ""
+            elif uploaded_logo2 is not None: current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
 
             current_logo3_val = current_set.get("logo3_base64", "")
-            if remove_logo3:
-                current_logo3_val = ""
-            elif uploaded_logo3 is not None:
-                current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
+            if remove_logo3: current_logo3_val = ""
+            elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
 
             current_bg_val = current_set.get("bg_base64", "")
-            if remove_bg:
-                current_bg_val = ""
-            elif uploaded_bg is not None:
-                current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
+            if remove_bg: current_bg_val = ""
+            elif uploaded_bg is not None: current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
             current_frame_val = current_set.get("frame_base64", "")
-            if remove_frame:
-                current_frame_val = ""
-            elif uploaded_frame is not None:
-                current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
+            if remove_frame: current_frame_val = ""
+            elif uploaded_frame is not None: current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
 
-            if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, line_spacing_val, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, def_title_val, def_notes_val, trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list)
-                st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
-
-        st.markdown("---")
-        st.markdown("#### 🛠️ إدارة قائمة المهن المتاحة (إضافة مهنة جديدة / حذف مهنة):")
-        
-        col_add_prof, col_del_prof = st.columns(2)
-        with col_add_prof:
-            with st.form("add_profession_form"):
-                new_prof_input = st.text_input("أضف مهنة جديدة للقائمة:")
-                if st.form_submit_button("➕ إضافـة المهنة", use_container_width=True):
-                    if new_prof_input.strip() and new_prof_input.strip() not in professions_options_list:
-                        professions_options_list.append(new_prof_input.strip())
-                        save_print_settings(
-                            current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
-                            current_set["margin_right"], current_set["margin_left"], current_set.get("line_spacing", 1.25), current_set["logo_base64"], 
-                            current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), 
-                            current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
-                            current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
-                            current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
-                            current_set.get("trainee_profession",""), professions_options_list
-                        )
-                        st.success(f"✅ تمت إضافة المهنة ({new_prof_input.strip()}) بنجاح!")
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ يرجى إدخال اسم المهنة بشكل صحيح أو أنها موجودة مسبقاً.")
-
-        with col_del_prof:
-            with st.form("delete_profession_form"):
-                prof_to_remove = st.selectbox("اختر المهنة للحذف من القائمة:", professions_options_list)
-                if st.form_submit_button("🗑️ حذف المهنة المحددة", use_container_width=True):
-                    if len(professions_options_list) > 1:
-                        if prof_to_remove in professions_options_list:
-                            professions_options_list.remove(prof_to_remove)
-                            save_print_settings(
-                                current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
-                                current_set["margin_right"], current_set["margin_left"], current_set.get("line_spacing", 1.25), current_set["logo_base64"], 
-                                current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), 
-                                current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
-                                current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
-                                current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
-                                current_set.get("trainee_profession",""), professions_options_list
-                            )
-                            st.success(f"✅ تم حذف المهنة ({prof_to_remove}) بنجاح!")
-                            st.rerun()
-                    else:
-                        st.warning("⚠️ يجب أن تحتوي القائمة على مهنة واحدة على الأقل.")
+            if st.form_submit_button("💾 حفظ إعدادات الشهادة المخصصة", use_container_width=True):
+                save_print_settings(
+                    current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
+                    current_set["margin_right"], current_set["margin_left"], line_spacing_val, 
+                    current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, 
+                    current_set["default_cert_title"], current_set["default_cert_notes"], 
+                    trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list
+                )
+                st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الإخفاء والإظهار)")
