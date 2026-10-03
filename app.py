@@ -289,8 +289,7 @@ ALL_MENU_MODULES = {
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
-    "🧠 بنك الأسئلة": "بنك الأسئلة الشامل وإكسيل",
-    "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية",
+    "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "📊 التقارير": "التقارير وتحليل الأداء",
@@ -1502,7 +1501,7 @@ def admin_dashboard():
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الإخفاء والإظهار)")
-        tab_h1, tab_h2, tab_h3 = st.tabs(["✍️️ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
+        tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
             with st.form("manual_hierarchical_form"):
@@ -1563,7 +1562,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1634,7 +1633,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
@@ -1714,46 +1713,11 @@ def admin_dashboard():
                 st.markdown("<br>", unsafe_allow_html=True)
                 render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحد رقم {chosen_exam_session_id}")
 
-    elif selected_menu == "🧠 بنك الأسئلة":
-        st.subheader("🧠 بنك الأسئلة الشامل")
-        tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد", "📤 تصدير"])
-        with tab_ex_1:
-            uploaded_excel = st.file_uploader("اختر ملف إكسيل:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_0")
-            if uploaded_excel is not None:
-                try:
-                    df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
-                    if st.button("🚀 تأكيد ودمج", use_container_width=True):
-                        imported_count = 0
-                        with db() as c:
-                            for _, row in df_import.iterrows():
-                                diff, cat, q_text = str(row.get("difficulty", "متوسط")), str(row.get("category", "الفحوص المعملية")), str(row.get("question", ""))
-                                raw_opts = row.get("options_json", '["خيار 1", "خيار 2", "خيار 3", "خيار 4"]')
-                                try: opts_list = json.loads(raw_opts) if isinstance(raw_opts, str) and raw_opts.startswith("[") else [o.strip() for o in str(raw_opts).split(",") if o.strip()]
-                                except: opts_list = ["نعم", "لا"]
-                                try: ans_idx = int(row.get("answer", 0))
-                                except: ans_idx = 0
-                                if ans_idx < 0 or ans_idx >= len(opts_list): ans_idx = 0
-                                if q_text.strip() and opts_list:
-                                    fp = hashlib.sha256((q_text + "|" + "|".join(str(o) for o in opts_list)).encode("utf-8")).hexdigest()
-                                    try:
-                                        c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                                                  (diff, cat, q_text, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
-                                        imported_count += 1
-                                    except: continue
-                        st.success(f"🎉 تم إضافة ({imported_count}) سؤالاً!"); st.balloons()
-                except Exception as e: st.error(f"خطأ: {e}")
-        with tab_ex_2:
-            with db() as c: df_bank = pd.read_sql_query("SELECT id, difficulty, category, question, options_json, answer FROM questions ORDER BY id ASC", c)
-            if df_bank.empty: st.info("فارغ.")
-            else:
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer: df_bank.to_excel(writer, index=False, sheet_name='QuestionBank')
-                st.download_button("📥 تحميل الإكسيل (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-                st.dataframe(df_bank, use_container_width=True, hide_index=True)
-
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️ إدارة الأسئلة والفردية")
-        sub_img_tabs = st.tabs(["➕ إضافة", "✏️ تعديل", "🗑 حذف"])
+        st.subheader("⚙️ إدارة الأسئلة وبنك الأسئلة الشامل")
+        
+        sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
+        
         categories_list_opts = [
             "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا",
             "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا",
@@ -1761,68 +1725,123 @@ def admin_dashboard():
             "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة",
             "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "أسئلة الصور والأشكال"
         ]
-        with sub_img_tabs[0]:
-            if st.session_state.add_success_msg: st.success(st.session_state.add_success_msg); st.session_state.add_success_msg = ""
-            with st.form(key=f"add_q_form_{st.session_state.form_key}"):
-                selected_cat = st.selectbox("القسم:", categories_list_opts)
-                c_text = st.text_area("نص السؤال:", value="")
-                c_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"])
-                uploaded_img = st.file_uploader("رفع صورة (اختياري):", type=["png", "jpg", "jpeg"])
-                opt1, opt2 = st.text_input("خيار 1:", value=""), st.text_input("خيار 2:", value="")
-                opt3, opt4 = st.text_input("خيار 3:", value=""), st.text_input("خيار 4:", value="")
-                correct_ans_text = st.text_input("الإجابة الصحيحة:", value="")
-                if st.form_submit_button("حفظ", use_container_width=True):
-                    if c_text and correct_ans_text:
-                        img_uri_final = f"data:image/{uploaded_img.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_img.read()).decode("utf-8") if uploaded_img else ""
-                        full_q_str = f"IMAGE:{img_uri_final}\n\n{c_text}" if img_uri_final else c_text
-                        opts_list = [o for o in [opt1, opt2, opt3, opt4] if o.strip() != ""]
-                        if correct_ans_text not in opts_list: opts_list.append(correct_ans_text)
-                        ans_idx = opts_list.index(correct_ans_text)
-                        fp = hashlib.sha256((full_q_str + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
-                        with db() as c:
-                            c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                                      (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
-                        st.session_state.add_success_msg = "✅ تم الإضافة!"
-                        st.session_state.form_key += 1
-                        st.rerun()
-        with sub_img_tabs[1]:
-            with db() as c: all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
-            if all_questions:
-                q_options_map = {f"سؤال ({q['id']}) - {q['question'][:40]}...": q['id'] for q in all_questions}
-                selected_q_label = st.selectbox("اختر السؤال:", list(q_options_map.keys()))
-                selected_q_id = q_options_map[selected_q_label]
-                with db() as c: q_data = c.execute("SELECT * FROM questions WHERE id=?", (selected_q_id,)).fetchone()
-                if q_data:
-                    current_opts = json.loads(q_data["options_json"])
-                    while len(current_opts) < 4: current_opts.append("")
-                    with st.form(f"edit_q_{selected_q_id}"):
-                        e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
-                        e_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
-                        raw_q_db = q_data["question"]
-                        actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
-                        e_text = st.text_area("نص السؤال:", value=actual_text_editable)
-                        e_o1, e_o2 = st.text_input("خيار 1:", value=str(current_opts[0])), st.text_input("خيار 2:", value=str(current_opts[1]))
-                        e_o3, e_o4 = st.text_input("خيار 3:", value=str(current_opts[2])), st.text_input("خيار 4:", value=str(current_opts[3]))
-                        e_correct = st.text_input("الإجابة الصحيحة:", value=current_opts[q_data["answer"]] if 0 <= q_data["answer"] < len(current_opts) else "")
-                        if st.form_submit_button("💾 حفظ", use_container_width=True):
-                            updated_opts = [o for o in [e_o1, e_o2, e_o3, e_o4] if o.strip() != ""]
-                            if e_correct not in updated_opts: updated_opts.append(e_correct)
-                            new_ans_idx = updated_opts.index(e_correct)
-                            prefix_img = raw_q_db.split("\n\n")[0] + "\n\n" if "IMAGE:" in raw_q_db else ""
-                            final_str = prefix_img + e_text
-                            new_fp = hashlib.sha256((final_str + "|" + "|".join(updated_opts)).encode("utf-8")).hexdigest()
+
+        with sub_q_manage_tabs[0]:
+            sub_img_tabs = st.tabs(["➕ إضافة", "✏️ تعديل", "🗑 حذف"])
+            with sub_img_tabs[0]:
+                if st.session_state.add_success_msg: st.success(st.session_state.add_success_msg); st.session_state.add_success_msg = ""
+                with st.form(key=f"add_q_form_{st.session_state.form_key}"):
+                    selected_cat = st.selectbox("القسم:", categories_list_opts)
+                    c_text = st.text_area("نص السؤال:", value="")
+                    c_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"])
+                    uploaded_img = st.file_uploader("رفع صورة (اختياري):", type=["png", "jpg", "jpeg"])
+                    opt1, opt2 = st.text_input("خيار 1:", value=""), st.text_input("خيار 2:", value="")
+                    opt3, opt4 = st.text_input("خيار 3:", value=""), st.text_input("خيار 4:", value="")
+                    correct_ans_text = st.text_input("الإجابة الصحيحة:", value="")
+                    if st.form_submit_button("حفظ", use_container_width=True):
+                        if c_text and correct_ans_text:
+                            img_uri_final = f"data:image/{uploaded_img.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_img.read()).decode("utf-8") if uploaded_img else ""
+                            full_q_str = f"IMAGE:{img_uri_final}\n\n{c_text}" if img_uri_final else c_text
+                            opts_list = [o for o in [opt1, opt2, opt3, opt4] if o.strip() != ""]
+                            if correct_ans_text not in opts_list: opts_list.append(correct_ans_text)
+                            ans_idx = opts_list.index(correct_ans_text)
+                            fp = hashlib.sha256((full_q_str + "|" + "|".join(opts_list)).encode("utf-8")).hexdigest()
                             with db() as c:
-                                c.execute("UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?",
-                                          (e_diff, e_cat, final_str, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, new_fp, selected_q_id))
-                            st.success("✅ تم التعديل!"); st.rerun()
-        with sub_img_tabs[2]:
-            with db() as c: all_questions_del = c.execute("SELECT id, question FROM questions ORDER BY id ASC").fetchall()
-            if all_questions_del:
-                q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
-                selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
-                if st.button("🗑 حذف", use_container_width=True):
-                    with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
-                    st.success("✅ تم الحذف!"); st.rerun()
+                                c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                                          (c_diff, selected_cat, full_q_str, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
+                            st.session_state.add_success_msg = "✅ تم الإضافة!"
+                            st.session_state.form_key += 1
+                            st.rerun()
+            with sub_img_tabs[1]:
+                with db() as c: all_questions = c.execute("SELECT id, question, category FROM questions ORDER BY id ASC").fetchall()
+                if all_questions:
+                    q_options_map = {f"سؤال ({q['id']}) - {q['question'][:40]}...": q['id'] for q in all_questions}
+                    selected_q_label = st.selectbox("اختر السؤال:", list(q_options_map.keys()))
+                    selected_q_id = q_options_map[selected_q_label]
+                    with db() as c: q_data = c.execute("SELECT * FROM questions WHERE id=?", (selected_q_id,)).fetchone()
+                    if q_data:
+                        current_opts = json.loads(q_data["options_json"])
+                        while len(current_opts) < 4: current_opts.append("")
+                        with st.form(f"edit_q_{selected_q_id}"):
+                            e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
+                            e_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
+                            raw_q_db = q_data["question"]
+                            actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
+                            e_text = st.text_area("نص السؤال:", value=actual_text_editable)
+                            e_o1, e_o2 = st.text_input("خيار 1:", value=str(current_opts[0])), st.text_input("خيار 2:", value=str(current_opts[1]))
+                            e_o3, e_o4 = st.text_input("خيار 3:", value=str(current_opts[2])), st.text_input("خيار 4:", value=str(current_opts[3]))
+                            e_correct = st.text_input("الإجابة الصحيحة:", value=current_opts[q_data["answer"]] if 0 <= q_data["answer"] < len(current_opts) else "")
+                            if st.form_submit_button("💾 حفظ", use_container_width=True):
+                                updated_opts = [o for o in [e_o1, e_o2, e_o3, e_o4] if o.strip() != ""]
+                                if e_correct not in updated_opts: updated_opts.append(e_correct)
+                                new_ans_idx = updated_opts.index(e_correct)
+                                prefix_img = raw_q_db.split("\n\n")[0] + "\n\n" if "IMAGE:" in raw_q_db else ""
+                                final_str = prefix_img + e_text
+                                new_fp = hashlib.sha256((final_str + "|" + "|".join(updated_opts)).encode("utf-8")).hexdigest()
+                                with db() as c:
+                                    c.execute("UPDATE questions SET difficulty=?, category=?, question=?, options_json=?, answer=?, fingerprint=? WHERE id=?",
+                                              (e_diff, e_cat, final_str, json.dumps(updated_opts, ensure_ascii=False), new_ans_idx, new_fp, selected_q_id))
+                                st.success("✅ تم التعديل!"); st.rerun()
+            with sub_img_tabs[2]:
+                with db() as c: all_questions_del = c.execute("SELECT id, question FROM questions ORDER BY id ASC").fetchall()
+                if all_questions_del:
+                    q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
+                    selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
+                    if st.button("🗑 حذف", use_container_width=True):
+                        with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
+                        st.success("✅ تم الحذف!"); st.rerun()
+
+        with sub_q_manage_tabs[1]:
+            st.markdown("#### 🧠 بنك الأسئلة الشامل (استيراد، تصدير، وتفريغ/حذف البنك بالكامل)")
+            tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير وحذف بنك الأسئلة"])
+            with tab_ex_1:
+                uploaded_excel = st.file_uploader("اختر ملف إكسيل:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_0")
+                if uploaded_excel is not None:
+                    try:
+                        df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
+                        if st.button("🚀 تأكيد ودمج الأسئلة", use_container_width=True):
+                            imported_count = 0
+                            with db() as c:
+                                for _, row in df_import.iterrows():
+                                    diff, cat, q_text = str(row.get("difficulty", "متوسط")), str(row.get("category", "الفحوص المعملية")), str(row.get("question", ""))
+                                    raw_opts = row.get("options_json", '["خيار 1", "خيار 2", "خيار 3", "خيار 4"]')
+                                    try: opts_list = json.loads(raw_opts) if isinstance(raw_opts, str) and raw_opts.startswith("[") else [o.strip() for o in str(raw_opts).split(",") if o.strip()]
+                                    except: opts_list = ["نعم", "لا"]
+                                    try: ans_idx = int(row.get("answer", 0))
+                                    except: ans_idx = 0
+                                    if ans_idx < 0 or ans_idx >= len(opts_list): ans_idx = 0
+                                    if q_text.strip() and opts_list:
+                                        fp = hashlib.sha256((q_text + "|" + "|".join(str(o) for o in opts_list)).encode("utf-8")).hexdigest()
+                                        try:
+                                            c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                                                      (diff, cat, q_text, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
+                                            imported_count += 1
+                                        except: continue
+                            st.success(f"🎉 تم إضافة ({imported_count}) سؤالاً بنجاح!"); st.balloons()
+                    except Exception as e: st.error(f"خطأ: {e}")
+            with tab_ex_2:
+                with db() as c: df_bank = pd.read_sql_query("SELECT id, difficulty, category, question, options_json, answer FROM questions ORDER BY id ASC", c)
+                if df_bank.empty:
+                    st.info("بنك الأسئلة فارغ حالياً.")
+                else:
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer: df_bank.to_excel(writer, index=False, sheet_name='QuestionBank')
+                    st.download_button("📥 تحميل بنك الأسئلة إكسيل (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+                    st.dataframe(df_bank, use_container_width=True, hide_index=True)
+                    
+                    st.markdown("---")
+                    st.markdown("##### ⚠️ منطقة الخطر - إدارة البنك الشامل:")
+                    with st.form("delete_entire_question_bank_form"):
+                        confirm_text_del = st.text_input("اكتب كلمة (حذف البنك) للتأكيد نهائياً:", value="")
+                        if st.form_submit_button("🗑️ تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
+                            if confirm_text_del.strip() == "حذف البنك":
+                                with db() as c:
+                                    c.execute("DELETE FROM questions")
+                                    c.execute("DELETE FROM sqlite_sequence WHERE name='questions'")
+                                st.success("✅ تم حذف وتفريغ بنك الأسئلة بالكامل بنجاح!")
+                                st.rerun()
+                            else:
+                                st.warning("⚠ يرجى كتابة كلمة (حذف البنك) بشكل صحيح في حقل التأكيد لإتمام الحذف.")
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
         st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (نظام 12 ساعة - مقاس A4)")
@@ -2102,7 +2121,6 @@ def admin_dashboard():
                     """
                     st.markdown(individual_report_html, unsafe_allow_html=True)
                     
-                    # زر تحميل إكسيل للتقرير الفردي
                     df_ind_excel = pd.DataFrame([{
                         "اسم المتدرب": ind_tr_data['name'],
                         "جهة العمل": ind_tr_data['facility'],
@@ -2182,7 +2200,6 @@ def admin_dashboard():
                 """
                 st.markdown(group_compare_html, unsafe_allow_html=True)
                 
-                # زر تحميل إكسيل للتقرير الجماعي للمنشأة
                 df_group_excel = pd.DataFrame([
                     {
                         "المنشأة": sel_fac_rep,
@@ -2224,7 +2241,6 @@ def admin_dashboard():
             else:
                 st.dataframe(df_rep, use_container_width=True, hide_index=True)
                 
-                # زر تحميل إكسيل لتقرير النتائج الشامل
                 out_all_res = io.BytesIO()
                 with pd.ExcelWriter(out_all_res, engine='openpyxl') as writer:
                     df_rep.to_excel(writer, index=False, sheet_name='AllTraineesResults')
@@ -2252,7 +2268,6 @@ def admin_dashboard():
             else:
                 st.dataframe(df_fac, use_container_width=True, hide_index=True)
                 
-                # زر تحميل إكسيل لتقرير أداء الجهات
                 out_fac_rep = io.BytesIO()
                 with pd.ExcelWriter(out_fac_rep, engine='openpyxl') as writer:
                     df_fac.to_excel(writer, index=False, sheet_name='FacilitiesPerformance')
@@ -2536,7 +2551,7 @@ def admin_dashboard():
                 
                 if st.form_submit_button("🔒 تحديث بيانات الدخول", use_container_width=True):
                     if not current_password_input.strip():
-                        st.warning("⚠️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
+                        st.warning("⚠️️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
                     else:
                         with db() as c:
                             actor_user = c.execute("SELECT * FROM users WHERE username=?", (st.session_state.username,)).fetchone()
