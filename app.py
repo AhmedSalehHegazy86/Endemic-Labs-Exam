@@ -285,7 +285,7 @@ def db():
 
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
-    "🖨 الطباعة والترويسة": "إعدادات الطباعة والترويسة وخلفيات الشهادات",
+    "🖨 الطباعة والترويسة": "إعدادات هوامش وترويسات التقارير العامة",
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
@@ -1228,7 +1228,7 @@ def verification_portal_view():
         st.markdown("<br>", unsafe_allow_html=True)
         render_print_button_only(verification_doc_html, f"توثيق صحة شهادة {r['certificate_id']}")
     elif search_cert_code.strip():
-        st.warning("⚠️ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
+        st.warning("⚠️️ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("العودة لتسجيل الدخول / الرئيسية"):
@@ -1375,33 +1375,58 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨 الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة العامة (مقاس A4)")
+        st.subheader("🖨 إعدادات هوامش وترويسات التقارير العامة (مع إمكانية رفع الصور والشعارات)")
         current_set = get_print_settings()
         
-        professions_options_list = current_set.get("professions_list", [
-            "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
-            "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
-        ])
-        
         with st.form("print_settings_form"):
-            header_text_val = st.text_area("نص ترويسة الجهة (أعلى يمين الصفحة):", value=current_set.get("header_text", "جمهورية مصر العربية"))
-            def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
-            def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+            header_text_val = st.text_area("نص ترويسة الجهة العامة (أعلى يمين التقارير):", value=current_set.get("header_text", "جمهورية مصر العربية"))
 
-            st.markdown("#### 📏 هوامش الورق المطبوع (مقاس A4):")
-            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            st.markdown("#### 📏 هوامش الورق المطبوع للتقارير العامة (مقاس A4):")
+            col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
             with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
             with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
             with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
+            with col_m5: line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
 
-            if st.form_submit_button("💾 حفظ الإعدادات العامة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_set.get("line_spacing", 1.25), current_set["logo_base64"], current_set.get("logo2_base64",""), current_set.get("logo3_base64",""), current_set.get("bg_base64",""), current_set.get("frame_base64",""), def_title_val, def_notes_val, current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), current_set.get("trainee_profession",""), professions_options_list)
-                st.success("✅ تم حفظ الإعدادات العامة بنجاح!"); st.rerun()
+            st.markdown("#### 🖼️ رفع الصور والشعارات لترويسة التقارير:")
+            col_logo1, col_logo2, col_logo3 = st.columns(3)
+            with col_logo1: 
+                uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="rep_logo1")
+                remove_logo1 = st.checkbox("حذف الشعار الأول", key="rep_rem1")
+            with col_logo2: 
+                uploaded_logo2 = st.file_uploader("الشعار الثاني (أعلى يمين - 2):", type=["png", "jpg", "jpeg"], key="rep_logo2")
+                remove_logo2 = st.checkbox("حذف الشعار الثاني", key="rep_rem2")
+            with col_logo3: 
+                uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار التقرير):", type=["png", "jpg", "jpeg"], key="rep_logo3")
+                remove_logo3 = st.checkbox("حذف الشعار الثالث", key="rep_rem3")
+
+            current_logo1_val = current_set["logo_base64"]
+            if remove_logo1: current_logo1_val = DEFAULT_LOGO
+            elif uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+            
+            current_logo2_val = current_set.get("logo2_base64", "")
+            if remove_logo2: current_logo2_val = ""
+            elif uploaded_logo2 is not None: current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+
+            current_logo3_val = current_set.get("logo3_base64", "")
+            if remove_logo3: current_logo3_val = ""
+            elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
+
+            if st.form_submit_button("💾 حفظ ترويسة وهوامش التقارير العامة", use_container_width=True):
+                save_print_settings(
+                    header_text_val, m_top, m_bot, m_right, m_left, line_spacing_val, 
+                    current_logo1_val, current_logo2_val, current_logo3_val, 
+                    current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
+                    current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
+                    current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
+                    current_set.get("trainee_profession",""), current_set.get("professions_list", [])
+                )
+                st.success("✅ تم حفظ هوامش وترويسة التقارير العامة بنجاح!"); st.rerun()
 
     elif selected_menu == "🎨 إعدادات الشهادات المخصصة":
         st.subheader("🎨 صفحة إدارة وضبط الشهادات المستقلة")
-        st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي الصفحات.")
+        st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي التقارير.")
         
         current_set = get_print_settings()
         professions_options_list = current_set.get("professions_list", [
@@ -1409,7 +1434,7 @@ def admin_dashboard():
             "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
         ])
 
-        with st.form("dedicated_certificate_settings_form"):
+        with st.form(" dedicated_certificate_settings_form"):
             st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
@@ -1525,7 +1550,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁️‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁️️‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1960,7 +1985,7 @@ def admin_dashboard():
                 if not m_trainee_name.strip():
                     st.warning("⚠ يرجى إدخال اسم المتدرب.")
                 elif not manual_tpl_choices:
-                    st.warning("⚠️ يرجى إنشاء نماذج اختبارات أولاً.")
+                    st.warning("⚠️️ يرجى إنشاء نماذج اختبارات أولاً.")
                 else:
                     with db() as c:
                         tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
@@ -2299,7 +2324,7 @@ def admin_dashboard():
                 full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
                 render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
 
-                if st.button("🗑️ حذف خطة العمل المحددة", use_container_width=True):
+                if st.button("🗑️️ حذف خطة العمل المحددة", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM action_plans WHERE id=?", (chosen_plan_id,))
                     st.success("✅ تم حذف خطة العمل بنجاح!"); st.rerun()
