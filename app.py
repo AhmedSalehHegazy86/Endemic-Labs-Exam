@@ -373,7 +373,8 @@ def init_db():
             logo3_base64 TEXT NOT NULL DEFAULT '',
             bg_base64 TEXT NOT NULL DEFAULT '',
             default_cert_title TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة',
-            default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'
+            default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد',
+            trainee_prefix TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -397,7 +398,8 @@ def init_db():
             ("print_settings", "logo3_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة'"),
-            ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'")
+            ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'"),
+            ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''")
         ]:
             try:
                 c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
@@ -407,8 +409,8 @@ def init_db():
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد"))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes, trainee_prefix) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", ""))
 
 init_db()
 
@@ -424,14 +426,15 @@ def get_print_settings():
             "logo3_base64": "",
             "bg_base64": "",
             "default_cert_title": "شهادة اجتياز اختبار معتمدة",
-            "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد"
+            "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد",
+            "trainee_prefix": ""
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes, trainee_prefix):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes, trainee_prefix) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes, trainee_prefix))
 
 def get_hierarchical_data():
     with db() as c:
@@ -612,6 +615,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     sett = get_print_settings()
     title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة اجتياز اختبار معتمدة")
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد")
+    prefix_val = sett.get("trainee_prefix", "")
 
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
@@ -625,6 +629,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
     bg_data = sett.get("bg_base64", "")
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
+
+    full_trainee_name = f"{prefix_val} {r['trainee_name']}" if prefix_val else r['trainee_name']
 
     return f"""
     <!DOCTYPE html>
@@ -687,7 +693,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
                 <hr style="width: 40%; border: 1px solid #059669; margin: 4px auto;">
-                <h1>{esc(r["trainee_name"])}</h1>
+                <h1>{esc(full_trainee_name)}</h1>
                 <p>
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
@@ -1016,7 +1022,7 @@ def login_portal():
             if not facility_final_str:
                 st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠️️ يرجى اختيار نموذج الاختبار.")
+                st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
@@ -1113,6 +1119,7 @@ def admin_dashboard():
             st.markdown("#### 📝 تعديل النصوص والترويسة الافتراضية:")
             header_text_val = st.text_area("نص ترويسة الجهة (أعلى يمين الصفحة):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
+            trainee_prefix_val = st.text_input("البادئة/اللقب قبل اسم المتدرب (مثل: دكتور / أو الأستاذ /):", value=current_set.get("trainee_prefix", ""))
             def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
             st.markdown("#### 📏 هوامش الورق المطبوع (مقاس A4):")
@@ -1163,7 +1170,7 @@ def admin_dashboard():
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
             if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, def_title_val, def_notes_val)
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, def_title_val, def_notes_val, trainee_prefix_val)
                 st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
