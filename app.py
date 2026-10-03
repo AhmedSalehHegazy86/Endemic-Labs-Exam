@@ -372,9 +372,12 @@ def init_db():
             logo2_base64 TEXT NOT NULL DEFAULT '',
             logo3_base64 TEXT NOT NULL DEFAULT '',
             bg_base64 TEXT NOT NULL DEFAULT '',
+            frame_base64 TEXT NOT NULL DEFAULT '',
             default_cert_title TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة',
             default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد',
-            trainee_prefix TEXT NOT NULL DEFAULT ''
+            trainee_prefix TEXT NOT NULL DEFAULT '',
+            trainee_title TEXT NOT NULL DEFAULT '',
+            trainee_profession TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -397,9 +400,12 @@ def init_db():
             ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "logo3_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "frame_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة'"),
             ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'"),
-            ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''")
+            ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "trainee_title", "TEXT NOT NULL DEFAULT ''"),
+            ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''")
         ]:
             try:
                 c.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
@@ -409,8 +415,8 @@ def init_db():
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes, trainee_prefix) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", ""))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (default_header, "3mm", "3mm", "3mm", "3mm", DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "", ""))
 
 init_db()
 
@@ -425,16 +431,19 @@ def get_print_settings():
             "logo2_base64": "",
             "logo3_base64": "",
             "bg_base64": "",
+            "frame_base64": "",
             "default_cert_title": "شهادة اجتياز اختبار معتمدة",
             "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد",
-            "trainee_prefix": ""
+            "trainee_prefix": "",
+            "trainee_title": "",
+            "trainee_profession": ""
         }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes, trainee_prefix):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, default_cert_title, default_cert_notes, trainee_prefix) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, def_title, def_notes, trainee_prefix))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession))
 
 def get_hierarchical_data():
     with db() as c:
@@ -605,7 +614,7 @@ def render_top_left_logo_html():
     logo3 = sett.get("logo3_base64", "")
     if logo3:
         return f"""
-        <div style="position: absolute; top: 6mm; left: 10mm; text-align: left; z-index: 2;">
+        <div style="position: absolute; top: 14mm; left: 16mm; text-align: left; z-index: 2;">
             <img src="{logo3}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 3">
         </div>
         """
@@ -616,6 +625,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة اجتياز اختبار معتمدة")
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد")
     prefix_val = sett.get("trainee_prefix", "")
+    title_role_val = sett.get("trainee_title", "")
+    profession_val = sett.get("trainee_profession", "")
 
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
@@ -628,9 +639,18 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     formatted_header = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
 
     bg_data = sett.get("bg_base64", "")
+    frame_data = sett.get("frame_base64", "")
+    
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
+    frame_style = f"background: url('{frame_data}') no-repeat center center; background-size: 100% 100%;" if frame_data else "border: 8px double #059669;"
 
-    full_trainee_name = f"{prefix_val} {r['trainee_name']}" if prefix_val else r['trainee_name']
+    name_parts = []
+    if prefix_val: name_parts.append(prefix_val)
+    name_parts.append(r['trainee_name'])
+    if title_role_val: name_parts.append(f"({title_role_val})")
+    full_trainee_name = " ".join(name_parts)
+
+    profession_html = f"<div style='font-size: 11pt; color: #047857; font-weight: bold; margin-top: 3px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
 
     return f"""
     <!DOCTYPE html>
@@ -640,10 +660,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin-top: 3mm; 
-                margin-bottom: 3mm; 
-                margin-right: 3mm; 
-                margin-left: 3mm; 
+                margin: 0mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
@@ -657,32 +674,33 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 -webkit-print-color-adjust: exact; 
             }}
             .cert-wrapper {{ 
-                width: 100%; 
+                width: 210mm;
+                height: 297mm;
                 max-width: 210mm;
-                min-height: 291mm;
-                border: 8px double #059669; 
-                border-radius: 12px; 
+                max-height: 297mm;
+                {frame_style}
                 {bg_style}
                 display: flex; 
                 flex-direction: column; 
                 justify-content: space-between; 
                 align-items: center; 
-                padding: 8mm 12mm; 
+                /* هوامش واسعة جداً من الداخل (Padding كبير) لاستيعاب الإطار الكبير بأمان */
+                padding: 18mm 22mm; 
                 box-sizing: border-box; 
                 position: relative; 
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
                 page-break-inside: avoid;
                 break-inside: avoid;
             }}
-            .header-top {{ position: absolute; top: 6mm; left: 10mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 6mm; right: 10mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 10mm; width: 100%; z-index: 2; }}
-            h2 {{ color: #047857; font-size: 16pt; margin-bottom: 2px; }}
-            h1 {{ color: #065f46; font-size: 24pt; margin: 6px 0; font-weight: 900; }}
-            p {{ font-size: 10.5pt; line-height: 1.5; color: #1f2937; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 6px 10mm; margin: 6px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9.5pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 9.5pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 6mm; margin-top: 4mm; z-index: 2; }}
-            .cert-watermark {{ font-size: 8.5pt; color: #059669; font-weight: bold; margin-top: 2px; z-index: 2; }}
+            .header-top {{ position: absolute; top: 14mm; left: 16mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 14mm; right: 16mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 14mm; width: 100%; z-index: 2; }}
+            h2 {{ color: #047857; font-size: 15pt; margin-bottom: 2px; }}
+            h1 {{ color: #065f46; font-size: 22pt; margin: 4px 0; font-weight: 900; }}
+            p {{ font-size: 10pt; line-height: 1.4; color: #1f2937; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 5px 8mm; margin: 4px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9pt; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 5mm; margin-top: 2mm; z-index: 2; }}
+            .cert-watermark {{ font-size: 8pt; color: #059669; font-weight: bold; margin-top: 2px; z-index: 2; }}
         </style>
     </head>
     <body>
@@ -692,9 +710,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             {render_top_left_logo_html()}
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
-                <hr style="width: 40%; border: 1px solid #059669; margin: 4px auto;">
+                <hr style="width: 35%; border: 1px solid #059669; margin: 3px auto;">
                 <h1>{esc(full_trainee_name)}</h1>
-                <p>
+                {profession_html}
+                <p style="margin-top: 6px;">
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -955,7 +974,7 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 3mm; @bottom-right { content: counter(page); }; }';
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 0mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -1113,13 +1132,22 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "🖨 الطباعة والترويسة":
-        st.subheader("🖨 إعدادات الطباعة والترويسة وخلفيات الشهادات (مقاس A4)")
+        st.subheader("🖨 إعدادات الطباعة والترويسة وخلفيات وإطارات الشهادات (مقاس A4)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             st.markdown("#### 📝 تعديل النصوص والترويسة الافتراضية:")
             header_text_val = st.text_area("نص ترويسة الجهة (أعلى يمين الصفحة):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             def_title_val = st.text_input("عنوان الشهادة الافتراضي:", value=current_set.get("default_cert_title", "شهادة اجتياز اختبار معتمدة"))
-            trainee_prefix_val = st.text_input("البادئة/اللقب قبل اسم المتدرب (مثل: دكتور / أو الأستاذ /):", value=current_set.get("trainee_prefix", ""))
+            
+            st.markdown("#### 🏷️ إعدادات بادئة وألقاب ومهنة المتدرب (قبل وبعد الاسم):")
+            col_p1, col_p2, col_p3 = st.columns(3)
+            with col_p1:
+                trainee_prefix_val = st.text_input("1. البادئة قبل الاسم:", value=current_set.get("trainee_prefix", ""))
+            with col_p2:
+                trainee_title_val = st.text_input("2. اللقب بعد الاسم:", value=current_set.get("trainee_title", ""))
+            with col_p3:
+                trainee_profession_val = st.text_input("3. المهنة / الوظيفة:", value=current_set.get("trainee_profession", ""))
+
             def_notes_val = st.text_area("الملاحظات الافتراضية وصيغة التقرير للشهادة:", value=current_set.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد"))
 
             st.markdown("#### 📏 هوامش الورق المطبوع (مقاس A4):")
@@ -1141,9 +1169,14 @@ def admin_dashboard():
                 uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الصفحة):", type=["png", "jpg", "jpeg"], key="logo3_upload")
                 remove_logo3 = st.checkbox("حذف الشعار الثالث")
 
-            st.markdown("#### 🖼️ خلفية الشهادات:")
-            uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة:", type=["png", "jpg", "jpeg"], key="bg_upload")
-            remove_bg = st.checkbox("حذف الخلفية الحالية")
+            st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
+            col_bg_up, col_frame_up = st.columns(2)
+            with col_bg_up:
+                uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة:", type=["png", "jpg", "jpeg"], key="bg_upload")
+                remove_bg = st.checkbox("حذف الخلفية الحالية")
+            with col_frame_up:
+                uploaded_frame = st.file_uploader("رفع صورة إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="frame_upload")
+                remove_frame = st.checkbox("حذف الإطار الحالي")
 
             current_logo1_val = current_set["logo_base64"]
             if remove_logo1:
@@ -1169,8 +1202,14 @@ def admin_dashboard():
             elif uploaded_bg is not None:
                 current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
 
+            current_frame_val = current_set.get("frame_base64", "")
+            if remove_frame:
+                current_frame_val = ""
+            elif uploaded_frame is not None:
+                current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
+
             if st.form_submit_button("💾 حفظ الإعدادات والترويسة", use_container_width=True):
-                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, def_title_val, def_notes_val, trainee_prefix_val)
+                save_print_settings(header_text_val, m_top, m_bot, m_right, m_left, current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, def_title_val, def_notes_val, trainee_prefix_val, trainee_title_val, trainee_profession_val)
                 st.success("✅ تم حفظ الإعدادات والترويسة بنجاح!"); st.rerun()
 
     elif selected_menu == "🏥 الهيكل الإداري":
@@ -1626,7 +1665,6 @@ def admin_dashboard():
             "📈 تقرير أداء الجهات"
         ])
         
-        # 1) التقرير الفردي
         with rep_tab1:
             with db() as c:
                 tr_list_rep = c.execute("SELECT id, name, facility FROM trainees ORDER BY id DESC").fetchall()
@@ -1685,7 +1723,6 @@ def admin_dashboard():
                     full_ind_html = generate_general_report_html(f"تقرير تفصيلي للمتدرب: {ind_tr_data['name']}", individual_report_html)
                     render_print_button_only(full_ind_html, f"تقرير فردي للمتدرب {chosen_tr_id}")
 
-        # 2) التقرير الجماعي
         with rep_tab2:
             with db() as c:
                 facs_list_rep = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != ''").fetchall()]
@@ -1713,7 +1750,6 @@ def admin_dashboard():
                     full_group_html = generate_general_report_html(f"التقرير الجماعي لأداء العاملين - {sel_fac_rep}", f"<div>{table_group_html}</div>")
                     render_print_button_only(full_group_html, f"تقرير جماعي - {sel_fac_rep}")
 
-        # 3) التقرير الشامل
         with rep_tab3:
             with db() as c:
                 df_rep = pd.read_sql_query("""
@@ -1733,7 +1769,6 @@ def admin_dashboard():
                 full_rep_html = generate_general_report_html("تقرير نتائج المتدربين الشامل", f"<div>{table_html}</div>")
                 render_print_button_only(full_rep_html, "تقرير النتائج الشامل")
 
-        # 4) تقرير أداء الجهات
         with rep_tab4:
             with db() as c:
                 df_fac = pd.read_sql_query("""
@@ -1780,7 +1815,6 @@ def admin_dashboard():
                         chosen_tr_obj = tr_choices[sel_tr_label]
                         target_name = chosen_tr_obj['name']
                         
-                        # التحليل التلقائي الفردي
                         with db() as c:
                             incorrect_qs = c.execute("""
                                 SELECT q.category, q.question, eq.selected_option, q.answer 
@@ -1804,7 +1838,6 @@ def admin_dashboard():
                     else:
                         target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
                         
-                        # التحليل التلقائي الجماعي للجهة
                         with db() as c:
                             fac_incorrect = c.execute("""
                                 SELECT q.category 
