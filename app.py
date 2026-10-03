@@ -1,4 +1,4 @@
-import os, io, re, ast, json, html, sqlite3, hashlib, secrets, random, time
+import os, io, re, ast, json, sqlite3, hashlib, secrets, random, time
 from datetime import datetime, timedelta, date
 from contextlib import contextmanager
 
@@ -9,7 +9,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - النسخة النهائية الفحص الشامل)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - النسخة النظيفة الكاملة)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.0",
@@ -622,9 +622,9 @@ def render_logos_html():
     logo1 = sett.get("logo_base64", DEFAULT_LOGO)
     logo2 = sett.get("logo2_base64", "")
     
-    logos_list_html = f'<img src="{logo1}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 1">'
+    logos_list_html = f'<img src="{logo1}" style="width: 40px; height: 40px; object-fit: contain;" alt="Logo 1">'
     if logo2:
-        logos_list_html += f'<img src="{logo2}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 2">'
+        logos_list_html += f'<img src="{logo2}" style="width: 40px; height: 40px; object-fit: contain;" alt="Logo 2">'
         
     return f"""
     <div style="display: flex; gap: 4px; align-items: center;">
@@ -637,8 +637,8 @@ def render_top_left_logo_html():
     logo3 = sett.get("logo3_base64", "")
     if logo3:
         return f"""
-        <div style="position: absolute; top: 22mm; left: 25mm; text-align: left; z-index: 2;">
-            <img src="{logo3}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo 3">
+        <div style="position: absolute; top: 12mm; left: 15mm; text-align: left; z-index: 2;">
+            <img src="{logo3}" style="width: 40px; height: 40px; object-fit: contain;" alt="Logo 3">
         </div>
         """
     return ""
@@ -684,8 +684,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     title_role_str = f"{title_role_val} " if title_role_val else ""
     full_name_line = f"{prefix_str}{title_role_str}{r['trainee_name']}"
     
-    name_line_html = f"<div style='font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0;'>{esc(full_name_line)}</div>"
-    profession_html = f"<div style='font-size: 12pt; color: #047857; font-weight: bold; margin-top: 4px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
+    name_line_html = f"<div style='font-size: 18pt; color: #065f46; font-weight: 900; margin: 2px 0;'>{esc(full_name_line)}</div>"
+    profession_html = f"<div style='font-size: 11pt; color: #047857; font-weight: bold; margin-top: 2px;'>المهنة / الوظيفة: {esc(profession_val)}</div>" if profession_val else ""
 
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
@@ -698,7 +698,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <style>
             @page {{ 
                 size: A4 auto; 
-                margin: 12mm; 
+                margin: 6mm; 
             }}
             body {{ 
                 font-family: 'Cairo', 'Tahoma', sans-serif; 
@@ -713,28 +713,29 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             }}
             .cert-wrapper {{ 
                 width: 100%;
-                min-height: 270mm;
+                min-height: 255mm;
+                max-height: 285mm;
                 {frame_style}
                 {bg_style}
                 display: flex; 
                 flex-direction: column; 
                 justify-content: space-between; 
                 align-items: center; 
-                padding: 28mm 32mm; 
+                padding: 12mm 16mm; 
                 box-sizing: border-box; 
                 position: relative; 
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
                 page-break-inside: avoid;
                 break-inside: avoid;
             }}
-            .header-top {{ position: absolute; top: 22mm; left: 25mm; text-align: left; z-index: 2; }}
-            .header-right {{ position: absolute; top: 22mm; right: 25mm; text-align: right; font-size: 9.5pt; font-weight: bold; color: #065f46; line-height: 1.3; z-index: 2; }}
-            .cert-body {{ text-align: center; margin-top: 18mm; width: 100%; z-index: 2; }}
-            h2 {{ color: #047857; font-size: 15pt; margin-bottom: 2px; }}
-            p {{ font-size: 10pt; line-height: 1.4; color: #1f2937; }}
-            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 5px 8mm; margin: 6px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 9pt; }}
-            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 9pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 4mm; margin-top: 2mm; z-index: 2; }}
-            .cert-watermark {{ font-size: 8pt; color: #065f46; font-weight: bold; margin-top: 2px; z-index: 2; }}
+            .header-top {{ position: absolute; top: 12mm; left: 15mm; text-align: left; z-index: 2; }}
+            .header-right {{ position: absolute; top: 12mm; right: 15mm; text-align: right; font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.2; z-index: 2; }}
+            .cert-body {{ text-align: center; margin-top: 12mm; width: 100%; z-index: 2; }}
+            h2 {{ color: #047857; font-size: 14pt; margin-bottom: 2px; }}
+            p {{ font-size: 9.5pt; line-height: 1.3; color: #1f2937; margin: 6px 0; }}
+            .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 4px 6mm; margin: 4px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 8.5pt; }}
+            .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 8.5pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 3mm; margin-top: 2mm; z-index: 2; }}
+            .cert-watermark {{ font-size: 7.5pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
         </style>
     </head>
     <body>
@@ -744,10 +745,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             {render_top_left_logo_html()}
             <div class="cert-body">
                 <h2>{esc(title_val)}</h2>
-                <hr style="width: 35%; border: 1px solid #059669; margin: 3px auto 12px auto;">
+                <hr style="width: 35%; border: 1px solid #059669; margin: 2px auto 8px auto;">
                 {name_line_html}
                 {profession_html}
-                <p style="margin-top: 10px;">
+                <p style="margin-top: 6px;">
                     جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -761,11 +762,122 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <div>مدير المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
                 <div style="background: transparent; padding: 0px; text-align: center;">
-                    <img src="{qr_base64}" style="width: 50px; height: 50px; display: block; margin: auto;" alt="QR Code">
-                    <div style="font-size: 6pt; color: #065f46; margin-top: 1px;">مسح للتحقق</div>
+                    <img src="{qr_base64}" style="width: 45px; height: 45px; display: block; margin: auto;" alt="QR Code">
+                    <div style="font-size: 5.5pt; color: #065f46; margin-top: 1px;">مسح للتحقق</div>
                 </div>
             </div>
             <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_trainee_exam_sheet_html(sid):
+    sett = get_print_settings()
+    with db() as c:
+        s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+                         FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
+        if not s: return ""
+        rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer 
+                            FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (sid,)).fetchall()
+    
+    q_html_content = ""
+    for idx, r in enumerate(rows, start=1):
+        try: opts = json.loads(r["options_json"])
+        except: opts = ["نعم", "لا"]
+        try: order = json.loads(r["option_order_json"])
+        except: order = list(range(len(opts)))
+        
+        disp_opts = [opts[i] for i in order]
+        selected_opt_idx = r["selected_option"]
+        correct_ans_idx = r["answer"]
+        is_correct = r["is_correct"]
+
+        raw_q_text = r["question"]
+        img_tag_html = ""
+        if "IMAGE:" in raw_q_text:
+            parts = raw_q_text.split("\n\n")
+            img_uri = parts[0].replace("IMAGE:", "").strip()
+            q_text_clean = parts[1] if len(parts) > 1 else ""
+            if img_uri:
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 45px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+        else:
+            q_text_clean = raw_q_text
+
+        opts_html = ""
+        for o_idx, opt_text in enumerate(disp_opts):
+            orig_opt_index = order[o_idx]
+            is_selected = (selected_opt_idx is not None and orig_opt_index == int(selected_opt_idx))
+            is_true_ans = (orig_opt_index == int(correct_ans_idx))
+            
+            style_bg = "#f8fafc"
+            border_color = "#e2e8f0"
+            icon_str = "🔲"
+            
+            if is_true_ans:
+                style_bg = "#dcfce7"
+                border_color = "#059669"
+                icon_str = "✅"
+            elif is_selected and not is_true_ans:
+                style_bg = "#fee2e2"
+                border_color = "#dc2626"
+                icon_str = "❌"
+            
+            opts_html += f'<div style="padding: 1px 4px; margin: 1px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7.5pt;">{icon_str} {esc(opt_text)}</div>'
+        
+        status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
+        
+        q_html_content += f"""
+        <div style="margin-bottom: 4px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid; break-inside: avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8pt;">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+            {img_tag_html}
+            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
+        </div>
+        """
+
+    score_val, max_score_val, percent_val = s["score"] or 0, s["max_score"] or 0, s["percent"] or 0.0
+    
+    return f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{ size: A4 auto; margin: 5mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 3mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 3mm; margin-bottom: 4mm; }}
+            .header-right {{ font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.2; }}
+            h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 2px 0; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 5px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; }}
+            .questions-grid {{
+                column-count: 2;
+                column-gap: 4mm;
+                column-fill: auto;
+            }}
+            .footer {{ margin-top: 5px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; }}
+        </style>
+    </head>
+    <body>
+        <div class="report-wrapper">
+            {render_top_left_logo_html()}
+            <div class="report-header">
+                <div class="header-right">{sett.get('header_text', '')}</div>
+                <div>{render_logos_html()}</div>
+            </div>
+            <h2>نموذج إجابة واختبار المتدرب: {esc(s['trainee_name'])}</h2>
+            <div class="tpl-info">
+                جهة العمل: {esc(s['facility'])} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%) | تاريخ أداء الاختبار: {s['submitted_at'] or s['started_at']}
+            </div>
+            <div class="questions-grid">
+                {q_html_content}
+            </div>
+            <div class="footer">
+                <div>مسؤول التدريب</div>
+                <div>رئيس قسم المعامل</div>
+                <div>مدير المتوطنة</div>
+                <div>مدير عام الإدارة</div>
+            </div>
         </div>
     </body>
     </html>
@@ -779,76 +891,17 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
         <meta charset="UTF-8">
         <style>
-            @page {{ 
-                size: A4 auto; 
-                margin: 5mm; 
-            }}
-            body {{ 
-                font-family: 'Cairo', 'Tahoma', sans-serif; 
-                background: #ffffff; 
-                color: #111827; 
-                margin: 0; 
-                padding: 4mm; 
-                direction: rtl; 
-                -webkit-print-color-adjust: exact; 
-            }}
-            .report-wrapper {{
-                max-width: 210mm;
-                margin: auto;
-                page-break-after: always;
-                break-after: page;
-                position: relative;
-            }}
-            .report-header {{ 
-                display: flex; 
-                justify-content: space-between; 
-                align-items: center; 
-                border-bottom: 2px solid #059669; 
-                padding-bottom: 4px; 
-                margin-bottom: 8px; 
-            }}
-            .header-right {{ 
-                font-size: 9pt; 
-                font-weight: bold; 
-                color: #065f46; 
-                line-height: 1.3; 
-            }}
-            h2 {{ 
-                text-align: center; 
-                color: #047857; 
-                font-size: 13pt; 
-                margin: 6px 0; 
-            }}
-            table {{ 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin-top: 6px; 
-                font-size: 8.5pt; 
-            }}
-            th, td {{ 
-                border: 1px solid #cbd5e1; 
-                padding: 4px 6px; 
-                text-align: center; 
-            }}
-            th {{ 
-                background-color: #059669; 
-                color: white; 
-                font-weight: bold; 
-            }}
-            tr:nth-child(even) {{ 
-                background-color: #f0fdf4; 
-            }}
-            .footer {{ 
-                margin-top: 10px; 
-                display: flex; 
-                justify-content: space-between; 
-                font-size: 9pt; 
-                font-weight: bold; 
-                border-top: 1px dashed #059669; 
-                padding-top: 6px; 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
-            }}
+            @page {{ size: A4 auto; margin: 5mm; }}
+            body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+            .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
+            .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+            h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 8.5pt; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; }}
+            th {{ background-color: #059669; color: white; font-weight: bold; }}
+            tr:nth-child(even) {{ background-color: #f0fdf4; }}
+            .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; }}
         </style>
     </head>
     <body>
@@ -882,7 +935,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         <style>
             @page {{ size: A4 auto; margin: 5mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 4mm; direction: rtl; -webkit-print-color-adjust: exact; }}
-            .report-wrapper {{ max-width: 210mm; margin: auto; page-break-after: always; break-after: page; position: relative; }}
+            .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
             .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
             h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; }}
@@ -1012,7 +1065,7 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 10mm; @bottom-right { content: counter(page); }; }';
+                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 6mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -1318,7 +1371,7 @@ def admin_dashboard():
                 uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الصفحة):", type=["png", "jpg", "jpeg"], key="logo3_upload")
                 remove_logo3 = st.checkbox("حذف الشعار الثالث")
 
-            st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
+            st.markdown("#### 🖼️️ إطار وخلفية الشهادات:")
             col_bg_up, col_frame_up = st.columns(2)
             with col_bg_up:
                 uploaded_bg = st.file_uploader("رفع صورة خلفية الشهادة:", type=["png", "jpg", "jpeg"], key="bg_upload")
@@ -1480,7 +1533,7 @@ def admin_dashboard():
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة نتائج الامتحانات")
+        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج وطباعة النتائج وأوراق إجابة الممتحنين")
         with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
 
@@ -1492,7 +1545,7 @@ def admin_dashboard():
                         set_bulk_template_for_all(all_tpls_map[bulk_tpl_name])
                         st.success("✅ تم التعميم بنجاح!"); st.rerun()
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨 طباعة النتائج (فردي أو جماعي)"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين", "🖨 طباعة النتائج والشهادات", "📝 طباعة نموذج امتحان الممتحن"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending")
             if df_pend.empty: st.info("لا توجد طلبات معلقة.")
@@ -1539,7 +1592,7 @@ def admin_dashboard():
                                 reindex_trainees()
                                 st.success("✅ تم الحذف وإعادة ترتيب أرقام الـ ID بنجاح!"); st.rerun()
         with sub_tabs[2]:
-            st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4")
+            st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4 (بدون مسافات زائدة)")
             with db() as c:
                 sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed 
                                              FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' ORDER BY s.id DESC""").fetchall()
@@ -1562,6 +1615,28 @@ def admin_dashboard():
                     for s in sessions_list:
                         combined_all_html += generate_customizable_certificate_html(s['id']) + "<div style='page-break-after: always;'></div>"
                     render_print_button_only(combined_all_html, "طباعة جماعية لكل الشهادات")
+
+        with sub_tabs[3]:
+            st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
+            with db() as c:
+                completed_sessions = c.execute("""
+                    SELECT s.id, t.name trainee_name, t.facility, s.submitted_at, s.started_at, e.name template_name 
+                    FROM exam_sessions s 
+                    JOIN trainees t ON t.id=s.trainee_id 
+                    LEFT JOIN exam_templates e ON e.id=s.template_id 
+                    WHERE s.status='submitted' ORDER BY s.id DESC
+                """).fetchall()
+
+            if not completed_sessions:
+                st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين حتى الآن.")
+            else:
+                exam_records_map = {f"المتدرب: {r['trainee_name']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
+                sel_exam_rec_label = st.selectbox("اختر الممتحن وتاريخ الامتحان:", list(exam_records_map.keys()))
+                chosen_exam_session_id = exam_records_map[sel_exam_rec_label]
+
+                trainee_exam_sheet_html = generate_trainee_exam_sheet_html(chosen_exam_session_id)
+                st.markdown("<br>", unsafe_allow_html=True)
+                render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحد رقم {chosen_exam_session_id}")
 
     elif selected_menu == "🧠 بنك الأسئلة":
         st.subheader("🧠 بنك الأسئلة الشامل")
@@ -1816,7 +1891,7 @@ def admin_dashboard():
         
         with db() as c: all_tpls_records = c.execute("SELECT id, name FROM exam_templates").fetchall()
         manual_tpl_choices = {row["name"]: row["id"] for row in all_tpls_records} if all_tpls_records else {}
-        manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_keys else ["لا توجد نماذج اختبارات مسجلة"]
+        manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
 
         with st.form("manual_score_form_enhanced"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
@@ -2191,6 +2266,21 @@ def admin_dashboard():
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
+        
+        # دالة تفرغ القاعدة الحالية بالكامل لجعلها نظيفة وخالية من البيانات
+        if st.button("🗑️ تفرغ جميع بيانات النظام (تصفير قاعدة البيانات)", use_container_width=True):
+            with db() as c:
+                c.execute("DELETE FROM exam_questions")
+                c.execute("DELETE FROM exam_sessions")
+                c.execute("DELETE FROM trainees")
+                c.execute("DELETE FROM questions")
+                c.execute("DELETE FROM exam_templates")
+                c.execute("DELETE FROM action_plans")
+                c.execute("DELETE FROM hierarchical_facilities")
+                c.execute("DELETE FROM audit_logs")
+            st.success("✨ تمت تصفية قاعدة البيانات بالكامل وأصبحت نظيفة وخالية من أي بيانات!")
+            st.rerun()
+
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
             with open(DB_PATH, "rb") as f: db_bytes = f.read()
