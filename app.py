@@ -119,7 +119,7 @@ body::after {
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    margin-bottom: 25px;
+    margin-bottom: 10px;
 }
 
 .card, .question {
@@ -1203,11 +1203,11 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 
 def header():
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; padding: 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 12px; font-family: 'Cairo', sans-serif;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <span style="font-size: 28px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 8px; font-family: 'Cairo', sans-serif;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 8px;">
+            <span style="font-size: 26px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6; margin-bottom: 12px;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6; margin-bottom: 10px;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
             <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
@@ -1227,7 +1227,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=160, scrolling=False)
+    components.html(header_html, height=175, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1325,9 +1325,9 @@ def verification_portal_view():
         st.rerun()
 
 def login_portal():
-    # الصندوق الأخضر الأول (العنوان الرئيسي للنظام) بنفس مقاسات المربع الثاني
+    # الصندوق الأخضر الأول (العنوان الرئيسي للنظام)
     st.markdown("""
-        <div style="background-color: #059669; color: #ffffff; padding: 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 12px; font-family: 'Cairo', sans-serif;">
+        <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 8px; font-family: 'Cairo', sans-serif;">
             <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
         </div>
     """, unsafe_allow_html=True)
@@ -1826,7 +1826,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
