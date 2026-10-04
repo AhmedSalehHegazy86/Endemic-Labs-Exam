@@ -1202,15 +1202,15 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم زيادة العرض الأقصى، زيادة الارتفاع والهوامش لضمان ظهور كامل المحتوى من الأسفل والأعلى تماماً بلون أبيض ناصع #ffffff
+    # تم مطابقة عرض الهيدر تماماً مع عرض زرار التحقق من الشهادة، مع زيادة الارتفاع والهوامش الداخلية والخارجية لضمان ظهور كامل المحتوى من الأسفل والأعلى تماماً وبدون أي قص بلون أبيض ناصع #ffffff
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 35px 25px; border-radius: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 15px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <span style="font-size: 36px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 45px 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 25px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <span style="font-size: 38px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 23px; color: #ffffff; font-weight: 900; line-height: 1.9; margin-bottom: 15px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 5px;">
-            <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 5px 16px; border-radius: 20px;">System V1.0</span>
+        <div style="font-size: 24px; color: #ffffff; font-weight: 900; line-height: 2.0; margin-bottom: 20px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 8px;">
+            <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 6px 18px; border-radius: 20px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 16px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
     </div>
@@ -1228,7 +1228,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=235, scrolling=False)
+    components.html(header_html, height=270, scrolling=False)
 
 def verification_portal_view():
     header()
