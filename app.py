@@ -113,7 +113,7 @@ body::after {
 }
 
 .hero {
-    background: linear-gradient(90deg, #064e3b, #065f46, #047857) !important;
+    background: #059669 !important;
     color: #ffffff !important;
     padding: 22px;
     border-radius: 12px;
@@ -1203,14 +1203,14 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 
 def header():
     header_html = f"""
-    <div class="hero">
+    <div style="background-color: #059669; color: #ffffff; padding: 22px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; font-family: 'Cairo', sans-serif;">
         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 30px;">🪱🔬🐌💊</span>
         </div>
-        <div style="text-align: center; margin-bottom: 12px;">
-            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #d1fae5;">جاري تحديث الوقت الفوري...</span>
+        <div style="text-align: center; margin-bottom: 10px;">
+            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحديث الوقت الفوري...</span>
         </div>
-        <h1 style="text-align: center; margin: 0; font-size: 22px; font-weight: 900;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
+        <h1 style="text-align: center; margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
     </div>
     <script>
         function updateLiveClock() {{
@@ -1328,7 +1328,6 @@ def login_portal():
     
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
-        # استخدام نفس لون ستايل زر التحقق الأخضر للمربع الحاضن للنص
         st.markdown("""
             <div style="background-color: #059669; color: #ffffff; padding: 18px 22px; border-radius: 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
                 <h4 style="margin: 0; color: #ffffff; font-weight: 700; font-size: 16px; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</h4>
@@ -1824,7 +1823,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨️" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨️️" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2960,7 +2959,6 @@ def trainee_portal():
             except:
                 return iso_str
 
-        # تفعيل المربع الأخضر (Hero Box) في منتصف الصفحة لجملة الترحيب بلون زر التحقق
         st.markdown(f"""
             <div style="background-color: #059669; color: #ffffff; padding: 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 20px auto; max-width: 900px; border: 2px solid #34d399;">
                 <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">مرحباً بك في نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
