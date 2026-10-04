@@ -1208,7 +1208,8 @@ def header():
             <span style="font-size: 30px;">🪱🔬🐌💊</span>
         </div>
         <div style="text-align: center; margin-bottom: 10px;">
-            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحديث الوقت الفوري...</span>
+            <span style="font-size: 14px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
+            <span id="live-clock-display" style="font-size: 15px; font-weight: bold; color: #ffffff; margin-right: 10px;">جاري تحميل الوقت...</span>
         </div>
         <h1 style="text-align: center; margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
     </div>
@@ -1217,16 +1218,16 @@ def header():
             const options = {{ timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }};
             const formatter = new Intl.DateTimeFormat('ar-EG', options);
             try {{
-                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + formatter.format(new Date()) + "</b>";
+                document.getElementById('live-clock-display').innerHTML = "" + formatter.format(new Date()) + "";
             }} catch(e) {{
-                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + new Date().toLocaleString() + "</b>";
+                document.getElementById('live-clock-display').innerHTML = "" + new Date().toLocaleString() + "";
             }}
         }}
         updateLiveClock();
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=140, scrolling=False)
+    components.html(header_html, height=135, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1823,7 +1824,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨️️" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
