@@ -1326,10 +1326,10 @@ def verification_portal_view():
 def login_portal():
     header()
     
+    # الصندوق الأخضر المدمج (الصندوق الأول والثاني معاً بدون عنوان متكرر)
     st.markdown("""
         <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
-            <h2 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين</h2>
-            <p style="margin: 0; font-size: 15px; color: #d1fae5; font-weight: 600; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</p>
+            <p style="margin: 0; font-size: 16px; color: #ffffff; font-weight: 700; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -1341,7 +1341,7 @@ def login_portal():
 
     hier_data = get_hierarchical_data(include_hidden=False)
     print_st = get_print_settings()
-    professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "فني معمل"])
+    professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"])
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
