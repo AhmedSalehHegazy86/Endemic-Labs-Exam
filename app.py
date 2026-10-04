@@ -1192,9 +1192,9 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم تكبير الهوامش الأفقية (`padding: 12px 36px`) وزيادة ارتفاع الإطار (`height=155`) لتفادي قص أي حافة سفلية أو جانبية وظهور المربع بشكل متناسق ومريح
+    # تم تكبير الهوامش الأفقية (`padding: 16px 60px`) وزيادة ارتفاع الإطار (`height=185`) لتوسيع المربع أفقياً درجتين ورأسياً 4 درجات إضافية لتفادي قص أي حافة وظهور التصميم بصورة مريحة تماماً
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 12px 36px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 16px 60px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 4px;">
             <span style="font-size: 26px;">🪱🔬🐌💊</span>
         </div>
@@ -1218,7 +1218,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=155, scrolling=False)
+    components.html(header_html, height=185, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -2560,7 +2560,7 @@ def admin_dashboard():
     elif selected_menu == "📈 خطط العمل":
         st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (مع إمكانية الحذف)")
         
-        plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
+        plan_tabs = st.tabs(["➕ إنشاء وتحديث خططة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
         
         with plan_tabs[0]:
             with db() as c:
