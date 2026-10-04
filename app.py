@@ -43,15 +43,15 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone)
+# 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone - Live Sync)
 # ============================================================
 CAIRO_TZ = ZoneInfo("Africa/Cairo")
 
 def get_online_network_time():
-    """محاولة جلب الوقت بدقة من الإنترنت، وفي حال انقطاع الاتصال يتم العودة للوقت المحلي للسيرفر مع الحفاظ على النطاق الزمني لمصر"""
+    """جلب الوقت الحالي بدقة فورية مع كل طلب لتجنب أي ثبات أو تأخير في التوقيت"""
     try:
         req = urllib.request.Request("http://worldtimeapi.org/api/timezone/Africa/Cairo", headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=2) as response:
+        with urllib.request.urlopen(req, timeout=1.5) as response:
             data = json.loads(response.read().decode())
             if "datetime" in data:
                 return datetime.fromisoformat(data["datetime"])
@@ -276,6 +276,41 @@ def reindex_trainees():
             c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
         c.execute("PRAGMA foreign_keys=ON;")
 
+def reindex_questions():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at FROM questions ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM questions")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='questions'")
+        q_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
+            q_mapping[old_id] = new_id
+        
+        for old_id, new_id in q_mapping.items():
+            c.execute("UPDATE exam_questions SET question_id=? WHERE question_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
+def reindex_templates():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at FROM exam_templates ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM exam_templates")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='exam_templates'")
+        t_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
+            t_mapping[old_id] = new_id
+        
+        for old_id, new_id in t_mapping.items():
+            c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
+            c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
 def hash_password(password, salt=None):
     salt = salt or secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210000)
@@ -310,7 +345,7 @@ ALL_MENU_MODULES = {
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
-    "🧑🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
@@ -1370,7 +1405,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -1408,8 +1443,8 @@ def admin_dashboard():
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
     elif selected_menu == "👥 إدارة المهن والوظائف":
-        st.subheader("👥 إدارة المهن والوظائف وتقسيم العاملين")
-        st.info("💡 يمكنك من هنا إضافة مهنة جديدة للقائمة المنسدلة المتاحة للعاملين عند التسجيل أو تعديلها، واستعراض توزيع العاملين حسب وظائفهم.")
+        st.subheader("👥 إدارة المهن والوظائف وتقسيم العاملين (مع إمكانية الحذف)")
+        st.info("💡 يمكنك من هنا إضافة مهنة جديدة أو حذف مهنة موجودة، واستعراض توزيع العاملين حسب وظائفهم.")
 
         curr_p_set = get_print_settings()
         current_prof_list = curr_p_set.get("professions_list", [])
@@ -1441,12 +1476,33 @@ def admin_dashboard():
                         st.warning("الرجاء إدخال اسم المهنة.")
 
         with col_list_prof:
+            with st.form("delete_profession_form"):
+                st.markdown("#### 🗑 حذف مهنة من القائمة:")
+                sel_del_prof = st.selectbox("اختر المهنة للحذف:", ["-- اختر المهنة --"] + current_prof_list)
+                if st.form_submit_button("حذف المهنة المحددة", use_container_width=True):
+                    if sel_del_prof != "-- اختر المهنة --":
+                        if sel_del_prof in current_prof_list:
+                            current_prof_list.remove(sel_del_prof)
+                            save_print_settings(
+                                curr_p_set["header_text"], curr_p_set["margin_top"], curr_p_set["margin_bottom"], 
+                                curr_p_set["margin_right"], curr_p_set["margin_left"], curr_p_set.get("line_spacing", 1.25), 
+                                curr_p_set["logo_base64"], curr_p_set.get("logo2_base64", ""), curr_p_set.get("logo3_base64", ""), 
+                                curr_p_set.get("bg_base64", ""), curr_p_set.get("frame_base64", ""), 
+                                curr_p_set["default_cert_title"], curr_p_set["default_cert_notes"], 
+                                curr_p_set["trainee_prefix"], curr_p_set["trainee_title"], 
+                                curr_p_set["trainee_profession"], current_prof_list
+                            )
+                            st.success(f"✅ تم حذف المهنة ({sel_del_prof}) بنجاح!")
+                            st.rerun()
+                    else:
+                        st.warning("الرجاء اختيار مهنة صحيحة للحذف.")
+
             st.markdown("#### 📋 القائمة الحالية للمهن المتاحة:")
             for idx, p_name in enumerate(current_prof_list, start=1):
                 st.write(f"{idx}. {p_name}")
 
         st.markdown("---")
-        st.markdown("#### 📊 تقسم وإحصائيات العاملين والممتحنين حسب المهن والوظائف:")
+        st.markdown("#### 📊 تقسيم وإحصائيات العاملين والممتحنين حسب المهن والوظائف:")
         with db() as c:
             df_prof_stats = pd.read_sql_query("""
                 SELECT profession AS 'المهنة / الوظيفة', 
@@ -1466,7 +1522,7 @@ def admin_dashboard():
             out_prof_bytes = io.BytesIO()
             with pd.ExcelWriter(out_prof_bytes, engine='openpyxl') as writer:
                 df_prof_stats.to_excel(writer, index=False, sheet_name='ProfessionsBreakdown')
-            st.download_button("📥 تحميل تقرين وتوزيع المهن (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("📥 تحميل تقرير وتوزيع المهن (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
         st.subheader("🖨 ضبط اعدادات الطباعة و الهوامش للتقارير العامة (مع إمكانية رفع الصور والشعارات)")
@@ -1649,7 +1705,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الإخفاء والإظهار)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الحذف والإخفاء التام)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
@@ -1722,9 +1778,9 @@ def admin_dashboard():
                     
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                     with c_hide_btn:
-                        hide_fac_submit = st.form_submit_button("👁‍‍🗨️ إخفاء المنشأة من التقارير", use_container_width=True)
+                        hide_fac_submit = st.form_submit_button("👁‍‍‍‍🗨️ إخفاء المنشأة", use_container_width=True)
                     with c_show_btn:
-                        show_fac_submit = st.form_submit_button("✅ إظهار المنشأة بالتقارير", use_container_width=True)
+                        show_fac_submit = st.form_submit_button("✅ إظهار المنشأة", use_container_width=True)
                     with c_del_btn:
                         single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
                     
@@ -1745,7 +1801,7 @@ def admin_dashboard():
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️ إدارة الأسئلة وبنك الأسئلة الشامل")
+        st.subheader("⚙️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         
@@ -1817,10 +1873,12 @@ def admin_dashboard():
                 with db() as c: all_questions_del = c.execute("SELECT id, question FROM questions ORDER BY id ASC").fetchall()
                 if all_questions_del:
                     q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
-                    selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
-                    if st.button("🗑 حذف", use_container_width=True):
-                        with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
-                        st.success("✅ تم الحذف!"); st.rerun()
+                    with st.form("delete_single_question_form"):
+                        selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
+                        if st.form_submit_button("🗑 حذف السؤال المحدد وإعادة الترتيب", use_container_width=True):
+                            with db() as c: c.execute("DELETE FROM questions WHERE id=?", (q_del_map[selected_del_label],))
+                            reindex_questions()
+                            st.success("✅ تم الحذف وإعادة ترقيم بنك الأسئلة بنجاح!"); st.rerun()
 
         with sub_q_manage_tabs[1]:
             st.markdown("#### 🧠 بنك الأسئلة الشامل (استيراد، دمج، تصدير، وتفريغ/حذف البنك بالكامل)")
@@ -1869,10 +1927,10 @@ def admin_dashboard():
                                                       (diff, cat, q_text, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                                             imported_count += 1
                                         except sqlite3.IntegrityError:
-                                            # السؤال موجود مسبقاً بناءً على الـ fingerprint
                                             skipped_count += 1
                                         except: 
                                             pass
+                            reindex_questions()
                             st.success(f"🎉 تم بنجاح دمج وإضافة ({imported_count}) سؤالاً جديداً للبنك! (تم تخطي {skipped_count} سؤالاً مكرراً لتجنب الازدواج).")
                             st.balloons()
                     except Exception as e: 
@@ -1902,8 +1960,8 @@ def admin_dashboard():
                             else:
                                 st.warning("⚠ يرجى كتابة كلمة (حذف البنك) بشكل صحيح في حقل التأكيد لإتمام الحذف.")
 
-    elif selected_menu == "🧑‍‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (إدارة متكاملة ومستقرة)")
+    elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
+        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (مع إمكانية الحذف الفردي والنهائي وإعادة الترتيب)")
         with db() as c: all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         
         if all_tpls_records:
@@ -1924,7 +1982,7 @@ def admin_dashboard():
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار)", "📝 طباعة نموذج امتحان الممتحن"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
         
         with sub_tabs[0]:
             df_pend = trainees_df("pending", include_hidden=False)
@@ -1974,7 +2032,7 @@ def admin_dashboard():
                             
                             c_upd, c_hide, c_show, c_del = st.columns(4)
                             with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                            with c_hide: hide_btn = st.form_submit_button("👁‍‍🗨️ إخفاء", use_container_width=True)
+                            with c_hide: hide_btn = st.form_submit_button("👁‍‍‍‍🗨️ إخفاء", use_container_width=True)
                             with c_show: show_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
                             with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
                             
@@ -2022,7 +2080,7 @@ def admin_dashboard():
                 render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
-        st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (التوقيت المحدث أونلاين - مقاس A4)")
+        st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (مع إمكانية الحذف وإعادة الترتيب التلقائي للـ ID)")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد وتصنيف", "🗑 حذف نموذج"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
@@ -2170,12 +2228,13 @@ def admin_dashboard():
                 tpl_map = {f"نموذج رقم {t['id']} - {t['name']} [{t['exam_type']}]": t['id'] for t in tpls_del}
                 with st.form("delete_template_form"):
                     selected_tpl_label = st.selectbox("اختر النموذج للحذف:", list(tpl_map.keys()))
-                    if st.form_submit_button("🗑 حذف", use_container_width=True):
+                    if st.form_submit_button("🗑 حذف نموذج الاختبار وإعادة الترتيب", use_container_width=True):
                         with db() as c:
                             c.execute("PRAGMA foreign_keys=OFF;")
                             c.execute("DELETE FROM exam_templates WHERE id=?", (tpl_map[selected_tpl_label],))
                             c.execute("PRAGMA foreign_keys=ON;")
-                        st.success("✅ تم الحذف!"); st.rerun()
+                        reindex_templates()
+                        st.success("✅ تم الحذف وإعادة الترتيب التلقائي بنجاح!"); st.rerun()
 
     elif selected_menu == "✍ تسجيل نتيجة يدوي":
         st.subheader("✍ تسجيل نتيجة يدوي (مع اختيار الأسئلة الخاطئة لضمان الدقة)")
@@ -2486,7 +2545,7 @@ def admin_dashboard():
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (من تاريخ إلى تاريخ)")
+        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (مع إمكانية الحذف)")
         
         plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
         
@@ -2693,7 +2752,7 @@ def admin_dashboard():
                             st.error(f"خطأ أثناء الدمج: {e}")
 
     elif selected_menu == "👥 إدارة المستخدمين":
-        st.subheader("👥 إدارة المستخدمين وصلاحياتهم وتعديل بيانات الاعتماد")
+        st.subheader("👥 إدارة المستخدمين وصلاحياتهم وتعديل بيانات الاعتماد (مع إمكانية الحذف)")
         tab_u1, tab_u2, tab_u3 = st.tabs(["➕ إضافة مستخدم", "⚙ الصلاحيات والحذف", "🔑 تعديل اسم وكلمة المرور"])
         
         with tab_u1:
@@ -2734,14 +2793,14 @@ def admin_dashboard():
                         edit_checkboxes[mod_key] = st.checkbox(f"{mod_key}", value=is_checked, key=f"mod_chk_{target_user['id']}_{mod_key}")
                     c_save, c_del = st.columns(2)
                     with c_save: save_btn = st.form_submit_button("💾 حفظ", use_container_width=True)
-                    with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
+                    with c_del: del_btn = st.form_submit_button("🗑 حذف المستخدم", use_container_width=True)
                     if save_btn:
                         new_assigned = [k for k, v in edit_checkboxes.items() if v]
                         with db() as c: c.execute("UPDATE users SET permissions_json=? WHERE id=?", (json.dumps(new_assigned, ensure_ascii=False), target_user["id"]))
                         st.success("✅ تم التحديث!"); st.rerun()
                     if del_btn:
                         with db() as c: c.execute("DELETE FROM users WHERE id=?", (target_user["id"],))
-                        st.success("✅ تم الحذف!"); st.rerun()
+                        st.success("✅ تم الحذف بنجاح!"); st.rerun()
                         
         with tab_u3:
             st.markdown("#### 🔑 تعديل اسم المستخدم وكلمة المرور للمالك أو المستخدمين")
@@ -2760,7 +2819,7 @@ def admin_dashboard():
                 
                 if st.form_submit_button("🔒 تحديث بيانات الدخول", use_container_width=True):
                     if not current_password_input.strip():
-                        st.warning("⚠️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
+                        st.warning("⚠️️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
                     else:
                         with db() as c:
                             actor_user = c.execute("SELECT * FROM users WHERE username=?", (st.session_state.username,)).fetchone()
