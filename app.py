@@ -1203,13 +1203,13 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 
 def header():
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; padding: 22px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; font-family: 'Cairo', sans-serif;">
-        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 30px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; padding: 18px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; font-family: 'Cairo', sans-serif; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 26px;">🪱🔬🐌💊</span>
         </div>
-        <div style="text-align: center; margin-bottom: 0px;">
-            <span style="font-size: 14px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
-            <span id="live-clock-display" style="font-size: 15px; font-weight: bold; color: #ffffff; margin-right: 10px;">جاري تحميل الوقت...</span>
+        <div>
+            <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
+            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff; margin-right: 12px;">جاري تحميل الوقت...</span>
         </div>
     </div>
     <script>
@@ -1226,7 +1226,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=105, scrolling=False)
+    components.html(header_html, height=85, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1324,15 +1324,22 @@ def verification_portal_view():
         st.rerun()
 
 def login_portal():
-    header()
-    
-    # الصندوق الأخضر الأول المدمج (يحتوي على عنوان النظام ونص الترحيب بالصيغة المطلوبة تماماً)
+    # الصندوق الأخضر الأول (العنوان)
     st.markdown("""
         <div style="background-color: #059669; color: #ffffff; padding: 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
-            <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+            <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # الصندوق الأخضر الثاني (نص الترحيب)
+    st.markdown("""
+        <div style="background-color: #059669; color: #ffffff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
             <p style="margin: 0; font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</p>
         </div>
     """, unsafe_allow_html=True)
+
+    # مربع الأيقونات والساعة (Header) أصبح الآن تحت المربع الثاني وبنفس التنسيق والحواف المتناسقة تماماً
+    header()
 
     col_v_btn1, col_v_btn2 = st.columns([3, 1])
     with col_v_btn2:
@@ -1825,7 +1832,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
