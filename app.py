@@ -1203,13 +1203,14 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 
 def header():
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; padding: 18px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; font-family: 'Cairo', sans-serif; display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 26px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; padding: 20px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <span style="font-size: 28px;">🪱🔬🐌💊</span>
         </div>
-        <div>
+        <div style="font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6; margin-bottom: 12px;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
             <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
-            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff; margin-right: 12px;">جاري تحميل الوقت...</span>
+            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
     </div>
     <script>
@@ -1226,7 +1227,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=85, scrolling=False)
+    components.html(header_html, height=135, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1324,21 +1325,14 @@ def verification_portal_view():
         st.rerun()
 
 def login_portal():
-    # الصندوق الأخضر الأول (العنوان)
+    # الصندوق الأخضر الأول (العنوان الرئيسي للنظام)
     st.markdown("""
         <div style="background-color: #059669; color: #ffffff; padding: 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
             <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
         </div>
     """, unsafe_allow_html=True)
 
-    # الصندوق الأخضر الثاني (نص الترحيب)
-    st.markdown("""
-        <div style="background-color: #059669; color: #ffffff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
-            <p style="margin: 0; font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # مربع الأيقونات والساعة (Header) أصبح الآن تحت المربع الثاني وبنفس التنسيق والحواف المتناسقة تماماً
+    # المربع المدمج (الثاني والثالث سابقاً) بالترتيب المطلوب: الأيقونات، رسالة الترحيب، إصدار النظام، والتاريخ والوقت
     header()
 
     col_v_btn1, col_v_btn2 = st.columns([3, 1])
@@ -2051,7 +2045,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️‍‍‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
@@ -2068,7 +2062,7 @@ def admin_dashboard():
                             
                             c_upd, c_hide, c_show, c_del = st.columns(4)
                             with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                            with c_hide: hide_btn = st.form_submit_button("👁🗨️ إخفاء", use_container_width=True)
+                            with c_hide: hide_btn = st.form_submit_button("👁🗨️️ إخفاء", use_container_width=True)
                             with c_show: show_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
                             with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
                             
@@ -2996,7 +2990,7 @@ def trainee_portal():
                         st.session_state.exam_session_id = active_s["id"]
                         st.rerun()
             else:
-                st.error(str(e))
+                        st.error(str(e))
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_space1, col_btn, col_space2 = st.columns([1, 2, 1])
