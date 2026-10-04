@@ -13,7 +13,7 @@ from PIL import Image
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم و اختبار العاملين 🪱🔬🐌💊 - System V1.0",
+    page_title="نظام تقييم و اختبار العاملين بالامراض المتوطنة 🪱🔬🐌💊 - System V1.0",
     page_icon="🪱",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1202,42 +1202,29 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # استخراج الوقت الابتدائي للـ Cairo Timezone لضبط العداد الفوري
-    cairo_now = now_cairo()
-    initial_js_time = cairo_now.timestamp() * 1000
-    
     header_html = f"""
-    <div class="hero" style="position: relative;">
-        <h1>🪱🔬🐌💊💊 نظام تقييم و اختبار العاملين</h1>
+    <div class="hero">
+        <h1>🪱🔬🐌💊 نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
         <div>
             <span id="live-clock-display">جاري تحديث الوقت الفوري...</span><br>
-            <small style="color:#d1fae5;">الأمراض والطفيليات والفحوص المعملية | Developed by Dr/Ahmed.S.Hegazy</small>
+            <small style="color:#d1fae5;">الأمراض المتوطنة والطفيليات والفحوص المعملية | Developed by Dr/Ahmed.S.Hegazy</small>
         </div>
     </div>
     <script>
         function updateLiveClock() {{
             const options = {{ timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }};
-            const formatter = new Intl.DateTimeFormat('en-US', options);
-            const parts = formatter.formatToParts(new Date());
-            
-            let dateObj = {{}};
-            parts.forEach(p => dateObj[p.type] = p.value);
-            
-            let periodAr = (dateObj.dayPeriod === 'PM' || dateObj.dayPeriod === 'pm' || dateObj.dayPeriod === 'مساءً' || dateObj.dayPeriod === 'PM') ? 'مساءً' : 'صباحاً';
-            if (window.navigator.language.startsWith('ar')) {{
-                // إذا كان المتصفح يدعم العربية مباشرة
-                const arFormatter = new Intl.DateTimeFormat('ar-EG', options);
-                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + arFormatter.format(new Date()) + "</b>";
-            }} else {{
-                let timeStr = dateObj.year + '-' + dateObj.month + '-' + dateObj.day + ' ' + dateObj.hour + ':' + dateObj.minute + ':' + dateObj.second + ' ' + periodAr;
-                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + timeStr + "</b>";
+            const formatter = new Intl.DateTimeFormat('ar-EG', options);
+            try {{
+                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + formatter.format(new Date()) + "</b>";
+            }} catch(e) {{
+                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + new Date().toLocaleString() + "</b>";
             }}
         }}
         updateLiveClock();
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=125, scrolling=False)
+    components.html(header_html, height=115, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1304,7 +1291,7 @@ def verification_portal_view():
         <body>
             <div class="doc-wrapper">
                 <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
-                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم و اختبار العاملين</div>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم و اختبار العاملين بالامراض المتوطنة</div>
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
                     <tr><th>المهنة / الوظيفة</th><td>{esc(r.get('trainee_profession', ''))}</td></tr>
@@ -1339,7 +1326,7 @@ def login_portal():
     
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
-        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين والفحوص المعملية.")
+        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.")
     with col_v_btn2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
