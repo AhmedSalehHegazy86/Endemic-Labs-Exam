@@ -1325,14 +1325,7 @@ def verification_portal_view():
         st.rerun()
 
 def login_portal():
-    # الصندوق الأخضر الأول (العنوان الرئيسي للنظام)
-    st.markdown("""
-        <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 8px; font-family: 'Cairo', sans-serif;">
-            <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # المربع الثاني المدمج (الأيقونات، رسالة الترحيب، إصدار النظام، والتاريخ والوقت)
+    # تم حذف المربع الأول نهائياً وبقاء المربع الثاني والثالث فقط بمعايير متطابقة ومنسقة
     header()
 
     col_v_btn1, col_v_btn2 = st.columns([3, 1])
@@ -1826,7 +1819,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
