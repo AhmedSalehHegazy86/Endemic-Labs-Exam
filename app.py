@@ -229,7 +229,7 @@ window.addEventListener("focus", function() {
 
 st.markdown("""
 <div class="ownership-watermark">
-جميع الحقوق محفوظة © 2026 | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
+جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy
 </div>
 """, unsafe_allow_html=True)
 
@@ -1204,14 +1204,13 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 def header():
     header_html = f"""
     <div class="hero">
-        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 28px;">🪱🔬🐌💊</span>
+        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 30px;">🪱🔬🐌💊</span>
         </div>
-        <h1 style="text-align: center; margin: 5px 0; font-size: 24px;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
-        <div style="text-align: center; margin-top: 10px;">
-            <span id="live-clock-display" style="font-size: 14px; font-weight: bold;">جاري تحديث الوقت الفوري...</span><br>
-            <small style="color:#d1fae5; font-size: 11px;">Developed by Dr/Ahmed.S.Hegazy</small>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #d1fae5;">جاري تحديث الوقت الفوري...</span>
         </div>
+        <h1 style="text-align: center; margin: 0; font-size: 22px; font-weight: 900;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
     </div>
     <script>
         function updateLiveClock() {{
@@ -1227,7 +1226,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=130, scrolling=False)
+    components.html(header_html, height=140, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1329,7 +1328,12 @@ def login_portal():
     
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
-        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.")
+        # استخدام نفس لون ستايل زر التحقق الأخضر للمربع الحاضن للنص
+        st.markdown("""
+            <div style="background-color: #059669; color: #ffffff; padding: 18px 22px; border-radius: 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                <h4 style="margin: 0; color: #ffffff; font-weight: 700; font-size: 16px; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</h4>
+            </div>
+        """, unsafe_allow_html=True)
     with col_v_btn2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
@@ -2956,10 +2960,10 @@ def trainee_portal():
             except:
                 return iso_str
 
-        # تفعيل المربع الأخضر (Hero Box) في منتصف الصفحة لجملة الترحيب
+        # تفعيل المربع الأخضر (Hero Box) في منتصف الصفحة لجملة الترحيب بلون زر التحقق
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #064e3b, #059669); color: #ffffff; padding: 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 20px auto; max-width: 900px; border: 2px solid #34d399;">
-                <h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 900; color: #ffffff;">مرحباً بك في نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+            <div style="background-color: #059669; color: #ffffff; padding: 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 20px auto; max-width: 900px; border: 2px solid #34d399;">
+                <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">مرحباً بك في نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
                 <p style="margin: 5px 0 0 0; font-size: 15px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
             </div>
         """, unsafe_allow_html=True)
