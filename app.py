@@ -1202,15 +1202,16 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
+    # تم زيادة حجم الخط بمقدار درجتين وجعل العرض والترتيب منسقاً بالكامل ليتطابق مع باقي العناصر
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 8px; font-family: 'Cairo', sans-serif;">
+    <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 8px; font-family: 'Cairo', sans-serif; width: 100%; box-sizing: border-box;">
         <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 8px;">
-            <span style="font-size: 26px;">🪱🔬🐌💊</span>
+            <span style="font-size: 30px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6; margin-bottom: 10px;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="font-size: 17px; color: #d1fae5; font-weight: 700; line-height: 1.6; margin-bottom: 10px;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
-            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
+            <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
+            <span id="live-clock-display" style="font-size: 16px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
     </div>
     <script>
@@ -1325,7 +1326,6 @@ def verification_portal_view():
         st.rerun()
 
 def login_portal():
-    # تم حذف المربع الأول نهائياً وبقاء المربع الثاني والثالث فقط بمعايير متطابقة ومنسقة
     header()
 
     col_v_btn1, col_v_btn2 = st.columns([3, 1])
