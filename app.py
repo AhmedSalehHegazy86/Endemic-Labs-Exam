@@ -10,17 +10,17 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.1 - توقيت مصر + خطط العمل بالفترات + إصلاح المتدربين والنماذج)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.2)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.1",
+    page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.2",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v1_1.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v1_2.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -300,7 +300,7 @@ ALL_MENU_MODULES = {
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 الطباعة والترويسة": "إعدادات هوامش وترويسات التقارير العامة",
-    "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل",
+    "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
     "📊 التقارير": "التقارير وتحليل الأداء",
     "📈 خطط العمل": "خطط العمل التدريبية",
     "💾 النسخ الاحتياطي": "النسخ الاحتياطي لقاعدة البيانات",
@@ -1150,7 +1150,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.1 (توقيت مصر المحلي)<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.2 (توقيت مصر المحلي)<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def verification_portal_view():
     header()
@@ -1435,80 +1435,135 @@ def admin_dashboard():
                 st.success("✅ تم حفظ هوامش وترويسة التقارير العامة بنجاح!"); st.rerun()
 
     elif selected_menu == "🎨 إعدادات الشهادات المخصصة":
-        st.subheader("🎨 صفحة إدارة وضبط الشهادات المستقلة")
-        st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي التقارير.")
+        st.subheader("🎨 صفحة إدارة وضبط الشهادات المخصصة وطباعتها")
         
-        current_set = get_print_settings()
-        professions_options_list = current_set.get("professions_list", [
-            "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
-            "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+        # إنشاء تبويبين داخل صفحة إعدادات الشهادات المخصصة بناءً على طلبك
+        cert_sub_tab1, cert_sub_tab2 = st.tabs([
+            "⚙ إعدادات وتصميم الشهادة", 
+            "🖨 طباعة الشهادات بناءً على التقارير (أفراد / جماعات / منشآت)"
         ])
-
-        with st.form("dedicated_certificate_settings_form"):
-            st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
-            col_p1, col_p2, col_p3 = st.columns(3)
-            with col_p1:
-                trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
-            with col_p2:
-                trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
-            with col_p3:
-                curr_prof = current_set.get("trainee_profession", "أخصائي تحاليل طبية")
-                prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
-                trainee_profession_val = st.selectbox("3. اختيار المهنة / الوظيفة من القائمة:", professions_options_list, index=prof_idx)
-
-            st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
-            line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
-
-            st.markdown("#### 🖼 شعارات الشهادات المخصصة:")
-            col_logo1, col_logo2, col_logo3 = st.columns(3)
-            with col_logo1: 
-                uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="cert_logo1")
-                remove_logo1 = st.checkbox("حذف الشعار الأول", key="c_rem1")
-            with col_logo2: 
-                uploaded_logo2 = st.file_uploader("الشعار الثاني (أعلى يمين - 2):", type=["png", "jpg", "jpeg"], key="cert_logo2")
-                remove_logo2 = st.checkbox("حذف الشعار الثاني", key="c_rem2")
-            with col_logo3: 
-                uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الشهادة):", type=["png", "jpg", "jpeg"], key="cert_logo3")
-                remove_logo3 = st.checkbox("حذف الشعار الثالث", key="c_rem3")
-
-            st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
-            col_bg_up, col_frame_up = st.columns(2)
-            with col_bg_up:
-                uploaded_bg = st.file_uploader("رفع خلفية الشهادة (صورة):", type=["png", "jpg", "jpeg"], key="cert_bg")
-                remove_bg = st.checkbox("حذف الخلفية الحالية", key="c_rem_bg")
-            with col_frame_up:
-                uploaded_frame = st.file_uploader("رفع إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="cert_frame")
-                remove_frame = st.checkbox("حذف الإطار الحالي", key="c_rem_frame")
-
-            current_logo1_val = current_set["logo_base64"]
-            if remove_logo1: current_logo1_val = DEFAULT_LOGO
-            elif uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+        
+        with cert_sub_tab1:
+            st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي التقارير.")
             
-            current_logo2_val = current_set.get("logo2_base64", "")
-            if remove_logo2: current_logo2_val = ""
-            elif uploaded_logo2 is not None: current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+            current_set = get_print_settings()
+            professions_options_list = current_set.get("professions_list", [
+                "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
+                "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+            ])
 
-            current_logo3_val = current_set.get("logo3_base64", "")
-            if remove_logo3: current_logo3_val = ""
-            elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
+            with st.form("dedicated_certificate_settings_form"):
+                st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
+                col_p1, col_p2, col_p3 = st.columns(3)
+                with col_p1:
+                    trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
+                with col_p2:
+                    trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
+                with col_p3:
+                    curr_prof = current_set.get("trainee_profession", "أخصائي تحاليل طبية")
+                    prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
+                    trainee_profession_val = st.selectbox("3. اختيار المهنة / الوظيفة من القائمة:", professions_options_list, index=prof_idx)
 
-            current_bg_val = current_set.get("bg_base64", "")
-            if remove_bg: current_bg_val = ""
-            elif uploaded_bg is not None: current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
+                st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
+                line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
 
-            current_frame_val = current_set.get("frame_base64", "")
-            if remove_frame: current_frame_val = ""
-            elif uploaded_frame is not None: current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
+                st.markdown("#### 🖼 شعارات الشهادات المخصصة:")
+                col_logo1, col_logo2, col_logo3 = st.columns(3)
+                with col_logo1: 
+                    uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="cert_logo1")
+                    remove_logo1 = st.checkbox("حذف الشعار الأول", key="c_rem1")
+                with col_logo2: 
+                    uploaded_logo2 = st.file_uploader("الشعار الثاني (أعلى يمين - 2):", type=["png", "jpg", "jpeg"], key="cert_logo2")
+                    remove_logo2 = st.checkbox("حذف الشعار الثاني", key="c_rem2")
+                with col_logo3: 
+                    uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الشهادة):", type=["png", "jpg", "jpeg"], key="cert_logo3")
+                    remove_logo3 = st.checkbox("حذف الشعار الثالث", key="c_rem3")
 
-            if st.form_submit_button("💾 حفظ إعدادات الشهادة المخصصة", use_container_width=True):
-                save_print_settings(
-                    current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
-                    current_set["margin_right"], current_set["margin_left"], line_spacing_val, 
-                    current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, 
-                    current_set["default_cert_title"], current_set["default_cert_notes"], 
-                    trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list
-                )
-                st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!"); st.rerun()
+                st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
+                col_bg_up, col_frame_up = st.columns(2)
+                with col_bg_up:
+                    uploaded_bg = st.file_uploader("رفع خلفية الشهادة (صورة):", type=["png", "jpg", "jpeg"], key="cert_bg")
+                    remove_bg = st.checkbox("حذف الخلفية الحالية", key="c_rem_bg")
+                with col_frame_up:
+                    uploaded_frame = st.file_uploader("رفع إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="cert_frame")
+                    remove_frame = st.checkbox("حذف الإطار الحالي", key="c_rem_frame")
+
+                current_logo1_val = current_set["logo_base64"]
+                if remove_logo1: current_logo1_val = DEFAULT_LOGO
+                elif uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+                
+                current_logo2_val = current_set.get("logo2_base64", "")
+                if remove_logo2: current_logo2_val = ""
+                elif uploaded_logo2 is not None: current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+
+                current_logo3_val = current_set.get("logo3_base64", "")
+                if remove_logo3: current_logo3_val = ""
+                elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
+
+                current_bg_val = current_set.get("bg_base64", "")
+                if remove_bg: current_bg_val = ""
+                elif uploaded_bg is not None: current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
+
+                current_frame_val = current_set.get("frame_base64", "")
+                if remove_frame: current_frame_val = ""
+                elif uploaded_frame is not None: current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
+
+                if st.form_submit_button("💾 حفظ إعدادات الشهادة المخصصة", use_container_width=True):
+                    save_print_settings(
+                        current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
+                        current_set["margin_right"], current_set["margin_left"], line_spacing_val, 
+                        current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, 
+                        current_set["default_cert_title"], current_set["default_cert_notes"], 
+                        trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list
+                    )
+                    st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!"); st.rerun()
+
+        with cert_sub_tab2:
+            st.markdown("#### 🖨 طباعة شهادات بناءً على التقارير (أفراد / جماعات / منشآت)")
+            st.info("💡 يمكنك من هنا طباعة الشهادات مع إمكانية الفلترة الدقيقة حسب (متدرب فردي)، أو (حسب المنشأة وجهة العمل)، أو (طباعة جماعية لكل النتائج المعتمدة).")
+
+            with db() as c:
+                all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
+                sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type 
+                                                  FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
+
+            if not sessions_full_list:
+                st.info("لا توجد اختبارات مكتملة أو معتمدة للمتدربين الظاهرين حتى الآن.")
+            else:
+                cert_print_type = st.radio("اختر نوع الطباعة للشهادات:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية حسب المنشأة / الجهة", "طباعة جماعية شاملة لكل الشهادات"], horizontal=True)
+                
+                curr_sett = get_print_settings()
+
+                if "فردية (لمتدرب محدد)" in cert_print_type:
+                    sess_choices = {f"متدرب: {s['trainee_name']} | الجهة: {s['facility']} | الاختبار: {s['tpl_name']} ({s['exam_type']}) - النتيجة: {s['percent']}%": s['id'] for s in sessions_full_list}
+                    sel_sess_lbl = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
+                    chosen_sid_val = sess_choices[sel_sess_lbl]
+                    
+                    cert_html_ind = generate_customizable_certificate_html(chosen_sid_val, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
+                    render_print_button_only(cert_html_ind, f"شهادة متدرب رقم {chosen_sid_val}")
+
+                elif "حسب المنشأة" in cert_print_type:
+                    if not all_facilities_list:
+                        st.info("لا توجد منشآت مسجلة.")
+                    else:
+                        sel_fac_print = st.selectbox("اختر المنشأة / الجهة الصحية لطباعة شهادات العاملين بها:", all_facilities_list)
+                        fac_filtered_sessions = [s for s in sessions_full_list if s['facility'] == sel_fac_print]
+                        
+                        st.write(f"📊 عدد الشهادات المتاحة لهذه المنشأة: **{len(fac_filtered_sessions)}** شهادة.")
+                        if fac_filtered_sessions:
+                            combined_fac_html = ""
+                            for s in fac_filtered_sessions:
+                                combined_fac_html += generate_customizable_certificate_html(s['id'], curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes")) + "<div style='page-break-after: always;'></div>"
+                            render_print_button_only(combined_fac_html, f"شهادات منشأة {sel_fac_print}")
+                        else:
+                            st.warning("⚠ لا توجد شهادات معتمدة لهذه المنشأة.")
+
+                else:
+                    st.markdown("##### 📚 طباعة وتصدير كافة الشهادات المعتمدة دفعة واحدة:")
+                    combined_all_cert_html = ""
+                    for s in sessions_full_list:
+                        combined_all_cert_html += generate_customizable_certificate_html(s['id'], curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes")) + "<div style='page-break-after: always;'></div>"
+                    render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الإخفاء والإظهار)")
@@ -1533,7 +1588,7 @@ def admin_dashboard():
                         st.warning("أدخل اسم المنشأة.")
 
         with tab_h2:
-            up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_1")
+            up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_2")
             if up_file is not None:
                 try:
                     df_up = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
@@ -1620,7 +1675,7 @@ def admin_dashboard():
         ]
 
         with sub_q_manage_tabs[0]:
-            sub_img_tabs = st.tabs(["➕ إضافة", "✏️️ تعديل", "🗑 حذف"])
+            sub_img_tabs = st.tabs(["➕ إضافة", "✏ تعديل", "🗑 حذف"])
             with sub_img_tabs[0]:
                 if st.session_state.add_success_msg: st.success(st.session_state.add_success_msg); st.session_state.add_success_msg = ""
                 with st.form(key=f"add_q_form_{st.session_state.form_key}"):
@@ -1688,7 +1743,7 @@ def admin_dashboard():
             st.markdown("#### 🧠 بنك الأسئلة الشامل (استيراد، تصدير، وتفريغ/حذف البنك بالكامل)")
             tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير وحذف بنك الأسئلة"])
             with tab_ex_1:
-                uploaded_excel = st.file_uploader("اختر ملف إكسيل:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_1")
+                uploaded_excel = st.file_uploader("اختر ملف إكسيل:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_2")
                 if uploaded_excel is not None:
                     try:
                         df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
@@ -1758,7 +1813,8 @@ def admin_dashboard():
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
 
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار)", "🖨 طباعة النتائج والشهادات", "📝 طباعة نموذج امتحان الممتحن"])
+        # تم نقل تبويب طباعة الشهادات من هنا إلى قسم "إعدادات الشهادات المخصصة" بناءً على طلبك
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار)", "📝 طباعة نموذج امتحان الممتحن"])
         
         with sub_tabs[0]:
             df_pend = trainees_df("pending", include_hidden=False)
@@ -1834,31 +1890,6 @@ def admin_dashboard():
                                 st.success("✅ تم الحذف وإعادة الترتيب بنجاح!"); st.rerun()
 
         with sub_tabs[2]:
-            st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4")
-            with db() as c:
-                sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type 
-                                             FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
-            
-            if not sessions_list:
-                st.info("لا توجد اختبارات مسجلة أو مكتملة حتى الآن للمتدربين الظاهرين.")
-            else:
-                print_mode = st.radio("اختر وضع الطباعة:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية (لكل النتائج المكتملة)"], horizontal=True)
-                if "فردية" in print_mode:
-                    sess_choices = {f"مجلد رقم ({s['id']}) - المتدرب: {s['trainee_name']} [{s['exam_type']}] - الجهة: {s['facility']} (النتيجة: {s['percent']}%)": s['id'] for s in sessions_list}
-                    sel_sess_label = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
-                    chosen_sid = sess_choices[sel_sess_label]
-                    
-                    curr_sett = get_print_settings()
-                    cert_html_single = generate_customizable_certificate_html(chosen_sid, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
-                    render_print_button_only(cert_html_single, f"شهادة متدرب رقم {chosen_sid}")
-                else:
-                    st.markdown("##### 📚 طباعة وتصدير كافة الشهادات دفعة واحدة:")
-                    combined_all_html = ""
-                    for s in sessions_list:
-                        combined_all_html += generate_customizable_certificate_html(s['id']) + "<div style='page-break-after: always;'></div>"
-                    render_print_button_only(combined_all_html, "طباعة جماعية لكل الشهادات")
-
-        with sub_tabs[3]:
             st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
             with db() as c:
                 completed_sessions = c.execute("""
@@ -2488,7 +2519,7 @@ def admin_dashboard():
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
             with open(DB_PATH, "rb") as f: db_bytes = f.read()
-            st.download_button("📥 تحميل النسخة (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_1.db", mime="application/octet-stream", use_container_width=True)
+            st.download_button("📥 تحميل النسخة (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_2.db", mime="application/octet-stream", use_container_width=True)
         with col_bk2:
             uploaded_db_file = st.file_uploader("رفع ملف قاعدة بيانات (.db):", type=["db"], key="restore_db_uploader")
             if uploaded_db_file is not None:
@@ -2546,7 +2577,7 @@ def admin_dashboard():
         tab_u1, tab_u2, tab_u3 = st.tabs(["➕ إضافة مستخدم", "⚙ الصلاحيات والحذف", "🔑 تعديل اسم وكلمة المرور"])
         
         with tab_u1:
-            with st.form("add_user_form_v1_1"):
+            with st.form("add_user_form_v1_2"):
                 new_u_name = st.text_input("اسم المستخدم:", value="")
                 new_u_pass = st.text_input("كلمة المرور:", type="password", value="")
                 new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
