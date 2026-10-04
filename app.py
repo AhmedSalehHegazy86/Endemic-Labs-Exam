@@ -112,16 +112,6 @@ body::after {
     padding-bottom: 7rem !important;
 }
 
-.hero {
-    background: #059669 !important;
-    color: #ffffff !important;
-    padding: 22px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    margin-bottom: 10px;
-}
-
 .card, .question {
     background: #ffffff !important;
     color: #111827 !important;
@@ -1202,14 +1192,14 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم مطابقة عرض الهيدر تماماً مع عرض زرار التحقق من الشهادة، مع زيادة الارتفاع والهوامش الداخلية والخارجية لضمان ظهور كامل المحتوى من الأسفل والأعلى تماماً وبدون أي قص بلون أبيض ناصع #ffffff
+    # تم مطابقة العرض تماماً مع زر التحقق من الشهادة (عبر حاوية متطابقة العرض)، وزيادة الارتفاع والهوامش لضمان ظهور كامل عناصر الهيدر من الأسفل والأعلى تماماً ودون أي قص أو اختفاء للساعة والوقت
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 45px 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 25px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 14px;">
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; min-height: 230px; padding: 35px 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 25px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff; overflow: hidden;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 12px;">
             <span style="font-size: 38px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 24px; color: #ffffff; font-weight: 900; line-height: 2.0; margin-bottom: 20px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 8px;">
+        <div style="font-size: 24px; color: #ffffff; font-weight: 900; line-height: 1.8; margin-bottom: 18px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 10px;">
             <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 6px 18px; border-radius: 20px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 16px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
@@ -1819,7 +1809,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2038,7 +2028,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️‍‍‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
