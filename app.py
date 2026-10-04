@@ -1207,11 +1207,10 @@ def header():
         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 30px;">🪱🔬🐌💊</span>
         </div>
-        <div style="text-align: center; margin-bottom: 10px;">
+        <div style="text-align: center; margin-bottom: 0px;">
             <span style="font-size: 14px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 15px; font-weight: bold; color: #ffffff; margin-right: 10px;">جاري تحميل الوقت...</span>
         </div>
-        <h1 style="text-align: center; margin: 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
     </div>
     <script>
         function updateLiveClock() {{
@@ -1227,7 +1226,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=135, scrolling=False)
+    components.html(header_html, height=105, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1327,13 +1326,14 @@ def verification_portal_view():
 def login_portal():
     header()
     
-    col_v_btn1, col_v_btn2 = st.columns([2, 1])
-    with col_v_btn1:
-        st.markdown("""
-            <div style="background-color: #059669; color: #ffffff; padding: 18px 22px; border-radius: 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                <h4 style="margin: 0; color: #ffffff; font-weight: 700; font-size: 16px; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</h4>
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+        <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
+            <h2 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين</h2>
+            <p style="margin: 0; font-size: 15px; color: #d1fae5; font-weight: 600; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col_v_btn1, col_v_btn2 = st.columns([3, 1])
     with col_v_btn2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
@@ -2962,7 +2962,7 @@ def trainee_portal():
 
         st.markdown(f"""
             <div style="background-color: #059669; color: #ffffff; padding: 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 20px auto; max-width: 900px; border: 2px solid #34d399;">
-                <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">مرحباً بك في نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+                <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
                 <p style="margin: 5px 0 0 0; font-size: 15px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
             </div>
         """, unsafe_allow_html=True)
