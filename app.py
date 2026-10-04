@@ -13,7 +13,7 @@ from PIL import Image
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم و اختبار العاملين بالامراض المتوطنة 🪱🔬🐌 - System V1.0",
+    page_title="نظام تقييم و اختبار العاملين 🪱🔬🐌💊 - System V1.0",
     page_icon="🪱",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -229,7 +229,7 @@ window.addEventListener("focus", function() {
 
 st.markdown("""
 <div class="ownership-watermark">
-🪱🔬🐌 جميع الحقوق محفوظة © 2026 | مكافحة الأمراض المتوطنة والطفيليات | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
+🪱🔬🐌💊 جميع الحقوق محفوظة © 2026 | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1202,8 +1202,42 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    online_now_str = now_cairo().strftime('%Y-%m-%d %I:%M:%S %p').replace("AM", "صباحاً").replace("PM", "مساءً")
-    st.markdown(f'<div class="hero"><h1>🪱🔬🐌 نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1><div>System V1.0 ({online_now_str})<br><small style="color:#d1fae5;">مكافحة الأمراض المتوطنة والطفيليات والفحوص المعملية | Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    # استخراج الوقت الابتدائي للـ Cairo Timezone لضبط العداد الفوري
+    cairo_now = now_cairo()
+    initial_js_time = cairo_now.timestamp() * 1000
+    
+    header_html = f"""
+    <div class="hero" style="position: relative;">
+        <h1>🪱🔬🐌💊💊 نظام تقييم و اختبار العاملين</h1>
+        <div>
+            <span id="live-clock-display">جاري تحديث الوقت الفوري...</span><br>
+            <small style="color:#d1fae5;">الأمراض والطفيليات والفحوص المعملية | Developed by Dr/Ahmed.S.Hegazy</small>
+        </div>
+    </div>
+    <script>
+        function updateLiveClock() {{
+            const options = {{ timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }};
+            const formatter = new Intl.DateTimeFormat('en-US', options);
+            const parts = formatter.formatToParts(new Date());
+            
+            let dateObj = {{}};
+            parts.forEach(p => dateObj[p.type] = p.value);
+            
+            let periodAr = (dateObj.dayPeriod === 'PM' || dateObj.dayPeriod === 'pm' || dateObj.dayPeriod === 'مساءً' || dateObj.dayPeriod === 'PM') ? 'مساءً' : 'صباحاً';
+            if (window.navigator.language.startsWith('ar')) {{
+                // إذا كان المتصفح يدعم العربية مباشرة
+                const arFormatter = new Intl.DateTimeFormat('ar-EG', options);
+                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + arFormatter.format(new Date()) + "</b>";
+            }} else {{
+                let timeStr = dateObj.year + '-' + dateObj.month + '-' + dateObj.day + ' ' + dateObj.hour + ':' + dateObj.minute + ':' + dateObj.second + ' ' + periodAr;
+                document.getElementById('live-clock-display').innerHTML = "System V1.0 | الوقت الحالي: <b>" + timeStr + "</b>";
+            }}
+        }}
+        updateLiveClock();
+        setInterval(updateLiveClock, 1000);
+    </script>
+    """
+    components.html(header_html, height=125, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1270,7 +1304,7 @@ def verification_portal_view():
         <body>
             <div class="doc-wrapper">
                 <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
-                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم و اختبار العاملين بالامراض المتوطنة</div>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم و اختبار العاملين</div>
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
                     <tr><th>المهنة / الوظيفة</th><td>{esc(r.get('trainee_profession', ''))}</td></tr>
@@ -1305,7 +1339,7 @@ def login_portal():
     
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
-        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.")
+        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين والفحوص المعملية.")
     with col_v_btn2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
@@ -1618,7 +1652,7 @@ def admin_dashboard():
                     uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الشهادة):", type=["png", "jpg", "jpeg"], key="cert_logo3")
                     remove_logo3 = st.checkbox("حذف الشعار الثالث", key="c_rem3")
 
-                st.markdown("#### 🖼️ إطار وخلفية الشهادات:")
+                st.markdown("#### 🖼 إطار وخلفية الشهادات:")
                 col_bg_up, col_frame_up = st.columns(2)
                 with col_bg_up:
                     uploaded_bg = st.file_uploader("رفع خلفية الشهادة (صورة):", type=["png", "jpg", "jpeg"], key="cert_bg")
@@ -2015,7 +2049,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
