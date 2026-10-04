@@ -299,7 +299,7 @@ ALL_MENU_MODULES = {
     "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
-    "🖨 الطباعة والترويسة": "إعدادات هوامش وترويسات التقارير العامة",
+    "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
     "📊 التقارير": "التقارير وتحليل الأداء",
     "📈 خطط العمل": "خطط العمل التدريبية",
@@ -1292,7 +1292,7 @@ def login_portal():
         
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
             if not facility_final_str:
-                st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
+                st.warning("⚠️️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
                 st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
@@ -1384,8 +1384,8 @@ def admin_dashboard():
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
-    elif selected_menu == "🖨 الطباعة والترويسة":
-        st.subheader("🖨 إعدادات هوامش وترويسات التقارير العامة (مع إمكانية رفع الصور والشعارات)")
+    elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
+        st.subheader("🖨 ضبط اعدادات الطباعة و الهوامش للتقارير العامة (مع إمكانية رفع الصور والشعارات)")
         current_set = get_print_settings()
         
         with st.form("print_settings_form"):
@@ -1423,7 +1423,7 @@ def admin_dashboard():
             if remove_logo3: current_logo3_val = ""
             elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
 
-            if st.form_submit_button("💾 حفظ ترويسة وهوامش التقارير العامة", use_container_width=True):
+            if st.form_submit_button("💾 حفظ ضبط اعدادات الطباعة و الهوامش", use_container_width=True):
                 save_print_settings(
                     header_text_val, m_top, m_bot, m_right, m_left, line_spacing_val, 
                     current_logo1_val, current_logo2_val, current_logo3_val, 
@@ -1432,12 +1432,11 @@ def admin_dashboard():
                     current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
                     current_set.get("trainee_profession",""), current_set.get("professions_list", [])
                 )
-                st.success("✅ تم حفظ هوامش وترويسة التقارير العامة بنجاح!"); st.rerun()
+                st.success("✅ تم حفظ ضبط اعدادات الطباعة و الهوامش بنجاح!"); st.rerun()
 
     elif selected_menu == "🎨 إعدادات الشهادات المخصصة":
         st.subheader("🎨 صفحة إدارة وضبط الشهادات المخصصة وطباعتها")
         
-        # إنشاء تبويبين داخل صفحة إعدادات الشهادات المخصصة بناءً على طلبك
         cert_sub_tab1, cert_sub_tab2 = st.tabs([
             "⚙ إعدادات وتصميم الشهادة", 
             "🖨 طباعة الشهادات بناءً على التقارير (أفراد / جماعات / منشآت)"
@@ -1628,7 +1627,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨️️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1813,7 +1812,6 @@ def admin_dashboard():
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
 
-        # تم نقل تبويب طباعة الشهادات من هنا إلى قسم "إعدادات الشهادات المخصصة" بناءً على طلبك
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار)", "📝 طباعة نموذج امتحان الممتحن"])
         
         with sub_tabs[0]:
