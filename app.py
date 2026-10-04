@@ -335,7 +335,7 @@ ALL_MENU_MODULES = {
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
-    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
@@ -1192,13 +1192,13 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم تقليل الهوامش الداخلية العلوية والسفلية لأقصى حد ممكن (padding: 10px 20px) لضمان عدم وجود أي فراغات أو مساحات فارغة وإظهار المحتوى بشكل متناسق ومضغوط
+    # تم تكبير الهوامش الأفقية (`padding: 12px 36px`) وزيادة ارتفاع الإطار (`height=155`) لتفادي قص أي حافة سفلية أو جانبية وظهور المربع بشكل متناسق ومريح
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 10px 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff; overflow: hidden;">
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 12px 36px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 4px;">
             <span style="font-size: 26px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 20px; color: #ffffff; font-weight: 900; line-height: 1.4; margin-bottom: 6px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="font-size: 20px; color: #ffffff; font-weight: 900; line-height: 1.4; margin-bottom: 6px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبار العاملين بالامراض المتوطنة</div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
             <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 3px 12px; border-radius: 15px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
@@ -1218,7 +1218,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=135, scrolling=False)
+    components.html(header_html, height=155, scrolling=False)
 
 def verification_portal_view():
     header()
