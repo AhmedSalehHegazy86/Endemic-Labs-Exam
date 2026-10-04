@@ -1326,10 +1326,11 @@ def verification_portal_view():
 def login_portal():
     header()
     
-    # الصندوق الأخضر المدمج (الصندوق الأول والثاني معاً بدون عنوان متكرر)
+    # الصندوق الأخضر الأول المدمج (يحتوي على عنوان النظام ونص الترحيب بالصيغة المطلوبة تماماً)
     st.markdown("""
-        <div style="background-color: #059669; color: #ffffff; padding: 22px 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
-            <p style="margin: 0; font-size: 16px; color: #ffffff; font-weight: 700; line-height: 1.6;">مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.</p>
+        <div style="background-color: #059669; color: #ffffff; padding: 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">
+            <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+            <p style="margin: 0; font-size: 15px; color: #d1fae5; font-weight: 700; line-height: 1.6;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</p>
         </div>
     """, unsafe_allow_html=True)
 
