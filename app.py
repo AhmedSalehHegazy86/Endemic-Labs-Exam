@@ -13,8 +13,8 @@ from PIL import Image
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم واختبار العاملين بالامراض المتوطنة🔬 - System V1.0",
-    page_icon="🔬",
+    page_title="نظام تقييم و اختبار العاملين بالامراض المتوطنة 🪱🔬🐌 - System V1.0",
+    page_icon="🪱",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -229,7 +229,7 @@ window.addEventListener("focus", function() {
 
 st.markdown("""
 <div class="ownership-watermark">
-🔬 جميع الحقوق محفوظة © 2026 | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
+🪱🔬🐌 جميع الحقوق محفوظة © 2026 | مكافحة الأمراض المتوطنة والطفيليات | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1203,7 +1203,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 
 def header():
     online_now_str = now_cairo().strftime('%Y-%m-%d %I:%M:%S %p').replace("AM", "صباحاً").replace("PM", "مساءً")
-    st.markdown(f'<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بالامراض المتوطنة</h1><div>System V1.0 ({online_now_str})<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hero"><h1>🪱🔬🐌 نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1><div>System V1.0 ({online_now_str})<br><small style="color:#d1fae5;">مكافحة الأمراض المتوطنة والطفيليات والفحوص المعملية | Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def verification_portal_view():
     header()
@@ -1270,7 +1270,7 @@ def verification_portal_view():
         <body>
             <div class="doc-wrapper">
                 <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
-                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم واختبار العاملين بالامراض المتوطنة</div>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم و اختبار العاملين بالامراض المتوطنة</div>
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
                     <tr><th>المهنة / الوظيفة</th><td>{esc(r.get('trainee_profession', ''))}</td></tr>
@@ -1305,7 +1305,7 @@ def login_portal():
     
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
-        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة.")
+        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة والطفيليات والفحوص المعملية.")
     with col_v_btn2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
@@ -1778,7 +1778,7 @@ def admin_dashboard():
                     
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                     with c_hide_btn:
-                        hide_fac_submit = st.form_submit_button("👁‍‍‍‍🗨️ إخفاء المنشأة", use_container_width=True)
+                        hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء المنشأة", use_container_width=True)
                     with c_show_btn:
                         show_fac_submit = st.form_submit_button("✅ إظهار المنشأة", use_container_width=True)
                     with c_del_btn:
@@ -2032,7 +2032,7 @@ def admin_dashboard():
                             
                             c_upd, c_hide, c_show, c_del = st.columns(4)
                             with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                            with c_hide: hide_btn = st.form_submit_button("👁‍‍‍‍🗨️ إخفاء", use_container_width=True)
+                            with c_hide: hide_btn = st.form_submit_button("👁🗨️ إخفاء", use_container_width=True)
                             with c_show: show_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
                             with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
                             
@@ -2804,7 +2804,7 @@ def admin_dashboard():
                         
         with tab_u3:
             st.markdown("#### 🔑 تعديل اسم المستخدم وكلمة المرور للمالك أو المستخدمين")
-            st.info("📌 **شروط التعديل:** يجب إدخال كلمة المرور الحالية بشكل صحيح (أو كلمة مرور المالك الأساسية في حال تعديل حساب آخر) لضمان الأمان.")
+            st.info("📌 **شروط التعديل:** يجب إدخال كلمة المرور الحالية بشكل صحيح (وإلا كلمة مرور المالك الأساسية في حال تعديل حساب آخر) لضمان الأمان.")
             
             with db() as c: all_sys_users = c.execute("SELECT id, username, role FROM users").fetchall()
             sys_user_choices = {f"{u['username']} ({ROLES.get(u['role'], u['role'])})": u for u in all_sys_users}
@@ -2819,7 +2819,7 @@ def admin_dashboard():
                 
                 if st.form_submit_button("🔒 تحديث بيانات الدخول", use_container_width=True):
                     if not current_password_input.strip():
-                        st.warning("⚠️️ يرجى إدخال كلمة المرور الحالية للتأكيد.")
+                        st.warning("⚠ يرجى إدخال كلمة المرور الحالية للتأكيد.")
                     else:
                         with db() as c:
                             actor_user = c.execute("SELECT * FROM users WHERE username=?", (st.session_state.username,)).fetchone()
