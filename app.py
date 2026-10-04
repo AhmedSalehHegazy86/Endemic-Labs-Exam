@@ -9,7 +9,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - مع حماية كاملة لـ Screenshot)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 - مع القائمة المنسدلة وترتيب النماذج)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.0",
@@ -283,12 +283,11 @@ def db():
     finally:
         conn.close()
 
-# تم إعادة ترتيب القائمة لكي تكون إدارة الأسئلة قبل المتدربين والنماذج
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
-    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 الطباعة والترويسة": "إعدادات هوامش وترويسات التقارير العامة",
@@ -352,7 +351,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS exam_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            exam_type TEXT NOT NULL DEFAULT 'اختبار مخصص للمالك',
+            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب',
             num_questions INTEGER NOT NULL DEFAULT 999999,
             duration_minutes INTEGER NOT NULL DEFAULT 60,
             pass_percent REAL NOT NULL DEFAULT 60,
@@ -435,6 +434,7 @@ def init_db():
             ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
             ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
             ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
             ("exam_templates", "start_time", "TEXT"), 
             ("exam_templates", "end_time", "TEXT"), 
             ("print_settings", "line_spacing", "REAL NOT NULL DEFAULT 1.25"),
@@ -704,12 +704,13 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     line_sp = sett.get("line_spacing", 1.25)
 
     with db() as c:
-        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name, e.exam_type 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
     if not r: return ""
     status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
     score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
+    exam_type_str = r["exam_type"] or "قبل التدريب"
     
     formatted_header = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
 
@@ -794,7 +795,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 6px auto;">
                 {line_html}
                 <p style="margin-top: 4px;">
-                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)}</b><br>
+                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
                     رقم التحقق والشهادة: <span style="font-weight: bold; color: #065f46;">{r["certificate_id"]}</span>
@@ -821,7 +822,7 @@ def generate_trainee_exam_sheet_html(sid):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
     with db() as c:
-        s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+        s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name, e.exam_type 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
         if not s: return ""
         rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer 
@@ -913,7 +914,7 @@ def generate_trainee_exam_sheet_html(sid):
             </div>
             <h2>نموذج إجابة واختبار المتدرب: {esc(s['trainee_name'])}</h2>
             <div class="tpl-info">
-                جهة العمل: {esc(s['facility'])} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%) | تاريخ أداء الاختبار: {s['submitted_at'] or s['started_at']}
+                جهة العمل: {esc(s['facility'])} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%) | التاريخ: {s['submitted_at'] or s['started_at']}
             </div>
             <div class="questions-grid">
                 {q_html_content}
@@ -1058,7 +1059,7 @@ def generate_exam_template_print_html(template_id):
             .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6mm; }}
             .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
             h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; line-height: {line_sp}; }}
-            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+            .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6mm; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
             .questions-grid {{
                 column-count: 2;
                 column-gap: 4mm;
@@ -1074,9 +1075,9 @@ def generate_exam_template_print_html(template_id):
                 <div class="header-right">{sett.get('header_text', '')}</div>
                 <div>{render_logos_html()}</div>
             </div>
-            <h2>نموذج امتحان: {esc(t_dict['name'])}</h2>
+            <h2>نموذج امتحان: {esc(t_dict['name'])} ({esc(t_dict.get('exam_type', 'قبل التدريب'))})</h2>
             <div class="tpl-info">
-                مدة الاختبار: {t_dict['duration_minutes']} د | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
+                التصنيف: {esc(t_dict.get('exam_type', 'قبل التدريب'))} | مدة الاختبار: {t_dict['duration_minutes']} د | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
             </div>
             <div class="questions-grid">
                 {q_html_content}
@@ -1163,7 +1164,7 @@ def verification_portal_view():
     if search_cert_code.strip():
         cert_code_clean = search_cert_code.strip().upper()
         with db() as c:
-            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name 
+            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name, e.exam_type 
                                            FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
                                            WHERE (s.certificate_id LIKE ? OR s.id=?) AND t.hidden=0""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
 
@@ -1178,7 +1179,7 @@ def verification_portal_view():
             <p style="font-size: 11pt; color: #111827; line-height: 1.6;">
                 👤 <b>اسم المتدرب:</b> {esc(r['trainee_name'])}<br>
                 🏥 <b>جهة العمل والمنشأة:</b> {esc(r['facility'])}<br>
-                📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')}<br>
+                📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')} ({esc(r['exam_type'] or 'قبل التدريب')})<br>
                 📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
                 🏷️ <b>حالة الاعتماد:</b> <b style="color: {'green' if r['passed'] else 'red'};">{status_str}</b><br>
                 🔖 <b>رقم الشهادة الرسمي:</b> <span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span><br>
@@ -1210,7 +1211,7 @@ def verification_portal_view():
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
                     <tr><th>جهة العمل</th><td>{esc(r['facility'])}</td></tr>
-                    <tr><th>اسم الاختبار</th><td>{esc(r['template_name'] or 'اختبار معتمد')}</td></tr>
+                    <tr><th>اسم الاختبار</th><td>{esc(r['template_name'] or 'اختبار معتمد')} ({esc(r['exam_type'] or 'قبل التدريب')})</td></tr>
                     <tr><th>النتيجة والنسبة</th><td>{score_val} / {max_score_val} ({percent_val:.1f}%)</td></tr>
                     <tr><th>حالة التحقق</th><td style="color: green; font-weight: bold;">{status_str}</td></tr>
                     <tr><th>رقم الشهادة</th><td><span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span></td></tr>
@@ -1276,7 +1277,7 @@ def login_portal():
         name = st.text_input("الاسم الرباعي:", value="")
         phone = st.text_input("رقم الهاتف:", value="")
         
-        with db() as c: all_tpls_opts = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
+        with db() as c: all_tpls_opts = {f"{row['name']} ({row['exam_type']})": row["id"] for row in c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()}
         tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
         selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list, index=0)
         
@@ -1389,7 +1390,7 @@ def admin_dashboard():
             with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
             with col_m5: line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
 
-            st.markdown("#### 🖼️ رفع الصور والشعارات لترويسة التقارير:")
+            st.markdown("#### 🖼 رفع الصور والشعارات لترويسة التقارير:")
             col_logo1, col_logo2, col_logo3 = st.columns(3)
             with col_logo1: 
                 uploaded_logo1 = st.file_uploader("الشعار الأول (أعلى يمين - 1):", type=["png", "jpg", "jpeg"], key="rep_logo1")
@@ -1574,7 +1575,7 @@ def admin_dashboard():
                     
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                     with c_hide_btn:
-                        hide_fac_submit = st.form_submit_button("👁️‍🗨️ إخفاء المنشأة من التقارير", use_container_width=True)
+                        hide_fac_submit = st.form_submit_button("👁️️‍🗨️ إخفاء المنشأة من التقارير", use_container_width=True)
                     with c_show_btn:
                         show_fac_submit = st.form_submit_button("✅ إظهار المنشأة بالتقارير", use_container_width=True)
                     with c_del_btn:
@@ -1728,7 +1729,7 @@ def admin_dashboard():
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (مع إمكانية الإخفاء والإظهار الفردي أو الجماعي)")
-        with db() as c: all_tpls_map = {row["name"]: row["id"] for row in c.execute("SELECT id, name FROM exam_templates").fetchall()}
+        with db() as c: all_tpls_map = {f"{row['name']} ({row['exam_type']})": row["id"] for row in c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()}
         tpl_names_list = list(all_tpls_map.keys()) if all_tpls_map else ["لا توجد نماذج اختبارات مسجلة"]
 
         with st.container(border=True):
@@ -1769,14 +1770,15 @@ def admin_dashboard():
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
                             curr_id = tr_row['assigned_template_id']
-                            curr_name = [k for k, v in all_tpls_map.items() if v == curr_id]
-                            def_name = curr_name[0] if curr_name else (tpl_names_list[0] if tpl_names_list else "")
-                            def_idx = tpl_names_list.index(def_name) if def_name in tpl_names_list else 0
+                            with db() as c:
+                                curr_tpl_obj = c.execute("SELECT name, exam_type FROM exam_templates WHERE id=?", (curr_id,)).fetchone() if curr_id else None
+                            curr_str = f"{curr_tpl_obj['name']} ({curr_tpl_obj['exam_type']})" if curr_tpl_obj else ""
+                            def_idx = tpl_names_list.index(curr_str) if curr_str in tpl_names_list else 0
                             new_chosen_tpl = st.selectbox("تعديل النموذج:", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
                             
                             c_upd, c_hide, c_show, c_del = st.columns(4)
                             with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                            with c_hide: hide_btn = st.form_submit_button("👁‍🗨️ إخفاء", use_container_width=True)
+                            with c_hide: hide_btn = st.form_submit_button("👁‍‍🗨️ إخفاء", use_container_width=True)
                             with c_show: show_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
                             with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
                             
@@ -1800,15 +1802,15 @@ def admin_dashboard():
         with sub_tabs[2]:
             st.markdown("#### 🖨 طباعة شهادات ونتائج الامتحانات على مقاس A4 (تتجاهل المخفيين تلقائياً)")
             with db() as c:
-                sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed 
-                                             FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
+                sessions_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type 
+                                             FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
             
             if not sessions_list:
                 st.info("لا توجد اختبارات مسجلة أو مكتملة حتى الآن للمتدربين الظاهرين.")
             else:
                 print_mode = st.radio("اختر وضع الطباعة:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية (لكل النتائج المكتملة)"], horizontal=True)
                 if "فردية" in print_mode:
-                    sess_choices = {f"مجلد رقم ({s['id']}) - المتدرب: {s['trainee_name']} - الجهة: {s['facility']} (النتيجة: {s['percent']}%)": s['id'] for s in sessions_list}
+                    sess_choices = {f"مجلد رقم ({s['id']}) - المتدرب: {s['trainee_name']} [{s['exam_type']}] - الجهة: {s['facility']} (النتيجة: {s['percent']}%)": s['id'] for s in sessions_list}
                     sel_sess_label = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
                     chosen_sid = sess_choices[sel_sess_label]
                     
@@ -1826,7 +1828,7 @@ def admin_dashboard():
             st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
             with db() as c:
                 completed_sessions = c.execute("""
-                    SELECT s.id, t.name trainee_name, t.facility, s.submitted_at, s.started_at, e.name template_name 
+                    SELECT s.id, t.name trainee_name, t.facility, s.submitted_at, s.started_at, e.name template_name, e.exam_type 
                     FROM exam_sessions s 
                     JOIN trainees t ON t.id=s.trainee_id 
                     LEFT JOIN exam_templates e ON e.id=s.template_id 
@@ -1836,7 +1838,7 @@ def admin_dashboard():
             if not completed_sessions:
                 st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين الظاهرين حتى الآن.")
             else:
-                exam_records_map = {f"المتدرب: {r['trainee_name']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
+                exam_records_map = {f"المتدرب: {r['trainee_name']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type']}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
                 sel_exam_rec_label = st.selectbox("اختر الممتحن وتاريخ الامتحان:", list(exam_records_map.keys()))
                 chosen_exam_session_id = exam_records_map[sel_exam_rec_label]
 
@@ -1846,16 +1848,23 @@ def admin_dashboard():
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
         st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (نظام 12 ساعة - مقاس A4)")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد", "🗑 حذف نموذج"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد وتصنيف", "🗑 حذف نموذج"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
-            with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY id ASC").fetchall()
-            if tpls:
-                for t in tpls:
-                    t_dict = dict(t)
+            with db() as c: tpls = c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
+            if not tpls:
+                st.info("لا توجد نماذج اختبارات مسجلة حتى الآن.")
+            else:
+                # تنظيم النماذج في قائمة منسدلة مرتبة لمنع التزاحم
+                tpl_dropdown_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t for t in tpls}
+                selected_dropdown_label = st.selectbox("🔍 اختر نموذج الاختبار من القائمة المنسدلة لعرضه وطباعته:", list(tpl_dropdown_map.keys()))
+                
+                if selected_dropdown_label:
+                    t_dict = dict(tpl_dropdown_map[selected_dropdown_label])
                     num_q_display = "مفتوح" if int(t_dict.get('num_questions', 999999)) >= 999900 else t_dict.get('num_questions')
                     s_t = t_dict.get('start_time') or "غير محدد"
                     e_t = t_dict.get('end_time') or "غير محدد"
+                    exam_type_badge = t_dict.get('exam_type', 'قبل التدريب')
                     
                     def format_12h(iso_str):
                         if not iso_str or "T" not in iso_str: return iso_str
@@ -1866,7 +1875,7 @@ def admin_dashboard():
                             return iso_str
 
                     with st.container(border=True):
-                        st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')}")
+                        st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')} &nbsp;|&nbsp; <span style='color: #059669; font-size: 14px;'>[{exam_type_badge}]</span>", unsafe_allow_html=True)
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
                         
                         exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
@@ -1883,6 +1892,10 @@ def admin_dashboard():
 
             with st.form("create_template_schedule_form"):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
+                
+                st.markdown("#### 🎯 تحديد تصنيف نموذج الاختبار (قبل التدريب أو بعد التدريب):")
+                new_exam_type = st.radio("نوع النموذج:", ["قبل التدريب", "بعد التدريب"], horizontal=True)
+
                 is_open_questions = st.checkbox("عدد أسئلة مفتوح (كامل البنك)", value=True)
                 new_tpl_num_q = st.number_input("عدد الأسئلة:", min_value=1, max_value=5000, value=50)
                 new_tpl_duration = st.number_input("المدة (بالدقائق):", min_value=5, max_value=300, value=60)
@@ -1926,17 +1939,25 @@ def admin_dashboard():
                         final_num_q = 999999 if is_open_questions else int(new_tpl_num_q)
                         with db() as c:
                             c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                                      (new_tpl_name.strip(), "اختبار مخصص للمالك", final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
-                        st.success("✅ تم إنشاء وتحديد موعد النموذج بنجاح!"); st.rerun()
+                                      (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
+                        st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!"); st.rerun()
 
-        elif sub_tpl_mode == "⚙ تعديل موعد":
-            with db() as c: tpls_mod = c.execute("SELECT id, name FROM exam_templates ORDER BY id ASC").fetchall()
+        elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
+            with db() as c: tpls_mod = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
             if tpls_mod:
-                tpl_mod_map = {f"نموذج ({t['id']}) - {t['name']}": t['id'] for t in tpls_mod}
+                tpl_mod_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t['id'] for t in tpls_mod}
                 with st.form("update_schedule_form"):
                     sel_mod_label = st.selectbox("اختر النموذج:", list(tpl_mod_map.keys()))
                     chosen_id = tpl_mod_map[sel_mod_label]
                     
+                    with db() as c:
+                        curr_tpl_rec = c.execute("SELECT exam_type FROM exam_templates WHERE id=?", (chosen_id,)).fetchone()
+                    curr_exam_type_val = curr_tpl_rec["exam_type"] if curr_tpl_rec else "قبل التدريب"
+                    type_idx = 0 if curr_exam_type_val == "قبل التدريب" else 1
+
+                    st.markdown("#### 🎯 تعديل تصنيف النموذج:")
+                    updated_exam_type = st.radio("نوع النموذج الجديد:", ["قبل التدريب", "بعد التدريب"], index=type_idx, horizontal=True)
+
                     st.markdown("#### ⏰ تعديل التوقيت (نظام 12 ساعة):")
                     col_u1, col_u2 = st.columns(2)
                     with col_u1:
@@ -1952,7 +1973,7 @@ def admin_dashboard():
                         with ne2: ne_m = st.number_input("الدقيقة:", 0, 59, 0, key="ne_m")
                         with ne3: ne_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="ne_ampm")
                     
-                    if st.form_submit_button("💾 تحديث الموعد", use_container_width=True):
+                    if st.form_submit_button("💾 تحديث الموعد والتصنيف", use_container_width=True):
                         def convert_to_24h(h, m, ampm):
                             h_24 = h % 12
                             if "مساءً" in ampm: h_24 += 12
@@ -1964,13 +1985,13 @@ def admin_dashboard():
                         new_s_str = datetime.combine(new_sd, datetime.min.time().replace(hour=s_h24, minute=s_m24)).isoformat(timespec="seconds")
                         new_e_str = datetime.combine(new_ed, datetime.min.time().replace(hour=e_h24, minute=e_m24)).isoformat(timespec="seconds")
                         
-                        with db() as c: c.execute("UPDATE exam_templates SET start_time=?, end_time=? WHERE id=?", (new_s_str, new_e_str, chosen_id))
-                        st.success("✅ تم تحديث موعد الاختبار بنجاح!"); st.rerun()
+                        with db() as c: c.execute("UPDATE exam_templates SET exam_type=?, start_time=?, end_time=? WHERE id=?", (updated_exam_type, new_s_str, new_e_str, chosen_id))
+                        st.success("✅ تم تحديث تصنيف وتوقيت الاختبار بنجاح!"); st.rerun()
 
         else:
-            with db() as c: tpls_del = c.execute("SELECT id, name FROM exam_templates ORDER BY id ASC").fetchall()
+            with db() as c: tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
             if tpls_del:
-                tpl_map = {f"نموذج رقم {t['id']} - {t['name']}": t['id'] for t in tpls_del}
+                tpl_map = {f"نموذج رقم {t['id']} - {t['name']} [{t['exam_type']}]": t['id'] for t in tpls_del}
                 with st.form("delete_template_form"):
                     selected_tpl_label = st.selectbox("اختر النموذج للحذف:", list(tpl_map.keys()))
                     if st.form_submit_button("🗑 حذف", use_container_width=True):
@@ -1985,8 +2006,8 @@ def admin_dashboard():
         hier_data = get_hierarchical_data(include_hidden=False)
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         
-        with db() as c: all_tpls_records = c.execute("SELECT id, name FROM exam_templates").fetchall()
-        manual_tpl_choices = {row["name"]: row["id"] for row in all_tpls_records} if all_tpls_records else {}
+        with db() as c: all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
+        manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in all_tpls_records} if all_tpls_records else {}
         manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
 
         with st.form("manual_score_form_enhanced"):
@@ -2082,18 +2103,18 @@ def admin_dashboard():
 
                 with db() as c:
                     ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (chosen_tr_id,)).fetchone()
-                    s_q1 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
+                    s_q1 = c.execute("""SELECT s.*, e.name as tpl_name, e.exam_type FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
                                         WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
                                      (chosen_tr_id, d_start_1.isoformat(), d_end_1.isoformat())).fetchone()
-                    s_q2 = c.execute("""SELECT s.*, e.name as tpl_name FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
+                    s_q2 = c.execute("""SELECT s.*, e.name as tpl_name, e.exam_type FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id 
                                         WHERE s.trainee_id=? AND date(s.submitted_at) >= date(?) AND date(s.submitted_at) <= date(?) ORDER BY s.id DESC LIMIT 1""", 
                                      (chosen_tr_id, d_start_2.isoformat(), d_end_2.isoformat())).fetchone()
                 
                 if ind_tr_data:
-                    p1_score = f"{s_q1['score']}/{s_q1['max_score']} ({s_q1['percent']:.1f}%)" if s_q1 and s_q1['score'] is not None else "لا توجد بيانات"
+                    p1_score = f"{s_q1['score']}/{s_q1['max_score']} ({s_q1['percent']:.1f}%) [{s_q1['exam_type']}]" if s_q1 and s_q1['score'] is not None else "لا توجد بيانات"
                     p1_status = "اجتزت بنجاح" if s_q1 and s_q1["passed"] == 1 else ("لم تجتز" if s_q1 else "-")
                     
-                    p2_score = f"{s_q2['score']}/{s_q2['max_score']} ({s_q2['percent']:.1f}%)" if s_q2 and s_q2['score'] is not None else "لا توجد بيانات"
+                    p2_score = f"{s_q2['score']}/{s_q2['max_score']} ({s_q2['percent']:.1f}%) [{s_q2['exam_type']}]" if s_q2 and s_q2['score'] is not None else "لا توجد بيانات"
                     p2_status = "اجتزت بنجاح" if s_q2 and s_q2["passed"] == 1 else ("لم تجتز" if s_q2 else "-")
 
                     individual_report_html = f"""
@@ -2104,7 +2125,7 @@ def admin_dashboard():
                         <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
                             <tr>
                                 <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">فترة المقارنة</th>
-                                <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">النتيجة والنسبة</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">النتيجة والنسبة والتصنيف</th>
                                 <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">حالة الاجتياز</th>
                             </tr>
                             <tr>
@@ -2229,10 +2250,13 @@ def admin_dashboard():
             with db() as c:
                 df_rep = pd.read_sql_query("""
                     SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', 
+                           e.exam_type AS 'تصنيف الاختبار',
                            COALESCE(s.percent, 0) AS 'النسبة المئوية %', 
                            CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة',
                            s.certificate_id AS 'رقم الشهادة'
-                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    FROM trainees t 
+                    LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE t.hidden=0
                     ORDER BY t.id DESC
                 """, c)
@@ -2362,7 +2386,7 @@ def admin_dashboard():
 
                 if st.form_submit_button("💾 حفظ وإنشاء خطة العمل الذكية", use_container_width=True):
                     if not target_name.strip() or not weak_areas.strip():
-                        st.warning("⚠️ يرجى استكمال البيانات.")
+                        st.warning("⚠️️ يرجى استكمال البيانات.")
                     else:
                         with db() as c:
                             c.execute("""INSERT INTO action_plans(target_type, target_name, weakness_areas, action_steps, time_frame_type, specific_date, specific_month, specific_year, created_at)
@@ -2415,7 +2439,7 @@ def admin_dashboard():
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
         
-        if st.button("🗑️️ تفرغ جميع بيانات النظام (تصفير قاعدة البيانات)", use_container_width=True):
+        if st.button("🗑 تفرغ جميع بيانات النظام (تصفير قاعدة البيانات)", use_container_width=True):
             with db() as c:
                 c.execute("DELETE FROM exam_questions")
                 c.execute("DELETE FROM exam_sessions")
@@ -2653,6 +2677,7 @@ def trainee_portal():
     else:
         t_dict = dict(matching_template)
         tpl_name_str = t_dict.get("name", "اختبار معتمد")
+        exam_type_str = t_dict.get("exam_type", "قبل التدريب")
         start_t = t_dict.get("start_time")
         end_t = t_dict.get("end_time")
         
@@ -2664,7 +2689,7 @@ def trainee_portal():
             except:
                 return iso_str
 
-        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b></p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b> &nbsp;|&nbsp; التصنيف: <b style="color: #059669;">[{esc(exam_type_str)}]</b></p></div>', unsafe_allow_html=True)
         
         with st.container(border=True):
             format_s = format_12h(start_t)
