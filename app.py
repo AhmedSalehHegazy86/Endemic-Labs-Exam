@@ -10,17 +10,17 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.2 - التوقيت الأونلاين)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.2",
+    page_title="نظام تقييم واختبار العاملين بالامراض المتوطنة🔬 - System V1.0",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "endemic_labs_exam_v1_2.db")
+DB_PATH = os.path.join(BASE, "endemic_labs_exam_v1_0.db")
 BACKUP_DIR = os.path.join(BASE, "backups")
 
 ROLES = {
@@ -50,7 +50,6 @@ CAIRO_TZ = ZoneInfo("Africa/Cairo")
 def get_online_network_time():
     """محاولة جلب الوقت بدقة من الإنترنت، وفي حال انقطاع الاتصال يتم العودة للوقت المحلي للسيرفر مع الحفاظ على النطاق الزمني لمصر"""
     try:
-        # جلب الوقت الحقيقي من خادم عام عبر الإنترنت (WorldTimeAPI بتوقيت مصر)
         req = urllib.request.Request("http://worldtimeapi.org/api/timezone/Africa/Cairo", headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=2) as response:
             data = json.loads(response.read().decode())
@@ -59,7 +58,6 @@ def get_online_network_time():
     except Exception:
         pass
     
-    # خيار بديل سريع عبر خادم وقت آخر أو العودة للوقت المحلي المعتمد بتوقيت مصر
     return datetime.now(CAIRO_TZ)
 
 def now_cairo():
@@ -264,14 +262,14 @@ def reindex_hierarchical_facilities():
 def reindex_trainees():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM trainees")
         c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["facility"], r["name"], r["phone"], r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r.get("hidden", 0)))
+            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r.get("profession", ""), r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r.get("hidden", 0)))
             id_mapping[old_id] = new_id
         
         for old_id, new_id in id_mapping.items():
@@ -310,8 +308,9 @@ def db():
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
+    "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
-    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
@@ -351,6 +350,7 @@ def init_db():
             facility TEXT NOT NULL,
             name TEXT NOT NULL,
             phone TEXT,
+            profession TEXT NOT NULL DEFAULT 'أخصائي تحاليل طبية',
             status TEXT NOT NULL DEFAULT 'pending',
             assigned_template_id INTEGER,
             created_at TEXT NOT NULL,
@@ -455,6 +455,7 @@ def init_db():
 
         for col_table, col_name, col_type in [
             ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
+            ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي تحاليل طبية'"),
             ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
             ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
             ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
@@ -555,10 +556,10 @@ def login_user(u, p):
             return dict(user)
     return None
 
-def create_trainee(facility, name, phone, assigned_template_id=None):
+def create_trainee(facility, name, phone, profession, assigned_template_id=None):
     with db() as c:
-        cur = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?)",
-                        (facility, normalize_text(name), normalize_text(phone), "pending", assigned_template_id, now(), now(), 0))
+        cur = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
+                        (facility, normalize_text(name), normalize_text(phone), profession, "pending", assigned_template_id, now(), now(), 0))
         tid = cur.lastrowid
     return tid
 
@@ -587,7 +588,7 @@ def set_bulk_template_for_all(assigned_template_id):
 
 def trainees_df(status=None, include_hidden=False):
     with db() as c:
-        q = "SELECT id, facility, name, phone, status, assigned_template_id, created_at, approved_at, hidden FROM trainees"
+        q = "SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, hidden FROM trainees"
         conditions = []
         args = []
         if status:
@@ -725,11 +726,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد")
     prefix_val = sett.get("trainee_prefix", "").strip()
     title_role_val = sett.get("trainee_title", "").strip()
-    profession_val = sett.get("trainee_profession", "").strip()
     line_sp = sett.get("line_spacing", 1.25)
 
     with db() as c:
-        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name, e.exam_type 
+        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
     if not r: return ""
     status_text = "اجتزت بنجاح" if r["passed"] else "لم تجتز الاختبار"
@@ -751,7 +751,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
     prefix_str = f"{prefix_val} " if prefix_val else ""
     title_role_str = f"{title_role_val} " if title_role_val else ""
-    profession_str = f" - {profession_val}" if profession_val else ""
+    prof_field_val = r.get("trainee_profession", "") or sett.get("trainee_profession", "أخصائي تحاليل طبية")
+    profession_str = f" - {prof_field_val}" if prof_field_val else ""
     
     full_line_text = f"{prefix_str}{title_role_str}{r['trainee_name']}{profession_str}"
     line_html = f"<div style='font-size: 14pt; color: #065f46; font-weight: 900; margin: 4px 0; line-height: {line_sp};'>{esc(full_line_text)}</div>"
@@ -820,7 +821,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 6px auto;">
                 {line_html}
                 <p style="margin-top: 4px;">
-                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
+                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(prof_field_val)}</b><br>
+                    الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
                     رقم التحقق والشهادة: <span style="font-weight: bold; color: #065f46;">{r["certificate_id"]}</span>
@@ -847,7 +849,7 @@ def generate_trainee_exam_sheet_html(sid):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
     with db() as c:
-        s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name, e.exam_type 
+        s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type 
                          FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
         if not s: return ""
         rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer 
@@ -939,7 +941,7 @@ def generate_trainee_exam_sheet_html(sid):
             </div>
             <h2>نموذج إجابة واختبار المتدرب: {esc(s['trainee_name'])}</h2>
             <div class="tpl-info">
-                جهة العمل: {esc(s['facility'])} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%) | التاريخ: {s['submitted_at'] or s['started_at']}
+                جهة العمل: {esc(s['facility'])} | المهنة: {esc(s.get('trainee_profession', ''))} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%)
             </div>
             <div class="questions-grid">
                 {q_html_content}
@@ -1166,7 +1168,7 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 
 def header():
     online_now_str = now_cairo().strftime('%Y-%m-%d %I:%M:%S %p').replace("AM", "صباحاً").replace("PM", "مساءً")
-    st.markdown(f'<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.2 (التوقيت المحدث أونلاين: {online_now_str})<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بالامراض المتوطنة</h1><div>System V1.0 ({online_now_str})<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def verification_portal_view():
     header()
@@ -1189,7 +1191,7 @@ def verification_portal_view():
     if search_cert_code.strip():
         cert_code_clean = search_cert_code.strip().upper()
         with db() as c:
-            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, e.name template_name, e.exam_type 
+            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type 
                                            FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
                                            WHERE (s.certificate_id LIKE ? OR s.id=?) AND t.hidden=0""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
 
@@ -1203,6 +1205,7 @@ def verification_portal_view():
             <h3 style="color: #065f46; margin-top: 0;">✅ نتيجة التحقق وصحة البيانات الواردة:</h3>
             <p style="font-size: 11pt; color: #111827; line-height: 1.6;">
                 👤 <b>اسم المتدرب:</b> {esc(r['trainee_name'])}<br>
+                🩺 <b>المهنة / الوظيفة:</b> {esc(r.get('trainee_profession', ''))}<br>
                 🏥 <b>جهة العمل والمنشأة:</b> {esc(r['facility'])}<br>
                 📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')} ({esc(r['exam_type'] or 'قبل التدريب')})<br>
                 📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
@@ -1221,7 +1224,7 @@ def verification_portal_view():
             <style>
                 @page {{ size: A4 auto; margin: 15mm; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 10mm; direction: rtl; -webkit-print-color-adjust: exact; }}
-                .doc-wrapper {{ max-width: 200mm; margin: auto; border: 3px double #059669; padding: 15mm; border-radius: 10px; position: relative; }}
+                .doc-wrapper {{ max-width: 200mm; margin: auto; border: 3px double #059669; padding: 15mm; border-radius: 10mm; position: relative; }}
                 h2 {{ text-align: center; color: #047857; margin-bottom: 5px; }}
                 .meta-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; }}
                 .meta-table th, .meta-table td {{ border: 1px solid #cbd5e1; padding: 8px 12px; text-align: right; }}
@@ -1232,9 +1235,10 @@ def verification_portal_view():
         <body>
             <div class="doc-wrapper">
                 <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
-                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم واختبار العاملين بمعامل المتوطنة</div>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم واختبار العاملين بالامراض المتوطنة</div>
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
+                    <tr><th>المهنة / الوظيفة</th><td>{esc(r.get('trainee_profession', ''))}</td></tr>
                     <tr><th>جهة العمل</th><td>{esc(r['facility'])}</td></tr>
                     <tr><th>اسم الاختبار</th><td>{esc(r['template_name'] or 'اختبار معتمد')} ({esc(r['exam_type'] or 'قبل التدريب')})</td></tr>
                     <tr><th>النتيجة والنسبة</th><td>{score_val} / {max_score_val} ({percent_val:.1f}%)</td></tr>
@@ -1266,13 +1270,15 @@ def login_portal():
     
     col_v_btn1, col_v_btn2 = st.columns([2, 1])
     with col_v_btn1:
-        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بمعامل المتوطنة.")
+        st.markdown("#### مرحباً بك في بوابة اختبارات العاملين بالامراض المتوطنة.")
     with col_v_btn2:
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
             st.rerun()
 
     hier_data = get_hierarchical_data(include_hidden=False)
+    print_st = get_print_settings()
+    professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "فني معمل"])
     
     with st.form("trainee_request_hierarchical"):
         if not hier_data:
@@ -1301,6 +1307,7 @@ def login_portal():
 
         name = st.text_input("الاسم الرباعي:", value="")
         phone = st.text_input("رقم الهاتف:", value="")
+        selected_profession = st.selectbox("المهنة / الوظيفة:", professions_list)
         
         with db() as c: all_tpls_opts = {f"{row['name']} ({row['exam_type']})": row["id"] for row in c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()}
         tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
@@ -1320,7 +1327,7 @@ def login_portal():
                     st.success("تم الدخول بنجاح...")
                     st.rerun()
                 else:
-                    tid = create_trainee(facility_final_str, name, phone, assigned_tpl_id)
+                    tid = create_trainee(facility_final_str, name, phone, selected_profession, assigned_tpl_id)
                     st.session_state.trainee_id = tid
                     st.session_state.trainee_name = name
                     st.success("✅ تم التسجيل بنجاح!")
@@ -1363,7 +1370,7 @@ def admin_dashboard():
     available_menus = [m for m in all_modules_list if m in user_perms]
 
     if not available_menus:
-        st.warning("⚠️ لا توجد صلاحيات مصرحة.")
+        st.warning("⚠️️ لا توجد صلاحيات مصرحة.")
         return
 
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
@@ -1399,6 +1406,67 @@ def admin_dashboard():
         for box, l, v in zip(cols, ["إجمالي المتدربين", "الطلبات المعلقة", "بنك الأسئلة", "الاختبارات المقدمة", "متوسط النتائج"],
                              [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
+
+    elif selected_menu == "👥 إدارة المهن والوظائف":
+        st.subheader("👥 إدارة المهن والوظائف وتقسيم العاملين")
+        st.info("💡 يمكنك من هنا إضافة مهنة جديدة للقائمة المنسدلة المتاحة للعاملين عند التسجيل أو تعديلها، واستعراض توزيع العاملين حسب وظائفهم.")
+
+        curr_p_set = get_print_settings()
+        current_prof_list = curr_p_set.get("professions_list", [])
+
+        col_add_prof, col_list_prof = st.columns(2)
+        with col_add_prof:
+            with st.form("add_new_profession_form"):
+                st.markdown("#### ➕ إضافة مهنة أو وظيفة جديدة:")
+                new_prof_input = st.text_input("اسم المهنة أو الوظيفة:", value="")
+                if st.form_submit_button("💾 حفظ وإضافة المهنة", use_container_width=True):
+                    clean_p = new_prof_input.strip()
+                    if clean_p:
+                        if clean_p not in current_prof_list:
+                            current_prof_list.append(clean_p)
+                            save_print_settings(
+                                curr_p_set["header_text"], curr_p_set["margin_top"], curr_p_set["margin_bottom"], 
+                                curr_p_set["margin_right"], curr_p_set["margin_left"], curr_p_set.get("line_spacing", 1.25), 
+                                curr_p_set["logo_base64"], curr_p_set.get("logo2_base64", ""), curr_p_set.get("logo3_base64", ""), 
+                                curr_p_set.get("bg_base64", ""), curr_p_set.get("frame_base64", ""), 
+                                curr_p_set["default_cert_title"], curr_p_set["default_cert_notes"], 
+                                curr_p_set["trainee_prefix"], curr_p_set["trainee_title"], 
+                                curr_p_set["trainee_profession"], current_prof_list
+                            )
+                            st.success(f"✅ تمت إضافة المهنة ({clean_p}) بنجاح للقائمة المنسدلة!")
+                            st.rerun()
+                        else:
+                            st.warning("⚠ هذه المهنة موجودة مسبقاً في القائمة.")
+                    else:
+                        st.warning("الرجاء إدخال اسم المهنة.")
+
+        with col_list_prof:
+            st.markdown("#### 📋 القائمة الحالية للمهن المتاحة:")
+            for idx, p_name in enumerate(current_prof_list, start=1):
+                st.write(f"{idx}. {p_name}")
+
+        st.markdown("---")
+        st.markdown("#### 📊 تقسم وإحصائيات العاملين والممتحنين حسب المهن والوظائف:")
+        with db() as c:
+            df_prof_stats = pd.read_sql_query("""
+                SELECT profession AS 'المهنة / الوظيفة', 
+                       COUNT(id) AS 'إجمالي العاملين',
+                       SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار'
+                FROM trainees 
+                WHERE hidden=0 
+                GROUP BY profession 
+                ORDER BY COUNT(id) DESC
+            """, c)
+        
+        if df_prof_stats.empty:
+            st.info("لا توجد بيانات متدربين مسجلة حتى الآن.")
+        else:
+            st.dataframe(df_prof_stats, use_container_width=True, hide_index=True)
+            
+            out_prof_bytes = io.BytesIO()
+            with pd.ExcelWriter(out_prof_bytes, engine='openpyxl') as writer:
+                df_prof_stats.to_excel(writer, index=False, sheet_name='ProfessionsBreakdown')
+            st.download_button("📥 تحميل تقرين وتوزيع المهن (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
         st.subheader("🖨 ضبط اعدادات الطباعة و الهوامش للتقارير العامة (مع إمكانية رفع الصور والشعارات)")
@@ -1444,9 +1512,9 @@ def admin_dashboard():
                     header_text_val, m_top, m_bot, m_right, m_left, line_spacing_val, 
                     current_logo1_val, current_logo2_val, current_logo3_val, 
                     current_set.get("bg_base64",""), current_set.get("frame_base64",""), 
-                    current_set.get("default_cert_title",""), current_set.get("default_cert_notes",""), 
-                    current_set.get("trainee_prefix",""), current_set.get("trainee_title",""), 
-                    current_set.get("trainee_profession",""), current_set.get("professions_list", [])
+                    current_set["default_cert_title"], current_set["default_cert_notes"], 
+                    current_set["trainee_prefix"], current_set["trainee_title"], 
+                    current_set["trainee_profession"], current_set.get("professions_list", [])
                 )
                 st.success("✅ تم حفظ ضبط اعدادات الطباعة و الهوامش بنجاح!"); st.rerun()
 
@@ -1477,7 +1545,7 @@ def admin_dashboard():
                 with col_p3:
                     curr_prof = current_set.get("trainee_profession", "أخصائي تحاليل طبية")
                     prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
-                    trainee_profession_val = st.selectbox("3. اختيار المهنة / الوظيفة من القائمة:", professions_options_list, index=prof_idx)
+                    trainee_profession_val = st.selectbox("3. اختيار المهنة الافتراضية للشهادات:", professions_options_list, index=prof_idx)
 
                 st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
                 line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
@@ -1539,7 +1607,7 @@ def admin_dashboard():
 
             with db() as c:
                 all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
-                sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type 
+                sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type 
                                                   FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
 
             if not sessions_full_list:
@@ -1550,7 +1618,7 @@ def admin_dashboard():
                 curr_sett = get_print_settings()
 
                 if "فردية (لمتدرب محدد)" in cert_print_type:
-                    sess_choices = {f"متدرب: {s['trainee_name']} | الجهة: {s['facility']} | الاختبار: {s['tpl_name']} ({s['exam_type']}) - النتيجة: {s['percent']}%": s['id'] for s in sessions_full_list}
+                    sess_choices = {f"متدرب: {s['trainee_name']} | المهنة: {s['trainee_profession']} | الجهة: {s['facility']} | الاختبار: {s['tpl_name']} ({s['exam_type']}) - النتيجة: {s['percent']}%": s['id'] for s in sessions_full_list}
                     sel_sess_lbl = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
                     chosen_sid_val = sess_choices[sel_sess_lbl]
                     
@@ -1603,7 +1671,7 @@ def admin_dashboard():
                         st.warning("أدخل اسم المنشأة.")
 
         with tab_h2:
-            up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_2")
+            up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
             if up_file is not None:
                 try:
                     df_up = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
@@ -1654,7 +1722,7 @@ def admin_dashboard():
                     
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                     with c_hide_btn:
-                        hide_fac_submit = st.form_submit_button("👁‍🗨️ إخفاء المنشأة من التقارير", use_container_width=True)
+                        hide_fac_submit = st.form_submit_button("👁‍‍🗨️ إخفاء المنشأة من التقارير", use_container_width=True)
                     with c_show_btn:
                         show_fac_submit = st.form_submit_button("✅ إظهار المنشأة بالتقارير", use_container_width=True)
                     with c_del_btn:
@@ -1755,33 +1823,61 @@ def admin_dashboard():
                         st.success("✅ تم الحذف!"); st.rerun()
 
         with sub_q_manage_tabs[1]:
-            st.markdown("#### 🧠 بنك الأسئلة الشامل (استيراد، تصدير، وتفريغ/حذف البنك بالكامل)")
-            tab_ex_1, tab_ex_2 = st.tabs(["📥 استيراد من إكسيل", "📤 تصدير وحذف بنك الأسئلة"])
+            st.markdown("#### 🧠 بنك الأسئلة الشامل (استيراد، دمج، تصدير، وتفريغ/حذف البنك بالكامل)")
+            tab_ex_1, tab_ex_2 = st.tabs(["📥 رفع شيت إكسيل ودمج الأسئلة", "📤 تصدير وحذف بنك الأسئلة"])
+            
             with tab_ex_1:
-                uploaded_excel = st.file_uploader("اختر ملف إكسيل:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_2")
+                st.info("💡 يمكنك من هنا رفع شيت إكسيل (أو CSV) لدمج وإضافة مجموعة جديدة من الأسئلة إلى بنك الأسئلة الحالي دون مسح الأسئلة الموجودة مسبقاً.")
+                
+                uploaded_excel = st.file_uploader("اختر ملف إكسيل الأسئلة:", type=["xlsx", "xls", "csv"], key="excel_uploader_v1_0")
                 if uploaded_excel is not None:
                     try:
                         df_import = pd.read_csv(uploaded_excel) if uploaded_excel.name.endswith('.csv') else pd.read_excel(uploaded_excel)
-                        if st.button("🚀 تأكيد ودمج الأسئلة", use_container_width=True):
+                        st.write(f"📊 معاينة الملف المرفوع (عدد الصفوف: {len(df_import)}):")
+                        st.dataframe(df_import.head(5), use_container_width=True, hide_index=True)
+                        
+                        if st.button("🚀 تأكيد ودمج الأسئلة الجديدة في بنك الأسئلة", use_container_width=True):
                             imported_count = 0
+                            skipped_count = 0
                             with db() as c:
                                 for _, row in df_import.iterrows():
-                                    diff, cat, q_text = str(row.get("difficulty", "متوسط")), str(row.get("category", "الفحوص المعملية")), str(row.get("question", ""))
-                                    raw_opts = row.get("options_json", '["خيار 1", "خيار 2", "خيار 3", "خيار 4"]')
-                                    try: opts_list = json.loads(raw_opts) if isinstance(raw_opts, str) and raw_opts.startswith("[") else [o.strip() for o in str(raw_opts).split(",") if o.strip()]
-                                    except: opts_list = ["نعم", "لا"]
-                                    try: ans_idx = int(row.get("answer", 0))
-                                    except: ans_idx = 0
-                                    if ans_idx < 0 or ans_idx >= len(opts_list): ans_idx = 0
-                                    if q_text.strip() and opts_list:
+                                    diff = str(row.get("difficulty", row.get("الصعوبة", "متوسط"))).strip()
+                                    cat = str(row.get("category", row.get("القسم", "الفحوص المعملية"))).strip()
+                                    q_text = str(row.get("question", row.get("السؤال", ""))).strip()
+                                    
+                                    raw_opts = row.get("options_json", row.get("الخيارات", '["نعم", "لا"]'))
+                                    try: 
+                                        if isinstance(raw_opts, str) and raw_opts.startswith("["):
+                                            opts_list = json.loads(raw_opts)
+                                        else:
+                                            opts_list = [o.strip() for o in str(raw_opts).split(",") if o.strip()]
+                                    except: 
+                                        opts_list = ["نعم", "لا"]
+                                    
+                                    try: 
+                                        ans_idx = int(row.get("answer", row.get("رقم الإجابة الصحيحة", 0)))
+                                    except: 
+                                        ans_idx = 0
+                                    
+                                    if ans_idx < 0 or ans_idx >= len(opts_list): 
+                                        ans_idx = 0
+                                        
+                                    if q_text and opts_list:
                                         fp = hashlib.sha256((q_text + "|" + "|".join(str(o) for o in opts_list)).encode("utf-8")).hexdigest()
                                         try:
                                             c.execute("INSERT INTO questions(difficulty,category,question,options_json,answer,active,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?)",
                                                       (diff, cat, q_text, json.dumps(opts_list, ensure_ascii=False), ans_idx, 1, fp, now()))
                                             imported_count += 1
-                                        except: continue
-                            st.success(f"🎉 تم إضافة ({imported_count}) سؤالاً بنجاح!"); st.balloons()
-                    except Exception as e: st.error(f"خطأ: {e}")
+                                        except sqlite3.IntegrityError:
+                                            # السؤال موجود مسبقاً بناءً على الـ fingerprint
+                                            skipped_count += 1
+                                        except: 
+                                            pass
+                            st.success(f"🎉 تم بنجاح دمج وإضافة ({imported_count}) سؤالاً جديداً للبنك! (تم تخطي {skipped_count} سؤالاً مكرراً لتجنب الازدواج).")
+                            st.balloons()
+                    except Exception as e: 
+                        st.error(f"خطأ أثناء قراءة أو دمج الملف: {e}")
+
             with tab_ex_2:
                 with db() as c: df_bank = pd.read_sql_query("SELECT id, difficulty, category, question, options_json, answer FROM questions ORDER BY id ASC", c)
                 if df_bank.empty:
@@ -1837,7 +1933,7 @@ def admin_dashboard():
             else:
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
-                        st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **الجهة:** {r['facility']}")
+                        st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **المهنة:** {r.get('profession','')} | **الجهة:** {r['facility']}")
                         with st.form(f"approve_form_{r['id']}"):
                             chosen_tpl = st.selectbox("نموذج الاختبار المخصص:", tpl_names_list, key=f"app_tpl_{r['id']}")
                             c1, c2 = st.columns(2)
@@ -1863,7 +1959,7 @@ def admin_dashboard():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
                     hidden_badge = " [مخفي 👁️‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
-                        st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
+                        st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
                             curr_id = tr_row['assigned_template_id']
                             curr_str = ""
@@ -1907,7 +2003,7 @@ def admin_dashboard():
             st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
             with db() as c:
                 completed_sessions = c.execute("""
-                    SELECT s.id, t.name trainee_name, t.facility, s.submitted_at, s.started_at, e.name template_name, e.exam_type 
+                    SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.submitted_at, s.started_at, e.name template_name, e.exam_type 
                     FROM exam_sessions s 
                     JOIN trainees t ON t.id=s.trainee_id 
                     LEFT JOIN exam_templates e ON e.id=s.template_id 
@@ -1917,7 +2013,7 @@ def admin_dashboard():
             if not completed_sessions:
                 st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين الظاهرين حتى الآن.")
             else:
-                exam_records_map = {f"المتدرب: {r['trainee_name']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type']}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
+                exam_records_map = {f"المتدرب: {r['trainee_name']} | المهنة: {r['trainee_profession']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type']}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
                 sel_exam_rec_label = st.selectbox("اختر الممتحن وتاريخ الامتحان:", list(exam_records_map.keys()))
                 chosen_exam_session_id = exam_records_map[sel_exam_rec_label]
 
@@ -2086,6 +2182,9 @@ def admin_dashboard():
         hier_data = get_hierarchical_data(include_hidden=False)
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         
+        print_st_m = get_print_settings()
+        prof_manual_list = print_st_m.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري"])
+
         with db() as c: all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in all_tpls_records} if all_tpls_records else {}
         manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
@@ -2093,6 +2192,7 @@ def admin_dashboard():
         with st.form("manual_score_form_enhanced"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
             m_facility_name = st.text_input("جهة العمل:", value=default_fac_str)
+            m_profession = st.selectbox("المهنة / الوظيفة:", prof_manual_list)
             selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
             
             c1, c2 = st.columns(2)
@@ -2123,8 +2223,8 @@ def admin_dashboard():
                 else:
                     with db() as c:
                         tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
-                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?)",
-                                           (m_facility_name, normalize_text(m_trainee_name), "0000000000", "completed", tpl_id_val, now(), now(), 0))
+                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
+                                           (m_facility_name, normalize_text(m_trainee_name), "0000000000", m_profession, "completed", tpl_id_val, now(), now(), 0))
                         new_tid = cur_tr.lastrowid
                         
                         passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
@@ -2161,12 +2261,12 @@ def admin_dashboard():
         with rep_tab1:
             st.markdown("#### 👤 التقرير الفردي للمتدرب (مع تحديد المدى الزمني ومقارنة فترتين):")
             with db() as c:
-                tr_list_rep = c.execute("SELECT id, name, facility FROM trainees WHERE hidden=0 ORDER BY id DESC").fetchall()
+                tr_list_rep = c.execute("SELECT id, name, facility, profession FROM trainees WHERE hidden=0 ORDER BY id DESC").fetchall()
             
             if not tr_list_rep:
                 st.info("لا توجد بيانات متدربين ظاهرة متاحة.")
             else:
-                tr_choices_rep = {f"متدرب: {t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t['id'] for t in tr_list_rep}
+                tr_choices_rep = {f"متدرب: {t['name']} - المهنة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t['id'] for t in tr_list_rep}
                 sel_tr_rep_label = st.selectbox("اختر المتدرب لاستعراض تقريره الفردي:", list(tr_choices_rep.keys()), key="sel_ind_tr_rep")
                 chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
                 
@@ -2202,7 +2302,7 @@ def admin_dashboard():
                     <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
                         <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب (مع مقارنة الفترات)</h3>
                         <hr style="border: 1px solid #059669;">
-                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
+                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>المهنة:</b> {esc(ind_tr_data.get('profession',''))} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
                         <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
                             <tr>
                                 <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">فترة المقارنة</th>
@@ -2226,6 +2326,7 @@ def admin_dashboard():
                     
                     df_ind_excel = pd.DataFrame([{
                         "اسم المتدرب": ind_tr_data['name'],
+                        "المهنة": ind_tr_data.get('profession', ''),
                         "جهة العمل": ind_tr_data['facility'],
                         "الفترة الأولى": f"{d_start_1} إلى {d_end_1}",
                         "نتيجة الفترة الأولى": p1_score,
@@ -2331,7 +2432,7 @@ def admin_dashboard():
         with rep_tab3:
             with db() as c:
                 df_rep = pd.read_sql_query("""
-                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.facility AS 'جهة العمل', 
+                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.profession AS 'المهنة', t.facility AS 'جهة العمل', 
                            e.exam_type AS 'تصنيف الاختبار',
                            COALESCE(s.percent, 0) AS 'النسبة المئوية %', 
                            CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة',
@@ -2391,7 +2492,7 @@ def admin_dashboard():
         
         with plan_tabs[0]:
             with db() as c:
-                all_tr_list = c.execute("SELECT id, name, facility FROM trainees WHERE hidden=0 ORDER BY id ASC").fetchall()
+                all_tr_list = c.execute("SELECT id, name, facility, profession FROM trainees WHERE hidden=0 ORDER BY id ASC").fetchall()
                 all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
             
             with st.form("create_action_plan_form"):
@@ -2405,7 +2506,7 @@ def admin_dashboard():
                         st.warning("⚠️ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
-                        tr_choices = {f"{t['name']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
+                        tr_choices = {f"{t['name']} - المهنة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
                         sel_tr_label = st.selectbox("اختر المتدرب لاستخراج نقاط ضعفه تلقائياً:", list(tr_choices.keys()))
                         chosen_tr_obj = tr_choices[sel_tr_label]
                         target_name = chosen_tr_obj['name']
@@ -2538,7 +2639,7 @@ def admin_dashboard():
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
             with open(DB_PATH, "rb") as f: db_bytes = f.read()
-            st.download_button("📥 تحميل النسخة (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_2.db", mime="application/octet-stream", use_container_width=True)
+            st.download_button("📥 تحميل النسخة (.db)", data=db_bytes, file_name="endemic_labs_exam_v1_0.db", mime="application/octet-stream", use_container_width=True)
         with col_bk2:
             uploaded_db_file = st.file_uploader("رفع ملف قاعدة بيانات (.db):", type=["db"], key="restore_db_uploader")
             if uploaded_db_file is not None:
@@ -2596,7 +2697,7 @@ def admin_dashboard():
         tab_u1, tab_u2, tab_u3 = st.tabs(["➕ إضافة مستخدم", "⚙ الصلاحيات والحذف", "🔑 تعديل اسم وكلمة المرور"])
         
         with tab_u1:
-            with st.form("add_user_form_v1_2"):
+            with st.form("add_user_form_v1_0"):
                 new_u_name = st.text_input("اسم المستخدم:", value="")
                 new_u_pass = st.text_input("كلمة المرور:", type="password", value="")
                 new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
@@ -2772,7 +2873,7 @@ def trainee_portal():
             except:
                 return iso_str
 
-        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b> &nbsp;|&nbsp; التصنيف: <b style="color: #059669;">[{esc(exam_type_str)}]</b></p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b> &nbsp;|&nbsp; التصنيف: <b style="color: #059669;">[{esc(exam_type_str)}]</b></p></div>', unsafe_allow_html=True)
         
         with st.container(border=True):
             format_s = format_12h(start_t)
