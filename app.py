@@ -1,4 +1,4 @@
-import os, io, re, ast, json, sqlite3, hashlib, secrets, random, time, html
+import os, io, re, ast, json, sqlite3, hashlib, secrets, random, time, html, urllib.request, socket
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 from contextlib import contextmanager
@@ -10,7 +10,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.2)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.2 - التوقيت الأونلاين)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بمعامل المتوطنة🔬 - System V1.2",
@@ -43,12 +43,27 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) دوال التوقيت المحلي لمصر (Cairo Timezone)
+# 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone)
 # ============================================================
 CAIRO_TZ = ZoneInfo("Africa/Cairo")
 
-def now_cairo():
+def get_online_network_time():
+    """محاولة جلب الوقت بدقة من الإنترنت، وفي حال انقطاع الاتصال يتم العودة للوقت المحلي للسيرفر مع الحفاظ على النطاق الزمني لمصر"""
+    try:
+        # جلب الوقت الحقيقي من خادم عام عبر الإنترنت (WorldTimeAPI بتوقيت مصر)
+        req = urllib.request.Request("http://worldtimeapi.org/api/timezone/Africa/Cairo", headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=2) as response:
+            data = json.loads(response.read().decode())
+            if "datetime" in data:
+                return datetime.fromisoformat(data["datetime"])
+    except Exception:
+        pass
+    
+    # خيار بديل سريع عبر خادم وقت آخر أو العودة للوقت المحلي المعتمد بتوقيت مصر
     return datetime.now(CAIRO_TZ)
+
+def now_cairo():
+    return get_online_network_time()
 
 def now():
     return now_cairo().isoformat(timespec="seconds")
@@ -1150,7 +1165,8 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    st.markdown('<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.2 (توقيت مصر المحلي)<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
+    online_now_str = now_cairo().strftime('%Y-%m-%d %I:%M:%S %p').replace("AM", "صباحاً").replace("PM", "مساءً")
+    st.markdown(f'<div class="hero"><h1>🔬 نظام تقييم واختبار العاملين بمعامل المتوطنة</h1><div>System V1.2 (التوقيت المحدث أونلاين: {online_now_str})<br><small style="color:#d1fae5;">Developed by Dr/Ahmed.S.Hegazy</small></div></div>', unsafe_allow_html=True)
 
 def verification_portal_view():
     header()
@@ -1292,7 +1308,7 @@ def login_portal():
         
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
             if not facility_final_str:
-                st.warning("⚠️️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
+                st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
                 st.warning("⚠️ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
@@ -1627,7 +1643,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨️️' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1910,7 +1926,7 @@ def admin_dashboard():
                 render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
-        st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (توقيت مصر المحلي - مقاس A4)")
+        st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (التوقيت المحدث أونلاين - مقاس A4)")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد وتصنيف", "🗑 حذف نموذج"], horizontal=True)
         
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
@@ -1964,19 +1980,20 @@ def admin_dashboard():
                 new_tpl_pass = st.slider("نسبة النجاح %:", min_value=30.0, max_value=95.0, value=60.0)
                 
                 st.markdown("---")
-                st.markdown("#### ⏰ تحديد توقيت البدء والنهاية بتوقيت مصر المحلى (نظام 12 ساعة):")
+                st.markdown("#### ⏰ تحديد توقيت البدء والنهاية بالتوقيت المحدث أونلاين (نظام 12 ساعة):")
                 
+                current_online_dt = now_cairo()
                 col_d1, col_d2 = st.columns(2)
                 with col_d1:
-                    start_d = st.date_input("تاريخ البدء:", now_cairo().date())
+                    start_d = st.date_input("تاريخ البدء:", current_online_dt.date())
                     st.markdown("##### وقت البدء:")
                     sh_col1, sh_col2, sh_col3 = st.columns(3)
-                    with sh_col1: start_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=9, key="sh_in")
-                    with sh_col2: start_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="sm_in")
-                    with sh_col3: start_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], key="sap_in")
+                    with sh_col1: start_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=current_online_dt.hour % 12 or 12, key="sh_in")
+                    with sh_col2: start_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=current_online_dt.minute, key="sm_in")
+                    with sh_col3: start_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="sap_in")
 
                 with col_d2:
-                    end_d = st.date_input("تاريخ النهاية:", now_cairo().date() + timedelta(days=1))
+                    end_d = st.date_input("تاريخ النهاية:", current_online_dt.date() + timedelta(days=1))
                     st.markdown("##### وقت النهاية:")
                     eh_col1, eh_col2, eh_col3 = st.columns(3)
                     with eh_col1: end_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=5, key="eh_in")
@@ -2020,16 +2037,17 @@ def admin_dashboard():
                     st.markdown("#### 🎯 تعديل تصنيف النموذج:")
                     updated_exam_type = st.radio("نوع النموذج الجديد:", ["قبل التدريب", "بعد التدريب"], index=type_idx, horizontal=True)
 
+                    current_online_dt = now_cairo()
                     st.markdown("#### ⏰ تعديل التوقيت (نظام 12 ساعة):")
                     col_u1, col_u2 = st.columns(2)
                     with col_u1:
-                        new_sd = st.date_input("البدء الجديد:", now_cairo().date())
+                        new_sd = st.date_input("البدء الجديد:", current_online_dt.date())
                         uh1, uh2, uh3 = st.columns(3)
-                        with uh1: ns_h = st.number_input("الساعة:", 1, 12, 9, key="ns_h")
-                        with uh2: ns_m = st.number_input("الدقيقة:", 0, 59, 0, key="ns_m")
-                        with uh3: ns_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], key="ns_ampm")
+                        with uh1: ns_h = st.number_input("الساعة:", 1, 12, current_online_dt.hour % 12 or 12, key="ns_h")
+                        with uh2: ns_m = st.number_input("الدقيقة:", 0, 59, current_online_dt.minute, key="ns_m")
+                        with uh3: ns_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="ns_ampm")
                     with col_u2:
-                        new_ed = st.date_input("النهاية الجديدة:", now_cairo().date() + timedelta(days=1))
+                        new_ed = st.date_input("النهاية الجديدة:", current_online_dt.date() + timedelta(days=1))
                         ne1, ne2, ne3 = st.columns(3)
                         with ne1: ne_h = st.number_input("الساعة:", 1, 12, 5, key="ne_h")
                         with ne2: ne_m = st.number_input("الدقيقة:", 0, 59, 0, key="ne_m")
@@ -2153,15 +2171,16 @@ def admin_dashboard():
                 chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
                 
                 st.markdown("---")
+                current_online_dt = now_cairo().date()
                 col_d_f1, col_d_f2 = st.columns(2)
                 with col_d_f1:
                     st.markdown("##### 📅 الفترة الأولى (أو التقرير الأساسي):")
-                    d_start_1 = st.date_input("من تاريخ (الأولى):", now_cairo().date() - timedelta(days=30), key="ds1")
-                    d_end_1 = st.date_input("إلى تاريخ (الأولى):", now_cairo().date(), key="de1")
+                    d_start_1 = st.date_input("من تاريخ (الأولى):", current_online_dt - timedelta(days=30), key="ds1")
+                    d_end_1 = st.date_input("إلى تاريخ (الأولى):", current_online_dt, key="de1")
                 with col_d_f2:
                     st.markdown("##### 📅 الفترة الثانية (للمقارنة):")
-                    d_start_2 = st.date_input("من تاريخ (الثانية):", now_cairo().date() - timedelta(days=60), key="ds2")
-                    d_end_2 = st.date_input("إلى تاريخ (الثانية):", now_cairo().date() - timedelta(days=31), key="de2")
+                    d_start_2 = st.date_input("من تاريخ (الثانية):", current_online_dt - timedelta(days=60), key="ds2")
+                    d_end_2 = st.date_input("إلى تاريخ (الثانية):", current_online_dt - timedelta(days=31), key="de2")
 
                 with db() as c:
                     ind_tr_data = c.execute("SELECT * FROM trainees WHERE id=? AND hidden=0", (chosen_tr_id,)).fetchone()
@@ -2233,15 +2252,16 @@ def admin_dashboard():
             else:
                 sel_fac_rep = st.selectbox("اختر الجهة / المنشأة لاستعراض تقريرها الجماعي:", facs_list_rep, key="sel_group_fac_rep")
                 
+                current_online_dt = now_cairo().date()
                 col_gf1, col_gf2 = st.columns(2)
                 with col_gf1:
                     st.markdown("##### 📅 الفترة الأولى:")
-                    gf_start_1 = st.date_input("من تاريخ (الأولى):", now_cairo().date() - timedelta(days=30), key="gfs1")
-                    gf_end_1 = st.date_input("إلى تاريخ (الأولى):", now_cairo().date(), key="gfe1")
+                    gf_start_1 = st.date_input("من تاريخ (الأولى):", current_online_dt - timedelta(days=30), key="gfs1")
+                    gf_end_1 = st.date_input("إلى تاريخ (الأولى):", current_online_dt, key="gfe1")
                 with col_gf2:
                     st.markdown("##### 📅 الفترة الثانية (للمقارنة):")
-                    gf_start_2 = st.date_input("من تاريخ (الثانية):", now_cairo().date() - timedelta(days=60), key="gfs2")
-                    gf_end_2 = st.date_input("إلى تاريخ (الثانية):", now_cairo().date() - timedelta(days=31), key="gfe2")
+                    gf_start_2 = st.date_input("من تاريخ (الثانية):", current_online_dt - timedelta(days=60), key="gfs2")
+                    gf_end_2 = st.date_input("إلى تاريخ (الثانية):", current_online_dt - timedelta(days=31), key="gfe2")
 
                 with db() as c:
                     p1_stat = c.execute("""SELECT COUNT(DISTINCT t.id) as total_tr, COALESCE(AVG(s.percent), 0) as avg_pct,
@@ -2439,12 +2459,13 @@ def admin_dashboard():
                 action_steps = st.text_area("الخطوات العلاجية:", value=auto_steps_text)
 
                 st.markdown("---")
+                current_online_dt = now_cairo().date()
                 st.markdown("#### 📅 تحديد الإطار الزمني للخطة (من تاريخ إلى تاريخ):")
                 col_d1, col_d2 = st.columns(2)
                 with col_d1:
-                    plan_start_date = st.date_input("من تاريخ البدء:", now_cairo().date())
+                    plan_start_date = st.date_input("من تاريخ البدء:", current_online_dt)
                 with col_d2:
-                    plan_end_date = st.date_input("إلى تاريخ النهاية:", now_cairo().date() + timedelta(days=30))
+                    plan_end_date = st.date_input("إلى تاريخ النهاية:", current_online_dt + timedelta(days=30))
 
                 if st.form_submit_button("💾 حفظ وإنشاء خطة العمل الذكية", use_container_width=True):
                     if not target_name.strip() or not weak_areas.strip():
