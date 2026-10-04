@@ -1202,15 +1202,15 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم تعديل اللون ليكون أبيض ناصع #ffffff وتوسيع الارتفاع الداخلي ومنع قص المحتوى
+    # تم زيادة العرض الأقصى، زيادة الارتفاع والهوامش لضمان ظهور كامل المحتوى من الأسفل والأعلى تماماً بلون أبيض ناصع #ffffff
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; padding: 25px 20px; border-radius: 14px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 12px; font-family: 'Cairo', sans-serif; width: 100%; box-sizing: border-box; border: 2px solid #ffffff;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <span style="font-size: 32px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 35px 25px; border-radius: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 15px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <span style="font-size: 36px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 21px; color: #ffffff; font-weight: 900; line-height: 1.8; margin-bottom: 12px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 4px 14px; border-radius: 20px;">System V1.0</span>
+        <div style="font-size: 23px; color: #ffffff; font-weight: 900; line-height: 1.9; margin-bottom: 15px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 5px;">
+            <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 5px 16px; border-radius: 20px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 16px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
     </div>
@@ -1228,7 +1228,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=210, scrolling=False)
+    components.html(header_html, height=235, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -2038,7 +2038,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
