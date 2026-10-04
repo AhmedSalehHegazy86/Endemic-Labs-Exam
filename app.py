@@ -1192,16 +1192,16 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم مطابقة العرض تماماً مع زر التحقق من الشهادة (عبر حاوية متطابقة العرض)، وزيادة الارتفاع والهوامش لضمان ظهور كامل عناصر الهيدر من الأسفل والأعلى تماماً ودون أي قص أو اختفاء للساعة والوقت
+    # تم تقليل الهوامش الداخلية العلوية والسفلية لأقصى حد ممكن (padding: 10px 20px) لضمان عدم وجود أي فراغات أو مساحات فارغة وإظهار المحتوى بشكل متناسق ومضغوط
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; min-height: 230px; padding: 35px 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 25px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff; overflow: hidden;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <span style="font-size: 38px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 10px 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff; overflow: hidden;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 26px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 24px; color: #ffffff; font-weight: 900; line-height: 1.8; margin-bottom: 18px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 10px;">
-            <span style="font-size: 15px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 6px 18px; border-radius: 20px;">System V1.0</span>
-            <span id="live-clock-display" style="font-size: 16px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
+        <div style="font-size: 20px; color: #ffffff; font-weight: 900; line-height: 1.4; margin-bottom: 6px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبارات العاملين بالامراض المتوطنة</div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 3px 12px; border-radius: 15px;">System V1.0</span>
+            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
     </div>
     <script>
@@ -1218,7 +1218,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=270, scrolling=False)
+    components.html(header_html, height=135, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -1809,7 +1809,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2028,7 +2028,7 @@ def admin_dashboard():
             else:
                 for _, tr_row in df_all_tr_include_hidden.iterrows():
                     is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️‍‍‍‍🗨️]" if is_hidden_tr else " [ظاهر ✅]"
+                    hidden_badge = " [مخفي 👁️🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
@@ -2946,9 +2946,9 @@ def trainee_portal():
                 return iso_str
 
         st.markdown(f"""
-            <div style="background-color: #059669; color: #ffffff; padding: 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 20px auto; max-width: 900px; border: 2px solid #34d399;">
-                <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
-                <p style="margin: 5px 0 0 0; font-size: 15px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
+            <div style="background-color: #059669; color: #ffffff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 15px auto; max-width: 900px; border: 2px solid #34d399;">
+                <h2 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+                <p style="margin: 0; font-size: 14px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
             </div>
         """, unsafe_allow_html=True)
         
