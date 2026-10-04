@@ -115,7 +115,7 @@ body::after {
 .hero {
     background: linear-gradient(90deg, #064e3b, #065f46, #047857) !important;
     color: #ffffff !important;
-    padding: 18px;
+    padding: 22px;
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
@@ -229,7 +229,7 @@ window.addEventListener("focus", function() {
 
 st.markdown("""
 <div class="ownership-watermark">
-🪱🔬🐌💊 جميع الحقوق محفوظة © 2026 | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
+جميع الحقوق محفوظة © 2026 | تصميم وتطوير: <b>Dr/Ahmed.S.Hegazy</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1204,10 +1204,13 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 def header():
     header_html = f"""
     <div class="hero">
-        <h1>🪱🔬🐌💊 نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
-        <div>
-            <span id="live-clock-display">جاري تحديث الوقت الفوري...</span><br>
-            <small style="color:#d1fae5;">الأمراض المتوطنة والطفيليات والفحوص المعملية | Developed by Dr/Ahmed.S.Hegazy</small>
+        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 28px;">🪱🔬🐌💊</span>
+        </div>
+        <h1 style="text-align: center; margin: 5px 0; font-size: 24px;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h1>
+        <div style="text-align: center; margin-top: 10px;">
+            <span id="live-clock-display" style="font-size: 14px; font-weight: bold;">جاري تحديث الوقت الفوري...</span><br>
+            <small style="color:#d1fae5; font-size: 11px;">Developed by Dr/Ahmed.S.Hegazy</small>
         </div>
     </div>
     <script>
@@ -1224,7 +1227,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=115, scrolling=False)
+    components.html(header_html, height=130, scrolling=False)
 
 def verification_portal_view():
     header()
@@ -2953,7 +2956,13 @@ def trainee_portal():
             except:
                 return iso_str
 
-        st.markdown(f'<div class="card"><h3>مرحباً بك، {esc(tr["name"])}</h3><p>المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص لك: <b>{esc(tpl_name_str)}</b> &nbsp;|&nbsp; التصنيف: <b style="color: #059669;">[{esc(exam_type_str)}]</b></p></div>', unsafe_allow_html=True)
+        # تفعيل المربع الأخضر (Hero Box) في منتصف الصفحة لجملة الترحيب
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #064e3b, #059669); color: #ffffff; padding: 30px; border-radius: 14px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 20px auto; max-width: 900px; border: 2px solid #34d399;">
+                <h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 900; color: #ffffff;">مرحباً بك في نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
+                <p style="margin: 5px 0 0 0; font-size: 15px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
+            </div>
+        """, unsafe_allow_html=True)
         
         with st.container(border=True):
             format_s = format_12h(start_t)
