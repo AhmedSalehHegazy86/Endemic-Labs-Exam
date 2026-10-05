@@ -988,8 +988,8 @@ def generate_trainee_exam_sheet_html(sid):
             </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس وحدة الأمراض المتوطنة</div>
-                <div>مدير وحدة المتوطنة</div>
+                <div>رئيس القسم</div>
+                <div>مدير المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1031,8 +1031,8 @@ def generate_general_report_html(title, content_html, target_pages=1):
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس وحدة الأمراض المتوطنة</div>
-                <div>مدير وحدة المتوطنة</div>
+                <div>رئيس القسم</div>
+                <div>مدير المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1070,8 +1070,8 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس وحدة الأمراض المتوطنة</div>
-                <div>مدير وحدة المتوطنة</div>
+                <div>رئيس القسم</div>
+                <div>مدير المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1151,8 +1151,8 @@ def generate_exam_template_print_html(template_id):
             </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس وحدة الأمراض المتوطنة</div>
-                <div>مدير وحدة المتوطنة</div>
+                <div>رئيس القسم</div>
+                <div>مدير المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1361,7 +1361,8 @@ def verification_portal_view():
                 </table>
                 <div class="footer">
                     <div>مسؤول التدريب</div>
-                    <div>رئيس وحدة الأمراض المتوطنة</div>
+                    <div>رئيس القسم</div>
+                    <div>مديرالمتوطنة</div>
                     <div>مدير عام الإدارة</div>
                 </div>
             </div>
@@ -1761,7 +1762,7 @@ def admin_dashboard():
                 st.markdown("#### 🏷️ إعدادات الألقاب والوظيفة في الشهادة:")
                 col_p1, col_p2, col_p3 = st.columns(3)
                 with col_p1:
-                    trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
+                    trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: تشهد / الادارة):", value=current_set.get("trainee_prefix", ""))
                 with col_p2:
                     trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
                 with col_p3:
