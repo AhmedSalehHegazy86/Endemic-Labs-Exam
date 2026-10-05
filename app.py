@@ -523,7 +523,7 @@ def init_db():
                 "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                      (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "15mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
             
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -548,7 +548,7 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "3mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
+        "margin_top": "15mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
         "line_spacing": 1.25,
         "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
         "default_cert_title": "شهادة اجتياز اختبار معتمدة",
@@ -899,7 +899,7 @@ def generate_trainee_exam_sheet_html(sid):
         
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin-bottom: 4px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="margin-bottom: 6px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
             <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
             {img_tag_html}
             <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
@@ -976,8 +976,9 @@ def generate_general_report_html(title, content_html, target_pages=1):
     .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
     h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 8.5pt; }}
-    th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
     th {{ background-color: #059669; color: white; font-weight: bold; }}
+    tr {{ page-break-inside: avoid; break-inside: avoid; }}
     tr:nth-child(even) {{ background-color: #f0fdf4; }}
     .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
@@ -1078,7 +1079,7 @@ def generate_exam_template_print_html(template_id):
         
         opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
-        <div style="margin-bottom: 4px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="margin-bottom: 6px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
             <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
             <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
@@ -1134,6 +1135,7 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
+    m_top = str(print_sett.get("margin_top", "15mm") or "15mm")
     m_bot = str(print_sett.get("margin_bottom", "4mm") or "4mm")
     m_right = str(print_sett.get("margin_right", "5mm") or "5mm")
     m_left = str(print_sett.get("margin_left", "5mm") or "5mm")
@@ -1144,6 +1146,7 @@ def render_print_button_only(html_content, label_prefix=""):
             return v
         return fallback
 
+    m_top = _safe_margin(m_top, "15mm")
     m_bot = _safe_margin(m_bot, "4mm")
     m_right = _safe_margin(m_right, "5mm")
     m_left = _safe_margin(m_left, "5mm")
@@ -1160,8 +1163,18 @@ def render_print_button_only(html_content, label_prefix=""):
     
     repeated_print_css = f"""
     <style>
+    @page {{
+        size: A4 auto;
+        margin: {m_top} {m_right} {m_bot} {m_left} !important;
+        @bottom-right {{
+            content: "صفحة " counter(page) " من " counter(pages);
+            font-family: 'Cairo', Tahoma, sans-serif;
+            font-size: 8pt;
+            font-weight: bold;
+            color: #065f46;
+        }}
+    }}
     @media print {{
-        @page {{ margin: 0 {m_right} {m_bot} {m_left} !important; }}
         html, body {{
             margin: 0 !important;
             padding: 0 !important;
@@ -1185,6 +1198,8 @@ def render_print_button_only(html_content, label_prefix=""):
             font-weight: 900 !important;
             line-height: 1.2 !important;
             text-align: center !important;
+            page-break-after: avoid;
+            break-after: avoid;
         }}
         .print-repeat-ownership {{
             position: fixed !important;
@@ -1203,10 +1218,27 @@ def render_print_button_only(html_content, label_prefix=""):
             text-align: center !important;
             white-space: nowrap !important;
         }}
+        .print-page-counter {{
+            position: fixed !important;
+            bottom: 3.5mm !important;
+            left: 5mm !important;
+            z-index: 2147483647 !important;
+            font-family: 'Cairo', Tahoma, sans-serif !important;
+            font-size: 8pt !important;
+            font-weight: bold !important;
+            color: #065f46 !important;
+        }}
+        .print-page-counter::after {{
+            content: "صفحة " counter(page) " من " counter(pages);
+        }}
         body {{
             padding-top: 2mm !important;
             padding-bottom: 13mm !important;
             box-sizing: border-box !important;
+        }}
+        .question, tr, div {{
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }}
     }}
     </style>
@@ -1215,6 +1247,7 @@ def render_print_button_only(html_content, label_prefix=""):
     repeated_print_markup = f"""
     <div class="print-repeat-approvals">{approvals_markup}</div>
     <div class="print-repeat-ownership">{ownership_text}</div>
+    <div class="print-page-counter"></div>
     """
     
     if "</head>" in html_content:
@@ -1460,7 +1493,7 @@ def login_portal():
             if not facility_final_str:
                 st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠️️ يرجى اختيار نموذج الاختبار.")
+                st.warning("⚠ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
                 assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
                 existing = trainee_by_credentials(name, facility_final_str)
