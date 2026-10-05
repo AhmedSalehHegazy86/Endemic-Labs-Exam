@@ -1067,6 +1067,16 @@ def verification_portal_view():
 
 def login_portal():
     header()
+    
+    # زر الانتقال لبوابة التحقق من الشهادات (المكون الأصلي الذي كان مفقوداً)
+    col_v1, col_v2 = st.columns([1, 1])
+    with col_v1:
+        if st.button("🔍 التحقق الرقمي من الشهادات والنتائج", use_container_width=True):
+            st.session_state.show_verification_portal = True
+            st.rerun()
+            
+    st.markdown("---")
+    
     hier_data = get_hierarchical_data(include_hidden=False)
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري"])
