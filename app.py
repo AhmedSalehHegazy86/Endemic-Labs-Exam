@@ -234,11 +234,36 @@ def esc(x):
     return html.escape("" if x is None else str(x))
 
 def clean_question_text(q_text):
-    if not q_text:
+    """إظهار نص السؤال فقط للمتدرب، مع إزالة أي ترقيم/وسم داخلي خاص ببنك الأسئلة.
+
+    أرقام الأسئلة تظل محفوظة في قاعدة البيانات لأغراض الإدارة والتتبع،
+    لكنها لا تظهر داخل شاشة الامتحان.
+    """
+    if q_text is None:
         return ""
-    cleaned = re.sub(r"\(نموذج متوطنة.*?\)", "", q_text)
-    cleaned = re.sub(r"\(مجموعة متوطنة.*?\)", "", cleaned)
-    return normalize_text(cleaned)
+
+    cleaned = str(q_text).strip()
+
+    # إزالة الوسوم الداخلية التي قد تكون أُضيفت للسؤال عند إدخاله للبنك.
+    patterns = [
+        r"\(\s*نموذج\s+متوطنة[^)]*\)",
+        r"\(\s*مجموعة\s+متوطنة[^)]*\)",
+        r"\(\s*نموذج\s+تقييم(?:\s*(?:رقم|#)?\s*\d+)?[^)]*\)",
+        r"\[\s*نموذج\s+تقييم(?:\s*(?:رقم|#)?\s*\d+)?[^]]*\]",
+        r"\(\s*سؤال\s*(?:رقم|#)?\s*\d+\s*\)",
+    ]
+    for pattern in patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+    # إزالة ترقيم البنك إذا كان في بداية النص، مثل:
+    # 123- السؤال ... / 123) السؤال ... / سؤال رقم 123: السؤال ...
+    cleaned = re.sub(r"^\s*(?:سؤال\s*(?:رقم|#)?\s*)?\d+\s*[\)\].:-]+\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^\s*سؤال\s*(?:رقم|#)?\s*\d+\s*[:.)-]+\s*", "", cleaned, flags=re.IGNORECASE)
+
+    # إزالة الفراغات الزائدة الناتجة عن حذف الوسم.
+    cleaned = re.sub(r"[ \t]+", " ", cleaned)
+    cleaned = re.sub(r"\s+([،,:؛؟.)])", r"\1", cleaned)
+    return cleaned.strip()
 
 def normalize_text(x):
     x = "" if x is None else str(x)
@@ -918,6 +943,8 @@ def generate_trainee_exam_sheet_html(sid):
         else:
             q_text_clean = raw_q_text
 
+        q_text_clean = clean_question_text(q_text_clean)
+
         opts_html = ""
         for o_idx, opt_text in enumerate(disp_opts):
             orig_opt_index = order[o_idx]
@@ -988,8 +1015,8 @@ def generate_trainee_exam_sheet_html(sid):
             </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس القسم</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1031,8 +1058,8 @@ def generate_general_report_html(title, content_html, target_pages=1):
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس القسم</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1070,8 +1097,8 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس القسم</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1103,6 +1130,9 @@ def generate_exam_template_print_html(template_id):
                 img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 55px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
+
+        # إزالة أي رقم/وسم داخلي خاص ببنك الأسئلة، ثم استخدام مسلسل النموذج فقط.
+        q_text_clean = clean_question_text(q_text_clean)
 
         opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
         
@@ -1151,8 +1181,8 @@ def generate_exam_template_print_html(template_id):
             </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس القسم</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1361,8 +1391,7 @@ def verification_portal_view():
                 </table>
                 <div class="footer">
                     <div>مسؤول التدريب</div>
-                    <div>رئيس القسم</div>
-                    <div>مديرالمتوطنة</div>
+                    <div>رئيس وحدة الأمراض المتوطنة</div>
                     <div>مدير عام الإدارة</div>
                 </div>
             </div>
@@ -1762,7 +1791,7 @@ def admin_dashboard():
                 st.markdown("#### 🏷️ إعدادات الألقاب والوظيفة في الشهادة:")
                 col_p1, col_p2, col_p3 = st.columns(3)
                 with col_p1:
-                    trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: تشهد / الادارة):", value=current_set.get("trainee_prefix", ""))
+                    trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
                 with col_p2:
                     trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
                 with col_p3:
@@ -3209,7 +3238,7 @@ def exam_interface(session_id):
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
 
     answered = 0
-    for row in rows:
+    for idx, row in enumerate(rows, start=1):
         try: opts = json.loads(row["options_json"])
         except: opts = ["نعم", "لا"]
         order = json.loads(row["option_order_json"])
@@ -3218,7 +3247,9 @@ def exam_interface(session_id):
         if row["selected_option"] is not None:
             try: curr_idx = disp_opts.index(opts[row["selected_option"]])
             except: pass
-        st.markdown(f'<div class="question"><b>س ({row["position"]+1}):</b> {clean_question_text(row["question"])}</div>', unsafe_allow_html=True)
+        # عرض مسلسل الاختبار فقط (1، 2، 3...) وعدم إظهار رقم السؤال داخل البنك أو أي وسم داخلي.
+        question_text = esc(clean_question_text(row["question"]))
+        st.markdown(f'<div class="question"><strong style="color:#065f46;">({idx})</strong> {question_text}</div>', unsafe_allow_html=True)
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
         if choice:
             sel = order[disp_opts.index(choice)]
