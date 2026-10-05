@@ -751,29 +751,32 @@ def submit_session(sid):
         return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
 
 def render_logos_html():
+    """عرض الشعارات الثلاثة معًا داخل نفس ترويسة النموذج.
+    الشعار الثالث لم يعد منفصلًا في أعلى يسار الصفحة.
+    """
     sett = get_print_settings()
-    logo1 = sett.get("logo_base64", DEFAULT_LOGO)
-    logo2 = sett.get("logo2_base64", "")
-    
-    logos_list_html = f'<img src="{logo1}" style="width: 35px; height: 35px; object-fit: contain;" alt="Logo 1">'
-    if logo2:
-        logos_list_html += f'<img src="{logo2}" style="width: 35px; height: 35px; object-fit: contain;" alt="Logo 2">'
-        
+    logo1 = sett.get("logo_base64", DEFAULT_LOGO) or DEFAULT_LOGO
+    logo2 = sett.get("logo2_base64", "") or ""
+    logo3 = sett.get("logo3_base64", "") or ""
+
+    logos = [logo1, logo2, logo3]
+    logos_list_html = ""
+    for i, logo in enumerate(logos, start=1):
+        if logo:
+            logos_list_html += (
+                f'<img src="{logo}" style="width:35px; height:35px; '
+                f'object-fit:contain; display:block;" alt="Logo {i}">'
+            )
+
     return f"""
-    <div style="display: flex; gap: 4px; align-items: center;">
+    <div style="display:flex; flex-direction:row; gap:5px; align-items:center; justify-content:flex-start; direction:ltr;">
         {logos_list_html}
     </div>
     """
 
 def render_top_left_logo_html():
-    sett = get_print_settings()
-    logo3 = sett.get("logo3_base64", "")
-    if logo3:
-        return f"""
-        <div style="position: absolute; top: 10mm; left: 12mm; text-align: left; z-index: 2;">
-            <img src="{logo3}" style="width: 35px; height: 35px; object-fit: contain;" alt="Logo 3">
-        </div>
-        """
+    # متروك للتوافق مع القوالب القديمة، لكن الشعارات الثلاثة تُعرض الآن
+    # داخل render_logos_html() بجوار بعضها في نفس الترويسة.
     return ""
 
 def generate_qr_code_base64(data_text):
@@ -1191,6 +1194,103 @@ def generate_exam_template_print_html(template_id):
     """
 
 def render_print_button_only(html_content, label_prefix=""):
+    # ========================================================
+    # طبقة طباعة موحدة: تجعل الهوامش والترويسة والتذييل وحقوق
+    # الملكية ثابتة ومتكررة في كل صفحة عند الطباعة، بما فيها الشهادات.
+    # ========================================================
+    print_sett = get_print_settings()
+    m_top = str(print_sett.get("margin_top", "8mm") or "8mm")
+    m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
+    m_right = str(print_sett.get("margin_right", "5mm") or "5mm")
+    m_left = str(print_sett.get("margin_left", "5mm") or "5mm")
+    header_txt = print_sett.get("header_text", "") or ""
+
+    # تنظيف قيم الهوامش للسماح فقط بوحدات CSS الآمنة الشائعة.
+    def _safe_margin(v, fallback):
+        v = str(v).strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?(?:mm|cm|in|px)", v):
+            return v
+        return fallback
+
+    m_top = _safe_margin(m_top, "8mm")
+    m_bot = _safe_margin(m_bot, "8mm")
+    m_right = _safe_margin(m_right, "5mm")
+    m_left = _safe_margin(m_left, "5mm")
+
+    ownership_text = "جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy"
+    repeated_print_css = f"""
+    <style>
+      @media print {{
+        @page {{
+          margin: {m_top} {m_right} {m_bot} {m_left} !important;
+        }}
+        html, body {{
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }}
+        .print-repeat-header {{
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          min-height: 8mm !important;
+          z-index: 2147483646 !important;
+          background: #ffffff !important;
+          color: #065f46 !important;
+          border-bottom: 1px solid #059669 !important;
+          box-sizing: border-box !important;
+          padding: 1.5mm 3mm !important;
+          font-family: 'Cairo', Tahoma, sans-serif !important;
+          font-size: 7.5pt !important;
+          font-weight: 700 !important;
+          line-height: 1.15 !important;
+          text-align: right !important;
+        }}
+        .print-repeat-footer {{
+          position: fixed !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          min-height: 6mm !important;
+          z-index: 2147483646 !important;
+          background: #ffffff !important;
+          color: #065f46 !important;
+          border-top: 1px solid #059669 !important;
+          box-sizing: border-box !important;
+          padding: 1.2mm 3mm !important;
+          font-family: 'Cairo', Tahoma, sans-serif !important;
+          font-size: 6.8pt !important;
+          font-weight: 700 !important;
+          line-height: 1.1 !important;
+          text-align: center !important;
+        }}
+        /* حجز مساحة فعلية للمحتوى حتى لا يتداخل مع الترويسة والتذييل */
+        body {{
+          padding-top: 10mm !important;
+          padding-bottom: 8mm !important;
+          box-sizing: border-box !important;
+        }}
+      }}
+    </style>
+    """
+    repeated_print_markup = f"""
+    <div class="print-repeat-header">{header_txt}</div>
+    <div class="print-repeat-footer">{ownership_text}</div>
+    """
+
+    # نضع CSS داخل head والعناصر الثابتة داخل body حتى تتوافق الطباعة مع Chrome/Edge.
+    if "</head>" in html_content:
+        html_content = html_content.replace("</head>", repeated_print_css + "</head>", 1)
+    else:
+        html_content = repeated_print_css + html_content
+    if "<body" in html_content and "</body>" in html_content:
+        body_pos = html_content.find(">", html_content.find("<body")) + 1
+        html_content = html_content[:body_pos] + repeated_print_markup + html_content[body_pos:]
+    else:
+        html_content = repeated_print_markup + html_content
+
     encoded_html = json.dumps(html_content)
     col_opt1, col_opt2 = st.columns(2)
     with col_opt1:
