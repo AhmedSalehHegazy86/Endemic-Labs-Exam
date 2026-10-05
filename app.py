@@ -48,7 +48,6 @@ DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP///////
 CAIRO_TZ = ZoneInfo("Africa/Cairo")
 
 def get_online_network_time():
-    """جلب الوقت الحالي بدقة فورية مع كل طلب لتجنب أي ثبات أو تأخير في التوقيت"""
     try:
         req = urllib.request.Request("http://worldtimeapi.org/api/timezone/Africa/Cairo", headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=1.5) as response:
@@ -57,7 +56,6 @@ def get_online_network_time():
                 return datetime.fromisoformat(data["datetime"])
     except Exception:
         pass
-    
     return datetime.now(CAIRO_TZ)
 
 def now_cairo():
@@ -70,7 +68,7 @@ def today_date():
     return now_cairo().date().isoformat()
 
 # ============================================================
-# 3) حقن التنسيقات (CSS) وحماية الأمان ومنع لقطات الشاشة
+# 3) حقن التنسيقات (CSS) وضبط عرض الحقول والعناصر لتتطابق أفقياً
 # ============================================================
 st.markdown("""
 <style>
@@ -91,7 +89,6 @@ html, body, [class*="css"] {
 .stApp {
     background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 45%, #bbf7d0 100%) !important;
     background-attachment: fixed !important;
-    -webkit-filter: contrast(102%);
 }
 
 body::after {
@@ -108,8 +105,13 @@ body::after {
     margin: auto !important;
     padding-left: 2rem !important;
     padding-right: 2rem !important;
-    padding-top: 4.5rem !important;
+    padding-top: 3.5rem !important;
     padding-bottom: 7rem !important;
+}
+
+/* توحيد عرض وتنسيق الحقول والكروت لتكون متوازنة أفقياً */
+.card, .question, [data-testid="stForm"], [data-testid="stVerticalBlock"] > div {
+    box-sizing: border-box !important;
 }
 
 .card, .question {
@@ -120,6 +122,7 @@ body::after {
     margin-bottom: 18px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     border-right: 6px solid #059669 !important;
+    width: 100% !important;
 }
 
 .metric {
@@ -155,6 +158,7 @@ body::after {
     min-height: 42px !important;
     padding: 6px 14px;
     border: none !important;
+    width: 100% !important;
     transition: all 0.2s ease;
 }
 
@@ -167,6 +171,7 @@ input, select, textarea {
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
 }
 
 .ownership-watermark {
@@ -1167,7 +1172,6 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                var pageRule = '@page { size: A4 """ + orient_css + """; margin: 4mm; @bottom-right { content: counter(page); }; }';
                 
                 var styledHtml = """ + encoded_html + """;
                 
@@ -1192,16 +1196,16 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # تم تكبير الهوامش الأفقية (`padding: 16px 60px`) وزيادة ارتفاع الإطار (`height=185`) لتوسيع المربع أفقياً درجتين ورأسياً 4 درجات إضافية لتفادي قص أي حافة وظهور التصميم بصورة مريحة تماماً
+    # إرجاع الارتفاع إلى 155 وتعديل الحشو الداخلي ليصبح متوازناً أفقياً بالكامل
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 16px 60px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 4px;">
-            <span style="font-size: 26px;">🪱🔬🐌💊</span>
+    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 12px 40px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 2px;">
+            <span style="font-size: 24px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 20px; color: #ffffff; font-weight: 900; line-height: 1.4; margin-bottom: 6px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبار العاملين بالامراض المتوطنة</div>
+        <div style="font-size: 19px; color: #ffffff; font-weight: 900; line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبار العاملين بالامراض المتوطنة</div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <span style="font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 3px 12px; border-radius: 15px;">System V1.0</span>
-            <span id="live-clock-display" style="font-size: 14px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
+            <span style="font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 2px 10px; border-radius: 12px;">System V1.0</span>
+            <span id="live-clock-display" style="font-size: 13px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
         </div>
     </div>
     <script>
@@ -1218,7 +1222,7 @@ def header():
         setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=185, scrolling=False)
+    components.html(header_html, height=155, scrolling=False)
 
 def verification_portal_view():
     header()
