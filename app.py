@@ -908,18 +908,18 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 15mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
-        margin: 0; padding: 0; direction: rtl;
+        margin: 0 !important; padding: 0 !important; direction: rtl;
         -webkit-print-color-adjust: exact;
         line-height: {line_sp};
     }}
-    .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+    .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
-    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 2px; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
     .footer {{ display: none !important; }}
     </style>
@@ -948,18 +948,18 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 15mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
-        margin: 0; padding: 0; direction: rtl;
+        margin: 0 !important; padding: 0 !important; direction: rtl;
         -webkit-print-color-adjust: exact;
         line-height: {line_sp};
     }}
-    .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+    .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
-    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
-    table {{ width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 8.5pt; }}
+    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 4px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 8.5pt; }}
     th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
     th {{ background-color: #059669; color: white; font-weight: bold; }}
     tr {{ page-break-inside: avoid; break-inside: avoid; }}
@@ -987,17 +987,17 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 15mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
-        margin: 0; padding: 0; direction: rtl;
+        margin: 0 !important; padding: 0 !important; direction: rtl;
         -webkit-print-color-adjust: exact;
         line-height: {line_sp};
     }}
-    .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+    .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
-    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 4px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .footer {{ display: none !important; }}
     </style>
     </head>
@@ -1054,18 +1054,18 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 15mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
-        margin: 0; padding: 0; direction: rtl;
+        margin: 0 !important; padding: 0 !important; direction: rtl;
         -webkit-print-color-adjust: exact;
         line-height: {line_sp};
     }}
-    .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
+    .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
-    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 2px; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
     .footer {{ display: none !important; }}
     </style>
@@ -1204,7 +1204,7 @@ def render_print_button_only(html_content, label_prefix=""):
     </div>
     """
     
-    # ترتيب العناصر في الهامش السفلي بحيث تكون حقوق الملكية فوق الاعتمادات مباشرة
+    # سطر حقوق الملكية فوق سطر الاعتمادات تماماً في الهامش السفلي الثابت
     repeated_print_markup = f"""
     {repeated_header_markup}
     <div class="print-repeat-ownership">{ownership_text}</div>
@@ -2084,7 +2084,7 @@ def admin_dashboard():
                     st.download_button("📥 تحميل بنك الأسئلة إكسيل (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                     st.dataframe(df_bank, use_container_width=True, hide_index=True)
                 st.markdown("---")
-                st.markdown("##### ⚠️️ منطقة الخطر - إدارة البنك الشامل:")
+                st.markdown("##### ⚠ منطقة الخطر - إدارة البنك الشامل:")
                 with st.form("delete_entire_question_bank_form"):
                     confirm_text_del = st.text_input("اكتب كلمة (حذف البنك) للتأكيد نهائياً:", value="")
                     if st.form_submit_button("🗑️ تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
@@ -2649,7 +2649,7 @@ def admin_dashboard():
                 auto_steps_text = ""
                 if "فرد" in target_category:
                     if not all_tr_list:
-                        st.warning("⚠️️ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
+                        st.warning("⚠ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
                         tr_choices = {f"{t['name']} - الوظيفة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
