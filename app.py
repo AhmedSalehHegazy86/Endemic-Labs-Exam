@@ -519,7 +519,6 @@ def init_db():
             c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                       (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
 
-        # إضافة نموذج افتراضي أولي لضمان عدم توقف تبويب المتدربين والنماذج مطلقاً
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
             default_start = now_cairo().isoformat(timespec="seconds")
@@ -1833,7 +1832,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -2183,8 +2182,8 @@ def admin_dashboard():
             with st.form("create_template_schedule_form"):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
                 
-                st.markdown("#### 🎯 تحديد تصنيف نموذج الاختبار (قبل التدريب أو بعد التدريب):")
-                new_exam_type = st.radio("نوع النموذج:", ["قبل التدريب", "بعد التدريب"], horizontal=True)
+                st.markdown("#### 🎯 تحديد تصنيف نموذج الاختبار:")
+                new_exam_type = st.radio("نوع النموذج:", ["قبل التدريب", "بعد التدريب", "تقييم شامل"], horizontal=True)
 
                 is_open_questions = st.checkbox("عدد أسئلة مفتوح (كامل البنك)", value=True)
                 new_tpl_num_q = st.number_input("عدد الأسئلة:", min_value=1, max_value=5000, value=50)
@@ -2244,10 +2243,12 @@ def admin_dashboard():
                     with db() as c:
                         curr_tpl_rec = c.execute("SELECT exam_type FROM exam_templates WHERE id=?", (chosen_id,)).fetchone()
                     curr_exam_type_val = curr_tpl_rec["exam_type"] if curr_tpl_rec else "قبل التدريب"
-                    type_idx = 0 if curr_exam_type_val == "قبل التدريب" else 1
+                    
+                    types_list_opts = ["قبل التدريب", "بعد التدريب", "تقييم شامل"]
+                    type_idx = types_list_opts.index(curr_exam_type_val) if curr_exam_type_val in types_list_opts else 0
 
                     st.markdown("#### 🎯 تعديل تصنيف النموذج:")
-                    updated_exam_type = st.radio("نوع النموذج الجديد:", ["قبل التدريب", "بعد التدريب"], index=type_idx, horizontal=True)
+                    updated_exam_type = st.radio("نوع النموذج الجديد:", types_list_opts, index=type_idx, horizontal=True)
 
                     current_online_dt = now_cairo()
                     st.markdown("#### ⏰ تعديل التوقيت (نظام 12 ساعة):")
