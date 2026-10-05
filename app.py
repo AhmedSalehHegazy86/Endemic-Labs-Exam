@@ -203,36 +203,4 @@ document.addEventListener("keydown", function(e) {
     }
 });
 window.addEventListener("blur", function() {
-    document.body.style.filter = "blur(8px)";
-});
-window.addEventListener("focus", function() {
-    document.body.style.filter = "none";
-});
-</script>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class="ownership-watermark">
-    جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy
-</div>
-""", unsafe_allow_html=True)
-
-# ============================================================
-# 4) دوال النظام وقاعدة البيانات وإعادة الترتيب التلقائي للـ ID
-# ============================================================
-def esc(x):
-    return html.escape("" if x is None else str(x))
-
-def clean_question_text(q_text):
-    if q_text is None:
-        return ""
-    cleaned = str(q_text).strip()
-    patterns = [
-        r"\(\s*نموذج\s+متوطنة[^)]*\)",
-        r"\(\s*مجموعة\s+متوطنة[^)]*\)",
-        r"\(\s*نموذج\s+تقييم(?:\s*(?:رقم\vert{}#)?\s*\d+)?[^)]*\)",
-        r"\[\s*نموذج\s+تقييم(?:\s*(?:رقم\vert{}#)?\s*\d+)?[^]]*\]",
-        r"\(\s*سؤال\s*(?:رقم\vert{}#)?\s*\d+\s*\)",
-    ]
-    for pattern in patterns:
-        cleaned = re.sub(pattern, "",
+    document.body.style.filter = "blur
