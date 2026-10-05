@@ -1198,12 +1198,18 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 def header():
     header_html = f"""
     <style>
-        @keyframes electricGlow {{
+        @keyframes electricMultiGlow {{
             0% {{
                 box-shadow: 0 0 10px #10b981, 0 0 20px #10b981, 0 0 30px #059669;
             }}
-            50% {{
+            25% {{
                 box-shadow: 0 0 15px #facc15, 0 0 25px #eab308, 0 0 35px #ca8a04;
+            }}
+            50% {{
+                box-shadow: 0 0 15px #38bdf8, 0 0 25px #0ea5e9, 0 0 35px #0284c7;
+            }}
+            75% {{
+                box-shadow: 0 0 15px #fb923c, 0 0 25px #f97316, 0 0 35px #ea580c;
             }}
             100% {{
                 box-shadow: 0 0 10px #10b981, 0 0 20px #10b981, 0 0 30px #059669;
@@ -1221,7 +1227,7 @@ def header():
             font-family: 'Cairo', sans-serif; 
             box-sizing: border-box; 
             border: 2px solid #ffffff;
-            animation: electricGlow 3s infinite ease-in-out;
+            animation: electricMultiGlow 4s infinite ease-in-out;
         }}
     </style>
     <div class="electric-box">
