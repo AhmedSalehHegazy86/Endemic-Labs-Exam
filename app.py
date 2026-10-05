@@ -903,7 +903,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -940,7 +940,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -976,7 +976,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1040,7 +1040,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1070,7 +1070,7 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    m_top = str(print_sett.get("margin_top", "6mm") or "6mm")
+    m_top = "8mm" # تثبيت الهامش العلوي ليكون متطابقاً ومنضبطاً تماماً مثل الهامش السفلي
     m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
     m_right = str(print_sett.get("margin_right", "3mm") or "3mm")
     m_left = str(print_sett.get("margin_left", "3mm") or "3mm")
@@ -1081,7 +1081,7 @@ def render_print_button_only(html_content, label_prefix=""):
             return v
         return fallback
 
-    m_top = _safe_margin(m_top, "6mm")
+    m_top = _safe_margin(m_top, "8mm")
     m_bot = _safe_margin(m_bot, "8mm")
     m_right = _safe_margin(m_right, "3mm")
     m_left = _safe_margin(m_left, "3mm")
@@ -1144,16 +1144,6 @@ def render_print_button_only(html_content, label_prefix=""):
             padding: 1.5mm 2mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
         }}
-        .print-page-number-left {{
-            position: fixed !important;
-            bottom: 1mm !important;
-            left: 3mm !important;
-            z-index: 2147483647 !important;
-            font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 7.5pt !important;
-            font-weight: bold !important;
-            color: #065f46 !important;
-        }}
         body {{
             padding-top: 0px !important;
             padding-bottom: 0px !important;
@@ -1175,10 +1165,9 @@ def render_print_button_only(html_content, label_prefix=""):
     </div>
     """
     
-    # إضافة مسافة فاضية (سطر فارغ) بوضوح بين حقوق الملكية وبين خط الاعتمادات
+    # تمت إزالة عبارة "صفحة التدقيق المعتمدة" من الهامش بالكامل بناءً على طلبك
     repeated_print_markup = f"""
     {repeated_header_markup}
-    <div class="print-page-number-left">صفحة التدقيق المعتمدة</div>
     <div class="print-repeat-footer-container">
         <div style="text-align: center; font-size: 7pt; font-weight: bold; margin-bottom: 4px; color: #065f46;">{ownership_text}</div>
         <div style="height: 4px; line-height: 4px; font-size: 1px; clear: both;">&nbsp;</div>
