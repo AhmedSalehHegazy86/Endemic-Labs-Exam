@@ -1195,34 +1195,37 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     # ========================================================
-    # طبقة طباعة موحدة: تجعل الهوامش والترويسة والتذييل وحقوق
-    # الملكية ثابتة ومتكررة في كل صفحة عند الطباعة، بما فيها الشهادات.
+    # طبقة الطباعة الموحدة
+    # - لا يوجد هامش علوي في صفحة الطباعة.
+    # - الترويسة فقط مثبتة في بداية كل ورقة.
+    # - الاعتمادات تظهر كسطر واحد أسفل كل ورقة.
+    # - حقوق الملكية أسفل الاعتمادات بحجم صغير.
     # ========================================================
     print_sett = get_print_settings()
-    m_top = str(print_sett.get("margin_top", "8mm") or "8mm")
-    m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
+    m_bot = str(print_sett.get("margin_bottom", "4mm") or "4mm")
     m_right = str(print_sett.get("margin_right", "5mm") or "5mm")
     m_left = str(print_sett.get("margin_left", "5mm") or "5mm")
     header_txt = print_sett.get("header_text", "") or ""
 
-    # تنظيف قيم الهوامش للسماح فقط بوحدات CSS الآمنة الشائعة.
     def _safe_margin(v, fallback):
         v = str(v).strip()
         if re.fullmatch(r"\d+(?:\.\d+)?(?:mm|cm|in|px)", v):
             return v
         return fallback
 
-    m_top = _safe_margin(m_top, "8mm")
-    m_bot = _safe_margin(m_bot, "8mm")
+    # الهامش العلوي = صفر نهائيًا، والسفلي صغير جدًا.
+    m_bot = _safe_margin(m_bot, "4mm")
     m_right = _safe_margin(m_right, "5mm")
     m_left = _safe_margin(m_left, "5mm")
 
+    approvals_text = "مسؤول التدريب   |   رئيس وحدة الأمراض المتوطنة   |   مدير وحدة المتوطنة   |   يعتمد مدير عام الإدارة"
     ownership_text = "جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy"
+
     repeated_print_css = f"""
     <style>
       @media print {{
         @page {{
-          margin: {m_top} {m_right} {m_bot} {m_left} !important;
+          margin: 0 {m_right} {m_bot} {m_left} !important;
         }}
         html, body {{
           margin: 0 !important;
@@ -1230,61 +1233,89 @@ def render_print_button_only(html_content, label_prefix=""):
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }}
+
+        /* الترويسة فقط في بداية كل ورقة، بدون هامش علوي إضافي */
         .print-repeat-header {{
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           right: 0 !important;
+          height: 8mm !important;
           min-height: 8mm !important;
           z-index: 2147483646 !important;
           background: #ffffff !important;
           color: #065f46 !important;
           border-bottom: 1px solid #059669 !important;
           box-sizing: border-box !important;
-          padding: 1.5mm 3mm !important;
+          padding: 1mm 3mm !important;
           font-family: 'Cairo', Tahoma, sans-serif !important;
           font-size: 7.5pt !important;
           font-weight: 700 !important;
-          line-height: 1.15 !important;
+          line-height: 1.1 !important;
           text-align: right !important;
         }}
-        .print-repeat-footer {{
+
+        /* سطر الاعتمادات: ثابت أسفل كل ورقة وفي سطر واحد */
+        .print-repeat-approvals {{
+          position: fixed !important;
+          bottom: 3.5mm !important;
+          left: 0 !important;
+          right: 0 !important;
+          height: 4.5mm !important;
+          z-index: 2147483646 !important;
+          background: #ffffff !important;
+          color: #065f46 !important;
+          border-top: 1px dashed #059669 !important;
+          box-sizing: border-box !important;
+          padding: 0.7mm 2mm !important;
+          font-family: 'Cairo', Tahoma, sans-serif !important;
+          font-size: 6.8pt !important;
+          font-weight: 700 !important;
+          line-height: 1.05 !important;
+          text-align: center !important;
+          white-space: nowrap !important;
+        }}
+
+        /* حقوق الملكية أسفل سطر الاعتمادات مباشرة */
+        .print-repeat-ownership {{
           position: fixed !important;
           bottom: 0 !important;
           left: 0 !important;
           right: 0 !important;
-          min-height: 6mm !important;
+          height: 3mm !important;
           z-index: 2147483646 !important;
           background: #ffffff !important;
           color: #065f46 !important;
-          border-top: 1px solid #059669 !important;
           box-sizing: border-box !important;
-          padding: 1.2mm 3mm !important;
           font-family: 'Cairo', Tahoma, sans-serif !important;
-          font-size: 6.8pt !important;
-          font-weight: 700 !important;
-          line-height: 1.1 !important;
+          font-size: 5.2pt !important;
+          font-weight: 600 !important;
+          line-height: 1 !important;
           text-align: center !important;
+          white-space: nowrap !important;
         }}
-        /* حجز مساحة فعلية للمحتوى حتى لا يتداخل مع الترويسة والتذييل */
+
+        /* لا يوجد margin-top؛ فقط مساحة داخلية تمنع دخول النص تحت الترويسة */
         body {{
-          padding-top: 10mm !important;
-          padding-bottom: 8mm !important;
+          padding-top: 9mm !important;
+          padding-bottom: 10mm !important;
           box-sizing: border-box !important;
         }}
       }}
     </style>
     """
+
     repeated_print_markup = f"""
     <div class="print-repeat-header">{header_txt}</div>
-    <div class="print-repeat-footer">{ownership_text}</div>
+    <div class="print-repeat-approvals">{approvals_text}</div>
+    <div class="print-repeat-ownership">{ownership_text}</div>
     """
 
-    # نضع CSS داخل head والعناصر الثابتة داخل body حتى تتوافق الطباعة مع Chrome/Edge.
     if "</head>" in html_content:
         html_content = html_content.replace("</head>", repeated_print_css + "</head>", 1)
     else:
         html_content = repeated_print_css + html_content
+
     if "<body" in html_content and "</body>" in html_content:
         body_pos = html_content.find(">", html_content.find("<body")) + 1
         html_content = html_content[:body_pos] + repeated_print_markup + html_content[body_pos:]
@@ -1299,7 +1330,7 @@ def render_print_button_only(html_content, label_prefix=""):
     with col_opt2:
         copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
         num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة (الحد الأقصى للاحتواء):", min_value=1, max_value=50, value=1, key=copies_key)
-        
+
     orient_css = "landscape" if "أفقي" in chosen_orient else "portrait"
 
     js_code = """
@@ -1312,14 +1343,11 @@ def render_print_button_only(html_content, label_prefix=""):
             function printDoc() {
                 var win = window.open('', '_blank');
                 var targetPages = """ + str(num_pages_to_print) + """;
-                
                 var styledHtml = """ + encoded_html + """;
-                
                 var finalPagesHtml = '';
                 for (var i = 0; i < targetPages; i++) {
                     finalPagesHtml += styledHtml;
                 }
-                
                 win.document.write(finalPagesHtml);
                 win.document.close();
                 win.focus();
