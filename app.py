@@ -244,4 +244,60 @@ def clean_question_text(q_text):
 
 def normalize_text(x):
     x = "" if x is None else str(x)
-    return
+    return re.sub(r"\s+", " ", x.strip()).lower()
+
+def reindex_hierarchical_facilities():
+    with db() as c:
+        rows = c.execute("SELECT governorate, authority, center, administration, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM hierarchical_facilities")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
+        for r in rows:
+            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)", (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
+
+def reindex_trainees():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM trainees")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
+        id_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
+            id_mapping[old_id] = new_id
+        for old_id, new_id in id_mapping.items():
+            c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
+def reindex_questions():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at FROM questions ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM questions")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='questions'")
+        q_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
+            q_mapping[old_id] = new_id
+        for old_id, new_id in q_mapping.items():
+            c.execute("UPDATE exam_questions SET question_id=? WHERE question_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
+def reindex_templates():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at FROM exam_templates ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM exam_templates")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='exam_templates'")
+        t_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
+            t_mapping[old_id] = new_id
+        for old_id, new_id in t_mapping.items():
+            c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
+            c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
+def
