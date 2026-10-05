@@ -13,7 +13,7 @@ from PIL import Image
 # 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
 # ============================================================
 st.set_page_config(
-    page_title="نظام تقييم و اختبار العاملين بالامراض المتوطنة 🪱🔬🐌💊 - System V1.0",
+    page_title="نظام تقييم واختبار العاملين بالأمراض المتوطنة 🪱🔬🐌💊 - System V1.0",
     page_icon="🪱",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -68,7 +68,7 @@ def today_date():
     return now_cairo().date().isoformat()
 
 # ============================================================
-# 3) حقن التنسيقات (CSS) وتدرج الألوان (8 ألوان متدرجة للظل)
+# 3) حقن التنسيقات (CSS) وتدرج الألوان
 # ============================================================
 st.markdown("""
 <style>
@@ -236,8 +236,8 @@ def esc(x):
 def clean_question_text(q_text):
     if not q_text:
         return ""
-    cleaned = re.sub(r"\(نموذج معملي.*?\)", "", q_text)
-    cleaned = re.sub(r"\(مجموعة معملية.*?\)", "", cleaned)
+    cleaned = re.sub(r"\(نموذج متوطنة.*?\)", "", q_text)
+    cleaned = re.sub(r"\(مجموعة متوطنة.*?\)", "", cleaned)
     return normalize_text(cleaned)
 
 def normalize_text(x):
@@ -337,15 +337,15 @@ def db():
 ALL_MENU_MODULES = {
     "📊 لوحة التحكم": "لوحة المؤشرات العامة",
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
-    "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف",
-    "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
+    "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف بالأمراض المتوطنة",
+    "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل للأمراض المتوطنة",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
-    "📊 التقارير": "التقارير وتحليل الأداء",
-    "📈 خطط العمل": "خطط العمل التدريبية",
+    "📊 التقارير": "التقارير وتحليل الأداء للأمراض المتوطنة",
+    "📈 خطط العمل": "خطط العمل التدريبية للأمراض المتوطنة",
     "💾 النسخ الاحتياطي": "النسخ الاحتياطي لقاعدة البيانات",
     "👥 إدارة المستخدمين": "إدارة المستخدمين والصلاحيات",
     "🧾 سجل التدقيق": "سجل التدقيق والأحداث"
@@ -392,7 +392,7 @@ def init_db():
             facility TEXT NOT NULL,
             name TEXT NOT NULL,
             phone TEXT,
-            profession TEXT NOT NULL DEFAULT 'أخصائي تحاليل طبية',
+            profession TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة',
             status TEXT NOT NULL DEFAULT 'pending',
             assigned_template_id INTEGER,
             created_at TEXT NOT NULL,
@@ -466,7 +466,7 @@ def init_db():
             bg_base64 TEXT NOT NULL DEFAULT '',
             frame_base64 TEXT NOT NULL DEFAULT '',
             default_cert_title TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة',
-            default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد',
+            default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد',
             trainee_prefix TEXT NOT NULL DEFAULT '',
             trainee_title TEXT NOT NULL DEFAULT '',
             trainee_profession TEXT NOT NULL DEFAULT '',
@@ -484,7 +484,7 @@ def init_db():
 
         for col_table, col_name, col_type in [
             ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
-            ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي تحاليل طبية'"),
+            ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة'"),
             ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
             ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
             ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
@@ -498,7 +498,7 @@ def init_db():
             ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "frame_base64", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة اجتياز اختبار معتمدة'"),
-            ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء المعامل والإشراف الفني المعتمد'"),
+            ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد'"),
             ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "trainee_title", "TEXT NOT NULL DEFAULT ''"),
             ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''"),
@@ -513,11 +513,11 @@ def init_db():
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
             default_professions = [
-                "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
-                "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+                "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", 
+                "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -525,7 +525,7 @@ def init_db():
             default_end = (now_cairo() + timedelta(days=365)).isoformat(timespec="seconds")
             c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) 
                          VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                      ("النموذج التقييمي العام للاستجابة والتدريب", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
+                      ("النموذج التقييمي العام للاستجابة والتدريب للأمراض المتوطنة", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
 
 init_db()
 
@@ -537,7 +537,7 @@ def get_print_settings():
             try:
                 res["professions_list"] = json.loads(res.get("professions_list_json", "[]"))
             except:
-                res["professions_list"] = ["أخصائي تحاليل طبية", "طبيب بيطري", "فني معمل"]
+                res["professions_list"] = ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "فني صحي متوطنة"]
             if "line_spacing" not in res or res["line_spacing"] is None:
                 res["line_spacing"] = 1.25
             return res
@@ -551,11 +551,11 @@ def get_print_settings():
             "bg_base64": "",
             "frame_base64": "",
             "default_cert_title": "شهادة اجتياز اختبار معتمدة",
-            "default_cert_notes": "تقرير أداء المعامل والإشراف الفني المعتمد",
+            "default_cert_notes": "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد",
             "trainee_prefix": "",
             "trainee_title": "دكتور",
-            "trainee_profession": "أخصائي تحاليل طبية",
-            "professions_list": ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"]
+            "trainee_profession": "أخصائي الأمراض المتوطنة",
+            "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
         }
 
 def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list):
@@ -760,7 +760,7 @@ def generate_qr_code_base64(data_text):
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     sett = get_print_settings()
     title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة اجتياز اختبار معتمدة")
-    notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء المعامل والإشراف الفني المعتمد")
+    notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد")
     prefix_val = sett.get("trainee_prefix", "").strip()
     title_role_val = sett.get("trainee_title", "").strip()
     line_sp = sett.get("line_spacing", 1.25)
@@ -788,7 +788,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
     prefix_str = f"{prefix_val} " if prefix_val else ""
     title_role_str = f"{title_role_val} " if title_role_val else ""
-    prof_field_val = r.get("trainee_profession", "") or sett.get("trainee_profession", "أخصائي تحاليل طبية")
+    prof_field_val = r.get("trainee_profession", "") or sett.get("trainee_profession", "أخصائي الأمراض المتوطنة")
     profession_str = f" - {prof_field_val}" if prof_field_val else ""
     
     full_line_text = f"{prefix_str}{title_role_str}{r['trainee_name']}{profession_str}"
@@ -858,7 +858,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 6px auto;">
                 {line_html}
                 <p style="margin-top: 4px;">
-                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(prof_field_val)}</b><br>
+                    جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الوظيفة: <b>{esc(prof_field_val)}</b><br>
                     الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
                     النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; 
                     الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -868,8 +868,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             </div>
             <div class="footer-bottom">
                 <div>مسؤول التدريب</div>
-                <div>رئيس قسم المعامل</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>يعتمد مدير عام الإدارة</div>
                 <div style="background: transparent; padding: 0px; text-align: center;">
                     <img src="{qr_base64}" style="width: 38px; height: 38px; display: block; margin: auto;" alt="QR Code">
@@ -978,15 +978,15 @@ def generate_trainee_exam_sheet_html(sid):
             </div>
             <h2>نموذج إجابة واختبار المتدرب: {esc(s['trainee_name'])}</h2>
             <div class="tpl-info">
-                جهة العمل: {esc(s['facility'])} | المهنة: {esc(s.get('trainee_profession', ''))} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%)
+                جهة العمل: {esc(s['facility'])} | الوظيفة: {esc(s.get('trainee_profession', ''))} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%)
             </div>
             <div class="questions-grid">
                 {q_html_content}
             </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس قسم المعامل</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1028,8 +1028,8 @@ def generate_general_report_html(title, content_html, target_pages=1):
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس قسم المعامل</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1067,8 +1067,8 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
             {content_html}
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس قسم المعامل</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1148,8 +1148,8 @@ def generate_exam_template_print_html(template_id):
             </div>
             <div class="footer">
                 <div>مسؤول التدريب</div>
-                <div>رئيس قسم المعامل</div>
-                <div>مدير المتوطنة</div>
+                <div>رئيس وحدة الأمراض المتوطنة</div>
+                <div>مدير وحدة المتوطنة</div>
                 <div>مدير عام الإدارة</div>
             </div>
         </div>
@@ -1258,7 +1258,7 @@ def header():
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 2px;">
             <span style="font-size: 24px;">🪱🔬🐌💊</span>
         </div>
-        <div style="font-size: 19px; color: #ffffff; font-weight: 900; line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبار العاملين بالامراض المتوطنة</div>
+        <div style="font-size: 19px; color: #ffffff; font-weight: 900; line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">مرحباً بك في بوابة تقييم واختبار العاملين بالأمراض المتوطنة</div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
             <span style="font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.2); color: #ffffff; padding: 2px 10px; border-radius: 12px;">System V1.0</span>
             <span id="live-clock-display" style="font-size: 13px; font-weight: bold; color: #e2e8f0;">جاري تحميل الوقت...</span>
@@ -1315,7 +1315,7 @@ def verification_portal_view():
             <h3 style="color: #065f46; margin-top: 0;">✅ نتيجة التحقق وصحة البيانات الواردة:</h3>
             <p style="font-size: 11pt; color: #111827; line-height: 1.6;">
                 👤 <b>اسم المتدرب:</b> {esc(r['trainee_name'])}<br>
-                🩺 <b>المهنة / الوظيفة:</b> {esc(r.get('trainee_profession', ''))}<br>
+                🩺 <b>الوظيفة / التخصص:</b> {esc(r.get('trainee_profession', ''))}<br>
                 🏥 <b>جهة العمل والمنشأة:</b> {esc(r['facility'])}<br>
                 📋 <b>اسم الاختبار:</b> {esc(r['template_name'] or 'اختبار معتمد')} ({esc(r['exam_type'] or 'قبل التدريب')})<br>
                 📊 <b>الدرجة والنسبة المئوية:</b> {score_val} / {max_score_val} ({percent_val:.1f}%)<br>
@@ -1345,10 +1345,10 @@ def verification_portal_view():
         <body>
             <div class="doc-wrapper">
                 <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
-                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم و اختبار العاملين بالامراض المتوطنة</div>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم واختبار العاملين بالأمراض المتوطنة</div>
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
-                    <tr><th>المهنة / الوظيفة</th><td>{esc(r.get('trainee_profession', ''))}</td></tr>
+                    <tr><th>الوظيفة / التخصص</th><td>{esc(r.get('trainee_profession', ''))}</td></tr>
                     <tr><th>جهة العمل</th><td>{esc(r['facility'])}</td></tr>
                     <tr><th>اسم الاختبار</th><td>{esc(r['template_name'] or 'اختبار معتمد')} ({esc(r['exam_type'] or 'قبل التدريب')})</td></tr>
                     <tr><th>النتيجة والنسبة</th><td>{score_val} / {max_score_val} ({percent_val:.1f}%)</td></tr>
@@ -1358,7 +1358,7 @@ def verification_portal_view():
                 </table>
                 <div class="footer">
                     <div>مسؤول التدريب</div>
-                    <div>رئيس قسم المعامل</div>
+                    <div>رئيس وحدة الأمراض المتوطنة</div>
                     <div>مدير عام الإدارة</div>
                 </div>
             </div>
@@ -1386,7 +1386,7 @@ def login_portal():
 
     hier_data = get_hierarchical_data(include_hidden=False)
     print_st = get_print_settings()
-    professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"])
+    professions_list = print_st.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"])
     
     with st.form("trainee_request_hierarchical"):
         st.markdown("##### 📍 الجهة الإدارية التابع لها:")
@@ -1410,7 +1410,7 @@ def login_portal():
             sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + filtered_admins, index=0)
             
             filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center) and (sel_admin == "-- اختر الإدارة --" or item["administration"] == sel_admin))))
-            sel_fac = st.selectbox("المنشأة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
+            sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
             
             if sel_gov != "-- اختر المحافظة --" and sel_auth != "-- اختر الهيئة --" and sel_center != "-- اختر المركز --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --":
                 facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_gov} - {sel_auth} - {sel_center} - {sel_admin} - {sel_fac}"
@@ -1419,7 +1419,7 @@ def login_portal():
 
         name = st.text_input("الاسم الرباعي:", value="")
         phone = st.text_input("رقم الهاتف:", value="")
-        selected_profession = st.selectbox("المهنة / الوظيفة:", professions_list)
+        selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
         
         with db() as c: all_tpls_opts = {f"{row['name']} ({row['exam_type']})": row["id"] for row in c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()}
         tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
@@ -1505,23 +1505,108 @@ def admin_dashboard():
     st.markdown("---")
 
     if selected_menu == "📊 لوحة التحكم":
-        st.subheader("📊 لوحة المؤشرات العامة")
+        st.subheader("📊 لوحة المؤشرات العامة والتحليلات الشاملة لأداء الأمراض المتوطنة")
+        
         with db() as c:
             cnts = c.execute("""SELECT
                 (SELECT COUNT(*) FROM trainees WHERE hidden=0) tr,
                 (SELECT COUNT(*) FROM trainees WHERE status='pending' AND hidden=0) pend,
-                (SELECT COUNT(*) FROM questions) qs,
+                (SELECT COUNT(*) FROM trainees WHERE status='approved' AND hidden=0) appr,
+                (SELECT COUNT(*) FROM trainees WHERE status='completed' AND hidden=0) comp,
+                (SELECT COUNT(*) FROM questions WHERE active=1) qs,
+                (SELECT COUNT(*) FROM exam_templates WHERE active=1) tpls,
                 (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) ex,
-                (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) avgp
+                (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) avgp,
+                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND s.passed=1 AND t.hidden=0) passed_cnt,
+                (SELECT COUNT(*) FROM hierarchical_facilities WHERE hidden=0) facs_cnt
             """).fetchone()
+
+        total_tr = cnts["tr"] or 1
+        passed_cnt = cnts["passed_cnt"] or 0
+        pass_ratio = (passed_cnt / total_tr) * 100
+
+        st.markdown("##### 🚀 المؤشرات الرئيسية (KPIs):")
         cols = st.columns(5)
-        for box, l, v in zip(cols, ["إجمالي المتدربين", "الطلبات المعلقة", "بنك الأسئلة", "الاختبارات المقدمة", "متوسط النتائج"],
-                             [cnts["tr"], cnts["pend"], cnts["qs"], cnts["ex"], f"{cnts['avgp']:.1f}%"]):
+        metrics_data = [
+            ("إجمالي المتدربين", cnts["tr"]),
+            ("الطلبات المعلقة", cnts["pend"]),
+            ("المتدربين المعتمدين", cnts["appr"]),
+            ("الاختبارات المكتملة", cnts["comp"]),
+            ("بنك الأسئلة الشامل", cnts["qs"])
+        ]
+        for box, (l, v) in zip(cols, metrics_data):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
 
+        st.markdown("<br>", unsafe_allow_html=True)
+        cols_sub = st.columns(4)
+        sub_metrics = [
+            ("النماذج المتاحة", cnts["tpls"]),
+            ("الوحدات الصحية", cnts["facs_cnt"]),
+            ("متوسط النسبة العام", f"{cnts['avgp']:.1f}%"),
+            ("نسبة النجاح العامة", f"{pass_ratio:.1f}%")
+        ]
+        for box, (l, v) in zip(cols_sub, sub_metrics):
+            box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("### 📈 تحليلات إضافية وتفصيلية:")
+        
+        tab_db_1, tab_db_2, tab_db_3 = st.tabs(["👥 تحليل التخصصات والوظائف", "🏥 توزيع وحدات الأمراض المتوطنة", "📚 تفاصيل بنك الأسئلة والصعوبة"])
+        
+        with tab_db_1:
+            with db() as c:
+                df_prof_analysis = pd.read_sql_query("""
+                    SELECT profession AS 'الوظيفة / التخصص', 
+                           COUNT(id) AS 'إجمالي العاملين',
+                           SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار',
+                           SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS 'قيد الانتظار'
+                    FROM trainees 
+                    WHERE hidden=0 
+                    GROUP BY profession 
+                    ORDER BY COUNT(id) DESC
+                """, c)
+            if df_prof_analysis.empty:
+                st.info("لا توجد بيانات متدربين مسجلة لتحليلها.")
+            else:
+                st.dataframe(df_prof_analysis, use_container_width=True, hide_index=True)
+
+        with tab_db_2:
+            with db() as c:
+                df_fac_analysis = pd.read_sql_query("""
+                    SELECT t.facility AS 'وحدة الأمراض المتوطنة / المنشأة', 
+                           COUNT(t.id) AS 'عدد العاملين',
+                           SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'عدد المجتازين',
+                           COALESCE(AVG(s.percent), 0) AS 'متوسط نسبة النجاح %'
+                    FROM trainees t 
+                    LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    WHERE t.hidden=0 
+                    GROUP BY t.facility 
+                    ORDER BY COUNT(t.id) DESC
+                """, c)
+            if df_fac_analysis.empty:
+                st.info("لا توجد بيانات منشآت مسجلة.")
+            else:
+                st.dataframe(df_fac_analysis, use_container_width=True, hide_index=True)
+
+        with tab_db_3:
+            with db() as c:
+                df_q_analysis = pd.read_sql_query("""
+                    SELECT difficulty AS 'مستوى الصعوبة', 
+                           category AS 'المجال / القسم',
+                           COUNT(id) AS 'عدد الأسئلة'
+                    FROM questions 
+                    WHERE active=1 
+                    GROUP BY difficulty, category 
+                    ORDER BY COUNT(id) DESC
+                """, c)
+            if df_q_analysis.empty:
+                st.info("بنك الأسئلة فارغ حالياً.")
+            else:
+                st.dataframe(df_q_analysis, use_container_width=True, hide_index=True)
+
     elif selected_menu == "👥 إدارة المهن والوظائف":
-        st.subheader("👥 إدارة المهن والوظائف وتقسيم العاملين (مع إمكانية الحذف)")
-        st.info("💡 يمكنك من هنا إضافة مهنة جديدة أو حذف مهنة موجودة، واستعراض توزيع العاملين حسب وظائفهم.")
+        st.subheader("👥 إدارة الوظائف والتخصصات بالأمراض المتوطنة (مع إمكانية الحذف)")
+        st.info("💡 يمكنك من هنا إضافة وظيفة أو تخصص جديد أو حذف تخصص موجود، واستعراض توزيع العاملين حسب وظائفهم.")
 
         curr_p_set = get_print_settings()
         current_prof_list = curr_p_set.get("professions_list", [])
@@ -1529,9 +1614,9 @@ def admin_dashboard():
         col_add_prof, col_list_prof = st.columns(2)
         with col_add_prof:
             with st.form("add_new_profession_form"):
-                st.markdown("#### ➕ إضافة مهنة أو وظيفة جديدة:")
-                new_prof_input = st.text_input("اسم المهنة أو الوظيفة:", value="")
-                if st.form_submit_button("💾 حفظ وإضافة المهنة", use_container_width=True):
+                st.markdown("#### ➕ إضافة وظيفة أو تخصص جديد:")
+                new_prof_input = st.text_input("اسم الوظيفة أو التخصص:", value="")
+                if st.form_submit_button("💾 حفظ وإضافة الوظيفة", use_container_width=True):
                     clean_p = new_prof_input.strip()
                     if clean_p:
                         if clean_p not in current_prof_list:
@@ -1545,19 +1630,19 @@ def admin_dashboard():
                                 curr_p_set["trainee_prefix"], curr_p_set["trainee_title"], 
                                 curr_p_set["trainee_profession"], current_prof_list
                             )
-                            st.success(f"✅ تمت إضافة المهنة ({clean_p}) بنجاح للقائمة المنسدلة!")
+                            st.success(f"✅ تمت إضافة الوظيفة ({clean_p}) بنجاح للقائمة المنسدلة!")
                             st.rerun()
                         else:
-                            st.warning("⚠ هذه المهنة موجودة مسبقاً في القائمة.")
+                            st.warning("⚠ هذه الوظيفة موجودة مسبقاً في القائمة.")
                     else:
-                        st.warning("الرجاء إدخال اسم المهنة.")
+                        st.warning("الرجاء إدخال اسم الوظيفة.")
 
         with col_list_prof:
             with st.form("delete_profession_form"):
-                st.markdown("#### 🗑 حذف مهنة من القائمة:")
-                sel_del_prof = st.selectbox("اختر المهنة للحذف:", ["-- اختر المهنة --"] + current_prof_list)
-                if st.form_submit_button("حذف المهنة المحددة", use_container_width=True):
-                    if sel_del_prof != "-- اختر المهنة --":
+                st.markdown("#### 🗑 حذف وظيفة من القائمة:")
+                sel_del_prof = st.selectbox("اختر الوظيفة للحذف:", ["-- اختر الوظيفة --"] + current_prof_list)
+                if st.form_submit_button("حذف الوظيفة المحددة", use_container_width=True):
+                    if sel_del_prof != "-- اختر الوظيفة --":
                         if sel_del_prof in current_prof_list:
                             current_prof_list.remove(sel_del_prof)
                             save_print_settings(
@@ -1569,20 +1654,20 @@ def admin_dashboard():
                                 curr_p_set["trainee_prefix"], curr_p_set["trainee_title"], 
                                 curr_p_set["trainee_profession"], current_prof_list
                             )
-                            st.success(f"✅ تم حذف المهنة ({sel_del_prof}) بنجاح!")
+                            st.success(f"✅ تم حذف الوظيفة ({sel_del_prof}) بنجاح!")
                             st.rerun()
                     else:
-                        st.warning("الرجاء اختيار مهنة صحيحة للحذف.")
+                        st.warning("الرجاء اختيار وظيفة صحيحة للحذف.")
 
-            st.markdown("#### 📋 القائمة الحالية للمهن المتاحة:")
+            st.markdown("#### 📋 القائمة الحالية للوظائف المتاحة:")
             for idx, p_name in enumerate(current_prof_list, start=1):
                 st.write(f"{idx}. {p_name}")
 
         st.markdown("---")
-        st.markdown("#### 📊 تقسيم وإحصائيات العاملين والممتحنين حسب المهن والوظائف:")
+        st.markdown("#### 📊 تقسيم وإحصائيات العاملين والممتحنين حسب التخصصات:")
         with db() as c:
             df_prof_stats = pd.read_sql_query("""
-                SELECT profession AS 'المهنة / الوظيفة', 
+                SELECT profession AS 'الوظيفة / التخصص', 
                        COUNT(id) AS 'إجمالي العاملين',
                        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار'
                 FROM trainees 
@@ -1594,12 +1679,13 @@ def admin_dashboard():
         if df_prof_stats.empty:
             st.info("لا توجد بيانات متدربين مسجلة حتى الآن.")
         else:
+            df_prof_stats.columns = ["الوظيفة / التخصص", "إجمالي العاملين", "المكتملين للاختبار"]
             st.dataframe(df_prof_stats, use_container_width=True, hide_index=True)
             
             out_prof_bytes = io.BytesIO()
             with pd.ExcelWriter(out_prof_bytes, engine='openpyxl') as writer:
                 df_prof_stats.to_excel(writer, index=False, sheet_name='ProfessionsBreakdown')
-            st.download_button("📥 تحميل تقرير وتوزيع المهن (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("📥 تحميل تقرير وتوزيع التخصصات (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
         st.subheader("🖨 ضبط اعدادات الطباعة و الهوامش للتقارير العامة (مع إمكانية رفع الصور والشعارات)")
@@ -1656,7 +1742,7 @@ def admin_dashboard():
         
         cert_sub_tab1, cert_sub_tab2 = st.tabs([
             "⚙ إعدادات وتصميم الشهادة", 
-            "🖨 طباعة الشهادات بناءً على التقارير (أفراد / جماعات / منشآت)"
+            "🖨 طباعة الشهادات بناءً على التقارير (أفراد / جماعات / وحدات)"
         ])
         
         with cert_sub_tab1:
@@ -1664,21 +1750,21 @@ def admin_dashboard():
             
             current_set = get_print_settings()
             professions_options_list = current_set.get("professions_list", [
-                "أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", 
-                "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"
+                "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", 
+                "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ])
 
             with st.form("dedicated_certificate_settings_form"):
-                st.markdown("#### 🏷️ إعدادات الألقاب والمهنة في الشهادة:")
+                st.markdown("#### 🏷️ إعدادات الألقاب والوظيفة في الشهادة:")
                 col_p1, col_p2, col_p3 = st.columns(3)
                 with col_p1:
                     trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
                 with col_p2:
                     trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
                 with col_p3:
-                    curr_prof = current_set.get("trainee_profession", "أخصائي تحاليل طبية")
+                    curr_prof = current_set.get("trainee_profession", "أخصائي الأمراض المتوطنة")
                     prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
-                    trainee_profession_val = st.selectbox("3. اختيار المهنة الافتراضية للشهادات:", professions_options_list, index=prof_idx)
+                    trainee_profession_val = st.selectbox("3. اختيار الوظيفة الافتراضية للشهادات:", professions_options_list, index=prof_idx)
 
                 st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
                 line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
@@ -1735,8 +1821,8 @@ def admin_dashboard():
                     st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!"); st.rerun()
 
         with cert_sub_tab2:
-            st.markdown("#### 🖨 طباعة شهادات بناءً على التقارير (أفراد / جماعات / منشآت)")
-            st.info("💡 يمكنك من هنا طباعة الشهادات مع إمكانية الفلترة الدقيقة حسب (متدرب فردي)، أو (حسب المنشأة وجهة العمل)، أو (طباعة جماعية لكل النتائج المعتمدة).")
+            st.markdown("#### 🖨 طباعة شهادات بناءً على التقارير (أفراد / جماعات / وحدات)")
+            st.info("💡 يمكنك من هنا طباعة الشهادات مع إمكانية الفلترة الدقيقة حسب (متدرب فردي)، أو (حسب وحدة الأمراض المتوطنة وجهة العمل)، أو (طباعة جماعية لكل النتائج المعتمدة).")
 
             with db() as c:
                 all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
@@ -1746,33 +1832,33 @@ def admin_dashboard():
             if not sessions_full_list:
                 st.info("لا توجد اختبارات مكتملة أو معتمدة للمتدربين الظاهرين حتى الآن.")
             else:
-                cert_print_type = st.radio("اختر نوع الطباعة للشهادات:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية حسب المنشأة / الجهة", "طباعة جماعية شاملة لكل الشهادات"], horizontal=True)
+                cert_print_type = st.radio("اختر نوع الطباعة للشهادات:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية حسب وحدة الأمراض المتوطنة / الجهة", "طباعة جماعية شاملة لكل الشهادات"], horizontal=True)
                 
                 curr_sett = get_print_settings()
 
                 if "فردية (لمتدرب محدد)" in cert_print_type:
-                    sess_choices = {f"متدرب: {s['trainee_name']} | المهنة: {s['trainee_profession']} | الجهة: {s['facility']} | الاختبار: {s['tpl_name']} ({s['exam_type']}) - النتيجة: {s['percent']}%": s['id'] for s in sessions_full_list}
+                    sess_choices = {f"متدرب: {s['trainee_name']} | الوظيفة: {s['trainee_profession']} | الجهة: {s['facility']} | الاختبار: {s['tpl_name']} ({s['exam_type']}) - النتيجة: {s['percent']}%": s['id'] for s in sessions_full_list}
                     sel_sess_lbl = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
                     chosen_sid_val = sess_choices[sel_sess_lbl]
                     
                     cert_html_ind = generate_customizable_certificate_html(chosen_sid_val, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
                     render_print_button_only(cert_html_ind, f"شهادة متدرب رقم {chosen_sid_val}")
 
-                elif "حسب المنشأة" in cert_print_type:
+                elif "حسب وحدة الأمراض المتوطنة" in cert_print_type:
                     if not all_facilities_list:
-                        st.info("لا توجد منشآت مسجلة.")
+                        st.info("لا توجد وحدات أو منشآت مسجلة.")
                     else:
-                        sel_fac_print = st.selectbox("اختر المنشأة / الجهة الصحية لطباعة شهادات العاملين بها:", all_facilities_list)
+                        sel_fac_print = st.selectbox("اختر الوحدة الصحية / الجهة لطباعة شهادات العاملين بها:", all_facilities_list)
                         fac_filtered_sessions = [s for s in sessions_full_list if s['facility'] == sel_fac_print]
                         
-                        st.write(f"📊 عدد الشهادات المتاحة لهذه المنشأة: **{len(fac_filtered_sessions)}** شهادة.")
+                        st.write(f"📊 عدد الشهادات المتاحة لهذه الوحدة: **{len(fac_filtered_sessions)}** شهادة.")
                         if fac_filtered_sessions:
                             combined_fac_html = ""
                             for s in fac_filtered_sessions:
                                 combined_fac_html += generate_customizable_certificate_html(s['id'], curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes")) + "<div style='page-break-after: always;'></div>"
-                            render_print_button_only(combined_fac_html, f"شهادات منشأة {sel_fac_print}")
+                            render_print_button_only(combined_fac_html, f"شهادات وحدة {sel_fac_print}")
                         else:
-                            st.warning("⚠ لا توجد شهادات معتمدة لهذه المنشأة.")
+                            st.warning("⚠ لا توجد شهادات معتمدة لهذه الوحدة.")
 
                 else:
                     st.markdown("##### 📚 طباعة وتصدير كافة الشهادات المعتمدة دفعة واحدة:")
@@ -1782,7 +1868,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅ إدارة ⬅️ منشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️ هيئة ⬅️ مركز ⬅ إدارة ⬅️ وحدة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
@@ -1795,7 +1881,7 @@ def admin_dashboard():
                 m_auth = st.text_input("الهيئة:", value="")
                 m_center = st.text_input("المركز:", value="")
                 m_admin = st.text_input("الإدارة:", value="")
-                m_fac = st.text_input("المنشأة:", value="")
+                m_fac = st.text_input("وحدة الأمراض المتوطنة / المنشأة:", value="")
                 
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
                     if m_fac.strip():
@@ -1805,7 +1891,7 @@ def admin_dashboard():
                         reindex_hierarchical_facilities()
                         st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!"); st.rerun()
                     else:
-                        st.warning("أدخل اسم المنشأة.")
+                        st.warning("أدخل اسم وحدة الأمراض المتوطنة أو المنشأة.")
 
         with tab_h2:
             up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
@@ -1820,7 +1906,7 @@ def admin_dashboard():
                                 auth = str(r.get("authority", r.get("الهيئة", "مديرية الشئون الصحية"))).strip()
                                 cent = str(r.get("center", r.get("المركز", "أولاد صقر"))).strip()
                                 adm = str(r.get("administration", r.get("الإدارة", "الإدارة الصحية"))).strip()
-                                fac = str(r.get("facility_name", r.get("المنشأة", "وحدة صحية"))).strip()
+                                fac = str(r.get("facility_name", r.get("وحدة الأمراض المتوطنة", r.get("المنشأة", "وحدة صحية")))).strip()
                                 if fac:
                                     c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
                                               (gov, auth, cent, adm, fac, now(), 0))
@@ -1835,7 +1921,7 @@ def admin_dashboard():
             hier_all_data = get_hierarchical_data(include_hidden=True)
             if hier_all_data:
                 df_hier_download = pd.DataFrame(hier_all_data)
-                df_hier_download.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                df_hier_download.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 output_hier = io.BytesIO()
                 with pd.ExcelWriter(output_hier, engine='openpyxl') as writer:
                     df_hier_download.to_excel(writer, index=False, sheet_name='HierarchicalFacilities')
@@ -1850,7 +1936,7 @@ def admin_dashboard():
             else:
                 facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
-                    selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
+                    selected_item_manage = st.selectbox("اختر وحدة الأمراض المتوطنة أو المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
                     
                     with db() as c:
@@ -1859,18 +1945,18 @@ def admin_dashboard():
                     
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                     with c_hide_btn:
-                        hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء المنشأة", use_container_width=True)
+                        hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء الوحدة", use_container_width=True)
                     with c_show_btn:
-                        show_fac_submit = st.form_submit_button("✅ إظهار المنشأة", use_container_width=True)
+                        show_fac_submit = st.form_submit_button("✅ إظهار الوحدة", use_container_width=True)
                     with c_del_btn:
                         single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
                     
                     if hide_fac_submit:
                         with db() as c: c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
-                        st.success("✅ تم إخفاء المنشأة من جميع التقارير بنجاح!"); st.rerun()
+                        st.success("✅ تم إخفاء وحدة الأمراض المتوطنة من جميع التقارير بنجاح!"); st.rerun()
                     if show_fac_submit:
                         with db() as c: c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
-                        st.success("✅ تم إظهار المنشأة في التقارير بنجاح!"); st.rerun()
+                        st.success("✅ تم إظهار وحدة الأمراض المتوطنة في التقارير بنجاح!"); st.rerun()
                     if single_del:
                         with db() as c: c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
                         reindex_hierarchical_facilities()
@@ -1878,20 +1964,20 @@ def admin_dashboard():
 
                 df_hier = pd.DataFrame(hier_rows_all)
                 df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁🗨" if x==1 else "ظاهر ✅")
-                df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
+        st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل للأمراض المتوطنة (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         
         categories_list_opts = [
             "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا",
             "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا",
-            "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوص المعملية",
-            "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة",
-            "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "أسئلة الصور والأشكال"
+            "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية",
+            "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة",
+            "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
         ]
 
         with sub_q_manage_tabs[0]:
@@ -1899,10 +1985,10 @@ def admin_dashboard():
             with sub_img_tabs[0]:
                 if st.session_state.add_success_msg: st.success(st.session_state.add_success_msg); st.session_state.add_success_msg = ""
                 with st.form(key=f"add_q_form_{st.session_state.form_key}"):
-                    selected_cat = st.selectbox("القسم:", categories_list_opts)
+                    selected_cat = st.selectbox("المجال / القسم:", categories_list_opts)
                     c_text = st.text_area("نص السؤال:", value="")
                     c_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"])
-                    uploaded_img = st.file_uploader("رفع صورة (اختياري):", type=["png", "jpg", "jpeg"])
+                    uploaded_img = st.file_uploader("رفع صورة مجهرية / توضيحية (اختياري):", type=["png", "jpg", "jpeg"])
                     opt1, opt2 = st.text_input("خيار 1:", value=""), st.text_input("خيار 2:", value="")
                     opt3, opt4 = st.text_input("خيار 3:", value=""), st.text_input("خيار 4:", value="")
                     correct_ans_text = st.text_input("الإجابة الصحيحة:", value="")
@@ -1931,7 +2017,7 @@ def admin_dashboard():
                         current_opts = json.loads(q_data["options_json"])
                         while len(current_opts) < 4: current_opts.append("")
                         with st.form(f"edit_q_{selected_q_id}"):
-                            e_cat = st.selectbox("القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
+                            e_cat = st.selectbox("المجال / القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
                             e_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
                             raw_q_db = q_data["question"]
                             actual_text_editable = raw_q_db.replace("IMAGE:", "").split("\n\n")[-1] if "IMAGE:" in raw_q_db else raw_q_db
@@ -1981,7 +2067,7 @@ def admin_dashboard():
                             with db() as c:
                                 for _, row in df_import.iterrows():
                                     diff = str(row.get("difficulty", row.get("الصعوبة", "متوسط"))).strip()
-                                    cat = str(row.get("category", row.get("القسم", "الفحوص المعملية"))).strip()
+                                    cat = str(row.get("category", row.get("المجال", "الفحوصات الطفيلية والتشخيصية"))).strip()
                                     q_text = str(row.get("question", row.get("السؤال", ""))).strip()
                                     
                                     raw_opts = row.get("options_json", row.get("الخيارات", '["نعم", "لا"]'))
@@ -2074,7 +2160,7 @@ def admin_dashboard():
             else:
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
-                        st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **المهنة:** {r.get('profession','')} | **الجهة:** {r['facility']}")
+                        st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **الوظيفة:** {r.get('profession','')} | **الجهة:** {r['facility']}")
                         with st.form(f"approve_form_{r['id']}"):
                             chosen_tpl = st.selectbox("نموذج الاختبار المخصص:", tpl_names_list, key=f"app_tpl_{r['id']}")
                             c1, c2 = st.columns(2)
@@ -2144,7 +2230,7 @@ def admin_dashboard():
             if not completed_sessions:
                 st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين الظاهرين حتى الآن.")
             else:
-                exam_records_map = {f"المتدرب: {r['trainee_name']} | المهنة: {r['trainee_profession']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type'] or 'قبل التدريب'}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
+                exam_records_map = {f"المتدرب: {r['trainee_name']} | الوظيفة: {r['trainee_profession']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type'] or 'قبل التدريب'}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
                 sel_exam_rec_label = st.selectbox("اختر الممتحن وتاريخ الامتحان:", list(exam_records_map.keys()))
                 chosen_exam_session_id = exam_records_map[sel_exam_rec_label]
 
@@ -2190,9 +2276,9 @@ def admin_dashboard():
             categories_pool_opts = [
                 "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا",
                 "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا",
-                "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوص المعملية",
-                "فحص البول", "فحص البراز", "طرق فحص البراز", "الترسيب", "التعويم", "اللطخة المباشرة",
-                "التصفية الغشائية", "Kato-Katz", "تحضير العينات", "أسئلة الصور والأشكال"
+                "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية",
+                "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة",
+                "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
             ]
 
             with st.form("create_template_schedule_form"):
@@ -2227,7 +2313,7 @@ def admin_dashboard():
                     with eh_col2: end_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="em_in")
                     with eh_col3: end_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="eap_in")
 
-                new_tpl_cats = st.multiselect("الأقسام:", categories_pool_opts)
+                new_tpl_cats = st.multiselect("المجالات / الأقسام:", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ النموذج والمواعيد", use_container_width=True):
                     if new_tpl_name.strip():
                         def convert_to_24h(h, m, ampm):
@@ -2317,7 +2403,7 @@ def admin_dashboard():
         default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
         
         print_st_m = get_print_settings()
-        prof_manual_list = print_st_m.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري"])
+        prof_manual_list = print_st_m.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
 
         with db() as c: all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in all_tpls_records} if all_tpls_records else {}
@@ -2325,8 +2411,8 @@ def admin_dashboard():
 
         with st.form("manual_score_form_enhanced"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
-            m_facility_name = st.text_input("جهة العمل:", value=default_fac_str)
-            m_profession = st.selectbox("المهنة / الوظيفة:", prof_manual_list)
+            m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
+            m_profession = st.selectbox("الوظيفة / التخصص:", prof_manual_list)
             selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
             
             c1, c2 = st.columns(2)
@@ -2383,11 +2469,11 @@ def admin_dashboard():
                     st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
-        st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج (تستبعد المخفيين تلقائياً)")
+        st.subheader("📊 تقارير أداء وحدات الأمراض المتوطنة وتحليل النتائج (تستبعد المخفيين تلقائياً)")
         
         rep_tab1, rep_tab2, rep_tab3, rep_tab4, rep_tab5 = st.tabs([
             "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)", 
-            "🏢 تقرير جماعي (لمنشأة مع فلترة ومقارنة فترات)", 
+            "🏢 تقرير جماعي (لوحدة متوطنة مع فلترة ومقارنة فترات)", 
             "📋 تقرير النتائج الشامل", 
             "📈 تقرير أداء الجهات",
             "🏆 عرض النتائج والفلترة والأعلى تقييماً"
@@ -2401,7 +2487,7 @@ def admin_dashboard():
             if not tr_list_rep:
                 st.info("لا توجد بيانات متدربين ظاهرة متاحة.")
             else:
-                tr_choices_rep = {f"متدرب: {t['name']} - المهنة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t['id'] for t in tr_list_rep}
+                tr_choices_rep = {f"متدرب: {t['name']} - الوظيفة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t['id'] for t in tr_list_rep}
                 sel_tr_rep_label = st.selectbox("اختر المتدرب لاستعراض تقريره الفردي:", list(tr_choices_rep.keys()), key="sel_ind_tr_rep")
                 chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
                 
@@ -2437,7 +2523,7 @@ def admin_dashboard():
                     <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
                         <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب (مع مقارنة الفترات)</h3>
                         <hr style="border: 1px solid #059669;">
-                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>المهنة:</b> {esc(ind_tr_data.get('profession',''))} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
+                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>الوظيفة:</b> {esc(ind_tr_data.get('profession',''))} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
                         <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
                             <tr>
                                 <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">فترة المقارنة</th>
@@ -2461,7 +2547,7 @@ def admin_dashboard():
                     
                     df_ind_excel = pd.DataFrame([{
                         "اسم المتدرب": ind_tr_data['name'],
-                        "المهنة": ind_tr_data.get('profession', ''),
+                        "الوظيفة": ind_tr_data.get('profession', ''),
                         "جهة العمل": ind_tr_data['facility'],
                         "الفترة الأولى": f"{d_start_1} إلى {d_end_1}",
                         "نتيجة الفترة الأولى": p1_score,
@@ -2479,14 +2565,14 @@ def admin_dashboard():
                     render_print_button_only(full_ind_html, f"مقارنة فترات المتدرب {chosen_tr_id}")
 
         with rep_tab2:
-            st.markdown("#### 🏢 التقرير الجماعي للمنشأة (مع تحديد المدى الزمني ومقارنة أدائها بين فترتين):")
+            st.markdown("#### 🏢 التقرير الجماعي لوحدة الأمراض المتوطنة (مع تحديد المدى الزمني ومقارنة أداء الوحدة بين فترتين):")
             with db() as c:
                 facs_list_rep = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
             
             if not facs_list_rep:
-                st.info("لا توجد جهات أو منشآت ظاهرة مسجلة.")
+                st.info("لا توجد وحدات أو جهات ظاهرة مسجلة.")
             else:
-                sel_fac_rep = st.selectbox("اختر الجهة / المنشأة لاستعراض تقريرها الجماعي:", facs_list_rep, key="sel_group_fac_rep")
+                sel_fac_rep = st.selectbox("اختر الوحدة الصحية / جهة العمل لاستعراض تقريرها الجماعي:", facs_list_rep, key="sel_group_fac_rep")
                 
                 current_online_dt = now_cairo().date()
                 col_gf1, col_gf2 = st.columns(2)
@@ -2514,7 +2600,7 @@ def admin_dashboard():
 
                 group_compare_html = f"""
                 <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
-                    <h3 style="color: #047857; text-align: center;">تقرير مقارنة أداء منشأة بين فترتين: {esc(sel_fac_rep)}</h3>
+                    <h3 style="color: #047857; text-align: center;">تقرير مقارنة أداء وحدة الأمراض المتوطنة بين فترتين: {esc(sel_fac_rep)}</h3>
                     <hr style="border: 1px solid #059669;">
                     <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
                         <tr>
@@ -2542,14 +2628,14 @@ def admin_dashboard():
                 
                 df_group_excel = pd.DataFrame([
                     {
-                        "المنشأة": sel_fac_rep,
+                        "وحدة الأمراض المتوطنة": sel_fac_rep,
                         "فترة المقارنة": f"الفترة الأولى ({gf_start_1} إلى {gf_end_1})",
                         "إجمالي المختبرين": p1_stat['total_tr'] if p1_stat else 0,
                         "المجتازين": p1_stat['passed_cnt'] if p1_stat else 0,
                         "متوسط النسبة %": f"{p1_stat['avg_pct']:.1f}%" if p1_stat else "0.0%"
                     },
                     {
-                        "المنشأة": sel_fac_rep,
+                        "وحدة الأمراض المتوطنة": sel_fac_rep,
                         "فترة المقارنة": f"الفترة الثانية ({gf_start_2} إلى {gf_end_2})",
                         "إجمالي المختبرين": p2_stat['total_tr'] if p2_stat else 0,
                         "المجتازين": p2_stat['passed_cnt'] if p2_stat else 0,
@@ -2559,15 +2645,15 @@ def admin_dashboard():
                 out_group = io.BytesIO()
                 with pd.ExcelWriter(out_group, engine='openpyxl') as writer:
                     df_group_excel.to_excel(writer, index=False, sheet_name='FacilityComparison')
-                st.download_button("📥 تحميل التقرير الجماعي للمنشأة (.xlsx)", data=out_group.getvalue(), file_name=f"facility_report_{sel_fac_rep}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("📥 تحميل التقرير الجماعي للوحدة (.xlsx)", data=out_group.getvalue(), file_name=f"facility_report_{sel_fac_rep}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                full_group_comp_html = generate_general_report_html(f"مقارنة أداء منشأة: {sel_fac_rep}", group_compare_html)
-                render_print_button_only(full_group_comp_html, f"مقارنة فترات منشأة {sel_fac_rep}")
+                full_group_comp_html = generate_general_report_html(f"مقارنة أداء وحدة الأمراض المتوطنة: {sel_fac_rep}", group_compare_html)
+                render_print_button_only(full_group_comp_html, f"مقارنة فترات وحدة {sel_fac_rep}")
 
         with rep_tab3:
             with db() as c:
                 df_rep = pd.read_sql_query("""
-                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.profession AS 'المهنة', t.facility AS 'جهة العمل', 
+                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.profession AS 'الوظيفة', t.facility AS 'وحدة الأمراض المتوطنة', 
                            e.exam_type AS 'تصنيف الاختبار',
                            COALESCE(s.percent, 0) AS 'النسبة المئوية %', 
                            CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة',
@@ -2596,7 +2682,7 @@ def admin_dashboard():
         with rep_tab4:
             with db() as c:
                 df_fac = pd.read_sql_query("""
-                    SELECT t.facility AS 'جهة العمل', 
+                    SELECT t.facility AS 'وحدة الأمراض المتوطنة / الجهة', 
                            COUNT(t.id) AS 'إجمالي المتدربين',
                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'المجتازين',
                            COALESCE(AVG(s.percent), 0) AS 'متوسط النسبة %'
@@ -2607,17 +2693,17 @@ def admin_dashboard():
                 """, c)
             
             if df_fac.empty:
-                st.info("لا توجد بيانات جهات أو منشآت لتحليلها.")
+                st.info("لا توجد بيانات جهات أو وحدات لتحليلها.")
             else:
                 st.dataframe(df_fac, use_container_width=True, hide_index=True)
                 
                 out_fac_rep = io.BytesIO()
                 with pd.ExcelWriter(out_fac_rep, engine='openpyxl') as writer:
                     df_fac.to_excel(writer, index=False, sheet_name='FacilitiesPerformance')
-                st.download_button("📥 تحميل تقرير أداء الجهات (.xlsx)", data=out_fac_rep.getvalue(), file_name="facilities_performance_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("📥 تحميل تقرير أداء الجهات ووحدات المتوطنة (.xlsx)", data=out_fac_rep.getvalue(), file_name="facilities_performance_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 table_fac_html = df_fac.to_html(index=False, border=0, classes='table')
-                full_fac_html = generate_general_report_html("تقرير أداء المنشآت والجهات الصحية", f"<div>{table_fac_html}</div>")
+                full_fac_html = generate_general_report_html("تقرير أداء وحدات الأمراض المتوطنة والجهات", f"<div>{table_fac_html}</div>")
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
 
         with rep_tab5:
@@ -2654,8 +2740,8 @@ def admin_dashboard():
                 if filtered_sessions:
                     df_res_display = pd.DataFrame([{
                         "المتدرب": r['trainee_name'],
-                        "المهنة": r['trainee_profession'],
-                        "جهة العمل": r['facility'],
+                        "الوظيفة": r['trainee_profession'],
+                        "وحدة الأمراض المتوطنة": r['facility'],
                         "الاختبار": f"{r['template_name']} ({r['exam_type']})",
                         "الدرجة": f"{r['score']}/{r['max_score']}",
                         "النسبة %": f"{r['percent']:.1f}%",
@@ -2688,9 +2774,9 @@ def admin_dashboard():
                     st.warning("⚠ لا توجد نتائج تطابق شروط الفلترة المحددة.")
 
     elif selected_menu == "📈 خطط العمل":
-        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (مع إمكانية الحذف)")
+        st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بالأمراض المتوطنة (مع إمكانية الحذف)")
         
-        plan_tabs = st.tabs(["➕ إنشاء وتحديث خططة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
+        plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
         
         with plan_tabs[0]:
             with db() as c:
@@ -2698,7 +2784,7 @@ def admin_dashboard():
                 all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
             
             with st.form("create_action_plan_form"):
-                target_category = st.radio("نطاق الخطة:", ["فرد (متدرب محدد)", "جماعة (منشأة صحية بالكامل)"], horizontal=True)
+                target_category = st.radio("نطاق الخطة:", ["فرد (متدرب محدد)", "جماعة (وحدة الأمراض المتوطنة بالكامل)"], horizontal=True)
                 
                 auto_weakness_text = ""
                 auto_steps_text = ""
@@ -2708,7 +2794,7 @@ def admin_dashboard():
                         st.warning("⚠️ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
-                        tr_choices = {f"{t['name']} - المهنة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
+                        tr_choices = {f"{t['name']} - الوظيفة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
                         sel_tr_label = st.selectbox("اختر المتدرب لاستخراج نقاط ضعفه تلقائياً:", list(tr_choices.keys()))
                         chosen_tr_obj = tr_choices[sel_tr_label]
                         target_name = chosen_tr_obj['name']
@@ -2725,16 +2811,16 @@ def admin_dashboard():
                         if incorrect_qs:
                             failed_cats = list(set([r['category'] for r in incorrect_qs]))
                             auto_weakness_text = f"تم رصد إخفاقات للمتدرب {target_name} في الأقسام التالية بناءً على نتائج الاختبارات الأخيرة:\n- " + "\n- ".join(failed_cats)
-                            auto_steps_text = f"1. عقد جلسة تدريب مركزة ومكثفة للأقسام التالية: {', '.join(failed_cats)}.\n2. إعادة الاختبار العملي والنظري بعد استكمال البرنامج العلاجي.\n3. متابعة أداء المتدرب الميداني داخل المنشأة."
+                            auto_steps_text = f"1. عقد جلسة تدريب مركزة ومكثفة للأقسام التالية: {', '.join(failed_cats)}.\n2. إعادة الاختبار العملي والنظري بعد استكمال البرنامج العلاجي.\n3. متابعة أداء المتدرب الميداني داخل الوحدة."
                         else:
                             auto_weakness_text = "لم يتم رصد إخفاقات واضحة أو اجتاز المتدرب كافة الأسئلة بنجاح."
-                            auto_steps_text = "1. استمرار المتابعة الدورية وتحفيز المتدرب.\n2. إدراج المتدرب في دورات تنشيطية متقدمة."
+                            auto_steps_text = "1. استمرار المتابعة الدورية وتحفيز المتدرب.\n2. إدراج المتدرب في دورات تنشيطية متقدمة للأمراض المتوطنة."
                 else:
                     if not all_fac_list:
-                        st.warning("⚠ لا توجد جهات صحية ظاهرة مسجلة بعد.")
+                        st.warning("⚠ لا توجد وحدات أو جهات ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
-                        target_name = st.selectbox("اختر الجهة / المنشأة المستهدفة:", all_fac_list)
+                        target_name = st.selectbox("اختر وحدة الأمراض المتوطنة المستهدفة:", all_fac_list)
                         
                         with db() as c:
                             fac_incorrect = c.execute("""
@@ -2748,10 +2834,10 @@ def admin_dashboard():
                             
                         if fac_incorrect:
                             fac_cats = list(set([r['category'] for r in fac_incorrect]))
-                            auto_weakness_text = f"تم رصد نقاط ضعف متكررة لكوادر منشأة ({target_name}) في الأقسام التالية:\n- " + "\n- ".join(fac_cats)
-                            auto_steps_text = f"1. تنفيذ برنامج تدريبي جماعي للعاملين بالمنشأة يركز على: {', '.join(fac_cats)}.\n2. توفير الأدلة الإرشادية والمواد التعليمية داخل معمل المنشأة.\n3. تقييم العاملين بعد أسبوعين من تاريخ الخطة."
+                            auto_weakness_text = f"تم رصد نقاط ضعف متكررة لكوادر وحدة ({target_name}) في الأقسام التالية:\n- " + "\n- ".join(fac_cats)
+                            auto_steps_text = f"1. تنفيذ برنامج تدريبي جماعي للعاملين بالوحدة يركز على: {', '.join(fac_cats)}.\n2. توفير الأدلة الإرشادية والمواد التعليمية داخل وحدة الأمراض المتوطنة.\n3. تقييم العاملين بعد أسبوعين من تاريخ الخطة."
                         else:
-                            auto_weakness_text = "مستوى العاملين بالمنشأة مستقر وتجتاز الاختبارات بكفاءة."
+                            auto_weakness_text = "مستوى العاملين بالوحدة مستقر وتجتاز الاختبارات بكفاءة."
                             auto_steps_text = "1. الحفاظ على مستوى الأداء المتميز.\n2. إجراء تقييم فصلي دوري."
 
                 st.markdown("---")
@@ -2796,7 +2882,7 @@ def admin_dashboard():
 
                 plan_detail_html = f"""
                 <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 5px; page-break-inside: avoid; break-inside: avoid;">
-                    <h3 style="color: #047857; text-align: center; font-size: 14pt; margin: 5px 0;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء المعملي</h3>
+                    <h3 style="color: #047857; text-align: center; font-size: 14pt; margin: 5px 0;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء بوحدات الأمراض المتوطنة</h3>
                     <hr style="border: 1px solid #059669; margin: 8px 0;">
                     <p style="font-size: 9.5pt; margin: 4px 0;"><b>نوع النطاق:</b> {esc(p_data['target_type'])} | <b>المستهدف:</b> {esc(p_data['target_name'])} | <b>الفترة الزمنية:</b> من {esc(p_data['start_date'])} إلى {esc(p_data['end_date'])}</p>
                     
@@ -2888,7 +2974,7 @@ def admin_dashboard():
                                 os.remove(temp_db_path)
                             
                             reindex_hierarchical_facilities()
-                            st.success(f"🎉 تم الدمج بنجاح! (تم إضافة {merged_q_count} سؤالاً، و {merged_h_count} منشأة جديدة دون فقدان البيانات السابقة).")
+                            st.success(f"🎉 تم الدمج بنجاح! (تم إضافة {merged_q_count} سؤالاً، و {merged_h_count} وحدة متوطنة جديدة دون فقدان البيانات السابقة).")
                             time.sleep(1.5)
                             st.rerun()
                         except Exception as e:
@@ -3077,8 +3163,8 @@ def trainee_portal():
 
         st.markdown(f"""
             <div style="background-color: #059669; color: #ffffff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 15px auto; max-width: 900px; border: 2px solid #34d399;">
-                <h2 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 900; color: #ffffff;">نظام تقييم و اختبار العاملين بالامراض المتوطنة</h2>
-                <p style="margin: 0; font-size: 14px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; المهنة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
+                <h2 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 900; color: #ffffff;">نظام تقييم واختبار العاملين بالأمراض المتوطنة</h2>
+                <p style="margin: 0; font-size: 14px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; الوظيفة: <b>{esc(tr.get("profession",""))}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
             </div>
         """, unsafe_allow_html=True)
         
