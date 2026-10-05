@@ -244,17 +244,4 @@ def clean_question_text(q_text):
 
 def normalize_text(x):
     x = "" if x is None else str(x)
-    return re.sub(r"\s+", " ", x.strip()).lower()
-
-def reindex_hierarchical_facilities():
-    with db() as c:
-        rows = c.execute("SELECT governorate, authority, center, administration, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
-        c.execute("DELETE FROM hierarchical_facilities")
-        c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
-        for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)", (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
-
-def reindex_trainees():
-    with db() as c:
-        c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved
+    return
