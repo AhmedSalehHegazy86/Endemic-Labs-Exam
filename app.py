@@ -1758,7 +1758,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅️️ إدارة ⬅️ منشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅️ إدارة ⬅️ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
@@ -1853,12 +1853,12 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
+        st.subheader("⚙️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         
@@ -2019,7 +2019,10 @@ def admin_dashboard():
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (مع إمكانية الحذف الفردي والنهائي وإعادة الترتيب)")
-        with db() as c: all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
+        
+        # جلب النماذج المتاحة مرة واحدة لاستخدامها في كافة التبويبات بنجاح
+        with db() as c: 
+            all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         
         if all_tpls_records:
             tpl_names_list = [f"{row['name']} ({row['exam_type']})" for row in all_tpls_records]
@@ -2028,6 +2031,7 @@ def admin_dashboard():
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
 
+        # قسم التعميم الجماعي للنماذج
         with st.container(border=True):
             st.markdown("##### 🚀 التعميم الجماعي لنموذج على كافة المتدربين:")
             with st.form("bulk_assign_form_fixed"):
@@ -2035,7 +2039,7 @@ def admin_dashboard():
                 if st.form_submit_button("تعميم الاختبار واعتماد الجميع", use_container_width=True):
                     if tpl_map_dict and bulk_tpl_sel in tpl_map_dict:
                         set_bulk_template_for_all(tpl_map_dict[bulk_tpl_sel])
-                        st.success("✅ تم التعميم بنجاح!"); st.rerun()
+                        st.success("✅ تم التعميم الاعتماد بنجاح لكافة المتدربين!"); st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
 
