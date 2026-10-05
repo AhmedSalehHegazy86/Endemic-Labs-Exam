@@ -68,7 +68,7 @@ def today_date():
     return now_cairo().date().isoformat()
 
 # ============================================================
-# 3) حقن التنسيقات (CSS) وتدرج الألوان المبهر والمريح للعين
+# 3) حقن التنسيقات (CSS) وتدرج الألوان (8 ألوان متدرجة للظل)
 # ============================================================
 st.markdown("""
 <style>
@@ -1210,13 +1210,29 @@ def header():
                 box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2);
                 border-color: #34d399;
             }}
-            33% {{
+            14.28% {{
                 box-shadow: 0 0 20px rgba(20, 184, 166, 0.5), 0 0 35px rgba(13, 148, 136, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
                 border-color: #2dd4bf;
             }}
-            66% {{
-                box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), 0 0 35px rgba(14, 165, 233, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+            28.56% {{
+                box-shadow: 0 0 20px rgba(14, 165, 233, 0.5), 0 0 35px rgba(2, 132, 199, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
                 border-color: #38bdf8;
+            }}
+            42.84% {{
+                box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 35px rgba(109, 40, 217, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+                border-color: #a78bfa;
+            }}
+            57.12% {{
+                box-shadow: 0 0 20px rgba(245, 158, 11, 0.5), 0 0 35px rgba(217, 119, 6, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+                border-color: #fbbf24;
+            }}
+            71.40% {{
+                box-shadow: 0 0 20px rgba(251, 146, 60, 0.5), 0 0 35px rgba(234, 88, 12, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+                border-color: #fb923c;
+            }}
+            85.68% {{
+                box-shadow: 0 0 20px rgba(248, 113, 113, 0.5), 0 0 35px rgba(239, 68, 68, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+                border-color: #f87171;
             }}
             100% {{
                 box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2);
@@ -1235,7 +1251,7 @@ def header():
             font-family: 'Cairo', sans-serif; 
             box-sizing: border-box; 
             border: 2px solid #34d399;
-            animation: electricMultiGlow 5s infinite ease-in-out;
+            animation: electricMultiGlow 8s infinite ease-in-out;
         }}
     </style>
     <div class="electric-box">
