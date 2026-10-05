@@ -42,7 +42,7 @@ os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
-# 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone - Live Sync)
+# 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone)
 # ============================================================
 CAIRO_TZ = ZoneInfo("Africa/Cairo")
 
@@ -218,7 +218,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 4) دوال النظام وقاعدة البيانات وإعادة الترتيب التلقائي للـ ID
+# 4) دوال النظام وقاعدة البيانات
 # ============================================================
 def esc(x):
     return html.escape("" if x is None else str(x))
@@ -230,9 +230,9 @@ def clean_question_text(q_text):
     patterns = [
         r"\(\s*نموذج\s+متوطنة[^)]*\)",
         r"\(\s*مجموعة\s+متوطنة[^)]*\)",
-        r"\(\s*نموذج\s+تقييم(?:\s*(?:رقم\vert{}#)?\s*\d+)?[^)]*\)",
-        r"\[\s*نموذج\s+تقييم(?:\s*(?:رقم\vert{}#)?\s*\d+)?[^]]*\]",
-        r"\(\s*سؤال\s*(?:رقم\vert{}#)?\s*\d+\s*\)",
+        r"\(\s*نموذج\s+تقييم(?:\s*(?:رقم|#)?\s*\d+)?[^)]*\)",
+        r"\[\s*نموذج\s+تقييم(?:\s*(?:رقم|#)?\s*\d+)?[^]]*\]",
+        r"\(\s*سؤال\s*(?:رقم|#)?\s*\d+\s*\)",
     ]
     for pattern in patterns:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
@@ -252,7 +252,8 @@ def reindex_hierarchical_facilities():
         c.execute("DELETE FROM hierarchical_facilities")
         c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
         for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)", (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
+            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                      (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
 
 def reindex_trainees():
     with db() as c:
@@ -263,7 +264,8 @@ def reindex_trainees():
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
+            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
             id_mapping[old_id] = new_id
         for old_id, new_id in id_mapping.items():
             c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
@@ -278,7 +280,8 @@ def reindex_questions():
         q_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
+            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
             q_mapping[old_id] = new_id
         for old_id, new_id in q_mapping.items():
             c.execute("UPDATE exam_questions SET question_id=? WHERE question_id=?", (new_id, old_id))
@@ -293,7 +296,8 @@ def reindex_templates():
         t_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
             t_mapping[old_id] = new_id
         for old_id, new_id in t_mapping.items():
             c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
@@ -522,13 +526,15 @@ def init_db():
                 "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", 
                 "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
-            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+            c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", 
+                      (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
             
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
             default_start = now_cairo().isoformat(timespec="seconds")
             default_end = (now_cairo() + timedelta(days=365)).isoformat(timespec="seconds")
-            c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)", ("النموذج التقييمي العام للاستجابة والتدريب للأمراض المتوطنة", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
+            c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)", 
+                      ("النموذج التقييمي العام للاستجابة والتدريب للأمراض المتوطنة", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
 
 init_db()
 
@@ -542,4 +548,40 @@ def get_print_settings():
             except:
                 res["professions_list"] = ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "فني صحي متوطنة"]
             if "line_spacing" not in res or res["line_spacing"] is None:
-                res["line_spacing"] = 1
+                res["line_spacing"] = 1.25
+            return res
+    return {
+        "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
+        "margin_top": "3mm", "margin_bottom": "3mm", "margin_right": "3mm", "margin_left": "3mm",
+        "line_spacing": 1.25,
+        "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
+        "default_cert_title": "شهادة اجتياز اختبار معتمدة",
+        "default_cert_notes": "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد",
+        "trainee_prefix": "", "trainee_title": "دكتور", "trainee_profession": "أخصائي الأمراض المتوطنة",
+        "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
+    }
+
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list):
+    with db() as c:
+        c.execute("DELETE FROM print_settings")
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, m_bot, m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
+
+def get_hierarchical_data(include_hidden=False):
+    with db() as c:
+        q = "SELECT * FROM hierarchical_facilities"
+        if not include_hidden:
+            q += " WHERE hidden = 0"
+        q += " ORDER BY id ASC"
+        rows = c.execute(q).fetchall()
+        return [dict(r) for r in rows] if rows else []
+
+def ensure_admin():
+    with db() as c:
+        u = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
+        all_modules = list(ALL_MENU_MODULES.keys())
+        if not u:
+            c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,permissions_json,active,created_at) VALUES(?,?,?,?,?,?)",
+                      ("admin", hash_password("admin"), "admin", json.dumps(all_modules, ensure_ascii=False), 1, now()))
+        else:
+            c.execute("UPDATE users
