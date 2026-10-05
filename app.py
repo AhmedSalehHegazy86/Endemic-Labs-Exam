@@ -523,7 +523,7 @@ def init_db():
                 "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                      (default_header, "15mm", "12mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "15mm", "8mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
             
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -548,7 +548,7 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "15mm", "margin_bottom": "12mm", "margin_right": "3mm", "margin_left": "3mm",
+        "margin_top": "15mm", "margin_bottom": "8mm", "margin_right": "3mm", "margin_left": "3mm",
         "line_spacing": 1.25,
         "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
         "default_cert_title": "شهادة اجتياز اختبار معتمدة",
@@ -807,7 +807,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     h2 {{ color: #047857; font-size: 13pt; margin-bottom: 2px; line-height: {line_sp}; }}
     p {{ font-size: 9pt; line-height: {line_sp}; color: #1f2937; margin: 4px 0; }}
     .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 8pt; line-height: {line_sp}; }}
-    .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; font-weight: bold; text-align: center; border-top: 2px dashed #059669; padding-top: 2mm; margin-top: 2mm; z-index: 2; }}
+    .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 900; text-align: center; border-top: 2px dashed #059669; padding-top: 3mm; margin-top: 3mm; z-index: 2; }}
     .cert-watermark {{ font-size: 7pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
     </style>
     </head>
@@ -926,7 +926,7 @@ def generate_trainee_exam_sheet_html(sid):
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 2mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
@@ -980,7 +980,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     th {{ background-color: #059669; color: white; font-weight: bold; }}
     tr {{ page-break-inside: avoid; break-inside: avoid; }}
     tr:nth-child(even) {{ background-color: #f0fdf4; }}
-    .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
@@ -1025,7 +1025,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
     .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
     h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
-    .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
@@ -1105,7 +1105,7 @@ def generate_exam_template_print_html(template_id):
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
@@ -1136,7 +1136,7 @@ def generate_exam_template_print_html(template_id):
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
     m_top = str(print_sett.get("margin_top", "15mm") or "15mm")
-    m_bot = str(print_sett.get("margin_bottom", "12mm") or "12mm")
+    m_bot = str(print_sett.get("margin_bottom", "6mm") or "6mm")
     m_right = str(print_sett.get("margin_right", "5mm") or "5mm")
     m_left = str(print_sett.get("margin_left", "5mm") or "5mm")
     
@@ -1147,12 +1147,12 @@ def render_print_button_only(html_content, label_prefix=""):
         return fallback
 
     m_top = _safe_margin(m_top, "15mm")
-    m_bot = _safe_margin(m_bot, "12mm")
+    m_bot = _safe_margin(m_bot, "6mm")
     m_right = _safe_margin(m_right, "5mm")
     m_left = _safe_margin(m_left, "5mm")
     
     approvals_markup = """
-    <div style="display: flex; justify-content: space-between; width: 85%; max-width: 550px; margin: auto; align-items: center; text-align: center;">
+    <div style="display: flex; justify-content: space-between; width: 90%; max-width: 600px; margin: auto; align-items: center; text-align: center;">
         <div>مسؤول التدريب</div>
         <div>رئيس القسم</div>
         <div>مدير المتوطنة</div>
@@ -1182,15 +1182,15 @@ def render_print_button_only(html_content, label_prefix=""):
             background: #ffffff !important;
             z-index: 2147483646 !important;
             border-bottom: 2px solid #059669 !important;
-            padding-bottom: 3mm !important;
-            margin-bottom: 4mm !important;
+            padding-bottom: 2mm !important;
+            margin-bottom: 2mm !important;
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
         }}
         .print-repeat-approvals {{
             position: fixed !important;
-            bottom: 11mm !important;
+            bottom: 4mm !important;
             left: 0 !important;
             right: 0 !important;
             height: 9mm !important;
@@ -1199,11 +1199,11 @@ def render_print_button_only(html_content, label_prefix=""):
             color: #065f46 !important;
             border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
-            padding: 2mm 0mm !important;
+            padding: 1mm 0mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 8.5pt !important;
+            font-size: 10pt !important;
             font-weight: 900 !important;
-            line-height: 1.3 !important;
+            line-height: 1.2 !important;
             text-align: center !important;
             page-break-after: avoid;
             break-after: avoid;
@@ -1213,7 +1213,7 @@ def render_print_button_only(html_content, label_prefix=""):
             bottom: 0mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 5mm !important;
+            height: 4mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
@@ -1254,8 +1254,8 @@ def render_print_button_only(html_content, label_prefix=""):
     
     repeated_print_markup = f"""
     {repeated_header_markup}
+    <div style="height: 1.5em; line-height: 1.5em; clear: both; display: block;"></div>
     <div style="height: 2em; line-height: 2em; clear: both; display: block;"></div>
-    <div style="height: 3em; line-height: 3em; clear: both; display: block;"></div>
     <div class="print-repeat-approvals">{approvals_markup}</div>
     <div class="print-repeat-ownership">{ownership_text}</div>
     """
@@ -1413,7 +1413,7 @@ def verification_portal_view():
             .meta-table {{ width: 100%; border-collapse: collapse; margin-top: 15mm; font-size: 11pt; }}
             .meta-table th, .meta-table td {{ border: 1px solid #cbd5e1; padding: 8px 12px; text-align: right; }}
             .meta-table th {{ background-color: #059669; color: white; }}
-            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt; border-top: 1px dashed #059669; padding-top: 15px; }}
+            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-weight: 900; font-size: 10pt; border-top: 1px dashed #059669; padding-top: 15px; }}
             </style>
             </head>
             <body>
