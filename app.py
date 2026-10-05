@@ -203,4 +203,66 @@ document.addEventListener("keydown", function(e) {
     }
 });
 window.addEventListener("blur", function() {
-    document.body.style.filter = "blur
+    document.body.style.filter = "blur(8px)";
+});
+window.addEventListener("focus", function() {
+    document.body.style.filter = "none";
+});
+</script>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="ownership-watermark">
+    جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# 4) دوال النظام وقاعدة البيانات وإعادة الترتيب التلقائي للـ ID
+# ============================================================
+def esc(x):
+    return html.escape("" if x is None else str(x))
+
+def clean_question_text(q_text):
+    if q_text is None:
+        return ""
+    cleaned = str(q_text).strip()
+    patterns = [
+        r"\(\s*نموذج\s+متوطنة[^)]*\)",
+        r"\(\s*مجموعة\s+متوطنة[^)]*\)",
+        r"\(\s*نموذج\s+تقييم(?:\s*(?:رقم\vert{}#)?\s*\d+)?[^)]*\)",
+        r"\[\s*نموذج\s+تقييم(?:\s*(?:رقم\vert{}#)?\s*\d+)?[^]]*\]",
+        r"\(\s*سؤال\s*(?:رقم\vert{}#)?\s*\d+\s*\)",
+    ]
+    for pattern in patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^\s*(?:سؤال\s*(?:رقم|#)?\s*)?\d+\s*[\)\].:-]+\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^\s*سؤال\s*(?:رقم|#)?\s*\d+\s*[:.)-]+\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"[ \t]+", " ", cleaned)
+    cleaned = re.sub(r"\s+([،,:؛؟.)])", r"\1", cleaned)
+    return cleaned.strip()
+
+def normalize_text(x):
+    x = "" if x is None else str(x)
+    return re.sub(r"\s+", " ", x.strip()).lower()
+
+def reindex_hierarchical_facilities():
+    with db() as c:
+        rows = c.execute("SELECT governorate, authority, center, administration, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM hierarchical_facilities")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
+        for r in rows:
+            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                      (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
+
+def reindex_trainees():
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=OFF;")
+        rows = c.execute("SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM trainees")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
+        id_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_
