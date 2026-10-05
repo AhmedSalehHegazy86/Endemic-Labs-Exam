@@ -1159,8 +1159,6 @@ def render_print_button_only(html_content, label_prefix=""):
         copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
         num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة (الحد الأقصى للاحتواء):", min_value=1, max_value=50, value=1, key=copies_key)
         
-    orient_css = "landscape" if "أفقي" in chosen_orient else "portrait"
-
     js_code = """
         <div style="margin: 4px 0;">
             <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
@@ -1858,7 +1856,7 @@ def admin_dashboard():
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
+        st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         
@@ -2019,7 +2017,9 @@ def admin_dashboard():
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (مع إمكانية الحذف الفردي والنهائي وإعادة الترتيب)")
-        with db() as c: all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
+        
+        with db() as c: 
+            all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         
         if all_tpls_records:
             tpl_names_list = [f"{row['name']} ({row['exam_type']})" for row in all_tpls_records]
@@ -2049,8 +2049,21 @@ def admin_dashboard():
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
                         st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **المهنة:** {r.get('profession','')} | **الجهة:** {r['facility']}")
+                        
+                        # استخراج النموذج الحالي المعين للمتدرب إن وجد لتحديد الـ Index الافتراضي بشكل دقيق لمنع حدوث ValueError
+                        curr_assigned_id = r.get('assigned_template_id')
+                        default_tpl_idx = 0
+                        if curr_assigned_id and tpl_map_dict:
+                            for idx_name, t_id_val in tpl_map_dict.items():
+                                if t_id_val == curr_assigned_id:
+                                    try:
+                                        default_tpl_idx = tpl_names_list.index(idx_name)
+                                    except:
+                                        default_tpl_idx = 0
+                                    break
+
                         with st.form(f"approve_form_{r['id']}"):
-                            chosen_tpl = st.selectbox("نموذج الاختبار المخصص:", tpl_names_list, key=f"app_tpl_{r['id']}")
+                            chosen_tpl = st.selectbox("نموذج الاختبار المخصص:", tpl_names_list, index=default_tpl_idx, key=f"app_tpl_{r['id']}")
                             c1, c2 = st.columns(2)
                             with c1: app_btn = st.form_submit_button("✅ اعتماد", use_container_width=True)
                             with c2: rej_btn = st.form_submit_button("❌ رفض", use_container_width=True)
@@ -2075,16 +2088,18 @@ def admin_dashboard():
                     hidden_badge = " [مخفي 👁️🗨️]" if is_hidden_tr else " [ظاهر ✅]"
                     with st.container(border=True):
                         st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
+                        
+                        curr_id = tr_row['assigned_template_id']
+                        curr_str = ""
+                        if curr_id:
+                            with db() as c:
+                                curr_tpl_obj = c.execute("SELECT name, exam_type FROM exam_templates WHERE id=?", (curr_id,)).fetchone()
+                            if curr_tpl_obj:
+                                curr_str = f"{curr_tpl_obj['name']} ({curr_tpl_obj['exam_type']})"
+                        
+                        def_idx = tpl_names_list.index(curr_str) if curr_str in tpl_names_list else 0
+
                         with st.form(f"update_tr_tpl_{tr_row['id']}"):
-                            curr_id = tr_row['assigned_template_id']
-                            curr_str = ""
-                            if curr_id:
-                                with db() as c:
-                                    curr_tpl_obj = c.execute("SELECT name, exam_type FROM exam_templates WHERE id=?", (curr_id,)).fetchone()
-                                if curr_tpl_obj:
-                                    curr_str = f"{curr_tpl_obj['name']} ({curr_tpl_obj['exam_type']})"
-                            
-                            def_idx = tpl_names_list.index(curr_str) if curr_str in tpl_names_list else 0
                             new_chosen_tpl = st.selectbox("تعديل النموذج:", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
                             
                             c_upd, c_hide, c_show, c_del = st.columns(4)
