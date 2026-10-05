@@ -10,7 +10,7 @@ import qrcode
 from PIL import Image
 
 # ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 الشامل المستقر)
+# 1) إعدادات التطبيق الأساسية (الإصدار V1.0 الكامل بلا استثناء)
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم و اختبار العاملين بالامراض المتوطنة 🪱🔬🐌💊 - System V1.0",
@@ -68,7 +68,7 @@ def today_date():
     return now_cairo().date().isoformat()
 
 # ============================================================
-# 3) حقن التصميم والأمان والتنسيقات (CSS)
+# 3) حقن التصميم والأمان (CSS)
 # ============================================================
 st.markdown("""
 <style>
@@ -83,11 +83,21 @@ html, body, [class*="css"] {
     -moz-user-select: none !important;
     -ms-user-select: none !important;
     user-select: none !important;
+    -webkit-touch-callout: none !important;
 }
 
 .stApp {
     background: linear-gradient(135deg, #f0fdf4 0%, #ccfbcc 40%, #a7f3d0 70%, #d1fae5 100%) !important;
     background-attachment: fixed !important;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 999998;
+    background: radial-gradient(circle, rgba(255,255,255,0) 70%, rgba(5,150,105,0.03) 100%);
 }
 
 .block-container {
@@ -176,6 +186,11 @@ input, select, textarea {
     border-top: 2px solid #059669;
 }
 </style>
+
+<script>
+document.addEventListener("contextmenu", function(e) { e.preventDefault(); });
+document.addEventListener("copy", function(e) { e.preventDefault(); alert("⚠ عذراً، نسخ النصوص محظور حفاظاً على سرية الأسئلة والبيانات!"); });
+</script>
 """, unsafe_allow_html=True)
 
 st.markdown("""
@@ -185,7 +200,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 4) دوال قاعدة البيانات وإعادة الترتيب التسلسلي للـ ID
+# 4) دوال النظام وقاعدة البيانات وإعادة الترتيب التلقائي للـ ID
 # ============================================================
 def esc(x):
     return html.escape("" if x is None else str(x))
@@ -1097,7 +1112,7 @@ def render_print_button_only(html_content, label_prefix=""):
     components.html(js_code, height=100)
 
 # ============================================================
-# 5) واجهات النظام والتوجيه الرئيسي
+# 6) واجهات النظام والتوجيه الرئيسي الشامل
 # ============================================================
 for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": "", "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم", "scanned_cert_code": ""}.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -1142,13 +1157,6 @@ def header():
 
 def login_portal():
     header()
-
-    col_v_btn1, col_v_btn2 = st.columns([3, 1])
-    with col_v_btn2:
-        if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
-            st.session_state.show_verification_portal = True
-            st.rerun()
-
     hier_data = get_hierarchical_data(include_hidden=False)
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"])
@@ -1310,10 +1318,6 @@ def admin_dashboard():
                             )
                             st.success(f"✅ تمت إضافة المهنة ({clean_p}) بنجاح!")
                             st.rerun()
-                        else:
-                            st.warning("⚠ هذه المهنة موجودة مسبقاً.")
-                    else:
-                        st.warning("الرجاء إدخال اسم المهنة.")
 
         with col_list_prof:
             with st.form("delete_profession_form"):
@@ -1333,7 +1337,7 @@ def admin_dashboard():
                         )
                         st.success(f"✅ تم حذف المهنة ({sel_del_prof}) بنجاح!")
                         st.rerun()
-            st.markdown("#### 📋 المهن المتاحة:")
+            st.markdown("#### 📋 المهن الحالية:")
             for idx, p_name in enumerate(current_prof_list, start=1):
                 st.write(f"{idx}. {p_name}")
 
@@ -1352,14 +1356,14 @@ def admin_dashboard():
 
             col_logo1, col_logo2, col_logo3 = st.columns(3)
             with col_logo1: 
-                uploaded_logo1 = st.file_uploader("الشعار الأول:", type=["png", "jpg", "jpeg"], key="rep_logo1")
-                remove_logo1 = st.checkbox("حذف الشعار الأول", key="rep_rem1")
+                uploaded_logo1 = st.file_uploader("شعار 1:", type=["png", "jpg", "jpeg"], key="rep_logo1")
+                remove_logo1 = st.checkbox("حذف شعار 1", key="rep_rem1")
             with col_logo2: 
-                uploaded_logo2 = st.file_uploader("الشعار الثاني:", type=["png", "jpg", "jpeg"], key="rep_logo2")
-                remove_logo2 = st.checkbox("حذف الشعار الثاني", key="rep_rem2")
+                uploaded_logo2 = st.file_uploader("شعار 2:", type=["png", "jpg", "jpeg"], key="rep_logo2")
+                remove_logo2 = st.checkbox("حذف شعار 2", key="rep_rem2")
             with col_logo3: 
-                uploaded_logo3 = st.file_uploader("الشعار الثالث:", type=["png", "jpg", "jpeg"], key="rep_logo3")
-                remove_logo3 = st.checkbox("حذف الشعار الثالث", key="rep_rem3")
+                uploaded_logo3 = st.file_uploader("شعار 3:", type=["png", "jpg", "jpeg"], key="rep_logo3")
+                remove_logo3 = st.checkbox("حذف شعار 3", key="rep_rem3")
 
             current_logo1_val = current_set["logo_base64"] if not remove_logo1 else DEFAULT_LOGO
             if uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
@@ -1391,7 +1395,7 @@ def admin_dashboard():
 
             with st.form("dedicated_certificate_settings_form"):
                 col_p1, col_p2, col_p3 = st.columns(3)
-                with col_p1: trainee_prefix_val = st.text_input("البادئة قبل الاسم:", value=current_set.get("trainee_prefix", ""))
+                with col_p1: trainee_prefix_val = st.text_input("البادئة:", value=current_set.get("trainee_prefix", ""))
                 with col_p2: trainee_title_val = st.text_input("اللقب:", value=current_set.get("trainee_title", "دكتور"))
                 with col_p3:
                     curr_prof = current_set.get("trainee_profession", "أخصائي تحاليل طبية")
@@ -1543,7 +1547,7 @@ def admin_dashboard():
                     target_id = facility_map[selected_item_manage]
                     
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
-                    with c_hide_btn: hide_sub = st.form_submit_button("👁🗨️️ إخفاء", use_container_width=True)
+                    with c_hide_btn: hide_sub = st.form_submit_button("👁🗨 إخفاء", use_container_width=True)
                     with c_show_btn: show_sub = st.form_submit_button("✅ إظهار", use_container_width=True)
                     with c_del_btn: del_sub = st.form_submit_button("🗑 حذف", use_container_width=True)
                     
@@ -1780,7 +1784,7 @@ def trainee_portal():
     st.success("🟢 مرحباً بك في بوابة المتدربين.")
 
 # ============================================================
-# 6) التوجيه الأساسي الشامل
+# 7) التوجيه الأساسي الشامل
 # ============================================================
 if st.session_state.trainee_id and not st.session_state.logged_in:
     trainee_portal()
