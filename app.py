@@ -807,7 +807,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     h2 {{ color: #047857; font-size: 13pt; margin-bottom: 2px; line-height: {line_sp}; }}
     p {{ font-size: 9pt; line-height: {line_sp}; color: #1f2937; margin: 4px 0; }}
     .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 8pt; line-height: {line_sp}; }}
-    .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 900; text-align: center; border-top: 2px dashed #059669; padding-top: 3mm; margin-top: 3mm; z-index: 2; }}
+    .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 900; text-align: center; border-top: 2px dashed #059669; padding-top: 3mm; margin-top: 3mm; z-index: 2; display: none !important; }}
     .cert-watermark {{ font-size: 7pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
     </style>
     </head>
@@ -827,15 +827,11 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 رقم التحقق والشهادة: <span style="font-weight: bold; color: #065f46;">{r["certificate_id"]}</span>
             </p>
             {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
-        </div>
-        <div class="footer-bottom">
-            <div>مسؤول التدريب</div>
-            <div>رئيس القسم</div>
-            <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الإدارة</div>
-            <div style="background: transparent; padding: 0px; text-align: center;">
-                <img src="{qr_base64}" style="width: 38px; height: 38px; display: block; margin: auto;" alt="QR Code">
-                <div style="font-size: 5pt; color: #065f46; margin-top: 1px;">مسح للتحقق</div>
+            <div style="margin-top: 15px; display: flex; justify-content: center; align-items: center;">
+                <div style="background: transparent; padding: 0px; text-align: center;">
+                    <img src="{qr_base64}" style="width: 45px; height: 45px; display: block; margin: auto;" alt="QR Code">
+                    <div style="font-size: 6pt; color: #065f46; margin-top: 2px; font-weight: bold;">مسح للتحقق</div>
+                </div>
             </div>
         </div>
         <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
@@ -926,7 +922,7 @@ def generate_trainee_exam_sheet_html(sid):
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
@@ -942,12 +938,6 @@ def generate_trainee_exam_sheet_html(sid):
         </div>
         <div class="questions-grid">
             {q_html_content}
-        </div>
-        <div class="footer">
-            <div>مسؤول التدريب</div>
-            <div>رئيس القسم</div>
-            <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </div>
     </body>
@@ -980,7 +970,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     th {{ background-color: #059669; color: white; font-weight: bold; }}
     tr {{ page-break-inside: avoid; break-inside: avoid; }}
     tr:nth-child(even) {{ background-color: #f0fdf4; }}
-    .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
@@ -993,12 +983,6 @@ def generate_general_report_html(title, content_html, target_pages=1):
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
-        <div class="footer">
-            <div>مسؤول التدريب</div>
-            <div>رئيس القسم</div>
-            <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الإدارة</div>
-        </div>
     </div>
     </body>
     </html>
@@ -1025,7 +1009,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px; }}
     .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
     h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 6px 0; line-height: {line_sp}; }}
-    .footer {{ margin-top: 10px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 6px; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
@@ -1038,12 +1022,6 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
-        <div class="footer">
-            <div>مسؤول التدريب</div>
-            <div>رئيس القسم</div>
-            <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الإدارة</div>
-        </div>
     </div>
     </body>
     </html>
@@ -1105,7 +1083,7 @@ def generate_exam_template_print_html(template_id):
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 900; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
@@ -1121,12 +1099,6 @@ def generate_exam_template_print_html(template_id):
         </div>
         <div class="questions-grid">
             {q_html_content}
-        </div>
-        <div class="footer">
-            <div>مسؤول التدريب</div>
-            <div>رئيس القسم</div>
-            <div>مدير المتوطنة</div>
-            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </div>
     </body>
@@ -1190,10 +1162,10 @@ def render_print_button_only(html_content, label_prefix=""):
         }}
         .print-repeat-approvals {{
             position: fixed !important;
-            bottom: 4mm !important;
+            bottom: 3mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 9mm !important;
+            height: 8mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
@@ -1201,9 +1173,9 @@ def render_print_button_only(html_content, label_prefix=""):
             box-sizing: border-box !important;
             padding: 1mm 0mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 10pt !important;
+            font-size: 10.5pt !important;
             font-weight: 900 !important;
-            line-height: 1.2 !important;
+            line-height: 1.1 !important;
             text-align: center !important;
             page-break-after: avoid;
             break-after: avoid;
@@ -1213,7 +1185,7 @@ def render_print_button_only(html_content, label_prefix=""):
             bottom: 0mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 4mm !important;
+            height: 3mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
@@ -1413,13 +1385,12 @@ def verification_portal_view():
             .meta-table {{ width: 100%; border-collapse: collapse; margin-top: 15mm; font-size: 11pt; }}
             .meta-table th, .meta-table td {{ border: 1px solid #cbd5e1; padding: 8px 12px; text-align: right; }}
             .meta-table th {{ background-color: #059669; color: white; }}
-            .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-weight: 900; font-size: 10pt; border-top: 1px dashed #059669; padding-top: 15px; }}
             </style>
             </head>
             <body>
             <div class="doc-wrapper">
                 <h2>وثيقة إثبات صحة البيانات والاعتماد الرسمي</h2>
-                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15px;">صادر عن نظام تقييم واختبار العاملين بالأمراض المتوطنة</div>
+                <div style="text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 15mm;">صادر عن نظام تقييم واختبار العاملين بالأمراض المتوطنة</div>
                 <table class="meta-table">
                     <tr><th>اسم المتدرب</th><td>{esc(r['trainee_name'])}</td></tr>
                     <tr><th>الوظيفة / التخصص</th><td>{esc(r['trainee_profession'] if r['trainee_profession'] is not None else '')}</td></tr>
@@ -1430,12 +1401,6 @@ def verification_portal_view():
                     <tr><th>رقم الشهادة</th><td><span style="font-weight: bold; color: #065f46;">{r['certificate_id']}</span></td></tr>
                     <tr><th>تاريخ الاعتماد</th><td>{r['submitted_at'] or r['started_at']}</td></tr>
                 </table>
-                <div class="footer">
-                    <div>مسؤول التدريب</div>
-                    <div>رئيس القسم</div>
-                    <div>مدير المتوطنة</div>
-                    <div>يعتمد مدير عام الإدارة</div>
-                </div>
             </div>
             </body>
             </html>
