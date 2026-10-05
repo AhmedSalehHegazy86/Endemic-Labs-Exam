@@ -806,7 +806,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .cert-body {{ text-align: center; margin-top: 8mm; width: 100%; z-index: 2; }}
     h2 {{ color: #047857; font-size: 13pt; margin-bottom: 2px; line-height: {line_sp}; }}
     p {{ font-size: 9pt; line-height: {line_sp}; color: #1f2937; margin: 4px 0; }}
-    .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 8pt; line-height: {line_sp}; }}
+    .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6mm; font-weight: bold; color: #065f46; font-size: 8pt; line-height: {line_sp}; }}
     .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 900; text-align: center; border-top: 2px dashed #059669; padding-top: 3mm; margin-top: 3mm; z-index: 2; display: none !important; }}
     .cert-watermark {{ font-size: 7pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
     </style>
@@ -1142,20 +1142,20 @@ def render_print_button_only(html_content, label_prefix=""):
         }}
         .print-repeat-approvals {{
             position: fixed !important;
-            bottom: 3mm !important;
+            bottom: 3.5mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 8mm !important;
+            height: 7.5mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
             border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
-            padding: 1mm 0mm !important;
+            padding: 0.5mm 0mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 10.5pt !important;
+            font-size: 10pt !important;
             font-weight: 900 !important;
-            line-height: 1.1 !important;
+            line-height: 1 !important;
             text-align: center !important;
             page-break-after: avoid;
             break-after: avoid;
@@ -1165,7 +1165,7 @@ def render_print_button_only(html_content, label_prefix=""):
             bottom: 0mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 3mm !important;
+            height: 3.5mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
@@ -1204,10 +1204,11 @@ def render_print_button_only(html_content, label_prefix=""):
     </div>
     """
     
+    # ترتيب العناصر في الهامش السفلي بحيث تكون حقوق الملكية فوق الاعتمادات مباشرة
     repeated_print_markup = f"""
     {repeated_header_markup}
-    <div class="print-repeat-approvals">{approvals_markup}</div>
     <div class="print-repeat-ownership">{ownership_text}</div>
+    <div class="print-repeat-approvals">{approvals_markup}</div>
     """
     
     if "</head>" in html_content:
@@ -2083,7 +2084,7 @@ def admin_dashboard():
                     st.download_button("📥 تحميل بنك الأسئلة إكسيل (.xlsx)", data=output.getvalue(), file_name="question_bank.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                     st.dataframe(df_bank, use_container_width=True, hide_index=True)
                 st.markdown("---")
-                st.markdown("##### ⚠️ منطقة الخطر - إدارة البنك الشامل:")
+                st.markdown("##### ⚠️️ منطقة الخطر - إدارة البنك الشامل:")
                 with st.form("delete_entire_question_bank_form"):
                     confirm_text_del = st.text_input("اكتب كلمة (حذف البنك) للتأكيد نهائياً:", value="")
                     if st.form_submit_button("🗑️ تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
@@ -2648,7 +2649,7 @@ def admin_dashboard():
                 auto_steps_text = ""
                 if "فرد" in target_category:
                     if not all_tr_list:
-                        st.warning("⚠️ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
+                        st.warning("⚠️️ لا توجد بيانات متدربين ظاهرة مسجلة بعد.")
                         target_name = ""
                     else:
                         tr_choices = {f"{t['name']} - الوظيفة: {t['profession']} - الجهة: {t['facility']} (ID: {t['id']})": t for t in all_tr_list}
