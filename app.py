@@ -225,9 +225,6 @@ def esc(x):
     return html.escape("" if x is None else str(x))
 
 def clean_question_text(q_text):
-    """إظهار نص السؤال فقط للمتدرب، مع إزالة أي ترقيم/وسم داخلي خاص ببنك الأسئلة.
-    أرقام الأسئلة تظل محفوظة في قاعدة البيانات لأغراض الإدارة والتتبع، لكنها لا تظهر داخل شاشة الامتحان.
-    """
     if q_text is None:
         return ""
     cleaned = str(q_text).strip()
@@ -256,7 +253,7 @@ def reindex_hierarchical_facilities():
         c.execute("DELETE FROM hierarchical_facilities")
         c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
         for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)", 
                       (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
 
 def reindex_trainees():
@@ -268,7 +265,7 @@ def reindex_trainees():
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)", 
                       (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
             id_mapping[old_id] = new_id
         for old_id, new_id in id_mapping.items():
@@ -284,7 +281,7 @@ def reindex_questions():
         q_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", 
                       (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
             q_mapping[old_id] = new_id
         for old_id, new_id in q_mapping.items():
@@ -294,4 +291,108 @@ def reindex_questions():
 def reindex_templates():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, name, exam_type, num_questions
+        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at FROM exam_templates ORDER BY id ASC").fetchall()
+        c.execute("DELETE FROM exam_templates")
+        c.execute("DELETE FROM sqlite_sequence WHERE name='exam_templates'")
+        t_mapping = {}
+        for new_id, r in enumerate(rows, start=1):
+            old_id = r["id"]
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", 
+                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
+            t_mapping[old_id] = new_id
+        for old_id, new_id in t_mapping.items():
+            c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
+            c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (new_id, old_id))
+        c.execute("PRAGMA foreign_keys=ON;")
+
+def hash_password(password, salt=None):
+    salt = salt or secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210000)
+    return salt.hex() + "$" + digest.hex()
+
+def verify_password(password, stored):
+    try:
+        salt_hex, digest_hex = stored.split("$", 1)
+        salt = bytes.fromhex(salt_hex)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210000)
+        return secrets.compare_digest(digest.hex(), digest_hex)
+    except Exception:
+        return False
+
+@contextmanager
+def db():
+    conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA journal_mode=WAL")
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+ALL_MENU_MODULES = {
+    "📊 لوحة التحكم": "لوحة المؤشرات العامة",
+    "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
+    "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف بالأمراض المتوطنة",
+    "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل للأمراض المتوطنة",
+    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
+    "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
+    "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
+    "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
+    "📊 التقارير": "التقارير وتحليل الأداء للأمراض المتوطنة",
+    "📈 خطط العمل": "خطط العمل التدريبية للأمراض المتوطنة",
+    "💾 النسخ الاحتياطي": "النسخ الاحتياطي لقاعدة البيانات",
+    "👥 إدارة المستخدمين": "إدارة المستخدمين والصلاحيات",
+    "🧾 سجل التدقيق": "سجل التدقيق والأحداث"
+}
+
+def init_db():
+    with db() as c:
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                permissions_json TEXT NOT NULL DEFAULT '[]',
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                last_login TEXT
+            );
+            CREATE TABLE IF NOT EXISTS hierarchical_facilities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                governorate TEXT NOT NULL,
+                authority TEXT NOT NULL,
+                center TEXT NOT NULL,
+                administration TEXT NOT NULL,
+                facility_name TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS exam_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                exam_type TEXT NOT NULL DEFAULT 'قبل التدريب',
+                num_questions INTEGER NOT NULL DEFAULT 999999,
+                duration_minutes INTEGER NOT NULL DEFAULT 60,
+                pass_percent REAL NOT NULL DEFAULT 60,
+                categories_json TEXT NOT NULL DEFAULT '[]',
+                start_time TEXT,
+                end_time TEXT,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS trainees (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                facility TEXT NOT NULL,
+                name TEXT NOT NULL,
+                phone TEXT,
+                profession TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة',
+                status TEXT NOT NULL DEFAULT 'pending',
+                assigned_template_id INTEGER,
+                created_at TEXT NOT
