@@ -68,7 +68,7 @@ def today_date():
     return now_cairo().date().isoformat()
 
 # ============================================================
-# 3) حقن التنسيقات (CSS) وضبط عرض الحقول والعناصر لتتطابق أفقياً
+# 3) حقن التنسيقات (CSS) وتدرج الألوان المبهر والمريح للعين
 # ============================================================
 st.markdown("""
 <style>
@@ -87,7 +87,7 @@ html, body, [class*="css"] {
 }
 
 .stApp {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 45%, #bbf7d0 100%) !important;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ccfbcc 40%, #a7f3d0 70%, #d1fae5 100%) !important;
     background-attachment: fixed !important;
 }
 
@@ -109,7 +109,6 @@ body::after {
     padding-bottom: 7rem !important;
 }
 
-/* توحيد عرض وتنسيق الحقول والكروت لتكون متوازنة أفقياً */
 .card, .question, [data-testid="stForm"], [data-testid="stVerticalBlock"] > div {
     box-sizing: border-box !important;
 }
@@ -247,12 +246,12 @@ def normalize_text(x):
 
 def reindex_hierarchical_facilities():
     with db() as c:
-        rows = c.execute("SELECT authority, governorate, administration, center, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT governorate, authority, center, administration, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM hierarchical_facilities")
         c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
         for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
-                      (r["authority"], r["governorate"], r["administration"], r["center"], r["facility_name"], r["created_at"], r.get("hidden", 0)))
+            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                      (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r.get("hidden", 0)))
 
 def reindex_trainees():
     with db() as c:
@@ -340,7 +339,7 @@ ALL_MENU_MODULES = {
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
-    "🧑‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍‍‍‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
@@ -367,10 +366,10 @@ def init_db():
         );
         CREATE TABLE IF NOT EXISTS hierarchical_facilities (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            authority TEXT NOT NULL,
             governorate TEXT NOT NULL,
-            administration TEXT NOT NULL,
+            authority TEXT NOT NULL,
             center TEXT NOT NULL,
+            administration TEXT NOT NULL,
             facility_name TEXT NOT NULL,
             created_at TEXT NOT NULL,
             hidden INTEGER NOT NULL DEFAULT 0
@@ -1366,27 +1365,31 @@ def login_portal():
     professions_list = print_st.get("professions_list", ["أخصائي تحاليل طبية", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني معمل", "فني تمريض", "مسؤول معامل", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات)"])
     
     with st.form("trainee_request_hierarchical"):
+        st.markdown("##### 📍 الجهة الإدارية التابع لها:")
+        st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
+        st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True)
+
         if not hier_data:
             st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
             facility_final_str = ""
         else:
-            authorities_list = sorted(list(set(item["authority"] for item in hier_data)))
-            sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + authorities_list, index=0)
+            govs_list = sorted(list(set(item["governorate"] for item in hier_data)))
+            sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + govs_list, index=0)
             
-            filtered_govs = sorted(list(set(item["governorate"] for item in hier_data if sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth)))
-            sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + filtered_govs, index=0)
+            filtered_auths = sorted(list(set(item["authority"] for item in hier_data if sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov)))
+            sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + filtered_auths, index=0)
             
-            filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov))))
-            sel_admin = st.selectbox("الإدارة الصحية:", ["-- اختر الإدارة الصحية --"] + filtered_admins, index=0)
-            
-            filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin))))
+            filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth))))
             sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers, index=0)
             
-            filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_admin == "-- اختر الإدارة الصحية --" or item["administration"] == sel_admin) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
-            sel_fac = st.selectbox("اسم المنشأة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
+            filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
+            sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + filtered_admins, index=0)
             
-            if sel_auth != "-- اختر الهيئة --" and sel_gov != "-- اختر المحافظة --" and sel_admin != "-- اختر الإدارة الصحية --" and sel_center != "-- اختر المركز --" and sel_fac != "-- اختر المنشأة --":
-                facility_final_str = f"{sel_auth} - {sel_gov} - {sel_admin} - {sel_center} - {sel_fac}"
+            filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center) and (sel_admin == "-- اختر الإدارة --" or item["administration"] == sel_admin))))
+            sel_fac = st.selectbox("المنشأة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
+            
+            if sel_gov != "-- اختر المحافظة --" and sel_auth != "-- اختر الهيئة --" and sel_center != "-- اختر المركز --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --":
+                facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_gov} - {sel_auth} - {sel_center} - {sel_admin} - {sel_fac}"
             else:
                 facility_final_str = ""
 
@@ -1755,22 +1758,26 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (مع إمكانية الحذف والإخفاء التام)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅️ إدارة ⬅️ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
             with st.form("manual_hierarchical_form"):
-                m_auth = st.text_input("الهيئة:", value="")
+                st.markdown("##### 📌 الحقول الثابتة التابعة للجمهورية:")
+                st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
+                st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True)
+
                 m_gov = st.text_input("المحافظة:", value="")
-                m_admin = st.text_input("الإدارة الصحية:", value="")
+                m_auth = st.text_input("الهيئة:", value="")
                 m_center = st.text_input("المركز:", value="")
-                m_fac = st.text_input("اسم المنشأة:", value="")
+                m_admin = st.text_input("الإدارة:", value="")
+                m_fac = st.text_input("المنشأة:", value="")
                 
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
                     if m_fac.strip():
                         with db() as c:
-                            c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
-                                      (m_auth.strip(), m_gov.strip(), m_admin.strip(), m_center.strip(), m_fac.strip(), now(), 0))
+                            c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
+                                      (m_gov.strip(), m_auth.strip(), m_center.strip(), m_admin.strip(), m_fac.strip(), now(), 0))
                         reindex_hierarchical_facilities()
                         st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!"); st.rerun()
                     else:
@@ -1785,14 +1792,14 @@ def admin_dashboard():
                         added_cnt = 0
                         with db() as c:
                             for _, r in df_up.iterrows():
-                                auth = str(r.get("authority", r.get("الهيئة", "مديرية الشئون الصحية"))).strip()
                                 gov = str(r.get("governorate", r.get("المحافظة", "الشرقية"))).strip()
-                                adm = str(r.get("administration", r.get("الإدارة", "الإدارة الصحية"))).strip()
+                                auth = str(r.get("authority", r.get("الهيئة", "مديرية الشئون الصحية"))).strip()
                                 cent = str(r.get("center", r.get("المركز", "أولاد صقر"))).strip()
+                                adm = str(r.get("administration", r.get("الإدارة", "الإدارة الصحية"))).strip()
                                 fac = str(r.get("facility_name", r.get("المنشأة", "وحدة صحية"))).strip()
                                 if fac:
-                                    c.execute("INSERT INTO hierarchical_facilities(authority,governorate,administration,center,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
-                                              (auth, gov, adm, cent, fac, now(), 0))
+                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
+                                              (gov, auth, cent, adm, fac, now(), 0))
                                     added_cnt += 1
                         reindex_hierarchical_facilities()
                         st.success(f"🎉 تم إضافة ({added_cnt}) سجل وإعادة الترتيب بنجاح!"); st.balloons()
@@ -1804,7 +1811,7 @@ def admin_dashboard():
             hier_all_data = get_hierarchical_data(include_hidden=True)
             if hier_all_data:
                 df_hier_download = pd.DataFrame(hier_all_data)
-                df_hier_download.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                df_hier_download.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 output_hier = io.BytesIO()
                 with pd.ExcelWriter(output_hier, engine='openpyxl') as writer:
                     df_hier_download.to_excel(writer, index=False, sheet_name='HierarchicalFacilities')
@@ -1817,7 +1824,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['authority']} / {row['governorate']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -1847,7 +1854,7 @@ def admin_dashboard():
 
                 df_hier = pd.DataFrame(hier_rows_all)
                 df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
-                df_hier.columns = ["ID", "الهيئة", "المحافظة", "الإدارة", "المركز", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
@@ -2783,11 +2790,11 @@ def admin_dashboard():
                                 src_hier = src_conn.execute("SELECT * FROM hierarchical_facilities").fetchall()
                                 merged_h_count = 0
                                 for h in src_hier:
-                                    exists = dest_conn.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND governorate=? AND administration=? AND center=? AND facility_name=?",
-                                                               (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"])).fetchone()
+                                    exists = dest_conn.execute("SELECT 1 FROM hierarchical_facilities WHERE governorate=? AND authority=? AND center=? AND administration=? AND facility_name=?",
+                                                               (h["governorate"], h["authority"], h["center"], h["administration"], h["facility_name"])).fetchone()
                                     if not exists:
-                                        dest_conn.execute("INSERT INTO hierarchical_facilities(authority, governorate, administration, center, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
-                                                          (h["authority"], h["governorate"], h["administration"], h["center"], h["facility_name"], h["created_at"], h.get("hidden", 0)))
+                                        dest_conn.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                                                          (h["governorate"], h["authority"], h["center"], h["administration"], h["facility_name"], h["created_at"], h.get("hidden", 0)))
                                         merged_h_count += 1
 
                             src_conn.close()
