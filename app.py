@@ -1758,7 +1758,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅️ إدارة ⬅️ منشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅️️ إدارة ⬅️ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
@@ -1853,7 +1853,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2018,7 +2018,7 @@ def admin_dashboard():
                                 st.warning("⚠ يرجى كتابة كلمة (حذف البنك) بشكل صحيح في حقل التأكيد لإتمام الحذف.")
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 اعتماد المتدربين والنماذج (مع إمكانية الحذف الفردي والنهائي وإعادة الترتيب)")
+        st.subheader("🧑‍🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
         
         # جلب النماذج المتاحة مرة واحدة لاستخدامها في كافة التبويبات بنجاح
         with db() as c: 
