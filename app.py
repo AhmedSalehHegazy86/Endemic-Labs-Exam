@@ -908,7 +908,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -919,7 +919,7 @@ def generate_trainee_exam_sheet_html(sid):
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 2px; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
     .footer {{ display: none !important; }}
     </style>
@@ -948,7 +948,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -958,8 +958,8 @@ def generate_general_report_html(title, content_html, target_pages=1):
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
-    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 4px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    table {{ width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 8.5pt; }}
+    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8.5pt; }}
     th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
     th {{ background-color: #059669; color: white; font-weight: bold; }}
     tr {{ page-break-inside: avoid; break-inside: avoid; }}
@@ -971,7 +971,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <div class="report-wrapper">
         {render_top_left_logo_html()}
         <h2>{esc(title)}</h2>
-        <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
+        <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
     </div>
     </body>
@@ -987,7 +987,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -997,7 +997,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
-    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 4px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .footer {{ display: none !important; }}
     </style>
     </head>
@@ -1005,7 +1005,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <div class="report-wrapper">
         {render_top_left_logo_html()}
         <h2>{esc(title)}</h2>
-        <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
+        <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
     </div>
     </body>
@@ -1054,7 +1054,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 12mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1065,7 +1065,7 @@ def generate_exam_template_print_html(template_id):
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .report-header {{ display: none !important; }}
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 2px; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
     .footer {{ display: none !important; }}
     </style>
@@ -1117,7 +1117,7 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} {m_bot} {m_left} !important;
+        margin: 0mm {m_right} {m_bot} {m_left} !important;
     }}
     @media print {{
         html, body {{
@@ -1204,7 +1204,7 @@ def render_print_button_only(html_content, label_prefix=""):
     </div>
     """
     
-    # سطر حقوق الملكية فوق سطر الاعتمادات تماماً في الهامش السفلي الثابت
+    # ترتيب العناصر بحيث يكون سطر حقوق الملكية فوق سطر الاعتمادات في الهامش السفلي الثابت
     repeated_print_markup = f"""
     {repeated_header_markup}
     <div class="print-repeat-ownership">{ownership_text}</div>
