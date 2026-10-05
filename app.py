@@ -374,6 +374,19 @@ def init_db():
             created_at TEXT NOT NULL,
             hidden INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS exam_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب',
+            num_questions INTEGER NOT NULL DEFAULT 999999,
+            duration_minutes INTEGER NOT NULL DEFAULT 60,
+            pass_percent REAL NOT NULL DEFAULT 60,
+            categories_json TEXT NOT NULL DEFAULT '[]',
+            start_time TEXT,
+            end_time TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS trainees (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             facility TEXT NOT NULL,
@@ -399,19 +412,6 @@ def init_db():
             reference TEXT,
             active INTEGER NOT NULL DEFAULT 1,
             fingerprint TEXT UNIQUE,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS exam_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            exam_type TEXT NOT NULL DEFAULT 'قبل التدريب',
-            num_questions INTEGER NOT NULL DEFAULT 999999,
-            duration_minutes INTEGER NOT NULL DEFAULT 60,
-            pass_percent REAL NOT NULL DEFAULT 60,
-            categories_json TEXT NOT NULL DEFAULT '[]',
-            start_time TEXT,
-            end_time TEXT,
-            active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS exam_sessions (
@@ -518,6 +518,15 @@ def init_db():
             ]
             c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                       (default_header, "3mm", "3mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء المعامل والإشراف الفني المعتمد", "", "دكتور", "أخصائي تحاليل طبية", json.dumps(default_professions, ensure_ascii=False)))
+
+        # إضافة نموذج افتراضي أولي لضمان عدم توقف تبويب المتدربين والنماذج مطلقاً
+        cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
+        if cnt_tpl == 0:
+            default_start = now_cairo().isoformat(timespec="seconds")
+            default_end = (now_cairo() + timedelta(days=365)).isoformat(timespec="seconds")
+            c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) 
+                         VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                      ("النموذج التقييمي العام للاستجابة والتدريب", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
 
 init_db()
 
@@ -1858,7 +1867,7 @@ def admin_dashboard():
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
+        st.subheader("⚙️️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         
