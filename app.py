@@ -830,8 +830,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         </div>
         <div class="footer-bottom">
             <div>مسؤول التدريب</div>
-            <div>رئيس وحدة الأمراض المتوطنة</div>
-            <div>مدير وحدة المتوطنة</div>
+            <div>رئيس القسم</div>
+            <div>مدير المتوطنة</div>
             <div>يعتمد مدير عام الإدارة</div>
             <div style="background: transparent; padding: 0px; text-align: center;">
                 <img src="{qr_base64}" style="width: 38px; height: 38px; display: block; margin: auto;" alt="QR Code">
@@ -874,7 +874,7 @@ def generate_trainee_exam_sheet_html(sid):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 45px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 40px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
@@ -899,10 +899,10 @@ def generate_trainee_exam_sheet_html(sid):
         
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin-bottom: 6px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+        <div style="margin-bottom: 5px; padding: 3px 5px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
             {img_tag_html}
-            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
+            <div style="margin-top: 1px; padding-right: 2px;">{opts_html}</div>
         </div>
         """
     score_val, max_score_val, percent_val = s["score"] or 0, s["max_score"] or 0, s["percent"] or 0.0
@@ -921,12 +921,12 @@ def generate_trainee_exam_sheet_html(sid):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
-    .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 3mm; margin-bottom: 4mm; }}
+    .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
     .header-right {{ font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
-    h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 2px 0; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 5px; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ margin-top: 5px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 2mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
@@ -945,9 +945,9 @@ def generate_trainee_exam_sheet_html(sid):
         </div>
         <div class="footer">
             <div>مسؤول التدريب</div>
-            <div>رئيس وحدة الأمراض المتوطنة</div>
-            <div>مدير وحدة المتوطنة</div>
-            <div>مدير عام الإدارة</div>
+            <div>رئيس القسم</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </div>
     </body>
@@ -995,9 +995,9 @@ def generate_general_report_html(title, content_html, target_pages=1):
         {content_html}
         <div class="footer">
             <div>مسؤول التدريب</div>
-            <div>رئيس وحدة الأمراض المتوطنة</div>
-            <div>مدير وحدة المتوطنة</div>
-            <div>مدير عام الإدارة</div>
+            <div>رئيس القسم</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </div>
     </body>
@@ -1040,9 +1040,9 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         {content_html}
         <div class="footer">
             <div>مسؤول التدريب</div>
-            <div>رئيس وحدة الأمراض المتوطنة</div>
-            <div>مدير وحدة المتوطنة</div>
-            <div>مدير عام الإدارة</div>
+            <div>رئيس القسم</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </div>
     </body>
@@ -1072,17 +1072,17 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 55px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 45px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
         
-        opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 7.5pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
-        <div style="margin-bottom: 6px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 8.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin-bottom: 5px; padding: 3px 5px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
-            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
+            <div style="margin-top: 1px; padding-right: 2px;">{opts_html}</div>
         </div>
         """
     return f"""
@@ -1100,12 +1100,12 @@ def generate_exam_template_print_html(template_id):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: auto; position: relative; }}
-    .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 4mm; margin-bottom: 6mm; }}
-    .header-right {{ font-size: 9pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
-    h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 2px 0; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 3px; margin-bottom: 6mm; font-size: 8pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .report-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 3mm; margin-bottom: 4mm; }}
+    .header-right {{ font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 2px 0; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-bottom: 4mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ margin-top: 6px; display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 4mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
+    .footer {{ margin-top: 4px; display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-top: 1px dashed #059669; padding-top: 3mm; page-break-inside: avoid; break-inside: avoid; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
@@ -1124,9 +1124,9 @@ def generate_exam_template_print_html(template_id):
         </div>
         <div class="footer">
             <div>مسؤول التدريب</div>
-            <div>رئيس وحدة الأمراض المتوطنة</div>
-            <div>مدير وحدة المتوطنة</div>
-            <div>مدير عام الإدارة</div>
+            <div>رئيس القسم</div>
+            <div>مدير المتوطنة</div>
+            <div>يعتمد مدير عام الإدارة</div>
         </div>
     </div>
     </body>
@@ -1152,11 +1152,11 @@ def render_print_button_only(html_content, label_prefix=""):
     m_left = _safe_margin(m_left, "5mm")
     
     approvals_markup = """
-    <div style="display: flex; justify-content: space-between; width: 75%; max-width: 480px; margin: auto; align-items: center; text-align: center;">
+    <div style="display: flex; justify-content: space-between; width: 85%; max-width: 550px; margin: auto; align-items: center; text-align: center;">
         <div>مسؤول التدريب</div>
-        <div>رئيس وحدة المتوطنة</div>
-        <div>مدير الوحدة</div>
-        <div>مدير الإدارة</div>
+        <div>رئيس القسم</div>
+        <div>مدير المتوطنة</div>
+        <div>يعتمد مدير عام الإدارة</div>
     </div>
     """
     ownership_text = "جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy"
@@ -1190,20 +1190,20 @@ def render_print_button_only(html_content, label_prefix=""):
         }}
         .print-repeat-approvals {{
             position: fixed !important;
-            bottom: 7mm !important;
+            bottom: 11mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 7mm !important;
+            height: 9mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
-            border-top: 1px dashed #059669 !important;
+            border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
-            padding: 1mm 0mm !important;
+            padding: 2mm 0mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 7.5pt !important;
+            font-size: 8.5pt !important;
             font-weight: 900 !important;
-            line-height: 1.2 !important;
+            line-height: 1.3 !important;
             text-align: center !important;
             page-break-after: avoid;
             break-after: avoid;
@@ -1213,14 +1213,14 @@ def render_print_button_only(html_content, label_prefix=""):
             bottom: 0mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 4mm !important;
+            height: 5mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
             box-sizing: border-box !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 5.5pt !important;
-            font-weight: 600 !important;
+            font-size: 6pt !important;
+            font-weight: 700 !important;
             line-height: 1 !important;
             text-align: center !important;
             white-space: nowrap !important;
@@ -1231,6 +1231,9 @@ def render_print_button_only(html_content, label_prefix=""):
             box-sizing: border-box !important;
         }}
         .report-header {{
+            display: none !important;
+        }}
+        .footer {{
             display: none !important;
         }}
         .question, tr, div {{
@@ -1252,6 +1255,7 @@ def render_print_button_only(html_content, label_prefix=""):
     repeated_print_markup = f"""
     {repeated_header_markup}
     <div style="height: 2em; line-height: 2em; clear: both; display: block;"></div>
+    <div style="height: 3em; line-height: 3em; clear: both; display: block;"></div>
     <div class="print-repeat-approvals">{approvals_markup}</div>
     <div class="print-repeat-ownership">{ownership_text}</div>
     """
@@ -1428,8 +1432,9 @@ def verification_portal_view():
                 </table>
                 <div class="footer">
                     <div>مسؤول التدريب</div>
-                    <div>رئيس وحدة الأمراض المتوطنة</div>
-                    <div>مدير عام الإدارة</div>
+                    <div>رئيس القسم</div>
+                    <div>مدير المتوطنة</div>
+                    <div>يعتمد مدير عام الإدارة</div>
                 </div>
             </div>
             </body>
@@ -1983,7 +1988,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2791,7 +2796,7 @@ def admin_dashboard():
                 st.markdown(plan_detail_html, unsafe_allow_html=True)
                 full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
                 render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
-                if st.button("🗑 حذف خطة العمل المحددة", use_container_width=True):
+                if st.button("🗑 حذف خططة العمل المحددة", use_container_width=True):
                     with db() as c:
                         c.execute("DELETE FROM action_plans WHERE id=?", (chosen_plan_id,))
                     st.success("✅ تم حذف خطة العمل بنجاح!")
