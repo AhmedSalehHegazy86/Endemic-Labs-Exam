@@ -523,7 +523,7 @@ def init_db():
                 "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                      (default_header, "15mm", "8mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "10mm", "10mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
             
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -548,7 +548,7 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "15mm", "margin_bottom": "8mm", "margin_right": "3mm", "margin_left": "3mm",
+        "margin_top": "10mm", "margin_bottom": "10mm", "margin_right": "3mm", "margin_left": "3mm",
         "line_spacing": 1.25,
         "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
         "default_cert_title": "شهادة اجتياز اختبار معتمدة",
@@ -734,9 +734,6 @@ def render_logos_html():
     </div>
     """
 
-def render_top_left_logo_html():
-    return ""
-
 def generate_qr_code_base64(data_text):
     qr = qrcode.QRCode(version=1, box_size=5, border=1)
     qr.add_data(data_text)
@@ -807,7 +804,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     h2 {{ color: #047857; font-size: 13pt; margin-bottom: 2px; line-height: {line_sp}; }}
     p {{ font-size: 9pt; line-height: {line_sp}; color: #1f2937; margin: 4px 0; }}
     .notes-box {{ background: rgba(240, 253, 244, 0.9); border: 1px dashed #059669; padding: 3px 4mm; margin: 3px auto; width: 85%; border-radius: 6mm; font-weight: bold; color: #065f46; font-size: 8pt; line-height: {line_sp}; }}
-    .footer-bottom {{ width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 900; text-align: center; border-top: 2px dashed #059669; padding-top: 3mm; margin-top: 3mm; z-index: 2; display: none !important; }}
     .cert-watermark {{ font-size: 7pt; color: #065f46; font-weight: bold; margin-top: 1px; z-index: 2; }}
     </style>
     </head>
@@ -815,7 +811,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <div class="cert-wrapper">
         <div class="header-right">{formatted_header}</div>
         <div class="header-top">{render_logos_html()}</div>
-        {render_top_left_logo_html()}
         <div class="cert-body">
             <h2>{esc(title_val)}</h2>
             <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 6px auto;">
@@ -908,7 +903,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -917,16 +912,13 @@ def generate_trainee_exam_sheet_html(sid):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .report-header {{ display: none !important; }}
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
     <div class="report-wrapper">
-        {render_top_left_logo_html()}
         <h2>نموذج إجابة واختبار المتدرب: {esc(s['trainee_name'])}</h2>
         <div class="tpl-info">
             جهة العمل: {esc(s['facility'])} | الوظيفة: {esc(s['trainee_profession'] if s['trainee_profession'] is not None else '')} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%)
@@ -948,7 +940,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -957,19 +949,16 @@ def generate_general_report_html(title, content_html, target_pages=1):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .report-header {{ display: none !important; }}
     h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8.5pt; }}
     th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
     th {{ background-color: #059669; color: white; font-weight: bold; }}
     tr {{ page-break-inside: avoid; break-inside: avoid; }}
     tr:nth-child(even) {{ background-color: #f0fdf4; }}
-    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
     <div class="report-wrapper">
-        {render_top_left_logo_html()}
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
@@ -987,7 +976,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -996,14 +985,11 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .report-header {{ display: none !important; }}
     h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
     <div class="report-wrapper">
-        {render_top_left_logo_html()}
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
@@ -1054,7 +1040,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 0mm 5mm 8mm 5mm; }}
+    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1063,16 +1049,13 @@ def generate_exam_template_print_html(template_id):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .report-header {{ display: none !important; }}
     h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
-    .footer {{ display: none !important; }}
     </style>
     </head>
     <body>
     <div class="report-wrapper">
-        {render_top_left_logo_html()}
         <h2>نموذج امتحان: {esc(t_dict['name'])} ({esc(t_dict.get('exam_type', 'قبل التدريب'))})</h2>
         <div class="tpl-info">
             التصنيف: {esc(t_dict.get('exam_type', 'قبل التدريب'))} | مدة الاختبار: {t_dict['duration_minutes']} د | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
@@ -1087,8 +1070,8 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    m_top = str(print_sett.get("margin_top", "15mm") or "15mm")
-    m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
+    m_top = str(print_sett.get("margin_top", "10mm") or "10mm")
+    m_bot = str(print_sett.get("margin_bottom", "10mm") or "10mm")
     m_right = str(print_sett.get("margin_right", "5mm") or "5mm")
     m_left = str(print_sett.get("margin_left", "5mm") or "5mm")
     
@@ -1098,13 +1081,14 @@ def render_print_button_only(html_content, label_prefix=""):
             return v
         return fallback
 
-    m_top = _safe_margin(m_top, "15mm")
-    m_bot = _safe_margin(m_bot, "8mm")
+    m_top = _safe_margin(m_top, "10mm")
+    m_bot = _safe_margin(m_bot, "10mm")
     m_right = _safe_margin(m_right, "5mm")
     m_left = _safe_margin(m_left, "5mm")
     
+    # ترتيب التذييل: حقوق الملكية أولاً ثم الاعتمادات تحتها مباشرة
     approvals_markup = """
-    <div style="display: flex; justify-content: space-between; width: 90%; max-width: 600px; margin: auto; align-items: center; text-align: center;">
+    <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 9pt; font-weight: bold;">
         <div>مسؤول التدريب</div>
         <div>رئيس القسم</div>
         <div>مدير المتوطنة</div>
@@ -1117,7 +1101,14 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: 0mm {m_right} {m_bot} {m_left} !important;
+        margin: {m_top} {m_right} {m_bot} {m_left} !important;
+        @bottom-left {{
+            content: "صفحة " counter(page) " من " counter(pages);
+            font-family: 'Cairo', Tahoma, sans-serif;
+            font-size: 8pt;
+            font-weight: bold;
+            color: #065f46;
+        }}
     }}
     @media print {{
         html, body {{
@@ -1140,53 +1131,33 @@ def render_print_button_only(html_content, label_prefix=""):
             justify-content: space-between !important;
             align-items: center !important;
         }}
-        .print-repeat-approvals {{
+        .print-repeat-footer-container {{
             position: fixed !important;
-            bottom: 3.5mm !important;
+            bottom: 0mm !important;
             left: 0 !important;
             right: 0 !important;
-            height: 7.5mm !important;
             z-index: 2147483646 !important;
             background: #ffffff !important;
             color: #065f46 !important;
             border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
-            padding: 0.5mm 0mm !important;
+            padding: 1mm 2mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 10pt !important;
-            font-weight: 900 !important;
-            line-height: 1 !important;
-            text-align: center !important;
-            page-break-after: avoid;
-            break-after: avoid;
         }}
-        .print-repeat-ownership {{
+        .print-page-number-left {{
             position: fixed !important;
-            bottom: 0mm !important;
-            left: 0 !important;
-            right: 0 !important;
-            height: 3.5mm !important;
-            z-index: 2147483646 !important;
-            background: #ffffff !important;
-            color: #065f46 !important;
-            box-sizing: border-box !important;
+            bottom: 1mm !important;
+            left: 4mm !important;
+            z-index: 2147483647 !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 6pt !important;
-            font-weight: 700 !important;
-            line-height: 1 !important;
-            text-align: center !important;
-            white-space: nowrap !important;
+            font-size: 8pt !important;
+            font-weight: bold !important;
+            color: #065f46 !important;
         }}
         body {{
             padding-top: 0px !important;
             padding-bottom: 0px !important;
             box-sizing: border-box !important;
-        }}
-        .report-header {{
-            display: none !important;
-        }}
-        .footer {{
-            display: none !important;
         }}
         .question, tr, div {{
             page-break-inside: avoid !important;
@@ -1204,11 +1175,14 @@ def render_print_button_only(html_content, label_prefix=""):
     </div>
     """
     
-    # ترتيب العناصر بحيث يكون سطر حقوق الملكية فوق سطر الاعتمادات في الهامش السفلي الثابت
+    # سطر حقوق الملكية فوق سطر الاعتمادات مباشرة، وترقم الصفحات على اليسار أسفل الهامش
     repeated_print_markup = f"""
     {repeated_header_markup}
-    <div class="print-repeat-ownership">{ownership_text}</div>
-    <div class="print-repeat-approvals">{approvals_markup}</div>
+    <div class="print-page-number-left">صفحة التدقيق المعتمدة</div>
+    <div class="print-repeat-footer-container">
+        <div style="text-align: center; font-size: 7.5pt; font-weight: bold; margin-bottom: 1px; color: #065f46;">{ownership_text}</div>
+        {approvals_markup}
+    </div>
     """
     
     if "</head>" in html_content:
