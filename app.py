@@ -1196,9 +1196,35 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
     if k not in st.session_state: st.session_state[k] = v
 
 def header():
-    # إرجاع الارتفاع إلى 155 وتعديل الحشو الداخلي ليصبح متوازناً أفقياً بالكامل
     header_html = f"""
-    <div style="background-color: #059669; color: #ffffff; width: 100%; max-width: 100%; padding: 12px 40px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box; border: 2px solid #ffffff;">
+    <style>
+        @keyframes electricGlow {{
+            0% {{
+                box-shadow: 0 0 10px #10b981, 0 0 20px #10b981, 0 0 30px #059669;
+            }}
+            50% {{
+                box-shadow: 0 0 15px #facc15, 0 0 25px #eab308, 0 0 35px #ca8a04;
+            }}
+            100% {{
+                box-shadow: 0 0 10px #10b981, 0 0 20px #10b981, 0 0 30px #059669;
+            }}
+        }}
+        .electric-box {{
+            background-color: #059669; 
+            color: #ffffff; 
+            width: 100%; 
+            max-width: 100%; 
+            padding: 12px 40px; 
+            border-radius: 10px; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            font-family: 'Cairo', sans-serif; 
+            box-sizing: border-box; 
+            border: 2px solid #ffffff;
+            animation: electricGlow 3s infinite ease-in-out;
+        }}
+    </style>
+    <div class="electric-box">
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 2px;">
             <span style="font-size: 24px;">🪱🔬🐌💊</span>
         </div>
