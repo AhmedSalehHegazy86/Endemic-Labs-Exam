@@ -523,7 +523,7 @@ def init_db():
                 "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                      (default_header, "10mm", "10mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "6mm", "8mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
             
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -548,7 +548,7 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "10mm", "margin_bottom": "10mm", "margin_right": "3mm", "margin_left": "3mm",
+        "margin_top": "6mm", "margin_bottom": "8mm", "margin_right": "3mm", "margin_left": "3mm",
         "line_spacing": 1.25,
         "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
         "default_cert_title": "شهادة اجتياز اختبار معتمدة",
@@ -727,9 +727,9 @@ def render_logos_html():
     logos_list_html = ""
     for i, logo in enumerate(logos, start=1):
         if logo:
-            logos_list_html += f'<img src="{logo}" style="width:35px; height:35px; object-fit:contain; display:block;" alt="Logo {i}">'
+            logos_list_html += f'<img src="{logo}" style="width:32px; height:32px; object-fit:contain; display:block;" alt="Logo {i}">'
     return f"""
-    <div style="display:flex; flex-direction:row; gap:5px; align-items:center; justify-content:flex-start; direction:ltr;">
+    <div style="display:flex; flex-direction:row; gap:4px; align-items:center; justify-content:flex-start; direction:ltr;">
         {logos_list_html}
     </div>
     """
@@ -865,7 +865,7 @@ def generate_trainee_exam_sheet_html(sid):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 40px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
@@ -886,12 +886,12 @@ def generate_trainee_exam_sheet_html(sid):
                 style_bg = "#fee2e2"
                 border_color = "#dc2626"
                 icon_str = "❌"
-            opts_html += f'<div style="padding: 1px 4px; margin: 1px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7.5pt; line-height: {line_sp};">{icon_str} {esc(opt_text)}</div>'
+            opts_html += f'<div style="padding: 1px 3px; margin: 1px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7pt; line-height: {line_sp};">{icon_str} {esc(opt_text)}</div>'
         
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin-bottom: 5px; padding: 3px 5px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+        <div style="margin-bottom: 4px; padding: 2px 4px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
             {img_tag_html}
             <div style="margin-top: 1px; padding-right: 2px;">{opts_html}</div>
         </div>
@@ -903,7 +903,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
+    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -912,9 +912,9 @@ def generate_trainee_exam_sheet_html(sid):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
+    h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 4px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ column-count: 2; column-gap: 3mm; column-fill: auto; }}
     </style>
     </head>
     <body>
@@ -940,7 +940,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
+    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -949,9 +949,9 @@ def generate_general_report_html(title, content_html, target_pages=1):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8.5pt; }}
-    th, td {{ border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
+    h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8pt; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 3px 5px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
     th {{ background-color: #059669; color: white; font-weight: bold; }}
     tr {{ page-break-inside: avoid; break-inside: avoid; }}
     tr:nth-child(even) {{ background-color: #f0fdf4; }}
@@ -960,7 +960,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <body>
     <div class="report-wrapper">
         <h2>{esc(title)}</h2>
-        <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
+        <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
     </div>
     </body>
@@ -976,7 +976,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
+    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -985,13 +985,13 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
     <div class="report-wrapper">
         <h2>{esc(title)}</h2>
-        <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
+        <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {content_html}
     </div>
     </body>
@@ -1021,15 +1021,15 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 45px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
         
-        opts_html = "".join([f'<div style="padding: 1px 4px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 7.5pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 1px 3px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 7pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
-        <div style="margin-bottom: 5px; padding: 3px 5px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin-bottom: 4px; padding: 2px 4px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
             <div style="margin-top: 1px; padding-right: 2px;">{opts_html}</div>
         </div>
@@ -1040,7 +1040,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 10mm 5mm 12mm 5mm; }}
+    @page {{ size: A4 auto; margin: 6mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1049,9 +1049,9 @@ def generate_exam_template_print_html(template_id):
         line-height: {line_sp};
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    h2 {{ text-align: center; color: #047857; font-size: 10.5pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 5px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
+    h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 4px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ column-count: 2; column-gap: 3mm; column-fill: auto; }}
     </style>
     </head>
     <body>
@@ -1070,10 +1070,10 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    m_top = str(print_sett.get("margin_top", "10mm") or "10mm")
-    m_bot = str(print_sett.get("margin_bottom", "10mm") or "10mm")
-    m_right = str(print_sett.get("margin_right", "5mm") or "5mm")
-    m_left = str(print_sett.get("margin_left", "5mm") or "5mm")
+    m_top = str(print_sett.get("margin_top", "6mm") or "6mm")
+    m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
+    m_right = str(print_sett.get("margin_right", "3mm") or "3mm")
+    m_left = str(print_sett.get("margin_left", "3mm") or "3mm")
     
     def _safe_margin(v, fallback):
         v = str(v).strip()
@@ -1081,14 +1081,14 @@ def render_print_button_only(html_content, label_prefix=""):
             return v
         return fallback
 
-    m_top = _safe_margin(m_top, "10mm")
-    m_bot = _safe_margin(m_bot, "10mm")
-    m_right = _safe_margin(m_right, "5mm")
-    m_left = _safe_margin(m_left, "5mm")
+    m_top = _safe_margin(m_top, "6mm")
+    m_bot = _safe_margin(m_bot, "8mm")
+    m_right = _safe_margin(m_right, "3mm")
+    m_left = _safe_margin(m_left, "3mm")
     
-    # ترتيب التذييل: حقوق الملكية أولاً ثم الاعتمادات تحتها مباشرة
+    # الاعتمادات مع سطر فاضي بمسافة واضحة بينها وبين حقوق الملكية
     approvals_markup = """
-    <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 9pt; font-weight: bold;">
+    <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 8.5pt; font-weight: bold;">
         <div>مسؤول التدريب</div>
         <div>رئيس القسم</div>
         <div>مدير المتوطنة</div>
@@ -1105,7 +1105,7 @@ def render_print_button_only(html_content, label_prefix=""):
         @bottom-left {{
             content: "صفحة " counter(page) " من " counter(pages);
             font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 8pt;
+            font-size: 7.5pt;
             font-weight: bold;
             color: #065f46;
         }}
@@ -1125,7 +1125,7 @@ def render_print_button_only(html_content, label_prefix=""):
             background: #ffffff !important;
             z-index: 2147483646 !important;
             border-bottom: 2px solid #059669 !important;
-            padding-bottom: 2mm !important;
+            padding-bottom: 1.5mm !important;
             margin-bottom: 0mm !important;
             display: flex !important;
             justify-content: space-between !important;
@@ -1141,16 +1141,16 @@ def render_print_button_only(html_content, label_prefix=""):
             color: #065f46 !important;
             border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
-            padding: 1mm 2mm !important;
+            padding: 1.5mm 2mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
         }}
         .print-page-number-left {{
             position: fixed !important;
             bottom: 1mm !important;
-            left: 4mm !important;
+            left: 3mm !important;
             z-index: 2147483647 !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
-            font-size: 8pt !important;
+            font-size: 7.5pt !important;
             font-weight: bold !important;
             color: #065f46 !important;
         }}
@@ -1170,17 +1170,18 @@ def render_print_button_only(html_content, label_prefix=""):
     header_right_text = print_sett.get('header_text', '')
     repeated_header_markup = f"""
     <div class="print-repeat-header">
-        <div style="font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.2;">{header_right_text}</div>
+        <div style="font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_text}</div>
         <div>{render_logos_html()}</div>
     </div>
     """
     
-    # سطر حقوق الملكية فوق سطر الاعتمادات مباشرة، وترقم الصفحات على اليسار أسفل الهامش
+    # إضافة مسافة فاضية (سطر فارغ) بوضوح بين حقوق الملكية وبين خط الاعتمادات
     repeated_print_markup = f"""
     {repeated_header_markup}
     <div class="print-page-number-left">صفحة التدقيق المعتمدة</div>
     <div class="print-repeat-footer-container">
-        <div style="text-align: center; font-size: 7.5pt; font-weight: bold; margin-bottom: 1px; color: #065f46;">{ownership_text}</div>
+        <div style="text-align: center; font-size: 7pt; font-weight: bold; margin-bottom: 4px; color: #065f46;">{ownership_text}</div>
+        <div style="height: 4px; line-height: 4px; font-size: 1px; clear: both;">&nbsp;</div>
         {approvals_markup}
     </div>
     """
