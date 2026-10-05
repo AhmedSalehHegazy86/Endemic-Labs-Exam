@@ -339,7 +339,7 @@ ALL_MENU_MODULES = {
     "🏥 الهيكل الإداري": "الهيكل الإداري والمنشآت ورفع البيانات",
     "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل",
-    "🧑🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
@@ -1867,7 +1867,7 @@ def admin_dashboard():
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
-        st.subheader("⚙️️ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
+        st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         
@@ -2029,7 +2029,6 @@ def admin_dashboard():
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑‍🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
         
-        # جلب النماذج المتاحة مرة واحدة لاستخدامها في كافة التبويبات بنجاح
         with db() as c: 
             all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         
@@ -2040,7 +2039,6 @@ def admin_dashboard():
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
 
-        # قسم التعميم الجماعي للنماذج
         with st.container(border=True):
             st.markdown("##### 🚀 التعميم الجماعي لنموذج على كافة المتدربين:")
             with st.form("bulk_assign_form_fixed"):
@@ -2048,7 +2046,7 @@ def admin_dashboard():
                 if st.form_submit_button("تعميم الاختبار واعتماد الجميع", use_container_width=True):
                     if tpl_map_dict and bulk_tpl_sel in tpl_map_dict:
                         set_bulk_template_for_all(tpl_map_dict[bulk_tpl_sel])
-                        st.success("✅ تم التعميم الاعتماد بنجاح لكافة المتدربين!"); st.rerun()
+                        st.success("✅ تم التعميم والاعتماد بنجاح لكافة المتدربين!"); st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
 
@@ -2057,7 +2055,7 @@ def admin_dashboard():
         with sub_tabs[0]:
             df_pend = trainees_df("pending", include_hidden=False)
             if df_pend.empty:
-                st.info("لا توجد طلبات معلقة.")
+                st.info("لا توجد طلبات معلقة حالياً.")
             else:
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
@@ -2079,53 +2077,43 @@ def admin_dashboard():
                                 st.warning("تم الرفض."); st.rerun()
 
         with sub_tabs[1]:
-            df_all_tr_include_hidden = trainees_df(include_hidden=True)
-            if df_all_tr_include_hidden.empty:
+            df_all_tr = trainees_df(include_hidden=True)
+            if df_all_tr.empty:
                 st.info("لا توجد بيانات متدربين مسجلة.")
             else:
-                for _, tr_row in df_all_tr_include_hidden.iterrows():
-                    is_hidden_tr = tr_row.get("hidden", 0) == 1
-                    hidden_badge = " [مخفي 👁️🗨️]" if is_hidden_tr else " [ظاهر ✅]"
-                    with st.container(border=True):
-                        st.write(f"**ID:** {tr_row['id']} | **المتدرب:** {tr_row['name']}{hidden_badge} | **المهنة:** {tr_row.get('profession','')} | **الحالة:** `{STATUS_AR.get(tr_row['status'], tr_row['status'])}`")
-                        with st.form(f"update_tr_tpl_{tr_row['id']}"):
-                            curr_id = tr_row['assigned_template_id']
-                            curr_str = ""
-                            if curr_id:
-                                with db() as c:
-                                    curr_tpl_obj = c.execute("SELECT name, exam_type FROM exam_templates WHERE id=?", (curr_id,)).fetchone()
-                                if curr_tpl_obj:
-                                    curr_str = f"{curr_tpl_obj['name']} ({curr_tpl_obj['exam_type'] or 'قبل التدريب'})"
-                            
-                            def_idx = tpl_names_list.index(curr_str) if curr_str in tpl_names_list else 0
-                            new_chosen_tpl = st.selectbox("تعديل النموذج:", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
-                            
-                            c_upd, c_hide, c_show, c_del = st.columns(4)
-                            with c_upd: upd_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                            with c_hide: hide_btn = st.form_submit_button("👁🗨 إخفاء", use_container_width=True)
-                            with c_show: show_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
-                            with c_del: del_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
-                            
-                            if upd_btn:
-                                if tpl_map_dict and new_chosen_tpl in tpl_map_dict:
-                                    set_trainee_status_and_template(int(tr_row['id']), tr_row['status'], tpl_map_dict[new_chosen_tpl])
-                                    st.success("✅ تم التحديث بنجاح!"); st.rerun()
-                                else:
-                                    st.warning("⚠ يرجى اختيار نموذج صالح.")
-                            if hide_btn:
-                                with db() as c: c.execute("UPDATE trainees SET hidden=1 WHERE id=?", (int(tr_row['id']),))
-                                st.success("✅ تم إخفاء المتدرب بنجاح!"); st.rerun()
-                            if show_btn:
-                                with db() as c: c.execute("UPDATE trainees SET hidden=0 WHERE id=?", (int(tr_row['id']),))
-                                st.success("✅ تم إظهار المتدرب بنجاح!"); st.rerun()
-                            if del_btn:
-                                with db() as c:
-                                    c.execute("PRAGMA foreign_keys=OFF;")
-                                    c.execute("DELETE FROM trainees WHERE id=?", (int(tr_row['id']),))
-                                    c.execute("DELETE FROM exam_sessions WHERE trainee_id=?", (int(tr_row['id']),))
-                                    c.execute("PRAGMA foreign_keys=ON;")
-                                reindex_trainees()
-                                st.success("✅ تم الحذف وإعادة الترتيب بنجاح!"); st.rerun()
+                st.dataframe(df_all_tr[['id', 'name', 'profession', 'facility', 'status']], use_container_width=True, hide_index=True)
+                
+                with st.form("manage_trainee_action_form"):
+                    tr_map_options = {f"ID ({row['id']}) - {row['name']} [{row['status']}]": row['id'] for _, row in df_all_tr.iterrows()}
+                    selected_tr_label = st.selectbox("اختر المتدرب للإدارة والتعديل:", list(tr_map_options.keys()))
+                    target_tr_id = tr_map_options[selected_tr_label]
+                    
+                    target_chosen_tpl = st.selectbox("تعديل نموذج الاختبار للمتدرب:", tpl_names_list, key="mod_tr_tpl_sel")
+                    
+                    col_u1, col_u2, col_u3, col_u4 = st.columns(4)
+                    with col_u1: upd_t_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
+                    with col_u2: hide_t_btn = st.form_submit_button("👁🗨 إخفاء", use_container_width=True)
+                    with col_u3: show_t_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
+                    with col_u4: del_t_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
+                    
+                    if upd_t_btn:
+                        if tpl_map_dict and target_chosen_tpl in tpl_map_dict:
+                            set_trainee_status_and_template(int(target_tr_id), "approved", tpl_map_dict[target_chosen_tpl])
+                            st.success("✅ تم تحديث نموذج المتدرب بنجاح!"); st.rerun()
+                    if hide_t_btn:
+                        with db() as c: c.execute("UPDATE trainees SET hidden=1 WHERE id=?", (int(target_tr_id),))
+                        st.success("✅ تم إخفاء المتدرب بنجاح!"); st.rerun()
+                    if show_t_btn:
+                        with db() as c: c.execute("UPDATE trainees SET hidden=0 WHERE id=?", (int(target_tr_id),))
+                        st.success("✅ تم إظهار المتدرب بنجاح!"); st.rerun()
+                    if del_t_btn:
+                        with db() as c:
+                            c.execute("PRAGMA foreign_keys=OFF;")
+                            c.execute("DELETE FROM trainees WHERE id=?", (int(target_tr_id),))
+                            c.execute("DELETE FROM exam_sessions WHERE trainee_id=?", (int(target_tr_id),))
+                            c.execute("PRAGMA foreign_keys=ON;")
+                        reindex_trainees()
+                        st.success("✅ تم الحذف وإعادة الترتيب بنجاح!"); st.rerun()
 
         with sub_tabs[2]:
             st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
