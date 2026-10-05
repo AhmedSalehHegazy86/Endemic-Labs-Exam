@@ -1758,7 +1758,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅️️ إدارة ⬅️ منشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري للمنشآت الصحية (محافظة ⬅️ هيئة ⬅️ مركز ⬅ إدارة ⬅️ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         
         with tab_h1:
@@ -1853,7 +1853,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!"); st.rerun()
 
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2025,8 +2025,8 @@ def admin_dashboard():
             all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         
         if all_tpls_records:
-            tpl_names_list = [f"{row['name']} ({row['exam_type']})" for row in all_tpls_records]
-            tpl_map_dict = {f"{row['name']} ({row['exam_type']})": row["id"] for row in all_tpls_records}
+            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'})" for row in all_tpls_records]
+            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'})": row["id"] for row in all_tpls_records}
         else:
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
@@ -2086,7 +2086,7 @@ def admin_dashboard():
                                 with db() as c:
                                     curr_tpl_obj = c.execute("SELECT name, exam_type FROM exam_templates WHERE id=?", (curr_id,)).fetchone()
                                 if curr_tpl_obj:
-                                    curr_str = f"{curr_tpl_obj['name']} ({curr_tpl_obj['exam_type']})"
+                                    curr_str = f"{curr_tpl_obj['name']} ({curr_tpl_obj['exam_type'] or 'قبل التدريب'})"
                             
                             def_idx = tpl_names_list.index(curr_str) if curr_str in tpl_names_list else 0
                             new_chosen_tpl = st.selectbox("تعديل النموذج:", tpl_names_list, index=def_idx, key=f"sel_tr_{tr_row['id']}")
@@ -2132,7 +2132,7 @@ def admin_dashboard():
             if not completed_sessions:
                 st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين الظاهرين حتى الآن.")
             else:
-                exam_records_map = {f"المتدرب: {r['trainee_name']} | المهنة: {r['trainee_profession']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type']}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
+                exam_records_map = {f"المتدرب: {r['trainee_name']} | المهنة: {r['trainee_profession']} | الجهة: {r['facility']} | الاختبار: {r['template_name'] or 'موافق'} ({r['exam_type'] or 'قبل التدريب'}) | التاريخ: {r['submitted_at'] or r['started_at']} (ID: {r['id']})": r['id'] for r in completed_sessions}
                 sel_exam_rec_label = st.selectbox("اختر الممتحن وتاريخ الامتحان:", list(exam_records_map.keys()))
                 chosen_exam_session_id = exam_records_map[sel_exam_rec_label]
 
