@@ -2369,11 +2369,12 @@ def admin_dashboard():
     elif selected_menu == "📊 التقارير":
         st.subheader("📊 تقارير وأداء المعامل وتحليل النتائج (تستبعد المخفيين تلقائياً)")
         
-        rep_tab1, rep_tab2, rep_tab3, rep_tab4 = st.tabs([
+        rep_tab1, rep_tab2, rep_tab3, rep_tab4, rep_tab5 = st.tabs([
             "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)", 
             "🏢 تقرير جماعي (لمنشأة مع فلترة ومقارنة فترات)", 
             "📋 تقرير النتائج الشامل", 
-            "📈 تقرير أداء الجهات"
+            "📈 تقرير أداء الجهات",
+            "🏆 عرض النتائج والفلترة والأعلى تقييماً"
         ])
         
         with rep_tab1:
@@ -2602,6 +2603,73 @@ def admin_dashboard():
                 table_fac_html = df_fac.to_html(index=False, border=0, classes='table')
                 full_fac_html = generate_general_report_html("تقرير أداء المنشآت والجهات الصحية", f"<div>{table_fac_html}</div>")
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
+
+        with rep_tab5:
+            st.markdown("#### 🏆 عرض نتائج الاختبارات مع فلتر للأعلى تقييماً وأزرار الطباعة الفردية ولجميع الممتحنين:")
+            
+            with db() as c:
+                all_sessions_results = c.execute("""
+                    SELECT s.id as session_id, t.name trainee_name, t.facility, t.profession trainee_profession, 
+                           s.score, s.max_score, s.percent, s.passed, e.name template_name, e.exam_type, s.submitted_at 
+                    FROM exam_sessions s 
+                    JOIN trainees t ON t.id=s.trainee_id 
+                    LEFT JOIN exam_templates e ON e.id=s.template_id 
+                    WHERE s.status='submitted' AND t.hidden=0 
+                    ORDER BY s.percent DESC, s.id DESC
+                """).fetchall()
+
+            if not all_sessions_results:
+                st.info("لا توجد اختبارات مكتملة أو نتائج مسجلة حتى الآن.")
+            else:
+                filter_mode = st.radio("فلترة النتائج:", ["عرض الكل (مرتبة تنازلياً)", "فقط الأعلى تقييماً (النسبة >= 85%)", "فقط المجتازين بنجاح"], horizontal=True)
+                
+                filtered_sessions = []
+                for r in all_sessions_results:
+                    pct = r['percent'] or 0.0
+                    passed = r['passed'] == 1
+                    if "الأعلى تقييماً" in filter_mode and pct < 85.0:
+                        continue
+                    if "المجتازين بنجاح" in filter_mode and not passed:
+                        continue
+                    filtered_sessions.append(r)
+
+                st.write(f"📊 عدد النتائج المعروضة بعد الفلترة: **{len(filtered_sessions)}** نتيجة.")
+                
+                if filtered_sessions:
+                    df_res_display = pd.DataFrame([{
+                        "المتدرب": r['trainee_name'],
+                        "المهنة": r['trainee_profession'],
+                        "جهة العمل": r['facility'],
+                        "الاختبار": f"{r['template_name']} ({r['exam_type']})",
+                        "الدرجة": f"{r['score']}/{r['max_score']}",
+                        "النسبة %": f"{r['percent']:.1f}%",
+                        "الحالة": "اجتزت بنجاح" if r['passed'] else "لم تجتز",
+                        "التاريخ": r['submitted_at']
+                    } for r in filtered_sessions])
+                    
+                    st.dataframe(df_res_display, use_container_width=True, hide_index=True)
+
+                    st.markdown("---")
+                    st.markdown("##### 🖨️ خيارات الطباعة المتقدمة للنتائج:")
+                    
+                    print_choice_mode = st.radio("اختر نوع طباعة النتائج:", ["طباعة نتيجة ممتحن فردي محدد", "طباعة نتائج جميع الممتحنين الظاهرين (القائمة المعروضة)"], horizontal=True)
+                    
+                    if "فردي محدد" in print_choice_mode:
+                        single_choices_map = {f"المتدرب: {r['trainee_name']} | النسبة: {r['percent']:.1f}% | الجهة: {r['facility']} (ID: {r['session_id']})": r['session_id'] for r in filtered_sessions}
+                        sel_single_lbl = st.selectbox("اختر الممتحن لطباعة تقرير نتيجته المفصلة:", list(single_choices_map.keys()))
+                        chosen_sess_id = single_choices_map[sel_single_lbl]
+                        
+                        single_sheet_html = generate_trainee_exam_sheet_html(chosen_sess_id)
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        render_print_button_only(single_sheet_html, f"تقرير نتيجة الممتحن رقم {chosen_sess_id}")
+                    else:
+                        st.write(f"📚 سيتم طباعة وتصدير تقارير وإجابات عدد **{len(filtered_sessions)}** ممتحناً دفعة واحدة.")
+                        combined_all_sheets_html = ""
+                        for r in filtered_sessions:
+                            combined_all_sheets_html += generate_trainee_exam_sheet_html(r['session_id']) + "<div style='page-break-after: always;'></div>"
+                        render_print_button_only(combined_all_sheets_html, "طباعة نتائج جميع الممتحنين")
+                else:
+                    st.warning("⚠ لا توجد نتائج تطابق شروط الفلترة المحددة.")
 
     elif selected_menu == "📈 خطط العمل":
         st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف (مع إمكانية الحذف)")
