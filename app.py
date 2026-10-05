@@ -1200,34 +1200,35 @@ def header():
     <style>
         @keyframes electricMultiGlow {{
             0% {{
-                box-shadow: 0 0 10px #10b981, 0 0 20px #10b981, 0 0 30px #059669;
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2);
+                border-color: #34d399;
             }}
-            25% {{
-                box-shadow: 0 0 15px #facc15, 0 0 25px #eab308, 0 0 35px #ca8a04;
+            33% {{
+                box-shadow: 0 0 20px rgba(20, 184, 166, 0.5), 0 0 35px rgba(13, 148, 136, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+                border-color: #2dd4bf;
             }}
-            50% {{
-                box-shadow: 0 0 15px #38bdf8, 0 0 25px #0ea5e9, 0 0 35px #0284c7;
-            }}
-            75% {{
-                box-shadow: 0 0 15px #fb923c, 0 0 25px #f97316, 0 0 35px #ea580c;
+            66% {{
+                box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), 0 0 35px rgba(14, 165, 233, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3);
+                border-color: #38bdf8;
             }}
             100% {{
-                box-shadow: 0 0 10px #10b981, 0 0 20px #10b981, 0 0 30px #059669;
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2);
+                border-color: #34d399;
             }}
         }}
         .electric-box {{
-            background-color: #059669; 
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
             color: #ffffff; 
             width: 100%; 
             max-width: 100%; 
-            padding: 12px 40px; 
-            border-radius: 10px; 
+            padding: 14px 40px; 
+            border-radius: 12px; 
             text-align: center; 
             margin-bottom: 20px; 
             font-family: 'Cairo', sans-serif; 
             box-sizing: border-box; 
-            border: 2px solid #ffffff;
-            animation: electricMultiGlow 4s infinite ease-in-out;
+            border: 2px solid #34d399;
+            animation: electricMultiGlow 5s infinite ease-in-out;
         }}
     </style>
     <div class="electric-box">
@@ -1236,8 +1237,8 @@ def header():
         </div>
         <div style="font-size: 19px; color: #ffffff; font-weight: 900; line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">مرحبا بك فى بوابة تقييم و اختبار العاملين بالامراض المتوطنة</div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <span style="font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.25); color: #ffffff; padding: 2px 10px; border-radius: 12px;">System V1.0</span>
-            <span id="live-clock-display" style="font-size: 13px; font-weight: bold; color: #ffffff;">جاري تحميل الوقت...</span>
+            <span style="font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.2); color: #ffffff; padding: 2px 10px; border-radius: 12px;">System V1.0</span>
+            <span id="live-clock-display" style="font-size: 13px; font-weight: bold; color: #e2e8f0;">جاري تحميل الوقت...</span>
         </div>
     </div>
     <script>
