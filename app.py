@@ -1122,10 +1122,8 @@ def render_print_button_only(html_content, label_prefix=""):
             print-color-adjust: exact !important;
         }}
         .print-footer-dynamic {{
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
+            position: relative !important;
+            margin-top: 10mm !important;
             width: 100% !important;
             background: #ffffff !important;
             border-top: 2px solid #059669;
@@ -1134,27 +1132,35 @@ def render_print_button_only(html_content, label_prefix=""):
             font-size: 11pt;
             font-weight: 900;
             color: #065f46;
-            text-align: center;
             box-sizing: border-box;
-            z-index: 999999;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }}
-        .print-footer-dynamic > div {{
+        .print-footer-top-row {{
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
             width: 100% !important;
-            text-align: center !important;
             direction: rtl !important;
+            font-size: 10pt;
+            font-weight: 800;
+            color: #047857;
+            border-bottom: 1px dotted #059669;
+            padding-bottom: 3px;
+            margin-bottom: 4px;
         }}
         .page-number-box::after {{
             content: "صفحة " counter(page) " من " counter(pages);
         }}
-        .page-number-box {{
-            margin-bottom: 3px;
-            font-size: 10pt;
-            font-weight: 800;
-            color: #047857;
-            text-align: center;
-            border-bottom: 1px dotted #059669;
-            padding-bottom: 2px;
+        .print-footer-bottom-row {{
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
             direction: rtl !important;
+            font-size: 11pt;
+            font-weight: 900;
+            color: #065f46;
         }}
     }}
     /* للشاشة أيضاً لضمان المعاينة الصحيحة */
@@ -1162,31 +1168,52 @@ def render_print_button_only(html_content, label_prefix=""):
         width: 100% !important;
         background: #ffffff !important;
         border-top: 2px solid #059669;
-        margin-top: 5mm;
+        margin-top: 8mm;
         padding: 8px 4px;
         font-family: 'Cairo', Tahoma, sans-serif;
         font-size: 11pt;
         font-weight: 900;
         color: #065f46;
-        text-align: center;
         box-sizing: border-box;
     }}
-    .page-number-box {{
-        margin-bottom: 3px;
+    .print-footer-top-row {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        direction: rtl;
         font-size: 10pt;
         font-weight: 800;
         color: #047857;
-        text-align: center;
         border-bottom: 1px dotted #059669;
-        padding-bottom: 2px;
+        padding-bottom: 3px;
+        margin-bottom: 4px;
+    }}
+    .print-footer-bottom-row {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        direction: rtl;
+        font-size: 11pt;
+        font-weight: 900;
+        color: #065f46;
     }}
     </style>
     """
     
     footer_bar_html = f"""
     <div class="print-footer-dynamic">
-        <div class="page-number-box">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy &nbsp;|&nbsp; </div>
-        <div style="text-align: center; width: 100%; font-size: 12pt; font-weight: 900; color: #065f46;">مسؤول التدريب &nbsp;&nbsp;|&nbsp;&nbsp; رئيس القسم &nbsp;&nbsp;|&nbsp;&nbsp; مدير المتوطنة &nbsp;&nbsp;|&nbsp;&nbsp; يعتمد: مدير عام الإدارة</div>
+        <div class="print-footer-top-row">
+            <div>جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+            <div class="page-number-box"></div>
+        </div>
+        <div class="print-footer-bottom-row">
+            <span>مسؤول التدريب</span>
+            <span>رئيس القسم</span>
+            <span>مدير المتوطنة</span>
+            <span>يعتمد: مدير عام الإدارة</span>
+        </div>
     </div>
     """
     
