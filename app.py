@@ -799,22 +799,12 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     title_role_str = f"{title_role_val} " if title_role_val else ""
     prof_field_val = r["trainee_profession"] if r["trainee_profession"] is not None else (sett.get("trainee_profession", "أخصائي الأمراض المتوطنة"))
     profession_str = f" - {prof_field_val}" if prof_field_val else ""
-    full_line_text = f"{prefix_str}{title_role_str}{r['trainee_name']}{profession_str}"
+    
+    # التعديل: جعل اللقب قبل الاسم مباشرة
+    full_line_text = f"{prefix_str}{r['trainee_name']} {title_role_str}{profession_str}"
     line_html = f"<div class='cert-name'>{esc(full_line_text)}</div>"
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
-    
-    cert_dynamic_footer = f"""
-    <div style="width: 100%; background: #ffffff; border-top: 2px solid #059669; margin-top: auto; padding: 4px 2px; font-family: 'Cairo', Tahoma, sans-serif; font-size: 8.5pt; font-weight: 900; color: #065f46; box-sizing: border-box; page-break-inside: avoid; break-inside: avoid;">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; direction: rtl;">
-            <span>مسؤول التدريب</span>
-            <span>رئيس القسم</span>
-            <span>مدير المتوطنة</span>
-            <span>يعتمد: مدير عام الإدارة</span>
-        </div>
-        <div style="text-align: center; font-size: 6pt; color: #065f46; margin-top: 1px;">Developed by Dr/Ahmed.S.Hegazy</div>
-    </div>
-    """
     
     return f"""
     <!DOCTYPE html>
@@ -822,43 +812,47 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 8mm 8mm auto 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 6mm 8mm 6mm 8mm !important; }}
     html, body {{ margin:0 !important; padding:0 !important; width:100%; height:100%; }}
-    body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-    .cert-wrapper {{ width:198mm; min-height:275mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; page-break-after:avoid !important; break-after:avoid-page !important; }}
-    .cert-header {{ width:100%; min-height:24mm; box-sizing:border-box; display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; }}
+    body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:flex; flex-direction:column; justify-content:center; align-items:center; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
+    .cert-wrapper {{ width:280mm; min-height:190mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4mm 8mm; position:relative; margin:auto; page-break-after:avoid !important; break-after:avoid-page !important; }}
+    .cert-header {{ width:100%; display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; margin-bottom: 2mm; }}
     .header-top {{ position:static; text-align:left; }}
-    .header-right {{ position:static; text-align:right; font-size:8pt; font-weight:bold; color:#065f46; line-height:1.08; }}
-    .cert-body {{ text-align:center; margin:2mm 0 0; width:100%; z-index:2; flex-grow: 1; }}
-    h2 {{ color:#047857; font-size:14pt; margin:0 0 1mm; line-height:1.05; }}
-    .cert-name {{ font-size:13pt; color:#065f46; font-weight:900; margin:1mm 0; line-height:1.05; }}
-    p {{ font-size:9pt; line-height:1.08; color:#1f2937; margin:1.5mm 0; }}
-    .notes-box {{ background:rgba(240,253,244,.9); border:1px dashed #059669; padding:2mm 4mm; margin:2mm auto; width:82%; border-radius:4mm; font-weight:bold; color:#065f46; font-size:8pt; line-height:1.05; box-sizing:border-box; }}
-    .qr-box {{ margin:2mm auto 0; text-align:center; }}
-    .qr-box img {{ width:30mm; height:30mm; display:block; margin:auto; }}
+    .header-right {{ position:static; text-align:right; font-size:7.5pt; font-weight:bold; color:#065f46; line-height:1.05; }}
+    .cert-body {{ text-align:center; width:100%; z-index:2; margin: auto 0; }}
+    h2 {{ color:#047857; font-size:12pt; margin:0 0 1mm; line-height:1.05; }}
+    .cert-name {{ font-size:11.5pt; color:#065f46; font-weight:900; margin:1mm 0; line-height:1.05; }}
+    p {{ font-size:8pt; line-height:1.05; color:#1f2937; margin:1mm 0; }}
+    .notes-box {{ background:rgba(240,253,244,.9); border:1px dashed #059669; padding:1.5mm 3mm; margin:1.5mm auto; width:82%; border-radius:3mm; font-weight:bold; color:#065f46; font-size:7.5pt; line-height:1.05; box-sizing:border-box; }}
+    .bottom-info-container {{ display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 2mm; direction: ltr; }}
+    .qr-box img {{ width:16mm; height:16mm; display:block; }}
     </style>
     </head>
     <body>
     <div class="cert-wrapper">
-        <div class="header-right">{formatted_header}</div>
-        <div class="header-top">{render_logos_html()}</div>
+        <div class="cert-header" style="justify-content: space-between; width: 100%;">
+            <div class="header-right">{formatted_header}</div>
+            <div class="header-top" style="text-align: left;">{render_logos_html()}</div>
+        </div>
         <div class="cert-body">
             <h2>{esc(title_val)}</h2>
-            <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 4px auto;">
+            <hr style="width: 25%; border: 1px solid #059669; margin: 1px auto 2px auto;">
             {line_html}
-            <p style="margin-top: 2px;">
+            <p style="margin-top: 1px;">
                 جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الوظيفة: <b>{esc(prof_field_val)}</b><br>
                 الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
-                النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
-                رقم التحقق والشهادة: <span style="font-weight: bold; color: #065f46;">{r["certificate_id"]}</span>
+                النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b>
             </p>
             {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
-            <div class="qr-box">
-                <img src="{qr_base64}" alt="QR Code">
-                <div style="font-size:5pt;color:#065f46;margin-top:1px;font-weight:bold;">مسح للتحقق</div>
+            <div class="bottom-info-container">
+                <div class="qr-box">
+                    <img src="{qr_base64}" alt="QR Code">
+                </div>
+                <div style="font-size:7pt; font-weight:bold; color:#065f46; direction: rtl;">
+                    رقم التحقق والشهادة: <span style="font-weight: bold; color: #065f46;">{r["certificate_id"]}</span>
+                </div>
             </div>
         </div>
-        {cert_dynamic_footer}
     </div>
     </body>
     </html>
@@ -1273,7 +1267,7 @@ def render_print_button_only(html_content, label_prefix=""):
     col_opt1, col_opt2 = st.columns(2)
     with col_opt1:
         orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
-        chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["رأسي (Portrait)", "أفقي (Landscape)"], key=orient_key)
+        chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["أفقي (Landscape)", "رأسي (Portrait)"], key=orient_key)
     with col_opt2:
         pages_key = f"pages_target_{hash(label_prefix) & 0xffffffff}"
         target_pages_count = st.number_input("تحديد عدد الأوراق للنسخة الواحدة (لاحتواء المحتوى):", min_value=1, max_value=20, value=1, key=pages_key)
@@ -2491,6 +2485,7 @@ def admin_dashboard():
                             else:
                                 img_q_cnt = c.execute("SELECT COUNT(*) FROM questions WHERE active=1 AND question LIKE '%IMAGE:%'").fetchone()[0]
                         
+                        # التعديل: تطبيق شرط الـ 4 أسئلة مصورة فقط في حال اختيار تصنيف "أسئلة الصور والأشكال المجهرية"
                         if "أسئلة الصور والأشكال المجهرية" in new_tpl_cats and img_q_cnt < 4:
                             st.warning(f"⚠ عذراً، عدد الأسئلة المصورة المتاحة في النطاق المحدد هو ({img_q_cnt}), ويجب ألا يقل عن 4 أسئلة مصورة عند اختيار تصنيف الأشكال والصور.")
                         else:
