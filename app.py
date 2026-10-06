@@ -809,10 +809,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 8mm 8mm auto 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 8mm 8mm 18mm 8mm !important; }}
     html, body {{ margin:0 !important; padding:0 !important; width:100%; height:100%; }}
     body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-    .cert-wrapper {{ width:198mm; height:281mm; max-height:281mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
+    .cert-wrapper {{ width:198mm; height:275mm; max-height:275mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
     .cert-header {{ width:100%; min-height:24mm; box-sizing:border-box; display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; }}
     .header-top {{ position:static; text-align:left; }}
     .header-right {{ position:static; text-align:right; font-size:8pt; font-weight:bold; color:#065f46; line-height:1.08; }}
@@ -929,7 +929,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -966,7 +966,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1002,7 +1002,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1075,7 +1075,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1112,47 +1112,56 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} 25mm {m_left} !important;
-        @bottom-right {{
-            content: "جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy\\Aسفر الاعتمادات / الاعتمادات الرسمية للتقرير\\A\\A";
-            font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 7.5pt;
-            font-weight: bold;
-            color: #065f46;
-            white-space: pre-wrap;
-        }}
-        @bottom-left {{
-            content: "صفحة " counter(page) " من " counter(pages);
-            font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 7.5pt;
-            font-weight: bold;
-            color: #065f46;
-        }}
+        margin: {m_top} {m_right} 20mm {m_left} !important;
     }}
     @media print {{
         html, body {{
             margin: 0 !important;
             padding: 0 !important;
             height: auto !important;
-            min-height: auto !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }}
-        .report-wrapper, .doc-wrapper, .cert-wrapper {{
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
-            height: auto !important;
+        .report-wrapper, .doc-wrapper {{
+            margin-bottom: 12mm !important;
         }}
-        body {{
-            box-sizing: border-box !important;
-        }}
-        .questions-grid > div, tr {{
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+        .print-footer-fixed {{
+            position: fixed !important;
+            bottom: 0 !important;
+            right: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background: #ffffff !important;
+            border-top: 1.5px solid #059669;
+            padding: 6px 12px;
+            font-family: 'Cairo', Tahoma, sans-serif;
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #065f46;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            z-index: 99999;
+            page-break-after: avoid;
+            break-after: avoid;
         }}
     }}
     </style>
     """
+    
+    footer_bar_html = f"""
+    <div class="print-footer-fixed">
+        <div>جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy<br>الاعتمادات الرسمية للتقرير<br><br><br></div>
+        <div style="align-self: flex-end;">صفحة المتابعة والاعتماد</div>
+    </div>
+    """
+    
+    if "</body>" in html_content:
+        html_content = html_content.replace("</body>", footer_bar_html + "</body>")
+    else:
+        html_content += footer_bar_html
+
     if "</head>" in html_content:
         html_content = html_content.replace("</head>", repeated_print_css + "</head>", 1)
     else:
@@ -1872,7 +1881,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2261,7 +2270,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 186mm; max-width: 186mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
