@@ -523,7 +523,7 @@ def init_db():
                 "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                      (default_header, "6mm", "8mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "16mm", "8mm", "3mm", "3mm", 1.25, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
             
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -548,7 +548,7 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "6mm", "margin_bottom": "8mm", "margin_right": "3mm", "margin_left": "3mm",
+        "margin_top": "16mm", "margin_bottom": "8mm", "margin_right": "3mm", "margin_left": "3mm",
         "line_spacing": 1.25,
         "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
         "default_cert_title": "شهادة اجتياز اختبار معتمدة",
@@ -903,7 +903,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 16mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -940,7 +940,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 16mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -976,7 +976,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 16mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1040,7 +1040,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 auto; margin: 8mm 3mm 8mm 3mm; }}
+    @page {{ size: A4 auto; margin: 16mm 3mm 8mm 3mm; }}
     body {{
         font-family: 'Cairo', 'Tahoma', sans-serif;
         background: #ffffff; color: #111827;
@@ -1070,7 +1070,7 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    m_top = "8mm" # تثبيت الهامش العلوي ليكون متطابقاً ومنضبطاً تماماً مثل الهامش السفلي
+    m_top = "16mm" # ضبط الهامش العلوي ليكون كافياً ومتطابقاً لمنع تداخل الأسئلة مع الترويسة المثبتة
     m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
     m_right = str(print_sett.get("margin_right", "3mm") or "3mm")
     m_left = str(print_sett.get("margin_left", "3mm") or "3mm")
@@ -1081,12 +1081,11 @@ def render_print_button_only(html_content, label_prefix=""):
             return v
         return fallback
 
-    m_top = _safe_margin(m_top, "8mm")
+    m_top = _safe_margin(m_top, "16mm")
     m_bot = _safe_margin(m_bot, "8mm")
     m_right = _safe_margin(m_right, "3mm")
     m_left = _safe_margin(m_left, "3mm")
     
-    # الاعتمادات مع سطر فاضي بمسافة واضحة بينها وبين حقوق الملكية
     approvals_markup = """
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 8.5pt; font-weight: bold;">
         <div>مسؤول التدريب</div>
@@ -1125,7 +1124,7 @@ def render_print_button_only(html_content, label_prefix=""):
             background: #ffffff !important;
             z-index: 2147483646 !important;
             border-bottom: 2px solid #059669 !important;
-            padding-bottom: 1.5mm !important;
+            padding-bottom: 2mm !important;
             margin-bottom: 0mm !important;
             display: flex !important;
             justify-content: space-between !important;
@@ -1145,7 +1144,7 @@ def render_print_button_only(html_content, label_prefix=""):
             font-family: 'Cairo', Tahoma, sans-serif !important;
         }}
         body {{
-            padding-top: 0px !important;
+            padding-top: 18mm !important;
             padding-bottom: 0px !important;
             box-sizing: border-box !important;
         }}
@@ -1165,7 +1164,6 @@ def render_print_button_only(html_content, label_prefix=""):
     </div>
     """
     
-    # تمت إزالة عبارة "صفحة التدقيق المعتمدة" من الهامش بالكامل بناءً على طلبك
     repeated_print_markup = f"""
     {repeated_header_markup}
     <div class="print-repeat-footer-container">
