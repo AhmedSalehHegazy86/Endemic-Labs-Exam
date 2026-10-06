@@ -1120,6 +1120,13 @@ def render_print_button_only(html_content, label_prefix=""):
             font-weight: bold;
             color: #065f46;
         }}
+        @bottom-right {{
+            content: "جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy";
+            font-family: 'Cairo', Tahoma, sans-serif;
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #065f46;
+        }}
     }}
     @media print {{
         html, body {{
@@ -1362,7 +1369,7 @@ def login_portal():
         selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list, index=0)
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
             if not facility_final_str:
-                st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
+                st.warning("⚠️️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
             elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
                 st.warning("⚠ يرجى اختيار نموذج الاختبار.")
             elif name.strip() and all_tpls_opts:
@@ -2187,7 +2194,7 @@ def admin_dashboard():
                 final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
                 final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
 
-                # استخراج اسم اليوم وتعديله بحيث يظهر *تحت* التاريخ مباشرة بدقة
+                # ترتيب اليوم والتاريخ بحيث يظهر اسم اليوم أولاً وتحته التاريخ بدقة
                 days_ar = {
                     'Monday': 'الإثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
                     'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت', 'Sunday': 'الأحد'
@@ -2200,7 +2207,7 @@ def admin_dashboard():
                 except:
                     pass
                 
-                date_display_block = f"{final_date_t}" + (f"<br><span style='font-size: 10pt; color: #047857;'>{day_name_str}</span>" if day_name_str else "")
+                date_display_block = (f"<b>اليوم:</b> {day_name_str}<br>" if day_name_str else "") + f"<b>التاريخ:</b> {final_date_t}"
 
                 # إنشاء صفوف جداول توقيع المتدربين (6 صفوف و 3 أعمدة: مسلسل، اسم المتدرب، الوظيفة) مكررة بجوار بعضها (يمين ويسار)
                 signatures_rows_html = ""
@@ -2248,7 +2255,7 @@ def admin_dashboard():
                 </div>
                 """
 
-                # الهامش السفلي الآن ديناميكي تماماً (auto) بحيث يتحرك وينتهي تلقائياً عند انتهاء النصوص دون سحب مساحات فارغة أو وضع اعتمادات خارج النطاق
+                # الهامش السفلي ديناميكي تماماً ومكوناته الأصلية محفوظة وسليمة
                 minutes_print_html = f"""
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -2275,7 +2282,7 @@ def admin_dashboard():
                     <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
                     <div class="meta-info">
                         <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
-                        <div style="text-align: left;">التاريخ:<br>{date_display_block}</div>
+                        <div style="text-align: left;">{date_display_block}</div>
                     </div>
                     
                     <div class="section-title">1. محضر التدريب</div>
