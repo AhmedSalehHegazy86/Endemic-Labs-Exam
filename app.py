@@ -823,7 +823,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     p {{ font-size:9pt; line-height:1.08; color:#1f2937; margin:1.5mm 0; }}
     .notes-box {{ background:rgba(240,253,244,.9); border:1px dashed #059669; padding:2mm 4mm; margin:2mm auto; width:82%; border-radius:4mm; font-weight:bold; color:#065f46; font-size:8pt; line-height:1.05; box-sizing:border-box; }}
     .qr-box {{ margin:2mm auto 0; text-align:center; }}
-    .qr-box img {{ width:34px; height:34px; display:block; margin:auto; }}
+    .qr-box img {{ width:34mm; height:34mm; display:block; margin:auto; }}
     .cert-watermark {{ margin-top:auto; font-size:6.5pt; color:#065f46; font-weight:bold; line-height:1; }}
     </style>
     </head>
@@ -902,10 +902,10 @@ def generate_trainee_exam_sheet_html(sid):
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
                 content_inner_html = f'''
-                <div style="display: flex; flex-direction: row; gap: 4px; align-items: flex-start; width: 100%;">
+                <div style="display: flex; flex-direction: row; gap: 4mm; align-items: flex-start; width: 100%;">
                     <div style="flex: 1; min-width: 0;">{opts_html}</div>
-                    <div style="width: 32px; flex-shrink: 0; text-align: center;">
-                        <img src="{img_uri}" style="max-height: 22px; max-width: 32px; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                    <div style="width: 32mm; flex-shrink: 0; text-align: center;">
+                        <img src="{img_uri}" style="max-height: 22mm; max-width: 32mm; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
                     </div>
                 </div>
                 '''
@@ -1050,10 +1050,10 @@ def generate_exam_template_print_html(template_id):
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
                 content_inner_html = f'''
-                <div style="display: flex; flex-direction: row; gap: 4px; align-items: flex-start; width: 100%;">
+                <div style="display: flex; flex-direction: row; gap: 4mm; align-items: flex-start; width: 100%;">
                     <div style="flex: 1; min-width: 0;">{opts_html}</div>
-                    <div style="width: 32px; flex-shrink: 0; text-align: center;">
-                        <img src="{img_uri}" style="max-height: 22px; max-width: 32px; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                    <div style="width: 32mm; flex-shrink: 0; text-align: center;">
+                        <img src="{img_uri}" style="max-height: 22mm; max-width: 32mm; object-fit: contain; border-radius: 2mm; border: 1px solid #cbd5e1; display: block; margin: auto;">
                     </div>
                 </div>
                 '''
@@ -1896,7 +1896,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -1904,7 +1904,7 @@ def admin_dashboard():
         st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل للأمراض المتوطنة (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         categories_list_opts = [
-            "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
+            "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "ط طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
         ]
         with sub_q_manage_tabs[0]:
             sub_img_tabs = st.tabs(["➕ إضافة", "✏ تعديل", "🗑 حذف"])
@@ -2166,7 +2166,7 @@ def admin_dashboard():
                 st.markdown("<br>", unsafe_allow_html=True)
                 render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
         with sub_tabs[3]:
-            st.markdown("#### 📄 طباعة وتعديل محضر التدريب بناءً على النموذج المختار:")
+            st.markdown("#### 📄 طباعة وتعديل محضر التدريب:")
             with db() as c:
                 all_tpls_for_minutes = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
             if not all_tpls_for_minutes:
@@ -2196,9 +2196,9 @@ def admin_dashboard():
                     st.markdown("##### ✏ تعديل محضر التدريب والبنود والأهداف:")
                     edited_facility_input = st.text_input("اسم المنشأة / جهة العمل:", value=cur_facility_val)
                     edited_date_input = st.text_input("تاريخ محضر التدريب:", value=cur_date_val)
-                    edited_minutes_input = st.text_area("1. حقل محضر التدريب:", value=cur_min_text, height=120)
-                    edited_items_input = st.text_area("2. حقل بنود التدريب متوافقة مع النموذج:", value=cur_items_text, height=140)
-                    edited_goals_input = st.text_area("3. حقل الأهداف من التدريب متوافقة مع النموذج:", value=cur_goals_text, height=140)
+                    edited_minutes_input = st.text_area("1. محضر التدريب:", value=cur_min_text, height=120)
+                    edited_items_input = st.text_area("2. بنود التدريب:", value=cur_items_text, height=140)
+                    edited_goals_input = st.text_area("3. الأهداف من التدريب:", value=cur_goals_text, height=140)
 
                     if st.form_submit_button("💾 حفظ التعديلات على محضر التدريب", use_container_width=True):
                         with db() as c:
@@ -2220,6 +2220,52 @@ def admin_dashboard():
                 final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
                 final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
 
+                # إنشاء صفوف جداول توقيع المتدربين (6 صفوف و 3 أعمدة: مسلسل، اسم المتدرب، الوظيفة) مكررة بجوار بعضها (يمين ويسار)
+                signatures_rows_html = ""
+                for i in range(1, 7):
+                    signatures_rows_html += f"""
+                    <tr>
+                        <td style="border: 1px solid #059669; padding: 4px; text-align: center; font-size: 10pt; width: 12%;">{i}</td>
+                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 50%;">&nbsp;</td>
+                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 38%;">&nbsp;</td>
+                    </tr>
+                    """
+
+                side_by_side_tables_html = f"""
+                <div style="display: flex; flex-direction: row; gap: 4mm; width: 100%; margin-top: 3mm; margin-bottom: 3mm; page-break-inside: avoid; break-inside: avoid;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #047857; font-size: 10.5pt; margin-bottom: 1mm; text-align: center;">كشف توقيع المتدربين (أ)</div>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #059669; color: white;">
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">م</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">اسم المتدرب</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">الوظيفة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {signatures_rows_html}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #047857; font-size: 10.5pt; margin-bottom: 1mm; text-align: center;">كشف توقيع المتدربين (ب)</div>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #059669; color: white;">
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">م</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">اسم المتدرب</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">الوظيفة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {signatures_rows_html}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                """
+
                 minutes_print_html = f"""
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -2230,17 +2276,17 @@ def admin_dashboard():
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 186mm; max-width: 186mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
-                h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2mm 0 !important; }}
-                .meta-info {{ display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2mm 4mm; border-radius: 4px; margin-bottom: 3mm; }}
-                .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 9pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
-                .section-title {{ font-weight: bold; color: #047857; font-size: 9.5pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
-                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 15mm; font-size: 8.5pt; font-weight: bold; text-align: center; }}
+                h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 0 0 2mm 0 !important; }}
+                .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
+                .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 12pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
+                .section-title {{ font-weight: bold; color: #047857; font-size: 13pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
+                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 10mm; font-size: 11.5pt; font-weight: bold; text-align: center; }}
                 </style>
                 </head>
                 <body>
                 <div class="report-wrapper">
                     <div class="first-page-header">
-                        <div style="font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
+                        <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
                         <div>{render_logos_html()}</div>
                     </div>
                     <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
@@ -2252,11 +2298,13 @@ def admin_dashboard():
                     <div class="section-title">1. محضر التدريب</div>
                     <div class="section-box">{esc(final_min_t)}</div>
 
-                    <div class="section-title">2. بنود التدريب متوافقة مع النموذج</div>
+                    <div class="section-title">2. بنود التدريب</div>
                     <div class="section-box">{esc(final_items_t)}</div>
 
-                    <div class="section-title">3. الأهداف من التدريب متوافقة مع النموذج</div>
+                    <div class="section-title">3. الأهداف من التدريب</div>
                     <div class="section-box">{esc(final_goals_t)}</div>
+
+                    {side_by_side_tables_html}
 
                     <div class="signatures-section">
                         <div>مسؤول التدريب</div>
@@ -2347,7 +2395,7 @@ def admin_dashboard():
                                 img_q_cnt = c.execute("SELECT COUNT(*) FROM questions WHERE active=1 AND question LIKE '%IMAGE:%'").fetchone()[0]
                         
                         if img_q_cnt < 4:
-                            st.warning(f"⚠ عذراً، عدد الأسئلة المصورة المتاحة في النطاق المحدد هو ({img_q_cnt})، ويجب ألا يقل عن 4 أسئلة مصورة عند إنشاء أي نموذج.")
+                            st.warning(f"⚠ عذراً، عدد الأسئلة المصورة المتاحة في النطاق المحدد هو ({img_q_cnt}), ويجب ألا يقل عن 4 أسئلة مصورة عند إنشاء أي نموذج.")
                         else:
                             def convert_to_24h(h, m, ampm):
                                 h_24 = h % 12
