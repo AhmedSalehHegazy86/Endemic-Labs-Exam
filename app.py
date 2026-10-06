@@ -929,7 +929,7 @@ def generate_trainee_exam_sheet_html(sid):
         q_text_clean = clean_question_text(q_text_clean)
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:35mm; min-height:35mm; max-height:35mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+        <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
             <div style="font-weight: bold; color: #065f46; margin-bottom: 1.5px; font-size: 8.5pt; line-height: 1.02; height: 9mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
             <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{content_inner_html}</div>
         </div>
@@ -947,7 +947,7 @@ def generate_trainee_exam_sheet_html(sid):
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 35mm; gap: 2mm; width: 100%; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 34mm; gap: 2mm; width: 100%; }}
     </style>
     </head>
     <body>
@@ -1076,7 +1076,7 @@ def generate_exam_template_print_html(template_id):
 
         q_text_clean = clean_question_text(q_text_clean)
         q_html_content += f"""
-        <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:35mm; min-height:35mm; max-height:35mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+        <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
             <div style="font-weight: bold; color: #065f46; margin-bottom: 1.5px; font-size: 8.5pt; line-height: 1.02; height: 9mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
             <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{content_inner_html}</div>
         </div>
@@ -1093,7 +1093,7 @@ def generate_exam_template_print_html(template_id):
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 35mm; gap: 2mm; width: 100%; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 34mm; gap: 2mm; width: 100%; }}
     </style>
     </head>
     <body>
