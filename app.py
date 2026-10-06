@@ -29,6 +29,7 @@ ROLES = {
 }
 
 DIFF_AR = {"سهل": "سهل", "متوسط": "متوسط", "صعب": "صعب", "متنوع": "متنوع"}
+
 STATUS_AR = {
     "pending": "في انتظار اعتماد الإدارة",
     "approved": "معتمد ومصرح بالدخول",
@@ -39,6 +40,7 @@ STATUS_AR = {
 
 os.makedirs(BACKUP_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
+
 DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
 
 # ============================================================
@@ -252,7 +254,8 @@ def reindex_hierarchical_facilities():
         c.execute("DELETE FROM hierarchical_facilities")
         c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
         for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)", (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
+            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
+                      (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
 
 def reindex_trainees():
     with db() as c:
@@ -263,7 +266,8 @@ def reindex_trainees():
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
+            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
             id_mapping[old_id] = new_id
         for old_id, new_id in id_mapping.items():
             c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
@@ -278,7 +282,8 @@ def reindex_questions():
         q_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
+            c.execute("INSERT INTO questions(id, difficulty, category, question, options_json, answer, explanation, reference, active, fingerprint, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["difficulty"], r["category"], r["question"], r["options_json"], r["answer"], r["explanation"], r["reference"], r["active"], r["fingerprint"], r["created_at"]))
             q_mapping[old_id] = new_id
         for old_id, new_id in q_mapping.items():
             c.execute("UPDATE exam_questions SET question_id=? WHERE question_id=?", (new_id, old_id))
@@ -293,7 +298,8 @@ def reindex_templates():
         t_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
             t_mapping[old_id] = new_id
         for old_id, new_id in t_mapping.items():
             c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
@@ -359,7 +365,6 @@ def init_db():
                 created_at TEXT NOT NULL,
                 last_login TEXT
             );
-            
             CREATE TABLE IF NOT EXISTS hierarchical_facilities (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 governorate TEXT NOT NULL,
@@ -370,7 +375,6 @@ def init_db():
                 created_at TEXT NOT NULL,
                 hidden INTEGER NOT NULL DEFAULT 0
             );
-            
             CREATE TABLE IF NOT EXISTS exam_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -384,7 +388,6 @@ def init_db():
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL
             );
-            
             CREATE TABLE IF NOT EXISTS trainees (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 facility TEXT NOT NULL,
@@ -399,7 +402,6 @@ def init_db():
                 hidden INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(assigned_template_id) REFERENCES exam_templates(id) ON DELETE SET NULL
             );
-            
             CREATE TABLE IF NOT EXISTS questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 difficulty TEXT NOT NULL,
@@ -413,7 +415,6 @@ def init_db():
                 fingerprint TEXT UNIQUE,
                 created_at TEXT NOT NULL
             );
-            
             CREATE TABLE IF NOT EXISTS exam_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 trainee_id INTEGER NOT NULL,
@@ -430,7 +431,6 @@ def init_db():
                 FOREIGN KEY(trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
                 FOREIGN KEY(template_id) REFERENCES exam_templates(id) ON DELETE SET NULL
             );
-            
             CREATE TABLE IF NOT EXISTS exam_questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id INTEGER NOT NULL,
@@ -442,7 +442,6 @@ def init_db():
                 FOREIGN KEY(session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
                 FOREIGN KEY(question_id) REFERENCES questions(id) ON DELETE CASCADE
             );
-            
             CREATE TABLE IF NOT EXISTS action_plans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 target_type TEXT NOT NULL,
@@ -454,7 +453,6 @@ def init_db():
                 end_date TEXT,
                 created_at TEXT NOT NULL
             );
-            
             CREATE TABLE IF NOT EXISTS print_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 header_text TEXT NOT NULL,
@@ -475,7 +473,6 @@ def init_db():
                 trainee_profession TEXT NOT NULL DEFAULT '',
                 professions_list_json TEXT NOT NULL DEFAULT '[]'
             );
-            
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 actor TEXT,
@@ -485,7 +482,7 @@ def init_db():
                 created_at TEXT NOT NULL
             );
         """)
-        
+
     for col_table, col_name, col_type in [
         ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
         ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة'"),
@@ -513,23 +510,29 @@ def init_db():
                 c.execute(f"ALTER TABLE {col_table} ADD COLUMN {col_name} {col_type}")
         except:
             pass
-            
+
     with db() as c:
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
             default_header = "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر"
             default_professions = [
-                "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", 
-                "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
+                "أخصائي الأمراض المتوطنة",
+                "طبيب بيطري",
+                "أخصائي ميكروبيولوجي",
+                "فني صحي متوطنة",
+                "فني تمريض",
+                "مسؤول وحدة متوطنة",
+                "مراقب صحي",
+                "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
-            c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
+            c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                       (default_header, "16mm", "5mm", "3mm", "3mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
-            
+
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
             default_start = now_cairo().isoformat(timespec="seconds")
             default_end = (now_cairo() + timedelta(days=365)).isoformat(timespec="seconds")
-            c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)""", 
+            c.execute("""INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)""",
                       ("النموذج التقييمي العام للاستجابة والتدريب للأمراض المتوطنة", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
 
 init_db()
@@ -548,12 +551,21 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "16mm", "margin_bottom": "5mm", "margin_right": "3mm", "margin_left": "3mm",
+        "margin_top": "16mm",
+        "margin_bottom": "5mm",
+        "margin_right": "3mm",
+        "margin_left": "3mm",
         "line_spacing": 1.10,
-        "logo_base64": DEFAULT_LOGO, "logo2_base64": "", "logo3_base64": "", "bg_base64": "", "frame_base64": "",
+        "logo_base64": DEFAULT_LOGO,
+        "logo2_base64": "",
+        "logo3_base64": "",
+        "bg_base64": "",
+        "frame_base64": "",
         "default_cert_title": "شهادة اجتياز اختبار معتمدة",
         "default_cert_notes": "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد",
-        "trainee_prefix": "", "trainee_title": "دكتور", "trainee_profession": "أخصائي الأمراض المتوطنة",
+        "trainee_prefix": "",
+        "trainee_title": "دكتور",
+        "trainee_profession": "أخصائي الأمراض المتوطنة",
         "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
     }
 
@@ -601,8 +613,7 @@ def create_trainee(facility, name, phone, profession, assigned_template_id=None)
 
 def trainee_by_credentials(name, facility):
     with db() as c:
-        r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active') AND hidden=0",
-                      (normalize_text(name), facility)).fetchone()
+        r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active') AND hidden=0", (normalize_text(name), facility)).fetchone()
         return dict(r) if r else None
 
 def set_trainee_status_and_template(tid, status, assigned_template_id):
@@ -670,16 +681,16 @@ def start_session(trainee_id, template_id):
                 raise ValueError("عذراً، انتهى موعد هذا الاختبار ولم يعد متاحاً.")
         else:
             raise ValueError("عذراً، لم تقم الإدارة بتحديد موعد ساري لبدء ونهاية هذا الاختبار بعد.")
-        
+
         today_start = today_date() + "T00:00:00"
-        completed_today = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND template_id=? AND status='submitted' AND started_at>=?",
-                                    (trainee_id, template_id, today_start)).fetchone()
+        completed_today = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND template_id=? AND status='submitted' AND started_at>=?", (trainee_id, template_id, today_start)).fetchone()
         if completed_today:
             raise ValueError("عذراً، لا يمكنك أداء هذا الاختبار أكثر من مرة في نفس اليوم.")
+
         active = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND status='active'", (trainee_id,)).fetchone()
         if active:
             raise ValueError("لديك اختبار نشط بالفعل.")
-        
+
         qs = choose_questions(t)
         started = now_cairo()
         expires = started + timedelta(minutes=int(t_dict.get("duration_minutes", 60)))
@@ -782,24 +793,16 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <style>
     @page {{ size: A4 portrait; margin: 3mm !important; }}
     html, body {{ margin:0 !important; padding:0 !important; width:100%; height:100%; }}
-    body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0;
-            display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-    .cert-wrapper {{ width:204mm; height:291mm; max-height:291mm; box-sizing:border-box;
-        {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center;
-        padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden;
-        page-break-after:avoid !important; break-after:avoid-page !important; }}
-    .cert-header {{ width:100%; min-height:24mm; box-sizing:border-box; display:flex;
-        flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; }}
+    body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
+    .cert-wrapper {{ width:204mm; height:291mm; max-height:291mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
+    .cert-header {{ width:100%; min-height:24mm; box-sizing:border-box; display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; }}
     .header-top {{ position:static; text-align:left; }}
-    .header-right {{ position:static; text-align:right; font-size:8pt; font-weight:bold;
-        color:#065f46; line-height:1.08; }}
+    .header-right {{ position:static; text-align:right; font-size:8pt; font-weight:bold; color:#065f46; line-height:1.08; }}
     .cert-body {{ text-align:center; margin:2mm 0 0; width:100%; z-index:2; }}
     h2 {{ color:#047857; font-size:14pt; margin:0 0 1mm; line-height:1.05; }}
     .cert-name {{ font-size:13pt; color:#065f46; font-weight:900; margin:1mm 0; line-height:1.05; }}
     p {{ font-size:9pt; line-height:1.08; color:#1f2937; margin:1.5mm 0; }}
-    .notes-box {{ background:rgba(240,253,244,.9); border:1px dashed #059669; padding:2mm 4mm;
-        margin:2mm auto; width:82%; border-radius:4mm; font-weight:bold; color:#065f46;
-        font-size:8pt; line-height:1.05; box-sizing:border-box; }}
+    .notes-box {{ background:rgba(240,253,244,.9); border:1px dashed #059669; padding:2mm 4mm; margin:2mm auto; width:82%; border-radius:4mm; font-weight:bold; color:#065f46; font-size:8pt; line-height:1.05; box-sizing:border-box; }}
     .qr-box {{ margin:2mm auto 0; text-align:center; }}
     .qr-box img {{ width:34px; height:34px; display:block; margin:auto; }}
     .cert-watermark {{ margin-top:auto; font-size:6.5pt; color:#065f46; font-weight:bold; line-height:1; }}
@@ -839,7 +842,6 @@ def generate_trainee_exam_sheet_html(sid):
         if not s:
             return ""
         rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (sid,)).fetchall()
-    
     q_html_content = ""
     for idx, r in enumerate(rows, start=1):
         try:
@@ -865,7 +867,6 @@ def generate_trainee_exam_sheet_html(sid):
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
-        
         opts_html = ""
         for o_idx, opt_text in enumerate(disp_opts):
             orig_opt_index = order[o_idx]
@@ -883,7 +884,6 @@ def generate_trainee_exam_sheet_html(sid):
                 border_color = "#dc2626"
                 icon_str = "❌"
             opts_html += f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 3px; font-size: 7pt; line-height: 1.05;">{icon_str} {esc(opt_text)}</div>'
-        
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
         <div style="margin: 0 0 2mm 0; padding: 2.2mm 2.5mm; background:#ffffff; border:1px solid #059669; border-radius:3px; box-sizing:border-box; width:100%; display:inline-block; vertical-align:top; page-break-inside:avoid; break-inside:avoid;">
@@ -900,17 +900,11 @@ def generate_trainee_exam_sheet_html(sid):
     <meta charset="UTF-8">
     <style>
     @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
-    body {{
-        font-family: 'Cairo', 'Tahoma', sans-serif;
-        background: #ffffff; color: #111827;
-        margin: 0 !important; padding: 0 !important; direction: rtl;
-        -webkit-print-color-adjust: exact;
-        line-height: {line_sp};
-    }}
+    body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid { column-count:2; column-gap:4mm; column-fill:auto; width:100%; }
+    .questions-grid {{ column-count:2; column-gap:4mm; column-fill:auto; width:100%; }}
     </style>
     </head>
     <body>
@@ -937,13 +931,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <meta charset="UTF-8">
     <style>
     @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
-    body {{
-        font-family: 'Cairo', 'Tahoma', sans-serif;
-        background: #ffffff; color: #111827;
-        margin: 0 !important; padding: 0 !important; direction: rtl;
-        -webkit-print-color-adjust: exact;
-        line-height: {line_sp};
-    }}
+    body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8pt; }}
@@ -973,13 +961,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <meta charset="UTF-8">
     <style>
     @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
-    body {{
-        font-family: 'Cairo', 'Tahoma', sans-serif;
-        background: #ffffff; color: #111827;
-        margin: 0 !important; padding: 0 !important; direction: rtl;
-        -webkit-print-color-adjust: exact;
-        line-height: {line_sp};
-    }}
+    body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     </style>
@@ -1002,8 +984,7 @@ def generate_exam_template_print_html(template_id):
         if not tpl:
             return ""
         t_dict = dict(tpl)
-        questions_list = choose_questions(t_dict)
-    
+    questions_list = choose_questions(t_dict)
     q_html_content = ""
     for idx, q in enumerate(questions_list, start=1):
         try:
@@ -1021,7 +1002,6 @@ def generate_exam_template_print_html(template_id):
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
-        
         opts_html = "".join([f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 7pt; line-height: 1.05;">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
         <div style="margin: 0 0 2mm 0; padding: 2.2mm 2.5mm; background:#ffffff; border:1px solid #059669; border-radius:3px; box-sizing:border-box; width:100%; display:inline-block; vertical-align:top; page-break-inside:avoid; break-inside:avoid;">
@@ -1037,17 +1017,11 @@ def generate_exam_template_print_html(template_id):
     <meta charset="UTF-8">
     <style>
     @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
-    body {{
-        font-family: 'Cairo', 'Tahoma', sans-serif;
-        background: #ffffff; color: #111827;
-        margin: 0 !important; padding: 0 !important; direction: rtl;
-        -webkit-print-color-adjust: exact;
-        line-height: {line_sp};
-    }}
+    body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid { column-count:2; column-gap:4mm; column-fill:auto; width:100%; }
+    .questions-grid {{ column-count:2; column-gap:4mm; column-fill:auto; width:100%; }}
     </style>
     </head>
     <body>
@@ -1081,7 +1055,7 @@ def render_print_button_only(html_content, label_prefix=""):
     m_bot = _safe_margin(m_bot, "8mm")
     m_right = _safe_margin(m_right, "3mm")
     m_left = _safe_margin(m_left, "3mm")
-    
+
     approvals_markup = """
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 6.8pt; font-weight: bold;">
         <div>مسؤول التدريب</div>
@@ -1144,11 +1118,13 @@ def render_print_button_only(html_content, label_prefix=""):
             padding-bottom: 0 !important;
             box-sizing: border-box !important;
         }}
-        .question, tr {{ page-break-inside: avoid !important; break-inside: avoid !important; }}
+        .question, tr {{
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }}
     }}
     </style>
     """
-    
     header_right_text = print_sett.get('header_text', '')
     repeated_header_markup = f"""
     <div class="print-repeat-header">
@@ -1156,7 +1132,6 @@ def render_print_button_only(html_content, label_prefix=""):
         <div>{render_logos_html()}</div>
     </div>
     """
-    
     repeated_print_markup = f"""
     {repeated_header_markup}
     <div class="print-repeat-footer-container">
@@ -1165,20 +1140,18 @@ def render_print_button_only(html_content, label_prefix=""):
         {approvals_markup}
     </div>
     """
-    
     if "</head>" in html_content:
         html_content = html_content.replace("</head>", repeated_print_css + "</head>", 1)
     else:
         html_content = repeated_print_css + html_content
-        
+
     if "<body" in html_content and "</body>" in html_content:
         body_pos = html_content.find(">", html_content.find("<body")) + 1
         html_content = html_content[:body_pos] + repeated_print_markup + html_content[body_pos:]
     else:
         html_content = repeated_print_markup + html_content
-        
+
     encoded_html = json.dumps(html_content)
-    
     col_opt1, col_opt2 = st.columns(2)
     with col_opt1:
         orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
@@ -1186,7 +1159,7 @@ def render_print_button_only(html_content, label_prefix=""):
     with col_opt2:
         copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
         num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة (الحد الأقصى للاحتواء):", min_value=1, max_value=50, value=1, key=copies_key)
-        
+
     js_code = """
     <div style="margin: 4px 0;">
         <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
@@ -1198,7 +1171,6 @@ def render_print_button_only(html_content, label_prefix=""):
         var win = window.open('', '_blank');
         var targetPages = """ + str(num_pages_to_print) + """;
         var styledHtml = """ + encoded_html + """;
-        // لا نكرر المستند؛ المتصفح ينشئ الصفحات تلقائياً حسب حجم المحتوى.
         win.document.write(styledHtml);
         win.document.close();
         win.focus();
@@ -1232,9 +1204,17 @@ def header():
     }}
     .electric-box {{
         background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
-        color: #ffffff; width: 100%; max-width: 100%; padding: 14px 40px; border-radius: 12px;
-        text-align: center; margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box;
-        border: 2px solid #34d399; animation: electricMultiGlow 8s infinite ease-in-out;
+        color: #ffffff;
+        width: 100%;
+        max-width: 100%;
+        padding: 14px 40px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 20px;
+        font-family: 'Cairo', sans-serif;
+        box-sizing: border-box;
+        border: 2px solid #34d399;
+        animation: electricMultiGlow 8s infinite ease-in-out;
     }}
     </style>
     <div class="electric-box">
@@ -1276,7 +1256,6 @@ def verification_portal_view():
             st.success("✅ تم استلام صورة الرمز بنجاح. إذا لم يتم التعرف عليه تلقائياً، يرجى كتابة كود الشهادة في الحقل أدناه.")
         except Exception as e:
             st.error(f"عذراً، لم نتمكن من قراءة صورة الرمز: {e}")
-            
     search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value=st.session_state.get("scanned_cert_code", ""))
     cert_to_verify = None
     if search_cert_code.strip():
@@ -1302,7 +1281,6 @@ def verification_portal_view():
                 </p>
             </div>
             """, unsafe_allow_html=True)
-            
             verification_doc_html = f"""
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -1340,7 +1318,6 @@ def verification_portal_view():
             render_print_button_only(verification_doc_html, f"توثيق صحة شهادة {r['certificate_id']}")
         elif search_cert_code.strip():
             st.warning("⚠ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
-            
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("العودة لتسجيل الدخول / الرئيسية"):
         st.session_state.show_verification_portal = False
@@ -1353,11 +1330,9 @@ def login_portal():
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
             st.rerun()
-            
     hier_data = get_hierarchical_data(include_hidden=False)
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"])
-    
     with st.form("trainee_request_hierarchical"):
         st.markdown("##### 📍 الجهة الإدارية التابع لها:")
         st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
@@ -1368,34 +1343,25 @@ def login_portal():
         else:
             govs_list = sorted(list(set(item["governorate"] for item in hier_data)))
             sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + govs_list, index=0)
-            
             filtered_auths = sorted(list(set(item["authority"] for item in hier_data if sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov)))
             sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + filtered_auths, index=0)
-            
             filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth))))
             sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers, index=0)
-            
             filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
             sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + filtered_admins, index=0)
-            
             filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center) and (sel_admin == "-- اختر الإدارة --" or item["administration"] == sel_admin))))
             sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
-            
             if sel_gov != "-- اختر المحافظة --" and sel_auth != "-- اختر الهيئة --" and sel_center != "-- اختر المركز --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --":
                 facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_gov} - {sel_auth} - {sel_center} - {sel_admin} - {sel_fac}"
             else:
                 facility_final_str = ""
-                
         name = st.text_input("الاسم الرباعي:", value="")
         phone = st.text_input("رقم الهاتف:", value="")
         selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
-        
         with db() as c:
             all_tpls_opts = {f"{row['name']} ({row['exam_type']})": row["id"] for row in c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()}
-            tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
-            
+        tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
         selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list, index=0)
-        
         if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
             if not facility_final_str:
                 st.warning("⚠️ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
@@ -1417,7 +1383,6 @@ def login_portal():
                     st.rerun()
             else:
                 st.warning("الرجاء إدخال البيانات المطلوبة.")
-                
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
             u = st.text_input("اسم المستخدم", value="")
@@ -1448,14 +1413,12 @@ def admin_dashboard():
             st.session_state.role = ""
             st.session_state.permissions = []
             st.rerun()
-            
     all_modules_list = list(ALL_MENU_MODULES.keys())
     user_perms = st.session_state.permissions if st.session_state.role != "admin" else all_modules_list
     available_menus = [m for m in all_modules_list if m in user_perms]
     if not available_menus:
         st.warning("⚠ لا توجد صلاحيات مصرحة.")
         return
-        
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
     cols_per_row = 3
     menu_keys = available_menus
@@ -1470,7 +1433,6 @@ def admin_dashboard():
                     if st.button(button_label, use_container_width=True, key=f"btn_menu_{i+j}"):
                         st.session_state.active_admin_tab = m_key
                         st.rerun()
-                        
     selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
     
@@ -1489,11 +1451,9 @@ def admin_dashboard():
                 (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND s.passed=1 AND t.hidden=0) passed_cnt,
                 (SELECT COUNT(*) FROM hierarchical_facilities WHERE hidden=0) facs_cnt
             """).fetchone()
-            
         total_tr = cnts["tr"] or 1
         passed_cnt = cnts["passed_cnt"] or 0
         pass_ratio = (passed_cnt / total_tr) * 100
-        
         st.markdown("##### 🚀 المؤشرات الرئيسية (KPIs):")
         cols = st.columns(5)
         metrics_data = [
@@ -1505,7 +1465,6 @@ def admin_dashboard():
         ]
         for box, (l, v) in zip(cols, metrics_data):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
-            
         st.markdown("<br>", unsafe_allow_html=True)
         cols_sub = st.columns(4)
         sub_metrics = [
@@ -1516,16 +1475,15 @@ def admin_dashboard():
         ]
         for box, (l, v) in zip(cols_sub, sub_metrics):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
-            
         st.markdown("---")
         st.markdown("### 📈 تحليلات إضافية وتفصيلية:")
         tab_db_1, tab_db_2, tab_db_3 = st.tabs(["👥 تحليل التخصصات والوظائف", "🏥 توزيع وحدات الأمراض المتوطنة", "📚 تفاصيل بنك الأسئلة والصعوبة"])
         with tab_db_1:
             with db() as c:
                 df_prof_analysis = pd.read_sql_query("""
-                    SELECT profession AS 'الوظيفة / التخصص', COUNT(id) AS 'إجمالي العاملين', 
-                    SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار', 
-                    SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS 'قيد الانتظار' 
+                    SELECT profession AS 'الوظيفة / التخصص', COUNT(id) AS 'إجمالي العاملين',
+                           SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار',
+                           SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS 'قيد الانتظار'
                     FROM trainees WHERE hidden=0 GROUP BY profession ORDER BY COUNT(id) DESC
                 """, c)
             if df_prof_analysis.empty:
@@ -1535,10 +1493,10 @@ def admin_dashboard():
         with tab_db_2:
             with db() as c:
                 df_fac_analysis = pd.read_sql_query("""
-                    SELECT t.facility AS 'وحدة الأمراض المتوطنة / المنشأة', COUNT(t.id) AS 'عدد العاملين', 
-                    SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'عدد المجتازين', 
-                    COALESCE(AVG(s.percent), 0) AS 'متوسط نسبة النجاح %' 
-                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted' 
+                    SELECT t.facility AS 'وحدة الأمراض المتوطنة / المنشأة', COUNT(t.id) AS 'عدد العاملين',
+                           SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'عدد المجتازين',
+                           COALESCE(AVG(s.percent), 0) AS 'متوسط نسبة النجاح %'
+                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     WHERE t.hidden=0 GROUP BY t.facility ORDER BY COUNT(t.id) DESC
                 """, c)
             if df_fac_analysis.empty:
@@ -1548,20 +1506,19 @@ def admin_dashboard():
         with tab_db_3:
             with db() as c:
                 df_q_analysis = pd.read_sql_query("""
-                    SELECT difficulty AS 'مستوى الصعوبة', category AS 'المجال / القسم', COUNT(id) AS 'عدد الأسئلة' 
+                    SELECT difficulty AS 'مستوى الصعوبة', category AS 'المجال / القسم', COUNT(id) AS 'عدد الأسئلة'
                     FROM questions WHERE active=1 GROUP BY difficulty, category ORDER BY COUNT(id) DESC
                 """, c)
             if df_q_analysis.empty:
                 st.info("بنك الأسئلة فارغ حالياً.")
             else:
                 st.dataframe(df_q_analysis, use_container_width=True, hide_index=True)
-                
+
     elif selected_menu == "👥 إدارة المهن والوظائف":
         st.subheader("👥 إدارة الوظائف والتخصصات بالأمراض المتوطنة (مع إمكانية الحذف)")
         st.info("💡 يمكنك من هنا إضافة وظيفة أو تخصص جديد أو حذف تخصص موجود، واستعراض توزيع العاملين حسب وظائفهم.")
         curr_p_set = get_print_settings()
         current_prof_list = curr_p_set.get("professions_list", [])
-        
         col_add_prof, col_list_prof = st.columns(2)
         with col_add_prof:
             with st.form("add_new_profession_form"):
@@ -1573,11 +1530,11 @@ def admin_dashboard():
                         if clean_p not in current_prof_list:
                             current_prof_list.append(clean_p)
                             save_print_settings(
-                                curr_p_set["header_text"], curr_p_set["margin_top"], curr_p_set["margin_bottom"], 
-                                curr_p_set["margin_right"], curr_p_set["margin_left"], curr_p_set.get("line_spacing", 1.25), 
-                                curr_p_set["logo_base64"], curr_p_set.get("logo2_base64", ""), curr_p_set.get("logo3_base64", ""), 
-                                curr_p_set.get("bg_base64", ""), curr_p_set.get("frame_base64", ""), 
-                                curr_p_set["default_cert_title"], curr_p_set["default_cert_notes"], 
+                                curr_p_set["header_text"], curr_p_set["margin_top"], curr_p_set["margin_bottom"],
+                                curr_p_set["margin_right"], curr_p_set["margin_left"], curr_p_set.get("line_spacing", 1.25),
+                                curr_p_set["logo_base64"], curr_p_set.get("logo2_base64", ""), curr_p_set.get("logo3_base64", ""),
+                                curr_p_set.get("bg_base64", ""), curr_p_set.get("frame_base64", ""),
+                                curr_p_set["default_cert_title"], curr_p_set["default_cert_notes"],
                                 curr_p_set["trainee_prefix"], curr_p_set["trainee_title"], curr_p_set["trainee_profession"], current_prof_list
                             )
                             st.success(f"✅ تمت إضافة الوظيفة ({clean_p}) بنجاح للقائمة المنسدلة!")
@@ -1595,28 +1552,26 @@ def admin_dashboard():
                         if sel_del_prof in current_prof_list:
                             current_prof_list.remove(sel_del_prof)
                             save_print_settings(
-                                curr_p_set["header_text"], curr_p_set["margin_top"], curr_p_set["margin_bottom"], 
-                                curr_p_set["margin_right"], curr_p_set["margin_left"], curr_p_set.get("line_spacing", 1.25), 
-                                curr_p_set["logo_base64"], curr_p_set.get("logo2_base64", ""), curr_p_set.get("logo3_base64", ""), 
-                                curr_p_set.get("bg_base64", ""), curr_p_set.get("frame_base64", ""), 
-                                curr_p_set["default_cert_title"], curr_p_set["default_cert_notes"], 
+                                curr_p_set["header_text"], curr_p_set["margin_top"], curr_p_set["margin_bottom"],
+                                curr_p_set["margin_right"], curr_p_set["margin_left"], curr_p_set.get("line_spacing", 1.25),
+                                curr_p_set["logo_base64"], curr_p_set.get("logo2_base64", ""), curr_p_set.get("logo3_base64", ""),
+                                curr_p_set.get("bg_base64", ""), curr_p_set.get("frame_base64", ""),
+                                curr_p_set["default_cert_title"], curr_p_set["default_cert_notes"],
                                 curr_p_set["trainee_prefix"], curr_p_set["trainee_title"], curr_p_set["trainee_profession"], current_prof_list
                             )
                             st.success(f"✅ تم حذف الوظيفة ({sel_del_prof}) بنجاح!")
                             st.rerun()
                     else:
                         st.warning("الرجاء اختيار وظيفة صحيحة للحذف.")
-                        
             st.markdown("#### 📋 القائمة الحالية للوظائف المتاحة:")
             for idx, p_name in enumerate(current_prof_list, start=1):
                 st.write(f"{idx}. {p_name}")
-                
         st.markdown("---")
         st.markdown("#### 📊 تقسيم وإحصائيات العاملين والممتحنين حسب التخصصات:")
         with db() as c:
             df_prof_stats = pd.read_sql_query("""
-                SELECT profession AS 'الوظيفة / التخصص', COUNT(id) AS 'إجمالي العاملين', 
-                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار' 
+                SELECT profession AS 'الوظيفة / التخصص', COUNT(id) AS 'إجمالي العاملين',
+                       SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار'
                 FROM trainees WHERE hidden=0 GROUP BY profession ORDER BY COUNT(id) DESC
             """, c)
         if df_prof_stats.empty:
@@ -1628,7 +1583,7 @@ def admin_dashboard():
             with pd.ExcelWriter(out_prof_bytes, engine='openpyxl') as writer:
                 df_prof_stats.to_excel(writer, index=False, sheet_name='ProfessionsBreakdown')
             st.download_button("📥 تحميل تقرير وتوزيع التخصصات (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            
+
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
         st.subheader("🖨 ضبط اعدادات الطباعة و الهوامش للتقارير العامة (مع إمكانية رفع الصور والشعارات)")
         current_set = get_print_settings()
@@ -1636,12 +1591,16 @@ def admin_dashboard():
             header_text_val = st.text_area("نص ترويسة الجهة العامة (أعلى يمين التقارير):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             st.markdown("#### 📏 هوامش الورق المطبوع للتقارير العامة (مقاس A4):")
             col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-            with col_m1: m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
-            with col_m2: m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
-            with col_m3: m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
-            with col_m4: m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
-            with col_m5: line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
-            
+            with col_m1:
+                m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
+            with col_m2:
+                m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
+            with col_m3:
+                m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
+            with col_m4:
+                m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
+            with col_m5:
+                line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
             st.markdown("#### 🖼 رفع الصور والشعارات لترويسة التقارير:")
             col_logo1, col_logo2, col_logo3 = st.columns(3)
             with col_logo1:
@@ -1653,18 +1612,24 @@ def admin_dashboard():
             with col_logo3:
                 uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار التقرير):", type=["png", "jpg", "jpeg"], key="rep_logo3")
                 remove_logo3 = st.checkbox("حذف الشعار الثالث", key="rep_rem3")
-                
+            
             current_logo1_val = current_set["logo_base64"]
-            if remove_logo1: current_logo1_val = DEFAULT_LOGO
-            elif uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+            if remove_logo1:
+                current_logo1_val = DEFAULT_LOGO
+            elif uploaded_logo1 is not None:
+                current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
             
             current_logo2_val = current_set.get("logo2_base64", "")
-            if remove_logo2: current_logo2_val = ""
-            elif uploaded_logo2 is not None: current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+            if remove_logo2:
+                current_logo2_val = ""
+            elif uploaded_logo2 is not None:
+                current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
             
             current_logo3_val = current_set.get("logo3_base64", "")
-            if remove_logo3: current_logo3_val = ""
-            elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
+            if remove_logo3:
+                current_logo3_val = ""
+            elif uploaded_logo3 is not None:
+                current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
             
             if st.form_submit_button("💾 حفظ ضبط اعدادات الطباعة و الهوامش", use_container_width=True):
                 save_print_settings(
@@ -1672,12 +1637,12 @@ def admin_dashboard():
                     current_logo1_val, current_logo2_val, current_logo3_val,
                     current_set.get("bg_base64", ""), current_set.get("frame_base64", ""),
                     current_set["default_cert_title"], current_set["default_cert_notes"],
-                    current_set["trainee_prefix"], current_set["trainee_title"], 
-                    current_set["trainee_profession"], current_set.get("professions_list", [])
+                    current_set["trainee_prefix"], current_set["trainee_title"], current_set["trainee_profession"],
+                    current_set.get("professions_list", [])
                 )
                 st.success("✅ تم حفظ ضبط اعدادات الطباعة و الهوامش بنجاح!")
                 st.rerun()
-                
+
     elif selected_menu == "🎨 إعدادات الشهادات المخصصة":
         st.subheader("🎨 صفحة إدارة وضبط الشهادات المخصصة وطباعتها")
         cert_sub_tab1, cert_sub_tab2 = st.tabs([
@@ -1688,19 +1653,20 @@ def admin_dashboard():
             st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي التقارير.")
             current_set = get_print_settings()
             professions_options_list = current_set.get("professions_list", [
-                "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", 
-                "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
+                "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ])
             with st.form("dedicated_certificate_settings_form"):
                 st.markdown("#### 🏷️ إعدادات الألقاب والوظيفة في الشهادة:")
                 col_p1, col_p2, col_p3 = st.columns(3)
-                with col_p1: trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
-                with col_p2: trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
+                with col_p1:
+                    trainee_prefix_val = st.text_input("1. البادئة قبل الاسم (مثل: الزميل / الأستاذ):", value=current_set.get("trainee_prefix", ""))
+                with col_p2:
+                    trainee_title_val = st.text_input("2. اللقب (يظهر أمام الاسم مباشرة):", value=current_set.get("trainee_title", "دكتور"))
                 with col_p3:
                     curr_prof = current_set.get("trainee_profession", "أخصائي الأمراض المتوطنة")
                     prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
                     trainee_profession_val = st.selectbox("3. اختيار الوظيفة الافتراضية للشهادات:", professions_options_list, index=prof_idx)
-                    
+                
                 st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
                 line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
                 
@@ -1715,7 +1681,7 @@ def admin_dashboard():
                 with col_logo3:
                     uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الشهادة):", type=["png", "jpg", "jpeg"], key="cert_logo3")
                     remove_logo3 = st.checkbox("حذف الشعار الثالث", key="c_rem3")
-                    
+                
                 st.markdown("#### 🖼 إطار وخلفية الشهادات:")
                 col_bg_up, col_frame_up = st.columns(2)
                 with col_bg_up:
@@ -1724,45 +1690,55 @@ def admin_dashboard():
                 with col_frame_up:
                     uploaded_frame = st.file_uploader("رفع إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="cert_frame")
                     remove_frame = st.checkbox("حذف الإطار الحالي", key="c_rem_frame")
-                    
+                
                 current_logo1_val = current_set["logo_base64"]
-                if remove_logo1: current_logo1_val = DEFAULT_LOGO
-                elif uploaded_logo1 is not None: current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
+                if remove_logo1:
+                    current_logo1_val = DEFAULT_LOGO
+                elif uploaded_logo1 is not None:
+                    current_logo1_val = f"data:image/{uploaded_logo1.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo1.read()).decode("utf-8")
                 
                 current_logo2_val = current_set.get("logo2_base64", "")
-                if remove_logo2: current_logo2_val = ""
-                elif uploaded_logo2 is not None: current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
+                if remove_logo2:
+                    current_logo2_val = ""
+                elif uploaded_logo2 is not None:
+                    current_logo2_val = f"data:image/{uploaded_logo2.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo2.read()).decode("utf-8")
                 
                 current_logo3_val = current_set.get("logo3_base64", "")
-                if remove_logo3: current_logo3_val = ""
-                elif uploaded_logo3 is not None: current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
+                if remove_logo3:
+                    current_logo3_val = ""
+                elif uploaded_logo3 is not None:
+                    current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
                 
                 current_bg_val = current_set.get("bg_base64", "")
-                if remove_bg: current_bg_val = ""
-                elif uploaded_bg is not None: current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
+                if remove_bg:
+                    current_bg_val = ""
+                elif uploaded_bg is not None:
+                    current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
                 
                 current_frame_val = current_set.get("frame_base64", "")
-                if remove_frame: current_frame_val = ""
-                elif uploaded_frame is not None: current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
+                if remove_frame:
+                    current_frame_val = ""
+                elif uploaded_frame is not None:
+                    current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
                 
                 if st.form_submit_button("💾 حفظ إعدادات الشهادة المخصصة", use_container_width=True):
                     save_print_settings(
-                        current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"], 
-                        current_set["margin_right"], current_set["margin_left"], line_spacing_val, 
-                        current_logo1_val, current_logo2_val, current_logo3_val, current_bg_val, current_frame_val, 
-                        current_set["default_cert_title"], current_set["default_cert_notes"], 
+                        current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"],
+                        current_set["margin_right"], current_set["margin_left"], line_spacing_val,
+                        current_logo1_val, current_logo2_val, current_logo3_val,
+                        current_bg_val, current_frame_val,
+                        current_set["default_cert_title"], current_set["default_cert_notes"],
                         trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list
                     )
                     st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!")
                     st.rerun()
-                    
+
         with cert_sub_tab2:
             st.markdown("#### 🖨 طباعة شهادات بناءً على التقارير (أفراد / جماعات / وحدات)")
             st.info("💡 يمكنك من هنا طباعة الشهادات مع إمكانية الفلترة الدقيقة حسب (متدرب فردي)، أو (حسب وحدة الأمراض المتوطنة وجهة العمل)، أو (طباعة جماعية لكل النتائج المعتمدة).")
             with db() as c:
                 all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
                 sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
-                
             if not sessions_full_list:
                 st.info("لا توجد اختبارات مكتملة أو معتمدة للمتدربين الظاهرين حتى الآن.")
             else:
@@ -1794,7 +1770,7 @@ def admin_dashboard():
                     for s in sessions_full_list:
                         combined_all_cert_html += generate_customizable_certificate_html(s['id'], curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes")) + "<div style='page-break-after: always;'></div>"
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
-                    
+
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️ هيئة ⬅️ مركز ⬅ إدارة ⬅️ وحدة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
@@ -1864,22 +1840,27 @@ def admin_dashboard():
                     target_id = facility_map[selected_item_manage]
                     with db() as c:
                         curr_fac_rec = c.execute("SELECT hidden FROM hierarchical_facilities WHERE id=?", (target_id,)).fetchone()
-                        is_currently_hidden = curr_fac_rec["hidden"] == 1 if curr_fac_rec else False
+                    is_currently_hidden = curr_fac_rec["hidden"] == 1 if curr_fac_rec else False
                     c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
-                    with c_hide_btn: hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء الوحدة", use_container_width=True)
-                    with c_show_btn: show_fac_submit = st.form_submit_button("✅ إظهار الوحدة", use_container_width=True)
-                    with c_del_btn: single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
-                    
+                    with c_hide_btn:
+                        hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء الوحدة", use_container_width=True)
+                    with c_show_btn:
+                        show_fac_submit = st.form_submit_button("✅ إظهار الوحدة", use_container_width=True)
+                    with c_del_btn:
+                        single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
                     if hide_fac_submit:
-                        with db() as c: c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
+                        with db() as c:
+                            c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
                         st.success("✅ تم إخفاء وحدة الأمراض المتوطنة من جميع التقارير بنجاح!")
                         st.rerun()
                     if show_fac_submit:
-                        with db() as c: c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
+                        with db() as c:
+                            c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
                         st.success("✅ تم إظهار وحدة الأمراض المتوطنة في التقارير بنجاح!")
                         st.rerun()
                     if single_del:
-                        with db() as c: c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
+                        with db() as c:
+                            c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
                         reindex_hierarchical_facilities()
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
@@ -1892,12 +1873,7 @@ def admin_dashboard():
         st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل للأمراض المتوطنة (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
         sub_q_manage_tabs = st.tabs(["➕ إضافة وتعديل وحذف فردي", "🧠 بنك الأسئلة الشامل (استيراد وتصدير وحذف البنك)"])
         categories_list_opts = [
-            "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا",
-            "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا",
-            "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia",
-            "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)",
-            "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz",
-            "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
+            "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
         ]
         with sub_q_manage_tabs[0]:
             sub_img_tabs = st.tabs(["➕ إضافة", "✏ تعديل", "🗑 حذف"])
@@ -2059,7 +2035,6 @@ def admin_dashboard():
         else:
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
-            
         with st.container(border=True):
             st.markdown("##### 🚀 التعميم الجماعي لنموذج على كافة المتدربين:")
             with st.form("bulk_assign_form_fixed"):
@@ -2071,7 +2046,6 @@ def admin_dashboard():
                         st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
-                        
         sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending", include_hidden=False)
@@ -2084,8 +2058,10 @@ def admin_dashboard():
                         with st.form(f"approve_form_{r['id']}"):
                             chosen_tpl = st.selectbox("نموذج الاختبار المخصص:", tpl_names_list, key=f"app_tpl_{r['id']}")
                             c1, c2 = st.columns(2)
-                            with c1: app_btn = st.form_submit_button("✅ اعتماد", use_container_width=True)
-                            with c2: rej_btn = st.form_submit_button("❌ رفض", use_container_width=True)
+                            with c1:
+                                app_btn = st.form_submit_button("✅ اعتماد", use_container_width=True)
+                            with c2:
+                                rej_btn = st.form_submit_button("❌ رفض", use_container_width=True)
                             if app_btn:
                                 if tpl_map_dict and chosen_tpl in tpl_map_dict:
                                     set_trainee_status_and_template(int(r['id']), "approved", tpl_map_dict[chosen_tpl])
@@ -2109,22 +2085,27 @@ def admin_dashboard():
                     target_tr_id = tr_map_options[selected_tr_label]
                     target_chosen_tpl = st.selectbox("تعديل نموذج الاختبار للمتدرب:", tpl_names_list, key="mod_tr_tpl_sel")
                     col_u1, col_u2, col_u3, col_u4 = st.columns(4)
-                    with col_u1: upd_t_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
-                    with col_u2: hide_t_btn = st.form_submit_button("👁🗨 إخفاء", use_container_width=True)
-                    with col_u3: show_t_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
-                    with col_u4: del_t_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
-                    
+                    with col_u1:
+                        upd_t_btn = st.form_submit_button("💾 تحديث", use_container_width=True)
+                    with col_u2:
+                        hide_t_btn = st.form_submit_button("👁🗨 إخفاء", use_container_width=True)
+                    with col_u3:
+                        show_t_btn = st.form_submit_button("✅ إظهار", use_container_width=True)
+                    with col_u4:
+                        del_t_btn = st.form_submit_button("🗑 حذف", use_container_width=True)
                     if upd_t_btn:
                         if tpl_map_dict and target_chosen_tpl in tpl_map_dict:
                             set_trainee_status_and_template(int(target_tr_id), "approved", tpl_map_dict[target_chosen_tpl])
                             st.success("✅ تم تحديث نموذج المتدرب بنجاح!")
                             st.rerun()
                     if hide_t_btn:
-                        with db() as c: c.execute("UPDATE trainees SET hidden=1 WHERE id=?", (int(target_tr_id),))
+                        with db() as c:
+                            c.execute("UPDATE trainees SET hidden=1 WHERE id=?", (int(target_tr_id),))
                         st.success("✅ تم إخفاء المتدرب بنجاح!")
                         st.rerun()
                     if show_t_btn:
-                        with db() as c: c.execute("UPDATE trainees SET hidden=0 WHERE id=?", (int(target_tr_id),))
+                        with db() as c:
+                            c.execute("UPDATE trainees SET hidden=0 WHERE id=?", (int(target_tr_id),))
                         st.success("✅ تم إظهار المتدرب بنجاح!")
                         st.rerun()
                     if del_t_btn:
@@ -2140,8 +2121,8 @@ def admin_dashboard():
             st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
             with db() as c:
                 completed_sessions = c.execute("""
-                    SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.submitted_at, s.started_at, e.name template_name, e.exam_type 
-                    FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
+                    SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.submitted_at, s.started_at, e.name template_name, e.exam_type
+                    FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC
                 """).fetchall()
             if not completed_sessions:
@@ -2171,7 +2152,6 @@ def admin_dashboard():
                     s_t = t_dict.get('start_time') or "غير محدد"
                     e_t = t_dict.get('end_time') or "غير محدد"
                     exam_type_badge = t_dict.get('exam_type', 'قبل التدريب')
-                    
                     def format_12h(iso_str):
                         if not iso_str or "T" not in iso_str:
                             return iso_str
@@ -2180,7 +2160,6 @@ def admin_dashboard():
                             return dt.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
                         except:
                             return iso_str
-                            
                     with st.container(border=True):
                         st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')} &nbsp;|&nbsp; <span style='color: #059669; font-size: 14px;'>[{exam_type_badge}]</span>", unsafe_allow_html=True)
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
@@ -2188,12 +2167,7 @@ def admin_dashboard():
                         render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
         elif sub_tpl_mode == "➕ إنشاء نموذج جديد":
             categories_pool_opts = [
-                "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا",
-                "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا",
-                "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia",
-                "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)",
-                "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz",
-                "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
+                "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
             ]
             with st.form("create_template_schedule_form"):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
@@ -2211,16 +2185,22 @@ def admin_dashboard():
                     start_d = st.date_input("تاريخ البدء:", current_online_dt.date())
                     st.markdown("##### وقت البدء:")
                     sh_col1, sh_col2, sh_col3 = st.columns(3)
-                    with sh_col1: start_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=current_online_dt.hour % 12 or 12, key="sh_in")
-                    with sh_col2: start_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=current_online_dt.minute, key="sm_in")
-                    with sh_col3: start_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="sap_in")
+                    with sh_col1:
+                        start_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=current_online_dt.hour % 12 or 12, key="sh_in")
+                    with sh_col2:
+                        start_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=current_online_dt.minute, key="sm_in")
+                    with sh_col3:
+                        start_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="sap_in")
                 with col_d2:
                     end_d = st.date_input("تاريخ النهاية:", current_online_dt.date() + timedelta(days=1))
                     st.markdown("##### وقت النهاية:")
                     eh_col1, eh_col2, eh_col3 = st.columns(3)
-                    with eh_col1: end_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=5, key="eh_in")
-                    with eh_col2: end_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="em_in")
-                    with eh_col3: end_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="eap_in")
+                    with eh_col1:
+                        end_h = st.number_input("الساعة (1-12):", min_value=1, max_value=12, value=5, key="eh_in")
+                    with eh_col2:
+                        end_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="em_in")
+                    with eh_col3:
+                        end_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="eap_in")
                 new_tpl_cats = st.multiselect("المجالات / الأقسام:", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ النموذج والمواعيد", use_container_width=True):
                     if new_tpl_name.strip():
@@ -2252,7 +2232,6 @@ def admin_dashboard():
                     curr_exam_type_val = curr_tpl_rec["exam_type"] if curr_tpl_rec else "قبل التدريب"
                     types_list_opts = ["قبل التدريب", "بعد التدريب", "تقييم شامل"]
                     type_idx = types_list_opts.index(curr_exam_type_val) if curr_exam_type_val in types_list_opts else 0
-                    
                     st.markdown("#### 🎯 تعديل تصنيف النموذج:")
                     updated_exam_type = st.radio("نوع النموذج الجديد:", types_list_opts, index=type_idx, horizontal=True)
                     current_online_dt = now_cairo()
@@ -2261,15 +2240,21 @@ def admin_dashboard():
                     with col_u1:
                         new_sd = st.date_input("البدء الجديد:", current_online_dt.date())
                         uh1, uh2, uh3 = st.columns(3)
-                        with uh1: ns_h = st.number_input("الساعة:", 1, 12, current_online_dt.hour % 12 or 12, key="ns_h")
-                        with uh2: ns_m = st.number_input("الدقيقة:", 0, 59, current_online_dt.minute, key="ns_m")
-                        with uh3: ns_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="ns_ampm")
+                        with uh1:
+                            ns_h = st.number_input("الساعة:", 1, 12, current_online_dt.hour % 12 or 12, key="ns_h")
+                        with uh2:
+                            ns_m = st.number_input("الدقيقة:", 0, 59, current_online_dt.minute, key="ns_m")
+                        with uh3:
+                            ns_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="ns_ampm")
                     with col_u2:
                         new_ed = st.date_input("النهاية الجديدة:", current_online_dt.date() + timedelta(days=1))
                         ne1, ne2, ne3 = st.columns(3)
-                        with ne1: ne_h = st.number_input("الساعة:", 1, 12, 5, key="ne_h")
-                        with ne2: ne_m = st.number_input("الدقيقة:", 0, 59, 0, key="ne_m")
-                        with ne3: ne_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="ne_ampm")
+                        with ne1:
+                            ne_h = st.number_input("الساعة:", 1, 12, 5, key="ne_h")
+                        with ne2:
+                            ne_m = st.number_input("الدقيقة:", 0, 59, 0, key="ne_m")
+                        with ne3:
+                            ne_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="ne_ampm")
                     if st.form_submit_button("💾 تحديث الموعد والتصنيف", use_container_width=True):
                         def convert_to_24h(h, m, ampm):
                             h_24 = h % 12
@@ -2310,19 +2295,19 @@ def admin_dashboard():
             all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in all_tpls_records} if all_tpls_records else {}
         manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
-        
         with st.form("manual_score_form_enhanced"):
             m_trainee_name = st.text_input("اسم المتدرب:", value="")
             m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
             m_profession = st.selectbox("الوظيفة / التخصص:", prof_manual_list)
             selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
             c1, c2 = st.columns(2)
-            with c1: manual_score = st.number_input("الدرجة الحاصل عليها:", min_value=0, max_value=9999, value=45)
-            with c2: manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
+            with c1:
+                manual_score = st.number_input("الدرجة الحاصل عليها:", min_value=0, max_value=9999, value=45)
+            with c2:
+                manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
             manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
             calc_pct = (manual_score / manual_max) * 100 if manual_max > 0 else 0
             st.info(f"📊 النسبة المئوية المحسوبة: **{calc_pct:.1f}%**")
-            
             with db() as c:
                 all_questions_db = c.execute("SELECT id, question, category FROM questions WHERE active=1").fetchall()
             selected_wrong_q_ids = []
@@ -2332,7 +2317,6 @@ def admin_dashboard():
                 q_options_dict = {f"سؤال ({q['id']}) - [{q['category']}] {q['question'][:50]}...": q['id'] for q in all_questions_db}
                 selected_wrong_labels = st.multiselect("اختر الأسئلة الخاطئة من القائمة:", list(q_options_dict.keys()))
                 selected_wrong_q_ids = [q_options_dict[lbl] for lbl in selected_wrong_labels]
-                
             if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
                 if not m_trainee_name.strip():
                     st.warning("⚠ يرجى إدخال اسم المتدرب.")
@@ -2402,7 +2386,6 @@ def admin_dashboard():
                     p1_status = "اجتزت بنجاح" if s_q1 and s_q1["passed"] == 1 else ("لم تجتز" if s_q1 else "-")
                     p2_score = f"{s_q2['score']}/{s_q2['max_score']} ({s_q2['percent']:.1f}%) [{s_q2['exam_type']}]" if s_q2 and s_q2['score'] is not None else "لا توجد بيانات"
                     p2_status = "اجتزت بنجاح" if s_q2 and s_q2["passed"] == 1 else ("لم تجتز" if s_q2 else "-")
-                    
                     individual_report_html = f"""
                     <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
                         <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب (مع مقارنة الفترات)</h3>
@@ -2439,6 +2422,7 @@ def admin_dashboard():
                     st.download_button("📥 تحميل التقرير الفردي (.xlsx)", data=out_ind.getvalue(), file_name=f"individual_report_{chosen_tr_id}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     full_ind_html = generate_general_report_html(f"مقارنة أداء المتدرب: {ind_tr_data['name']}", individual_report_html)
                     render_print_button_only(full_ind_html, f"مقارنة فترات المتدرب {chosen_tr_id}")
+
         with rep_tab2:
             st.markdown("#### 🏢 التقرير الجماعي لوحدة الأمراض المتوطنة (مع تحديد المدى الزمني ومقارنة أداء الوحدة بين فترتين):")
             with db() as c:
@@ -2503,13 +2487,14 @@ def admin_dashboard():
                 st.download_button("📥 تحميل التقرير الجماعي للوحدة (.xlsx)", data=out_group.getvalue(), file_name=f"facility_report_{sel_fac_rep}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 full_group_comp_html = generate_general_report_html(f"مقارنة أداء وحدة الأمراض المتوطنة: {sel_fac_rep}", group_compare_html)
                 render_print_button_only(full_group_comp_html, f"مقارنة فترات وحدة {sel_fac_rep}")
+
         with rep_tab3:
             with db() as c:
                 df_rep = pd.read_sql_query("""
-                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.profession AS 'الوظيفة', t.facility AS 'وحدة الأمراض المتوطنة', 
-                    e.exam_type AS 'تصنيف الاختبار', COALESCE(s.percent, 0) AS 'النسبة المئوية %', 
-                    CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة', s.certificate_id AS 'رقم الشهادة' 
-                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted' 
+                    SELECT t.id AS 'مسلسل', t.name AS 'اسم المتدرب', t.profession AS 'الوظيفة', t.facility AS 'وحدة الأمراض المتوطنة',
+                           e.exam_type AS 'تصنيف الاختبار', COALESCE(s.percent, 0) AS 'النسبة المئوية %',
+                           CASE WHEN s.passed=1 THEN 'اجتزت بنجاح' ELSE 'لم تجتز' END AS 'الحالة', s.certificate_id AS 'رقم الشهادة'
+                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     LEFT JOIN exam_templates e ON e.id=s.template_id WHERE t.hidden=0 ORDER BY t.id DESC
                 """, c)
             if df_rep.empty:
@@ -2523,12 +2508,13 @@ def admin_dashboard():
                 table_html = df_rep.to_html(index=False, border=0, classes='table')
                 full_rep_html = generate_general_report_html("تقرير نتائج المتدربين الشامل", f"<div>{table_html}</div>")
                 render_print_button_only(full_rep_html, "تقرير النتائج الشامل")
+
         with rep_tab4:
             with db() as c:
                 df_fac = pd.read_sql_query("""
-                    SELECT t.facility AS 'وحدة الأمراض المتوطنة / الجهة', COUNT(t.id) AS 'إجمالي المتدربين', 
-                    SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'المجتازين', COALESCE(AVG(s.percent), 0) AS 'متوسط النسبة %' 
-                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted' 
+                    SELECT t.facility AS 'وحدة الأمراض المتوطنة / الجهة', COUNT(t.id) AS 'إجمالي المتدربين',
+                           SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'المجتازين', COALESCE(AVG(s.percent), 0) AS 'متوسط النسبة %'
+                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     WHERE t.hidden=0 GROUP BY t.facility ORDER BY COUNT(t.id) DESC
                 """, c)
             if df_fac.empty:
@@ -2542,12 +2528,14 @@ def admin_dashboard():
                 table_fac_html = df_fac.to_html(index=False, border=0, classes='table')
                 full_fac_html = generate_general_report_html("تقرير أداء وحدات الأمراض المتوطنة والجهات", f"<div>{table_fac_html}</div>")
                 render_print_button_only(full_fac_html, "تقرير أداء الجهات")
+
         with rep_tab5:
             st.markdown("#### 🏆 عرض نتائج الاختبارات مع فلتر للأعلى تقييماً وأزرار الطباعة الفردية ولجميع الممتحنين:")
             with db() as c:
                 all_sessions_results = c.execute("""
-                    SELECT s.id as session_id, t.name trainee_name, t.facility, t.profession trainee_profession, s.score, s.max_score, s.percent, s.passed, e.name template_name, e.exam_type, s.submitted_at 
-                    FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id 
+                    SELECT s.id as session_id, t.name trainee_name, t.facility, t.profession trainee_profession,
+                           s.score, s.max_score, s.percent, s.passed, e.name template_name, e.exam_type, s.submitted_at
+                    FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.percent DESC, s.id DESC
                 """).fetchall()
             if not all_sessions_results:
@@ -2558,8 +2546,10 @@ def admin_dashboard():
                 for r in all_sessions_results:
                     pct = r['percent'] or 0.0
                     passed = r['passed'] == 1
-                    if "الأعلى تقييماً" in filter_mode and pct < 85.0: continue
-                    if "المجتازين بنجاح" in filter_mode and not passed: continue
+                    if "الأعلى تقييماً" in filter_mode and pct < 85.0:
+                        continue
+                    if "المجتازين بنجاح" in filter_mode and not passed:
+                        continue
                     filtered_sessions.append(r)
                 st.write(f"📊 عدد النتائج المعروضة بعد الفلترة: **{len(filtered_sessions)}** نتيجة.")
                 if filtered_sessions:
@@ -2610,9 +2600,9 @@ def admin_dashboard():
                         target_name = chosen_tr_obj['name']
                         with db() as c:
                             incorrect_qs = c.execute("""
-                                SELECT q.category, q.question, eq.selected_option, q.answer 
-                                FROM exam_questions eq JOIN questions q ON q.id=eq.question_id 
-                                JOIN exam_sessions s ON s.id=eq.session_id 
+                                SELECT q.category, q.question, eq.selected_option, q.answer
+                                FROM exam_questions eq JOIN questions q ON q.id=eq.question_id
+                                JOIN exam_sessions s ON s.id=eq.session_id
                                 WHERE s.trainee_id=? AND eq.is_correct=0
                             """, (chosen_tr_obj['id'],)).fetchall()
                         if incorrect_qs:
@@ -2630,8 +2620,10 @@ def admin_dashboard():
                         target_name = st.selectbox("اختر وحدة الأمراض المتوطنة المستهدفة:", all_fac_list)
                         with db() as c:
                             fac_incorrect = c.execute("""
-                                SELECT q.category FROM exam_questions eq JOIN questions q ON q.id=eq.question_id 
-                                JOIN exam_sessions s ON s.id=eq.session_id JOIN trainees t ON t.id=s.trainee_id 
+                                SELECT q.category FROM exam_questions eq
+                                JOIN questions q ON q.id=eq.question_id
+                                JOIN exam_sessions s ON s.id=eq.session_id
+                                JOIN trainees t ON t.id=s.trainee_id
                                 WHERE t.facility=? AND t.hidden=0 AND eq.is_correct=0
                             """, (target_name,)).fetchall()
                         if fac_incorrect:
@@ -2641,7 +2633,6 @@ def admin_dashboard():
                         else:
                             auto_weakness_text = "مستوى العاملين بالوحدة مستقر وتجتاز الاختبارات بكفاءة."
                             auto_steps_text = "1. الحفاظ على مستوى الأداء المتميز.\n2. إجراء تقييم فصلي دوري."
-                            
                 st.markdown("---")
                 st.markdown("#### 🎯 نقاط الضعف (تم استنتاجها وتحليلها تلقائياً):")
                 weak_areas = st.text_area("أبرز نقاط الضعف والأقسام المرصودة:", value=auto_weakness_text)
@@ -2651,9 +2642,10 @@ def admin_dashboard():
                 current_online_dt = now_cairo().date()
                 st.markdown("#### 📅 تحديد الإطار الزمني للخطة (من تاريخ إلى تاريخ):")
                 col_d1, col_d2 = st.columns(2)
-                with col_d1: plan_start_date = st.date_input("من تاريخ البدء:", current_online_dt)
-                with col_d2: plan_end_date = st.date_input("إلى تاريخ النهاية:", current_online_dt + timedelta(days=30))
-                
+                with col_d1:
+                    plan_start_date = st.date_input("من تاريخ البدء:", current_online_dt)
+                with col_d2:
+                    plan_end_date = st.date_input("إلى تاريخ النهاية:", current_online_dt + timedelta(days=30))
                 if st.form_submit_button("💾 حفظ وإنشاء خطة العمل الذكية", use_container_width=True):
                     if not target_name.strip() or not weak_areas.strip():
                         st.warning("⚠ يرجى استكمال البيانات.")
@@ -2712,7 +2704,6 @@ def admin_dashboard():
                 c.execute("DELETE FROM audit_logs")
             st.success("✨ تمت تصفية قاعدة البيانات بالكامل وأصبحت نظيفة وخالية من أي بيانات!")
             st.rerun()
-            
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
             with open(DB_PATH, "rb") as f:
@@ -2811,8 +2802,10 @@ def admin_dashboard():
                         is_checked = mod_key in curr_user_perms
                         edit_checkboxes[mod_key] = st.checkbox(f"{mod_key}", value=is_checked, key=f"mod_chk_{target_user['id']}_{mod_key}")
                     c_save, c_del = st.columns(2)
-                    with c_save: save_btn = st.form_submit_button("💾 حفظ", use_container_width=True)
-                    with c_del: del_btn = st.form_submit_button("🗑 حذف المستخدم", use_container_width=True)
+                    with c_save:
+                        save_btn = st.form_submit_button("💾 حفظ", use_container_width=True)
+                    with c_del:
+                        del_btn = st.form_submit_button("🗑 حذف المستخدم", use_container_width=True)
                     if save_btn:
                         new_assigned = [k for k, v in edit_checkboxes.items() if v]
                         with db() as c:
@@ -2881,7 +2874,6 @@ def trainee_portal():
     if not tr:
         st.session_state.trainee_id = ""
         st.rerun()
-        
     header()
     if tr["status"] == "pending":
         st.markdown("""
@@ -2904,11 +2896,11 @@ def trainee_portal():
             st.session_state.trainee_id = ""
             st.rerun()
         return
-        
+
     assigned_tpl_id = tr["assigned_template_id"]
     with db() as c:
         matching_template = c.execute("SELECT * FROM exam_templates WHERE id=?", (assigned_tpl_id,)).fetchone() if assigned_tpl_id else None
-        
+
     is_exam_open = False
     if matching_template:
         t_dict = dict(matching_template)
@@ -2923,7 +2915,7 @@ def trainee_portal():
                     is_exam_open = True
             except:
                 pass
-                
+
     if not is_exam_open:
         st.markdown("""
         <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
@@ -2936,7 +2928,6 @@ def trainee_portal():
         exam_type_str = t_dict.get("exam_type", "قبل التدريب")
         start_t = t_dict.get("start_time")
         end_t = t_dict.get("end_time")
-        
         def format_12h(iso_str):
             if not iso_str or "T" not in iso_str:
                 return iso_str
@@ -2945,35 +2936,34 @@ def trainee_portal():
                 return dt.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
             except:
                 return iso_str
-                
         st.markdown(f"""
         <div style="background-color: #059669; color: #ffffff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 15px auto; max-width: 900px; border: 2px solid #34d399;">
             <h2 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 900; color: #ffffff;">نظام تقييم واختبار العاملين بالأمراض المتوطنة</h2>
             <p style="margin: 0; font-size: 14px; color: #d1fae5;">المتدرب: <b>{esc(tr["name"])}</b> &nbsp;|&nbsp; الوظيفة: <b>{esc(tr['profession'] if tr['profession'] is not None else '')}</b> &nbsp;|&nbsp; الاختبار المخصص: <b>{esc(tpl_name_str)}</b> [{esc(exam_type_str)}]</p>
         </div>
         """, unsafe_allow_html=True)
-        
         with st.container(border=True):
             format_s = format_12h(start_t)
             format_e = format_12h(end_t)
             col_s1, col_s2 = st.columns(2)
-            with col_s1: st.markdown(f"🟢 **وقت البدء:**\n`{format_s}`")
-            with col_s2: st.markdown(f"🔴 **وقت النهاية:**\n`{format_e}`")
-            st.success("🟢 **الاختبار مفتوح ومتاح الآن للتنفيذ!**")
-            try:
-                sid = start_session(tr["id"], matching_template["id"])
-                st.session_state.exam_session_id = sid
-                st.rerun()
-            except Exception as e:
-                if "لديك اختبار نشط بالفعل" in str(e):
-                    with db() as c:
-                        active_s = c.execute("SELECT id FROM exam_sessions WHERE trainee_id=? AND status='active' LIMIT 1", (tr["id"],)).fetchone()
-                    if active_s:
-                        st.session_state.exam_session_id = active_s["id"]
-                        st.rerun()
-                else:
-                    st.error(str(e))
-                    
+            with col_s1:
+                st.markdown(f"🟢 **وقت البدء:**\n`{format_s}`")
+            with col_s2:
+                st.markdown(f"🔴 **وقت النهاية:**\n`{format_e}`")
+        st.success("🟢 **الاختبار مفتوح ومتاح الآن للتنفيذ!**")
+        try:
+            sid = start_session(tr["id"], matching_template["id"])
+            st.session_state.exam_session_id = sid
+            st.rerun()
+        except Exception as e:
+            if "لديك اختبار نشط بالفعل" in str(e):
+                with db() as c:
+                    active_s = c.execute("SELECT id FROM exam_sessions WHERE trainee_id=? AND status='active' LIMIT 1", (tr["id"],)).fetchone()
+                if active_s:
+                    st.session_state.exam_session_id = active_s["id"]
+                    st.rerun()
+            else:
+                st.error(str(e))
     st.markdown("<br>", unsafe_allow_html=True)
     col_space1, col_btn, col_space2 = st.columns([1, 2, 1])
     with col_btn:
@@ -2986,7 +2976,6 @@ def exam_interface(session_id):
     with db() as c:
         session = c.execute("SELECT s.*, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=? AND t.hidden=0", (session_id,)).fetchone()
         rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
-        
     answered = 0
     for idx, row in enumerate(rows, start=1):
         try:
@@ -3001,7 +2990,6 @@ def exam_interface(session_id):
                 curr_idx = disp_opts.index(opts[row["selected_option"]])
             except:
                 pass
-                
         question_text = esc(clean_question_text(row["question"]))
         st.markdown(f'<div class="question"><strong style="color:#065f46;">({idx})</strong> {question_text}</div>', unsafe_allow_html=True)
         choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
@@ -3011,7 +2999,6 @@ def exam_interface(session_id):
                 c.execute("UPDATE exam_questions SET selected_option=?, is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END WHERE id=?",
                           (sel, sel, row["id"]))
             answered += 1
-            
     st.progress(answered / len(rows) if rows else 0)
     if st.button("تسليم الاختبار نهائياً", use_container_width=True):
         res = submit_session(session_id)
