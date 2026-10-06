@@ -803,27 +803,40 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     line_html = f"<div class='cert-name'>{esc(full_line_text)}</div>"
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
+    
+    # جعل الهامش السفلي أوتوماتيكي ومتحرك لنهاية المتن تماماً للشهادات
+    cert_dynamic_footer = f"""
+    <div style="width: 100%; background: #ffffff; border-top: 2px solid #059669; margin-top: auto; padding: 4px 2px; font-family: 'Cairo', Tahoma, sans-serif; font-size: 8.5pt; font-weight: 900; color: #065f46; box-sizing: border-box; page-break-inside: avoid; break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; direction: rtl;">
+            <span>مسؤول التدريب</span>
+            <span>رئيس القسم</span>
+            <span>مدير المتوطنة</span>
+            <span>يعتمد: مدير عام الإدارة</span>
+        </div>
+        <div style="text-align: center; font-size: 6pt; color: #065f46; margin-top: 1px;">Developed by Dr/Ahmed.S.Hegazy</div>
+    </div>
+    """
+    
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 8mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 8mm 8mm auto 8mm !important; }}
     html, body {{ margin:0 !important; padding:0 !important; width:100%; height:100%; }}
     body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-    .cert-wrapper {{ width:198mm; height:275mm; max-height:275mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
+    .cert-wrapper {{ width:198mm; min-height:275mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; page-break-after:avoid !important; break-after:avoid-page !important; }}
     .cert-header {{ width:100%; min-height:24mm; box-sizing:border-box; display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; }}
     .header-top {{ position:static; text-align:left; }}
     .header-right {{ position:static; text-align:right; font-size:8pt; font-weight:bold; color:#065f46; line-height:1.08; }}
-    .cert-body {{ text-align:center; margin:2mm 0 0; width:100%; z-index:2; }}
+    .cert-body {{ text-align:center; margin:2mm 0 0; width:100%; z-index:2; flex-grow: 1; }}
     h2 {{ color:#047857; font-size:14pt; margin:0 0 1mm; line-height:1.05; }}
     .cert-name {{ font-size:13pt; color:#065f46; font-weight:900; margin:1mm 0; line-height:1.05; }}
     p {{ font-size:9pt; line-height:1.08; color:#1f2937; margin:1.5mm 0; }}
     .notes-box {{ background:rgba(240,253,244,.9); border:1px dashed #059669; padding:2mm 4mm; margin:2mm auto; width:82%; border-radius:4mm; font-weight:bold; color:#065f46; font-size:8pt; line-height:1.05; box-sizing:border-box; }}
     .qr-box {{ margin:2mm auto 0; text-align:center; }}
-    .qr-box img {{ width:34mm; height:34mm; display:block; margin:auto; }}
-    .cert-watermark {{ margin-top:auto; font-size:6.5pt; color:#065f46; font-weight:bold; line-height:1; }}
+    .qr-box img {{ width:30mm; height:30mm; display:block; margin:auto; }}
     </style>
     </head>
     <body>
@@ -832,9 +845,9 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <div class="header-top">{render_logos_html()}</div>
         <div class="cert-body">
             <h2>{esc(title_val)}</h2>
-            <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 6px auto;">
+            <hr style="width: 30%; border: 1px solid #059669; margin: 2px auto 4px auto;">
             {line_html}
-            <p style="margin-top: 4px;">
+            <p style="margin-top: 2px;">
                 جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الوظيفة: <b>{esc(prof_field_val)}</b><br>
                 الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
                 النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b><br>
@@ -843,10 +856,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
             <div class="qr-box">
                 <img src="{qr_base64}" alt="QR Code">
-                <div style="font-size:5.5pt;color:#065f46;margin-top:1px;font-weight:bold;">مسح للتحقق</div>
+                <div style="font-size:5pt;color:#065f46;margin-top:1px;font-weight:bold;">مسح للتحقق</div>
             </div>
         </div>
-        <div class="cert-watermark">Developed by Dr/Ahmed.S.Hegazy</div>
+        {cert_dynamic_footer}
     </div>
     </body>
     </html>
@@ -1108,46 +1121,90 @@ def render_print_button_only(html_content, label_prefix=""):
     m_right = "8mm"
     m_left = "8mm"
     
-    repeated_print_css = f"""
-    <style>
-    @page {{
-        size: A4 portrait;
-        margin: {m_top} {m_right} 18mm {m_left} !important;
-    }}
-    @media print {{
-        html, body {{
-            margin: 0 !important;
-            padding: 0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+    # التحقق هل المستند عبارة عن محضر تدريب لجعله يتكيف برمجياً دون تذييل ثابت مزعج
+    is_minutes_doc = "محضر تدريب" in label_prefix or "محضر تدريب" in html_content
+    
+    if is_minutes_doc:
+        # لمحاضر التدريب: الهامش السفلي أوتوماتيكي ومتحرك لنهاية المتن مباشرة
+        repeated_print_css = f"""
+        <style>
+        @page {{
+            size: A4 portrait;
+            margin: {m_top} {m_right} auto {m_left} !important;
         }}
-        /* تهيئة العدادات ليبدأ الترقيم من 1 حقيقة */
-        body {{
-            counter-reset: page 0;
+        @media print {{
+            html, body {{
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }}
+            body {{
+                counter-reset: page 0;
+            }}
+            .print-footer-dynamic {{
+                position: relative !important;
+                width: 100% !important;
+                background: #ffffff !important;
+                border-top: 2px solid #059669;
+                margin-top: 10px !important;
+                padding: 6px 4px !important;
+                font-family: 'Cairo', Tahoma, sans-serif;
+                font-size: 11pt;
+                font-weight: 900;
+                color: #065f46;
+                box-sizing: border-box;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }}
+            .print-footer-top-row {{
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                direction: rtl !important;
+                font-size: 10pt;
+                font-weight: 800;
+                color: #047857;
+                border-bottom: 1px dotted #059669;
+                padding-bottom: 3px;
+                margin-bottom: 4px;
+            }}
+            .page-number-box {{
+                counter-increment: page;
+            }}
+            .page-number-box::after {{
+                content: "صفحة " counter(page);
+            }}
+            .print-footer-bottom-row {{
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                direction: rtl !important;
+                font-size: 11pt;
+                font-weight: 900;
+                color: #065f46;
+            }}
         }}
         .print-footer-dynamic {{
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
             width: 100% !important;
             background: #ffffff !important;
             border-top: 2px solid #059669;
-            padding: 6px 4px !important;
+            margin-top: 8mm;
+            padding: 8px 4px;
             font-family: 'Cairo', Tahoma, sans-serif;
             font-size: 11pt;
             font-weight: 900;
             color: #065f46;
             box-sizing: border-box;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
         }}
         .print-footer-top-row {{
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            width: 100% !important;
-            direction: rtl !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            direction: rtl;
             font-size: 10pt;
             font-weight: 800;
             color: #047857;
@@ -1155,61 +1212,120 @@ def render_print_button_only(html_content, label_prefix=""):
             padding-bottom: 3px;
             margin-bottom: 4px;
         }}
-        .page-number-box {{
-            counter-increment: page;
-        }}
-        .page-number-box::after {{
-            content: "صفحة " counter(page);
-        }}
         .print-footer-bottom-row {{
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            width: 100% !important;
-            direction: rtl !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            direction: rtl;
             font-size: 11pt;
             font-weight: 900;
             color: #065f46;
         }}
-    }}
-    /* للشاشة أيضاً لمعاينة الهامش السفلي الثابت */
-    .print-footer-dynamic {{
-        width: 100% !important;
-        background: #ffffff !important;
-        border-top: 2px solid #059669;
-        margin-top: 8mm;
-        padding: 8px 4px;
-        font-family: 'Cairo', Tahoma, sans-serif;
-        font-size: 11pt;
-        font-weight: 900;
-        color: #065f46;
-        box-sizing: border-box;
-    }}
-    .print-footer-top-row {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        direction: rtl;
-        font-size: 10pt;
-        font-weight: 800;
-        color: #047857;
-        border-bottom: 1px dotted #059669;
-        padding-bottom: 3px;
-        margin-bottom: 4px;
-    }}
-    .print-footer-bottom-row {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        direction: rtl;
-        font-size: 11pt;
-        font-weight: 900;
-        color: #065f46;
-    }}
-    </style>
-    """
+        </style>
+        """
+    else:
+        # باقي التقارير العامة والامتحانات كما هي تماماً مع الترقيم والثبات
+        repeated_print_css = f"""
+        <style>
+        @page {{
+            size: A4 portrait;
+            margin: {m_top} {m_right} 18mm {m_left} !important;
+        }}
+        @media print {{
+            html, body {{
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }}
+            body {{
+                counter-reset: page 0;
+            }}
+            .print-footer-dynamic {{
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                background: #ffffff !important;
+                border-top: 2px solid #059669;
+                padding: 6px 4px !important;
+                font-family: 'Cairo', Tahoma, sans-serif;
+                font-size: 11pt;
+                font-weight: 900;
+                color: #065f46;
+                box-sizing: border-box;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }}
+            .print-footer-top-row {{
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                direction: rtl !important;
+                font-size: 10pt;
+                font-weight: 800;
+                color: #047857;
+                border-bottom: 1px dotted #059669;
+                padding-bottom: 3px;
+                margin-bottom: 4px;
+            }}
+            .page-number-box {{
+                counter-increment: page;
+            }}
+            .page-number-box::after {{
+                content: "صفحة " counter(page);
+            }}
+            .print-footer-bottom-row {{
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                direction: rtl !important;
+                font-size: 11pt;
+                font-weight: 900;
+                color: #065f46;
+            }}
+        }}
+        .print-footer-dynamic {{
+            width: 100% !important;
+            background: #ffffff !important;
+            border-top: 2px solid #059669;
+            margin-top: 8mm;
+            padding: 8px 4px;
+            font-family: 'Cairo', Tahoma, sans-serif;
+            font-size: 11pt;
+            font-weight: 900;
+            color: #065f46;
+            box-sizing: border-box;
+        }}
+        .print-footer-top-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            direction: rtl;
+            font-size: 10pt;
+            font-weight: 800;
+            color: #047857;
+            border-bottom: 1px dotted #059669;
+            padding-bottom: 3px;
+            margin-bottom: 4px;
+        }}
+        .print-footer-bottom-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            direction: rtl;
+            font-size: 11pt;
+            font-weight: 900;
+            color: #065f46;
+        }}
+        </style>
+        """
     
     footer_bar_html = f"""
     <div class="print-footer-dynamic">
@@ -1949,7 +2065,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2338,7 +2454,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
