@@ -1125,34 +1125,32 @@ def render_print_button_only(html_content, label_prefix=""):
         .report-wrapper, .doc-wrapper {{
             margin-bottom: 15mm !important;
         }}
-        .print-footer-fixed {{
-            position: fixed !important;
-            bottom: 0 !important;
-            right: 0 !important;
-            left: 0 !important;
+        .print-footer-dynamic {{
+            display: block !important;
             width: 100% !important;
             background: #ffffff !important;
             border-top: 1.5px solid #059669;
-            padding: 6px 12px;
+            margin-top: 15mm;
+            padding: 8px 0;
             font-family: 'Cairo', Tahoma, sans-serif;
             font-size: 7.5pt;
             font-weight: bold;
             color: #065f46;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             text-align: center;
             box-sizing: border-box;
-            z-index: 99999;
-            page-break-after: avoid;
-            break-after: avoid;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }}
+        .print-footer-dynamic > div {{
+            width: 100% !important;
+            text-align: center !important;
         }}
     }}
     </style>
     """
     
     footer_bar_html = f"""
-    <div class="print-footer-fixed">
+    <div class="print-footer-dynamic">
         <div style="text-align: center; width: 100%;">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
         <div style="text-align: center; width: 100%; margin-top: 2px; border-top: 1px dotted #059669; padding-top: 2px;">مسؤول التدريب &nbsp;|&nbsp; رئيس القسم &nbsp;|&nbsp; مدير المتوطنة &nbsp;|&nbsp; يعتمد: مدير عام الإدارة</div>
     </div>
@@ -2273,7 +2271,7 @@ def admin_dashboard():
                 <style>
                 @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
-                .report-wrapper {{ width: 186mm; max-width: 186mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+                .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
                 h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 0 0 2mm 0 !important; }}
                 .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
@@ -2287,7 +2285,7 @@ def admin_dashboard():
                         <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
                         <div>{render_logos_html()}</div>
                     </div>
-                    <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
+                    <h2>محضر تدريب</h2>
                     <div class="meta-info">
                         <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
                         <div style="text-align: left;">{date_display_block}</div>
