@@ -230,16 +230,21 @@ def clean_question_text(q_text):
         return ""
     cleaned = str(q_text).strip()
     patterns = [
-        r"\(\s*نموذج\s+متوطنة[^)]*\)",
-        r"\(\s*مجموعة\s+متوطنة[^)]*\)",
-        r"\(\s*نموذج\s+تقييم(?:\s*(?:رقم|#)?\s*\d+)?[^)]*\)",
-        r"\[\s*نموذج\s+تقييم(?:\s*(?:رقم|#)?\s*\d+)?[^]]*\]",
-        r"\(\s*سؤال\s*(?:رقم|#)?\s*\d+\s*\)",
+        r"\(\s*نموذج\s*[^)]*\)",
+        r"\[\s*نموذج\s*[^]]*\]",
+        r"\(\s*النموذج\s*[^)]*\)",
+        r"\[\s*النموذج\s*[^]]*\]",
+        r"\(\s*مجموعة\s*[^)]*\)",
+        r"\[\s*مجموعة\s*[^]]*\]",
+        r"\(\s*سؤال\s*[^)]*\)",
+        r"\[\s*سؤال\s*[^]]*\]",
+        r"\(\s*رقم\s*\d+\s*[^)]*\)",
+        r"\[\s*رقم\s*\d+\s*[^]]*\]",
+        r"\(\s*رقم[^)]*\)",
     ]
     for pattern in patterns:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"^\s*(?:سؤال\s*(?:رقم|#)?\s*)?\d+\s*[\)\].:-]+\s*", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"^\s*سؤال\s*(?:رقم|#)?\s*\d+\s*[:.)-]+\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"[ \t]+", " ", cleaned)
     cleaned = re.sub(r"\s+([،,:؛؟.)])", r"\1", cleaned)
     return cleaned.strip()
@@ -905,7 +910,7 @@ def generate_trainee_exam_sheet_html(sid):
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 35mm; gap: 2mm; width: 100%; }}
     </style>
     </head>
@@ -1762,7 +1767,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️ هيئة ⬅ مركز ⬅ إدارة ⬅ وحدة)")
+        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️️ هيئة ⬅ مركز ⬅ إدارة ⬅ وحدة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
             with st.form("manual_hierarchical_form"):
