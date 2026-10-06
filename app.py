@@ -2491,8 +2491,8 @@ def admin_dashboard():
                             else:
                                 img_q_cnt = c.execute("SELECT COUNT(*) FROM questions WHERE active=1 AND question LIKE '%IMAGE:%'").fetchone()[0]
                         
-                        if img_q_cnt < 4:
-                            st.warning(f"⚠ عذراً، عدد الأسئلة المصورة المتاحة في النطاق المحدد هو ({img_q_cnt}), ويجب ألا يقل عن 4 أسئلة مصورة عند إنشاء أي نموذج.")
+                        if "أسئلة الصور والأشكال المجهرية" in new_tpl_cats and img_q_cnt < 4:
+                            st.warning(f"⚠ عذراً، عدد الأسئلة المصورة المتاحة في النطاق المحدد هو ({img_q_cnt}), ويجب ألا يقل عن 4 أسئلة مصورة عند اختيار تصنيف الأشكال والصور.")
                         else:
                             def convert_to_24h(h, m, ampm):
                                 h_24 = h % 12
