@@ -1121,9 +1121,15 @@ def render_print_button_only(html_content, label_prefix=""):
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }}
+        /* تهيئة العدادات ليبدأ الترقيم من 1 حقيقة */
+        body {{
+            counter-reset: page 0;
+        }}
         .print-footer-dynamic {{
-            position: relative !important;
-            margin-top: 10mm !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
             width: 100% !important;
             background: #ffffff !important;
             border-top: 2px solid #059669;
@@ -1135,8 +1141,6 @@ def render_print_button_only(html_content, label_prefix=""):
             box-sizing: border-box;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            page-break-after: always !important;
-            break-after: page !important;
         }}
         .print-footer-top-row {{
             display: flex !important;
@@ -1151,8 +1155,11 @@ def render_print_button_only(html_content, label_prefix=""):
             padding-bottom: 3px;
             margin-bottom: 4px;
         }}
+        .page-number-box {{
+            counter-increment: page;
+        }}
         .page-number-box::after {{
-            content: "صفحة " counter(page) " من " counter(pages);
+            content: "صفحة " counter(page);
         }}
         .print-footer-bottom-row {{
             display: flex !important;
@@ -1165,7 +1172,7 @@ def render_print_button_only(html_content, label_prefix=""):
             color: #065f46;
         }}
     }}
-    /* للشاشة أيضاً لضمان المعاينة الصحيحة */
+    /* للشاشة أيضاً لمعاينة الهامش السفلي الثابت */
     .print-footer-dynamic {{
         width: 100% !important;
         background: #ffffff !important;
@@ -2092,7 +2099,7 @@ def admin_dashboard():
                 st.markdown("##### ⚠ منطقة الخطر - إدارة البنك الشامل:")
                 with st.form("delete_entire_question_bank_form"):
                     confirm_text_del = st.text_input("اكتب كلمة (حذف البنك) للتأكيد نهائياً:", value="")
-                    if st.form_submit_button("🗑️️ تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
+                    if st.form_submit_button("🗑 تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
                         if confirm_text_del.strip() == "حذف البنك":
                             with db() as c:
                                 c.execute("DELETE FROM questions")
