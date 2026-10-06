@@ -2220,6 +2220,21 @@ def admin_dashboard():
                 final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
                 final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
 
+                # استخراج اسم اليوم تلقائياً من التاريخ المدخل (مثل: الأحد، الإثنين، الثلاثاء...)
+                days_ar = {
+                    'Monday': 'الإثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
+                    'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت', 'Sunday': 'الأحد'
+                }
+                day_name_str = "اليوم"
+                try:
+                    parsed_dt = datetime.strptime(final_date_t.strip(), "%Y-%m-%d")
+                    eng_day = parsed_dt.strftime("%A")
+                    day_name_str = days_ar.get(eng_day, "")
+                except:
+                    pass
+                
+                full_date_display = f"الموافق يوم {day_name_str} {final_date_t}" if day_name_str else final_date_t
+
                 # إنشاء صفوف جداول توقيع المتدربين (6 صفوف و 3 أعمدة: مسلسل، اسم المتدرب، الوظيفة) مكررة بجوار بعضها (يمين ويسار)
                 signatures_rows_html = ""
                 for i in range(1, 7):
@@ -2292,7 +2307,7 @@ def admin_dashboard():
                     <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
                     <div class="meta-info">
                         <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
-                        <div>تاريخ التحرير: {esc(final_date_t)}</div>
+                        <div>تاريخ التحرير: {esc(full_date_display)}</div>
                     </div>
                     
                     <div class="section-title">1. محضر التدريب</div>
