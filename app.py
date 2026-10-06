@@ -471,7 +471,7 @@ def init_db():
                 logo3_base64 TEXT NOT NULL DEFAULT '',
                 bg_base64 TEXT NOT NULL DEFAULT '',
                 frame_base64 TEXT NOT NULL DEFAULT '',
-                default_cert_title TEXT NOT NULL DEFAULT 'شهادة حضور التدريب و إجتياز إختبارات التقييم',
+                default_cert_title TEXT NOT NULL DEFAULT 'شهادة',
                 default_cert_notes TEXT NOT NULL DEFAULT 'تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد',
                 trainee_prefix TEXT NOT NULL DEFAULT '',
                 trainee_title TEXT NOT NULL DEFAULT '',
@@ -513,7 +513,7 @@ def init_db():
         ("print_settings", "logo3_base64", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "bg_base64", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "frame_base64", "TEXT NOT NULL DEFAULT ''"),
-        ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة حضور التدريب و إجتياز إختبارات التقييم'"),
+        ("print_settings", "default_cert_title", "TEXT NOT NULL DEFAULT 'شهادة'"),
         ("print_settings", "default_cert_notes", "TEXT NOT NULL DEFAULT 'تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد'"),
         ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "trainee_title", "TEXT NOT NULL DEFAULT ''"),
@@ -545,7 +545,7 @@ def init_db():
                 "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة حضور التدريب و إجتياز إختبارات التقييم", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -580,7 +580,7 @@ def get_print_settings():
         "logo3_base64": "",
         "bg_base64": "",
         "frame_base64": "",
-        "default_cert_title": "شهادة حضور التدريب و إجتياز إختبارات التقييم",
+        "default_cert_title": "شهادة",
         "default_cert_notes": "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد",
         "trainee_prefix": "",
         "trainee_title": "دكتور",
@@ -775,7 +775,7 @@ def generate_qr_code_base64(data_text):
 
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     sett = get_print_settings()
-    title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة حضور التدريب و إجتياز إختبارات التقييم")
+    title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة")
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد")
     prefix_val = sett.get("trainee_prefix", "").strip()
     title_role_val = sett.get("trainee_title", "").strip()
@@ -791,17 +791,19 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     bg_data = sett.get("bg_base64", "")
     frame_data = sett.get("frame_base64", "")
     bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
+    
     if frame_data:
-        frame_style = f"background: url('{frame_data}') no-repeat center center; background-size: 100% 100%; border: 12px solid transparent;"
+        frame_style = f"background-image: url('{frame_data}'); background-repeat: no-repeat; background-position: center; background-size: 100% 100%; border: none;"
     else:
-        frame_style = "border: 5px solid #059669;"
+        frame_style = "border: 6px solid #059669;"
+
     prefix_str = f"{prefix_val} " if prefix_val else ""
     title_role_str = f"{title_role_val} " if title_role_val else ""
     prof_field_val = r["trainee_profession"] if r["trainee_profession"] is not None else (sett.get("trainee_profession", "أخصائي الأمراض المتوطنة"))
-    profession_str = f" - {prof_field_val}" if prof_field_val else ""
     
-    full_line_text = f"{prefix_str}{r['trainee_name']} {title_role_str}{profession_str}"
-    line_html = f"<div class='cert-name'>{esc(full_line_text)}</div>"
+    line_html = f"<div class='cert-name'>{esc(prefix_str)}{esc(title_role_str)}{esc(r['trainee_name'])}</div>"
+    profession_line_html = f"<div style='font-size: 15pt; color: #047857; font-weight: bold; margin: 4px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
+    
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
     
@@ -816,14 +818,15 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #f9fafb; }}
     .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {frame_style} {bg_style} display: flex; flex-direction: column; justify-content: space-between; padding: 12mm 18mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
     .cert-header {{ width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; direction: rtl; }}
-    .header-right {{ text-align: right; font-size: 12pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
+    .header-right {{ text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
-    h2 {{ color: #047857; font-size: 24pt; margin: 0 0 4px 0; font-weight: 900; letter-spacing: 0.5px; }}
-    .cert-name {{ font-size: 22pt; color: #065f46; font-weight: 900; margin: 6px 0; }}
-    p {{ font-size: 13pt; line-height: 1.6; color: #1f2937; margin: 4px 0; }}
-    .notes-box {{ background: rgba(240,253,244,0.95); border: 2px dashed #059669; padding: 8px 16px; margin: 10px auto; width: 75%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 12pt; }}
-    .cert-footer {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: auto; border-top: 1.5px solid #059669; padding-top: 6px; }}
-    .qr-box img {{ width: 22mm; height: 22mm; display: block; }}
+    h1.cert-main-title {{ color: #047857; font-size: 32pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
+    .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0; }}
+    p {{ font-size: 12pt; line-height: 1.5; color: #1f2937; margin: 3px 0; }}
+    .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 6px auto; padding: 4px; }}
+    .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 6px; border-top: 1px solid #e5e7eb; padding-top: 6px; }}
+    .qr-box img {{ width: 18mm; height: 18mm; display: block; }}
+    .notes-box {{ background: rgba(240,253,244,0.95); border: 2px dashed #059669; padding: 6px 12px; margin: 6px auto; width: 80%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 11pt; }}
     </style>
     </head>
     <body>
@@ -833,23 +836,26 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div style="text-align: left;">{render_logos_html()}</div>
         </div>
         <div class="cert-body">
-            <h2>{esc(title_val)}</h2>
-            <hr style="width: 35%; border: 2px solid #059669; margin: 6px auto 14px auto;">
+            <h1 class="cert-main-title">{esc(title_val)}</h1>
+            <hr style="width: 25%; border: 2px solid #059669; margin: 4px auto 10px auto;">
+            <p>تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</p>
             {line_html}
-            <p style="margin-top: 8px;">
-                جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الوظيفة: <b>{esc(prof_field_val)}</b><br>
-                الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
+            {profession_line_html}
+            <div class="details-custom-box">
+                جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
                 النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b>
-            </p>
-            {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
+            </div>
         </div>
-        <div class="cert-footer">
-            <div class="qr-box">
-                <img src="{qr_base64}" alt="QR Code">
+        <div>
+            <div class="cert-middle-section">
+                <div class="qr-box">
+                    <img src="{qr_base64}" alt="QR Code">
+                </div>
+                <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; direction: rtl;">
+                    رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
+                </div>
             </div>
-            <div style="font-size: 11pt; font-weight: bold; color: #065f46; direction: rtl;">
-                رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
-            </div>
+            {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
         </div>
     </div>
     </body>
@@ -2008,7 +2014,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
