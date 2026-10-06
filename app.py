@@ -1165,6 +1165,8 @@ def render_print_button_only(html_content, label_prefix=""):
         .report-wrapper {{
             margin-bottom: 0 !important;
             padding-bottom: 15mm !important;
+            max-height: calc(var(--target-pages, 1) * 275mm);
+            overflow: hidden;
         }}
         .print-footer-dynamic:last-of-type {{
             position: relative !important;
@@ -1273,8 +1275,8 @@ def render_print_button_only(html_content, label_prefix=""):
         orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
         chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["رأسي (Portrait)", "أفقي (Landscape)"], key=orient_key)
     with col_opt2:
-        copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
-        num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة:", min_value=1, max_value=50, value=1, key=copies_key)
+        pages_key = f"pages_target_{hash(label_prefix) & 0xffffffff}"
+        target_pages_count = st.number_input("تحديد عدد الأوراق للنسخة الواحدة (لاحتواء المحتوى):", min_value=1, max_value=20, value=1, key=pages_key)
 
     js_code = """
     <div style="margin: 4px 0;">
@@ -1288,6 +1290,12 @@ def render_print_button_only(html_content, label_prefix=""):
         var styledHtml = """ + encoded_html + """;
         win.document.write(styledHtml);
         win.document.close();
+        
+        var targetPages = """ + str(target_pages_count) + """;
+        var styleEl = win.document.createElement('style');
+        styleEl.innerHTML = '@media print { .report-wrapper { max-height: ' + (targetPages * 275) + 'mm !important; } }';
+        win.document.head.appendChild(styleEl);
+
         win.focus();
         setTimeout(function(){
             win.print();
@@ -1980,7 +1988,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
