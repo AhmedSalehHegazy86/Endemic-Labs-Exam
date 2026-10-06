@@ -863,16 +863,7 @@ def generate_trainee_exam_sheet_html(sid):
         correct_ans_idx = r["answer"]
         is_correct = r["is_correct"]
         raw_q_text = r["question"]
-        img_tag_html = ""
-        if "IMAGE:" in raw_q_text:
-            parts = raw_q_text.split("\n\n")
-            img_uri = parts[0].replace("IMAGE:", "").strip()
-            q_text_clean = parts[1] if len(parts) > 1 else ""
-            if img_uri:
-                img_tag_html = f'<div style="margin: 1px 0; text-align: center;"><img src="{img_uri}" style="max-height: 18px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
-        else:
-            q_text_clean = raw_q_text
-        q_text_clean = clean_question_text(q_text_clean)
+        
         opts_html = ""
         for o_idx, opt_text in enumerate(disp_opts):
             orig_opt_index = order[o_idx]
@@ -890,12 +881,32 @@ def generate_trainee_exam_sheet_html(sid):
                 border_color = "#dc2626"
                 icon_str = "❌"
             opts_html += f'<div style="padding: 0.2mm 1.2mm; margin: 0 0 0.2mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 8pt; line-height: 1.02;">{icon_str} {esc(opt_text)}</div>'
+
+        if "IMAGE:" in raw_q_text:
+            parts = raw_q_text.split("\n\n")
+            img_uri = parts[0].replace("IMAGE:", "").strip()
+            q_text_clean = parts[1] if len(parts) > 1 else ""
+            if img_uri:
+                content_inner_html = f'''
+                <div style="display: flex; flex-direction: row; gap: 4px; align-items: flex-start; width: 100%;">
+                    <div style="flex: 1; min-width: 0;">{opts_html}</div>
+                    <div style="width: 32px; flex-shrink: 0; text-align: center;">
+                        <img src="{img_uri}" style="max-height: 22px; max-width: 32px; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                    </div>
+                </div>
+                '''
+            else:
+                content_inner_html = opts_html
+        else:
+            q_text_clean = raw_q_text
+            content_inner_html = opts_html
+
+        q_text_clean = clean_question_text(q_text_clean)
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
         <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:35mm; min-height:35mm; max-height:35mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
             <div style="font-weight: bold; color: #065f46; margin-bottom: 1.5px; font-size: 8.5pt; line-height: 1.02; height: 9mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
-            {img_tag_html}
-            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{opts_html}</div>
+            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{content_inner_html}</div>
         </div>
         """
     score_val, max_score_val, percent_val = s["score"] or 0, s["max_score"] or 0, s["percent"] or 0.0
@@ -1016,22 +1027,33 @@ def generate_exam_template_print_html(template_id):
         except:
             opts = ["نعم", "لا"]
         raw_q_text = q["question"]
-        img_tag_html = ""
+        
+        opts_html = "".join([f'<div style="padding: 0.2mm 1.2mm; margin: 0 0 0.2mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: 1.02;">🔲 {esc(opt)}</div>' for opt in opts])
+        
         if "IMAGE:" in raw_q_text:
             parts = raw_q_text.split("\n\n")
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 1px 0; text-align: center;"><img src="{img_uri}" style="max-height: 18px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                content_inner_html = f'''
+                <div style="display: flex; flex-direction: row; gap: 4px; align-items: flex-start; width: 100%;">
+                    <div style="flex: 1; min-width: 0;">{opts_html}</div>
+                    <div style="width: 32px; flex-shrink: 0; text-align: center;">
+                        <img src="{img_uri}" style="max-height: 22px; max-width: 32px; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                    </div>
+                </div>
+                '''
+            else:
+                content_inner_html = opts_html
         else:
             q_text_clean = raw_q_text
+            content_inner_html = opts_html
+
         q_text_clean = clean_question_text(q_text_clean)
-        opts_html = "".join([f'<div style="padding: 0.2mm 1.2mm; margin: 0 0 0.2mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: 1.02;">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
         <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:35mm; min-height:35mm; max-height:35mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
             <div style="font-weight: bold; color: #065f46; margin-bottom: 1.5px; font-size: 8.5pt; line-height: 1.02; height: 9mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
-            {img_tag_html}
-            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{opts_html}</div>
+            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{content_inner_html}</div>
         </div>
         """
     return f"""
@@ -1767,7 +1789,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️️ هيئة ⬅ مركز ⬅ إدارة ⬅ وحدة)")
+        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅ هيئة ⬅ مركز ⬅ إدارة ⬅ وحدة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
             with st.form("manual_hierarchical_form"):
@@ -2199,21 +2221,32 @@ def admin_dashboard():
                 new_tpl_cats = st.multiselect("المجالات / الأقسام:", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ النموذج والمواعيد", use_container_width=True):
                     if new_tpl_name.strip():
-                        def convert_to_24h(h, m, ampm):
-                            h_24 = h % 12
-                            if "مساءً" in ampm:
-                                h_24 += 12
-                            return h_24, m
-                        s_h24, s_m24 = convert_to_24h(start_h, start_m, start_ampm)
-                        e_h24, e_m24 = convert_to_24h(end_h, end_m, end_ampm)
-                        start_dt_str = datetime.combine(start_d, datetime.min.time().replace(hour=s_h24, minute=s_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
-                        end_dt_str = datetime.combine(end_d, datetime.min.time().replace(hour=e_h24, minute=e_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
-                        final_num_q = 999999 if is_open_questions else int(new_tpl_num_q)
+                        # التحقق من وجود حد أدنى 4 أسئلة مصورة في النطاق المحدد أو البنك
                         with db() as c:
-                            c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                                      (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
-                        st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!")
-                        st.rerun()
+                            if new_tpl_cats:
+                                placeholders = ','.join(['?'] * len(new_tpl_cats))
+                                img_q_cnt = c.execute(f"SELECT COUNT(*) FROM questions WHERE active=1 AND category IN ({placeholders}) AND question LIKE '%IMAGE:%'", new_tpl_cats).fetchone()[0]
+                            else:
+                                img_q_cnt = c.execute("SELECT COUNT(*) FROM questions WHERE active=1 AND question LIKE '%IMAGE:%'").fetchone()[0]
+                        
+                        if img_q_cnt < 4:
+                            st.warning(f"⚠ عذراً، عدد الأسئلة المصورة المتاحة في النطاق المحدد هو ({img_q_cnt})، ويجب ألا يقل عن 4 أسئلة مصورة عند إنشاء أي نموذج.")
+                        else:
+                            def convert_to_24h(h, m, ampm):
+                                h_24 = h % 12
+                                if "مساءً" in ampm:
+                                    h_24 += 12
+                                return h_24, m
+                            s_h24, s_m24 = convert_to_24h(start_h, start_m, start_ampm)
+                            e_h24, e_m24 = convert_to_24h(end_h, end_m, end_ampm)
+                            start_dt_str = datetime.combine(start_d, datetime.min.time().replace(hour=s_h24, minute=s_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
+                            end_dt_str = datetime.combine(end_d, datetime.min.time().replace(hour=e_h24, minute=e_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
+                            final_num_q = 999999 if is_open_questions else int(new_tpl_num_q)
+                            with db() as c:
+                                c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                                          (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
+                            st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!")
+                            st.rerun()
         elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
             with db() as c:
                 tpls_mod = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
