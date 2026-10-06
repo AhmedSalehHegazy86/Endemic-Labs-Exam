@@ -564,7 +564,7 @@ def get_print_settings():
             try:
                 res["professions_list"] = json.loads(res.get("professions_list_json", "[]"))
             except:
-                res["professions_list"] = ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "فني صحي متوطنة"]
+                res["professions_list"] = ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
             if "line_spacing" not in res or res["line_spacing"] is None:
                 res["line_spacing"] = 1.10
             return res
@@ -929,7 +929,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -966,7 +966,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1002,7 +1002,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1075,7 +1075,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1112,7 +1112,7 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} 22mm {m_left} !important;
+        margin: {m_top} {m_right} 10mm {m_left} !important;
     }}
     @media print {{
         html, body {{
@@ -1123,18 +1123,18 @@ def render_print_button_only(html_content, label_prefix=""):
             print-color-adjust: exact !important;
         }}
         .report-wrapper, .doc-wrapper {{
-            margin-bottom: 15mm !important;
+            margin-bottom: 0 !important;
         }}
         .print-footer-dynamic {{
             display: block !important;
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 1.5px solid #059669;
-            margin-top: 15mm;
-            padding: 8px 0;
+            border-top: 2px solid #059669;
+            margin-top: 6mm;
+            padding: 8px 4px;
             font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 7.5pt;
-            font-weight: bold;
+            font-size: 11pt;
+            font-weight: 900;
             color: #065f46;
             text-align: center;
             box-sizing: border-box;
@@ -1145,14 +1145,23 @@ def render_print_button_only(html_content, label_prefix=""):
             width: 100% !important;
             text-align: center !important;
         }}
+        .page-number-box {{
+            margin-top: 4px;
+            font-size: 10pt;
+            font-weight: 700;
+            color: #047857;
+            text-align: center;
+            border-top: 1px dotted #059669;
+            padding-top: 3px;
+        }}
     }}
     </style>
     """
     
     footer_bar_html = f"""
     <div class="print-footer-dynamic">
-        <div style="text-align: center; width: 100%;">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
-        <div style="text-align: center; width: 100%; margin-top: 2px; border-top: 1px dotted #059669; padding-top: 2px;">مسؤول التدريب &nbsp;|&nbsp; رئيس القسم &nbsp;|&nbsp; مدير المتوطنة &nbsp;|&nbsp; يعتمد: مدير عام الإدارة</div>
+        <div style="text-align: center; width: 100%;">مسؤول التدريب &nbsp;&nbsp;|&nbsp;&nbsp; رئيس القسم &nbsp;&nbsp;|&nbsp;&nbsp; مدير المتوطنة &nbsp;&nbsp;|&nbsp;&nbsp; يعتمد: مدير عام الإدارة</div>
+        <div class="page-number-box">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
     </div>
     """
     
@@ -2269,7 +2278,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
