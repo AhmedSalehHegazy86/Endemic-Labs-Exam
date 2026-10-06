@@ -526,7 +526,7 @@ def init_db():
                 "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (default_header, "16mm", "8mm", "3mm", "3mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "12mm", "12mm", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -551,10 +551,10 @@ def get_print_settings():
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
-        "margin_top": "16mm",
-        "margin_bottom": "8mm",
-        "margin_right": "3mm",
-        "margin_left": "3mm",
+        "margin_top": "12mm",
+        "margin_bottom": "12mm",
+        "margin_right": "8mm",
+        "margin_left": "8mm",
         "line_spacing": 1.10,
         "logo_base64": DEFAULT_LOGO,
         "logo2_base64": "",
@@ -791,10 +791,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 3mm !important; }}
+    @page {{ size: A4 portrait; margin: 8mm !important; }}
     html, body {{ margin:0 !important; padding:0 !important; width:100%; height:100%; }}
     body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-    .cert-wrapper {{ width:204mm; height:291mm; max-height:291mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
+    .cert-wrapper {{ width:198mm; height:281mm; max-height:281mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
     .cert-header {{ width:100%; min-height:24mm; box-sizing:border-box; display:flex; flex-direction:row; justify-content:space-between; align-items:flex-start; direction:rtl; }}
     .header-top {{ position:static; text-align:left; }}
     .header-right {{ position:static; text-align:right; font-size:8pt; font-weight:bold; color:#065f46; line-height:1.08; }}
@@ -883,11 +883,11 @@ def generate_trainee_exam_sheet_html(sid):
                 style_bg = "#fee2e2"
                 border_color = "#dc2626"
                 icon_str = "❌"
-            opts_html += f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 3px; font-size: 7pt; line-height: 1.05;">{icon_str} {esc(opt_text)}</div>'
+            opts_html += f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 3px; font-size: 7.5pt; line-height: 1.1;">{icon_str} {esc(opt_text)}</div>'
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin: 0 0 2mm 0; padding: 2.2mm 2.5mm; background:#ffffff; border:1px solid #059669; border-radius:3px; box-sizing:border-box; width:100%; display:inline-block; vertical-align:top; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7pt; line-height: 1.05;">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+        <div style="margin: 0; padding: 2.5mm 3mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; display:flex; flex-direction:column; justify-content:flex-start; height:100%; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.5pt; line-height: 1.1;">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
             {img_tag_html}
             <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
@@ -899,12 +899,12 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ column-count:2; column-gap:4mm; column-fill:auto; width:100%; }}
+    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4mm 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; width: 100%; }}
     </style>
     </head>
     <body>
@@ -930,9 +930,9 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8pt; }}
     th, td {{ border: 1px solid #cbd5e1; padding: 3px 5px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
@@ -960,9 +960,9 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     </style>
     </head>
@@ -1002,10 +1002,10 @@ def generate_exam_template_print_html(template_id):
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
-        opts_html = "".join([f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 7pt; line-height: 1.05;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 7.5pt; line-height: 1.1;">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
-        <div style="margin: 0 0 2mm 0; padding: 2.2mm 2.5mm; background:#ffffff; border:1px solid #059669; border-radius:3px; box-sizing:border-box; width:100%; display:inline-block; vertical-align:top; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7pt; line-height: 1.05;">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin: 0; padding: 2.5mm 3mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; display:flex; flex-direction:column; justify-content:flex-start; height:100%; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.5pt; line-height: 1.1;">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
             <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
@@ -1016,12 +1016,12 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 0 3mm 5mm 3mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ column-count:2; column-gap:4mm; column-fill:auto; width:100%; }}
+    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; width: 100%; }}
     </style>
     </head>
     <body>
@@ -1040,21 +1040,10 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    m_top = str(print_sett.get("margin_top", "16mm") or "16mm")
-    m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
-    m_right = str(print_sett.get("margin_right", "3mm") or "3mm")
-    m_left = str(print_sett.get("margin_left", "3mm") or "3mm")
-    
-    def _safe_margin(v, fallback):
-        v = str(v).strip()
-        if re.fullmatch(r"\d+(?:\.\d+)?(?:mm|cm|in|px)", v):
-            return v
-        return fallback
-
-    m_top = _safe_margin(m_top, "16mm")
-    m_bot = _safe_margin(m_bot, "8mm")
-    m_right = _safe_margin(m_right, "3mm")
-    m_left = _safe_margin(m_left, "3mm")
+    m_top = "12mm"
+    m_bot = "15mm"
+    m_right = "8mm"
+    m_left = "8mm"
 
     approvals_markup = """
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 6.8pt; font-weight: bold;">
@@ -1115,10 +1104,10 @@ def render_print_button_only(html_content, label_prefix=""):
         }}
         body {{
             padding-top: 15mm !important;
-            padding-bottom: 12mm !important;
+            padding-bottom: 15mm !important;
             box-sizing: border-box !important;
         }}
-        .question, tr {{
+        .questions-grid > div, tr {{
             page-break-inside: avoid !important;
             break-inside: avoid !important;
         }}
@@ -2026,7 +2015,7 @@ def admin_dashboard():
                             st.warning("⚠ يرجى كتابة كلمة (حذف البنك) بشكل صحيح في حقل التأكيد لإتمام الحذف.")
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
+        st.subheader("🧑‍‍🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
         with db() as c:
             all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         if all_tpls_records:
