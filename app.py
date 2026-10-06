@@ -1135,6 +1135,8 @@ def render_print_button_only(html_content, label_prefix=""):
             box-sizing: border-box;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            page-break-after: always !important;
+            break-after: page !important;
         }}
         .print-footer-top-row {{
             display: flex !important;
@@ -1205,8 +1207,8 @@ def render_print_button_only(html_content, label_prefix=""):
     footer_bar_html = f"""
     <div class="print-footer-dynamic">
         <div class="print-footer-top-row">
-            <div>جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
-            <div class="page-number-box"></div>
+            <div style="text-align: center; width: 100%;">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+            <div class="page-number-box" style="position: absolute; left: 4px;"></div>
         </div>
         <div class="print-footer-bottom-row">
             <span>مسؤول التدريب</span>
@@ -2090,7 +2092,7 @@ def admin_dashboard():
                 st.markdown("##### ⚠ منطقة الخطر - إدارة البنك الشامل:")
                 with st.form("delete_entire_question_bank_form"):
                     confirm_text_del = st.text_input("اكتب كلمة (حذف البنك) للتأكيد نهائياً:", value="")
-                    if st.form_submit_button("🗑️ تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
+                    if st.form_submit_button("🗑️️ تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
                         if confirm_text_del.strip() == "حذف البنك":
                             with db() as c:
                                 c.execute("DELETE FROM questions")
