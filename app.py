@@ -526,7 +526,7 @@ def init_db():
                 "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (default_header, "16mm", "5mm", "3mm", "3mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "16mm", "8mm", "3mm", "3mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -552,7 +552,7 @@ def get_print_settings():
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
         "margin_top": "16mm",
-        "margin_bottom": "5mm",
+        "margin_bottom": "8mm",
         "margin_right": "3mm",
         "margin_left": "3mm",
         "line_spacing": 1.10,
@@ -1020,7 +1020,7 @@ def generate_exam_template_print_html(template_id):
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 204mm; max-width: 204mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ column-count:2; column-gap:4mm; column-fill:auto; width:100%; }}
     </style>
     </head>
@@ -1101,8 +1101,8 @@ def render_print_button_only(html_content, label_prefix=""):
             align-items: center !important;
         }}
         .print-repeat-footer-container {{
-            position: static !important;
-            bottom: auto !important;
+            position: fixed !important;
+            bottom: 0 !important;
             left: 0 !important;
             right: 0 !important;
             z-index: 2147483646 !important;
@@ -1110,12 +1110,12 @@ def render_print_button_only(html_content, label_prefix=""):
             color: #065f46 !important;
             border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
-            padding: 0.8mm 1mm !important;
+            padding: 1.5mm 2mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
         }}
         body {{
             padding-top: 15mm !important;
-            padding-bottom: 0 !important;
+            padding-bottom: 12mm !important;
             box-sizing: border-box !important;
         }}
         .question, tr {{
