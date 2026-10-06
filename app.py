@@ -804,7 +804,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
     
-    # جعل الهامش السفلي أوتوماتيكي ومتحرك لنهاية المتن تماماً للشهادات
     cert_dynamic_footer = f"""
     <div style="width: 100%; background: #ffffff; border-top: 2px solid #059669; margin-top: auto; padding: 4px 2px; font-family: 'Cairo', Tahoma, sans-serif; font-size: 8.5pt; font-weight: 900; color: #065f46; box-sizing: border-box; page-break-inside: avoid; break-inside: avoid;">
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; direction: rtl;">
@@ -1121,90 +1120,59 @@ def render_print_button_only(html_content, label_prefix=""):
     m_right = "8mm"
     m_left = "8mm"
     
-    # التحقق هل المستند عبارة عن محضر تدريب لجعله يتكيف برمجياً دون تذييل ثابت مزعج
-    is_minutes_doc = "محضر تدريب" in label_prefix or "محضر تدريب" in html_content
-    
-    if is_minutes_doc:
-        # لمحاضر التدريب: الهامش السفلي أوتوماتيكي ومتحرك لنهاية المتن مباشرة
-        repeated_print_css = f"""
-        <style>
-        @page {{
-            size: A4 portrait;
-            margin: {m_top} {m_right} auto {m_left} !important;
+    repeated_print_css = f"""
+    <style>
+    @page {{
+        size: A4 portrait;
+        margin: {m_top} {m_right} 18mm {m_left} !important;
+    }}
+    @media print {{
+        html, body {{
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }}
-        @media print {{
-            html, body {{
-                margin: 0 !important;
-                padding: 0 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }}
-            body {{
-                counter-reset: page 0;
-            }}
-            .print-footer-dynamic {{
-                position: relative !important;
-                width: 100% !important;
-                background: #ffffff !important;
-                border-top: 2px solid #059669;
-                margin-top: 10px !important;
-                padding: 6px 4px !important;
-                font-family: 'Cairo', Tahoma, sans-serif;
-                font-size: 11pt;
-                font-weight: 900;
-                color: #065f46;
-                box-sizing: border-box;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }}
-            .print-footer-top-row {{
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-                width: 100% !important;
-                direction: rtl !important;
-                font-size: 10pt;
-                font-weight: 800;
-                color: #047857;
-                border-bottom: 1px dotted #059669;
-                padding-bottom: 3px;
-                margin-bottom: 4px;
-            }}
-            .page-number-box {{
-                counter-increment: page;
-            }}
-            .page-number-box::after {{
-                content: "صفحة " counter(page);
-            }}
-            .print-footer-bottom-row {{
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-                width: 100% !important;
-                direction: rtl !important;
-                font-size: 11pt;
-                font-weight: 900;
-                color: #065f46;
-            }}
+        body {{
+            counter-reset: page 0;
         }}
         .print-footer-dynamic {{
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
             width: 100% !important;
             background: #ffffff !important;
             border-top: 2px solid #059669;
-            margin-top: 8mm;
-            padding: 8px 4px;
+            padding: 6px 4px !important;
             font-family: 'Cairo', Tahoma, sans-serif;
             font-size: 11pt;
             font-weight: 900;
             color: #065f46;
             box-sizing: border-box;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }}
+        .report-wrapper > *:last-child, .print-footer-container {{
+            page-break-after: avoid;
+        }}
+        .print-footer-dynamic:last-of-type {{
+            position: relative !important;
+            bottom: auto !important;
+            margin-top: 15px !important;
+        }}
+        .page-number-box {{
+            counter-increment: page;
+        }}
+        .page-number-box::after {{
+            content: "صفحة " counter(page);
         }}
         .print-footer-top-row {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            direction: rtl;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            direction: rtl !important;
             font-size: 10pt;
             font-weight: 800;
             color: #047857;
@@ -1213,131 +1181,67 @@ def render_print_button_only(html_content, label_prefix=""):
             margin-bottom: 4px;
         }}
         .print-footer-bottom-row {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            direction: rtl;
-            font-size: 11pt;
-            font-weight: 900;
-            color: #065f46;
-        }}
-        </style>
-        """
-    else:
-        # باقي التقارير العامة والامتحانات كما هي تماماً مع الترقيم والثبات
-        repeated_print_css = f"""
-        <style>
-        @page {{
-            size: A4 portrait;
-            margin: {m_top} {m_right} 18mm {m_left} !important;
-        }}
-        @media print {{
-            html, body {{
-                margin: 0 !important;
-                padding: 0 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }}
-            body {{
-                counter-reset: page 0;
-            }}
-            .print-footer-dynamic {{
-                position: fixed !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                background: #ffffff !important;
-                border-top: 2px solid #059669;
-                padding: 6px 4px !important;
-                font-family: 'Cairo', Tahoma, sans-serif;
-                font-size: 11pt;
-                font-weight: 900;
-                color: #065f46;
-                box-sizing: border-box;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }}
-            .print-footer-top-row {{
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-                width: 100% !important;
-                direction: rtl !important;
-                font-size: 10pt;
-                font-weight: 800;
-                color: #047857;
-                border-bottom: 1px dotted #059669;
-                padding-bottom: 3px;
-                margin-bottom: 4px;
-            }}
-            .page-number-box {{
-                counter-increment: page;
-            }}
-            .page-number-box::after {{
-                content: "صفحة " counter(page);
-            }}
-            .print-footer-bottom-row {{
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-                width: 100% !important;
-                direction: rtl !important;
-                font-size: 11pt;
-                font-weight: 900;
-                color: #065f46;
-            }}
-        }}
-        .print-footer-dynamic {{
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
             width: 100% !important;
-            background: #ffffff !important;
-            border-top: 2px solid #059669;
-            margin-top: 8mm;
-            padding: 8px 4px;
-            font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 11pt;
-            font-weight: 900;
-            color: #065f46;
-            box-sizing: border-box;
-        }}
-        .print-footer-top-row {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            direction: rtl;
-            font-size: 10pt;
-            font-weight: 800;
-            color: #047857;
-            border-bottom: 1px dotted #059669;
-            padding-bottom: 3px;
-            margin-bottom: 4px;
-        }}
-        .print-footer-bottom-row {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            direction: rtl;
+            direction: rtl !important;
             font-size: 11pt;
             font-weight: 900;
             color: #065f46;
         }}
-        </style>
-        """
+    }}
+    .print-footer-dynamic {{
+        width: 100% !important;
+        background: #ffffff !important;
+        border-top: 2px solid #059669;
+        margin-top: 8mm;
+        padding: 8px 4px;
+        font-family: 'Cairo', Tahoma, sans-serif;
+        font-size: 11pt;
+        font-weight: 900;
+        color: #065f46;
+        box-sizing: border-box;
+    }}
+    .print-footer-top-row {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        direction: rtl;
+        font-size: 10pt;
+        font-weight: 800;
+        color: #047857;
+        border-bottom: 1px dotted #059669;
+        padding-bottom: 3px;
+        margin-bottom: 4px;
+    }}
+    .print-footer-bottom-row {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        direction: rtl;
+        font-size: 11pt;
+        font-weight: 900;
+        color: #065f46;
+    }}
+    </style>
+    """
     
     footer_bar_html = f"""
-    <div class="print-footer-dynamic">
-        <div class="print-footer-top-row">
-            <div style="text-align: center; width: 100%;">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
-            <div class="page-number-box" style="position: absolute; left: 4px;"></div>
-        </div>
-        <div class="print-footer-bottom-row">
-            <span>مسؤول التدريب</span>
-            <span>رئيس القسم</span>
-            <span>مدير المتوطنة</span>
-            <span>يعتمد: مدير عام الإدارة</span>
+    <div class="print-footer-container">
+        <div class="print-footer-dynamic">
+            <div class="print-footer-top-row">
+                <div style="text-align: center; width: 100%;">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+                <div class="page-number-box" style="position: absolute; left: 4px;"></div>
+            </div>
+            <div class="print-footer-bottom-row">
+                <span>مسؤول التدريب</span>
+                <span>رئيس القسم</span>
+                <span>مدير المتوطنة</span>
+                <span>يعتمد: مدير عام الإدارة</span>
+            </div>
         </div>
     </div>
     """
@@ -2454,7 +2358,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
