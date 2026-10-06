@@ -1112,9 +1112,9 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} auto {m_left} !important;
+        margin: {m_top} {m_right} 25mm {m_left} !important;
         @bottom-right {{
-            content: "جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy\\A\\Aسفر الاعتمادات / الاعتمادات الرسمية للتقرير";
+            content: "جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy\\Aسفر الاعتمادات / الاعتمادات الرسمية للتقرير\\A\\A";
             font-family: 'Cairo', Tahoma, sans-serif;
             font-size: 7.5pt;
             font-weight: bold;
@@ -1141,6 +1141,7 @@ def render_print_button_only(html_content, label_prefix=""):
         .report-wrapper, .doc-wrapper, .cert-wrapper {{
             margin-bottom: 0 !important;
             padding-bottom: 0 !important;
+            height: auto !important;
         }}
         body {{
             box-sizing: border-box !important;
