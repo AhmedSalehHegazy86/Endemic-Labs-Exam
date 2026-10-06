@@ -930,7 +930,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -967,7 +967,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1003,7 +1003,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1076,7 +1076,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 15mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1106,25 +1106,16 @@ def generate_exam_template_print_html(template_id):
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
     m_top = "12mm"
-    m_bot = "15mm"
     m_right = "8mm"
     m_left = "8mm"
 
-    approvals_markup = """
-    <div style="display: flex; justify-content: space-between; width: 100%; max-width: 100%; margin: 0 auto; align-items: center; text-align: center; font-size: 6.8pt; font-weight: bold;">
-        <div>مسؤول التدريب</div>
-        <div>رئيس القسم</div>
-        <div>مدير المتوطنة</div>
-        <div>يعتمد مدير عام الإدارة</div>
-    </div>
-    """
     ownership_text = "جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy"
     
     repeated_print_css = f"""
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} {m_bot} {m_left} !important;
+        margin: {m_top} {m_right} auto {m_left} !important;
         @bottom-left {{
             content: "صفحة " counter(page) " من " counter(pages);
             font-family: 'Cairo', Tahoma, sans-serif;
@@ -1141,20 +1132,18 @@ def render_print_button_only(html_content, label_prefix=""):
             print-color-adjust: exact !important;
         }}
         .print-repeat-footer-container {{
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            z-index: 2147483646 !important;
+            position: relative !important;
+            margin-top: 15mm !important;
+            width: 100% !important;
             background: #ffffff !important;
             color: #065f46 !important;
-            border-top: 2px dashed #059669 !important;
             box-sizing: border-box !important;
             padding: 1.5mm 2mm !important;
             font-family: 'Cairo', Tahoma, sans-serif !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }}
         body {{
-            padding-bottom: 15mm !important;
             box-sizing: border-box !important;
         }}
         .questions-grid > div, tr {{
@@ -1166,9 +1155,7 @@ def render_print_button_only(html_content, label_prefix=""):
     """
     repeated_print_markup = f"""
     <div class="print-repeat-footer-container">
-        <div style="text-align: center; font-size: 5.8pt; font-weight: bold; margin-bottom: 1px; color: #065f46;">{ownership_text}</div>
         <div style="height: 1px; line-height: 1px; font-size: 1px; clear: both;">&nbsp;</div>
-        {approvals_markup}
     </div>
     """
     if "</head>" in html_content:
@@ -2220,12 +2207,12 @@ def admin_dashboard():
                 final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
                 final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
 
-                # استخراج اسم اليوم تلقائياً من التاريخ المدخل (مثل: الأحد، الإثنين، الثلاثاء...)
+                # استخراج اسم اليوم تلقائياً من التاريخ المدخل وجعله يظهر تحت التاريخ
                 days_ar = {
                     'Monday': 'الإثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
                     'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت', 'Sunday': 'الأحد'
                 }
-                day_name_str = "اليوم"
+                day_name_str = ""
                 try:
                     parsed_dt = datetime.strptime(final_date_t.strip(), "%Y-%m-%d")
                     eng_day = parsed_dt.strftime("%A")
@@ -2233,7 +2220,7 @@ def admin_dashboard():
                 except:
                     pass
                 
-                full_date_display = f"الموافق يوم {day_name_str} {final_date_t}" if day_name_str else final_date_t
+                date_display_block = f"{final_date_t}" + (f"<br><span style='font-size: 10pt; color: #047857;'>{day_name_str}</span>" if day_name_str else "")
 
                 # إنشاء صفوف جداول توقيع المتدربين (6 صفوف و 3 أعمدة: مسلسل، اسم المتدرب، الوظيفة) مكررة بجوار بعضها (يمين ويسار)
                 signatures_rows_html = ""
@@ -2287,7 +2274,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm auto 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 186mm; max-width: 186mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
@@ -2295,7 +2282,7 @@ def admin_dashboard():
                 .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
                 .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 12pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
                 .section-title {{ font-weight: bold; color: #047857; font-size: 13pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
-                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 10mm; font-size: 11.5pt; font-weight: bold; text-align: center; }}
+                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 10mm; font-size: 11.5pt; font-weight: bold; text-align: center; page-break-inside: avoid; break-inside: avoid; }}
                 </style>
                 </head>
                 <body>
@@ -2307,7 +2294,7 @@ def admin_dashboard():
                     <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
                     <div class="meta-info">
                         <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
-                        <div>تاريخ التحرير: {esc(full_date_display)}</div>
+                        <div style="text-align: left;">التاريخ:<br>{date_display_block}</div>
                     </div>
                     
                     <div class="section-title">1. محضر التدريب</div>
@@ -2427,56 +2414,6 @@ def admin_dashboard():
                                           (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
                             st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!")
                             st.rerun()
-        elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
-            with db() as c:
-                tpls_mod = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
-            if tpls_mod:
-                tpl_mod_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t['id'] for t in tpls_mod}
-                with st.form("update_schedule_form"):
-                    sel_mod_label = st.selectbox("اختر النموذج:", list(tpl_mod_map.keys()))
-                    chosen_id = tpl_mod_map[sel_mod_label]
-                    with db() as c:
-                        curr_tpl_rec = c.execute("SELECT exam_type FROM exam_templates WHERE id=?", (chosen_id,)).fetchone()
-                    curr_exam_type_val = curr_tpl_rec["exam_type"] if curr_tpl_rec else "قبل التدريب"
-                    types_list_opts = ["قبل التدريب", "بعد التدريب", "تقييم شامل"]
-                    type_idx = types_list_opts.index(curr_exam_type_val) if curr_exam_type_val in types_list_opts else 0
-                    st.markdown("#### 🎯 تعديل تصنيف النموذج:")
-                    updated_exam_type = st.radio("نوع النموذج الجديد:", types_list_opts, index=type_idx, horizontal=True)
-                    current_online_dt = now_cairo()
-                    st.markdown("#### ⏰ تعديل التوقيت (نظام 12 ساعة):")
-                    col_u1, col_u2 = st.columns(2)
-                    with col_u1:
-                        new_sd = st.date_input("البدء الجديد:", current_online_dt.date())
-                        uh1, uh2, uh3 = st.columns(3)
-                        with uh1:
-                            ns_h = st.number_input("الساعة:", 1, 12, current_online_dt.hour % 12 or 12, key="ns_h")
-                        with uh2:
-                            ns_m = st.number_input("الدقيقة:", 0, 59, current_online_dt.minute, key="ns_m")
-                        with uh3:
-                            ns_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=0 if current_online_dt.hour < 12 else 1, key="ns_ampm")
-                    with col_u2:
-                        new_ed = st.date_input("النهاية الجديدة:", current_online_dt.date() + timedelta(days=1))
-                        ne1, ne2, ne3 = st.columns(3)
-                        with ne1:
-                            ne_h = st.number_input("الساعة:", 1, 12, 5, key="ne_h")
-                        with ne2:
-                            ne_m = st.number_input("الدقيقة:", 0, 59, 0, key="ne_m")
-                        with ne3:
-                            ne_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="ne_ampm")
-                    if st.form_submit_button("💾 تحديث الموعد والتصنيف", use_container_width=True):
-                        def convert_to_24h(h, m, ampm):
-                            h_24 = h % 12
-                            if "مساءً" in ampm:
-                                h_24 += 12
-                            return h_24, m
-                        s_h24, s_m24 = convert_to_24h(ns_h, ns_m, ns_ampm)
-                        e_h24, e_m24 = convert_to_24h(ne_h, ne_m, ne_ampm)
-                        new_s_str = datetime.combine(new_sd, datetime.min.time().replace(hour=s_h24, minute=s_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
-                        new_e_str = datetime.combine(new_ed, datetime.min.time().replace(hour=e_h24, minute=e_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
-                        with db() as c:
-                            c.execute("UPDATE exam_templates SET exam_type=?, start_time=?, end_time=? WHERE id=?", (updated_exam_type, new_s_str, new_e_str, chosen_id))
-                        st.success("✅ تم تحديث تصنيف وتوقيت الاختبار بنجاح!")
-                        st.rerun()
         else:
             with db() as c:
                 tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
