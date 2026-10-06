@@ -545,7 +545,7 @@ def init_db():
                 "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (default_header, "12mm", "12mm", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+                      (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة اجتياز اختبار معتمدة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -571,7 +571,7 @@ def get_print_settings():
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
         "margin_top": "12mm",
-        "margin_bottom": "12mm",
+        "margin_bottom": "auto",
         "margin_right": "8mm",
         "margin_left": "8mm",
         "line_spacing": 1.10,
@@ -592,7 +592,7 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
     with db() as c:
         c.execute("DELETE FROM print_settings")
         c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, m_bot, m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
+                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
 
 def get_hierarchical_data(include_hidden=False):
     with db() as c:
@@ -779,7 +779,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد")
     prefix_val = sett.get("trainee_prefix", "").strip()
     title_role_val = sett.get("trainee_title", "").strip()
-    line_sp = sett.get("line_spacing", 1.25)
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
         if not r:
@@ -810,7 +809,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 8mm 8mm auto 8mm !important; }}
     html, body {{ margin:0 !important; padding:0 !important; width:100%; height:100%; }}
     body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; margin:0; padding:0; display:block; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
     .cert-wrapper {{ width:198mm; height:281mm; max-height:281mm; box-sizing:border-box; {frame_style} {bg_style} display:flex; flex-direction:column; align-items:center; padding:5mm 8mm 3mm; position:relative; margin:0 auto; overflow:hidden; page-break-after:avoid !important; break-after:avoid-page !important; }}
@@ -1108,8 +1107,6 @@ def render_print_button_only(html_content, label_prefix=""):
     m_top = "12mm"
     m_right = "8mm"
     m_left = "8mm"
-
-    ownership_text = "جميع الحقوق محفوظة © 2026 | تصميم وتطوير: Dr/Ahmed.S.Hegazy"
     
     repeated_print_css = f"""
     <style>
@@ -1128,20 +1125,14 @@ def render_print_button_only(html_content, label_prefix=""):
         html, body {{
             margin: 0 !important;
             padding: 0 !important;
+            height: auto !important;
+            min-height: auto !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }}
-        .print-repeat-footer-container {{
-            position: relative !important;
-            margin-top: 15mm !important;
-            width: 100% !important;
-            background: #ffffff !important;
-            color: #065f46 !important;
-            box-sizing: border-box !important;
-            padding: 1.5mm 2mm !important;
-            font-family: 'Cairo', Tahoma, sans-serif !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+        .report-wrapper, .doc-wrapper, .cert-wrapper {{
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
         }}
         body {{
             box-sizing: border-box !important;
@@ -1153,21 +1144,10 @@ def render_print_button_only(html_content, label_prefix=""):
     }}
     </style>
     """
-    repeated_print_markup = f"""
-    <div class="print-repeat-footer-container">
-        <div style="height: 1px; line-height: 1px; font-size: 1px; clear: both;">&nbsp;</div>
-    </div>
-    """
     if "</head>" in html_content:
         html_content = html_content.replace("</head>", repeated_print_css + "</head>", 1)
     else:
         html_content = repeated_print_css + html_content
-
-    if "<body" in html_content and "</body>" in html_content:
-        body_pos = html_content.find(">", html_content.find("<body")) + 1
-        html_content = html_content[:body_pos] + repeated_print_markup + html_content[body_pos:]
-    else:
-        html_content = repeated_print_markup + html_content
 
     encoded_html = json.dumps(html_content)
     col_opt1, col_opt2 = st.columns(2)
@@ -1612,7 +1592,7 @@ def admin_dashboard():
             with col_m1:
                 m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
             with col_m2:
-                m_bot = st.text_input("الهامش السفلي:", value=current_set["margin_bottom"])
+                m_bot = st.text_input("الهامش السفلي:", value="auto (تلقائي بنهاية النص)", disabled=True)
             with col_m3:
                 m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
             with col_m4:
@@ -1651,7 +1631,7 @@ def admin_dashboard():
             
             if st.form_submit_button("💾 حفظ ضبط اعدادات الطباعة و الهوامش", use_container_width=True):
                 save_print_settings(
-                    header_text_val, m_top, m_bot, m_right, m_left, line_spacing_val,
+                    header_text_val, m_top, "auto", m_right, m_left, line_spacing_val,
                     current_logo1_val, current_logo2_val, current_logo3_val,
                     current_set.get("bg_base64", ""), current_set.get("frame_base64", ""),
                     current_set["default_cert_title"], current_set["default_cert_notes"],
@@ -1741,7 +1721,7 @@ def admin_dashboard():
                 
                 if st.form_submit_button("💾 حفظ إعدادات الشهادة المخصصة", use_container_width=True):
                     save_print_settings(
-                        current_set["header_text"], current_set["margin_top"], current_set["margin_bottom"],
+                        current_set["header_text"], current_set["margin_top"], "auto",
                         current_set["margin_right"], current_set["margin_left"], line_spacing_val,
                         current_logo1_val, current_logo2_val, current_logo3_val,
                         current_bg_val, current_frame_val,
@@ -2207,7 +2187,7 @@ def admin_dashboard():
                 final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
                 final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
 
-                # استخراج اسم اليوم تلقائياً من التاريخ المدخل وجعله يظهر تحت التاريخ
+                # استخراج اسم اليوم وتعديله بحيث يظهر *تحت* التاريخ مباشرة بدقة
                 days_ar = {
                     'Monday': 'الإثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
                     'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت', 'Sunday': 'الأحد'
@@ -2268,6 +2248,7 @@ def admin_dashboard():
                 </div>
                 """
 
+                # الهامش السفلي الآن ديناميكي تماماً (auto) بحيث يتحرك وينتهي تلقائياً عند انتهاء النصوص دون سحب مساحات فارغة أو وضع اعتمادات خارج النطاق
                 minutes_print_html = f"""
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
