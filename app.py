@@ -929,7 +929,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -966,7 +966,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1002,7 +1002,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1075,7 +1075,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1112,7 +1112,7 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} 20mm {m_left} !important;
+        margin: {m_top} {m_right} 22mm {m_left} !important;
     }}
     @media print {{
         html, body {{
@@ -1123,7 +1123,7 @@ def render_print_button_only(html_content, label_prefix=""):
             print-color-adjust: exact !important;
         }}
         .report-wrapper, .doc-wrapper {{
-            margin-bottom: 12mm !important;
+            margin-bottom: 15mm !important;
         }}
         .print-footer-fixed {{
             position: fixed !important;
@@ -1139,8 +1139,9 @@ def render_print_button_only(html_content, label_prefix=""):
             font-weight: bold;
             color: #065f46;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+            text-align: center;
             box-sizing: border-box;
             z-index: 99999;
             page-break-after: avoid;
@@ -1152,8 +1153,8 @@ def render_print_button_only(html_content, label_prefix=""):
     
     footer_bar_html = f"""
     <div class="print-footer-fixed">
-        <div>جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy<br>الاعتمادات الرسمية للتقرير<br><br><br></div>
-        <div style="align-self: flex-end;">صفحة المتابعة والاعتماد</div>
+        <div style="text-align: center; width: 100%;">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+        <div style="text-align: center; width: 100%; margin-top: 2px; border-top: 1px dotted #059669; padding-top: 2px;">مسؤول التدريب &nbsp;|&nbsp; رئيس القسم &nbsp;|&nbsp; مدير المتوطنة &nbsp;|&nbsp; يعتمد: مدير عام الإدارة</div>
     </div>
     """
     
@@ -1333,7 +1334,7 @@ def verification_portal_view():
             st.markdown("<br>", unsafe_allow_html=True)
             render_print_button_only(verification_doc_html, f"توثيق صحة شهادة {r['certificate_id']}")
         elif search_cert_code.strip():
-            st.warning("⚠ عذراً، لم يتم العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
+            st.warning("⚠ عذراً، لم نتمكن من العثور على شهادة بهذا الكود. تأكد من صحة رقم الشهادة.")
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("العودة لتسجيل الدخول / الرئيسية"):
         st.session_state.show_verification_portal = False
@@ -1881,7 +1882,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2270,7 +2271,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm 20mm 8mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm 22mm 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 186mm; max-width: 186mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
@@ -2278,7 +2279,6 @@ def admin_dashboard():
                 .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
                 .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 12pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
                 .section-title {{ font-weight: bold; color: #047857; font-size: 13pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
-                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 10mm; font-size: 11.5pt; font-weight: bold; text-align: center; page-break-inside: avoid; break-inside: avoid; }}
                 </style>
                 </head>
                 <body>
@@ -2303,13 +2303,6 @@ def admin_dashboard():
                     <div class="section-box">{esc(final_goals_t)}</div>
 
                     {side_by_side_tables_html}
-
-                    <div class="signatures-section">
-                        <div>مسؤول التدريب</div>
-                        <div>رئيس القسم</div>
-                        <div>مدير المتوطنة</div>
-                        <div>يعتمد مدير عام الإدارة</div>
-                    </div>
                 </div>
                 </body>
                 </html>
