@@ -865,7 +865,7 @@ def generate_trainee_exam_sheet_html(sid):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 3px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
@@ -886,14 +886,14 @@ def generate_trainee_exam_sheet_html(sid):
                 style_bg = "#fee2e2"
                 border_color = "#dc2626"
                 icon_str = "❌"
-            opts_html += f'<div style="padding: 1px 3px; margin: 1px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7pt; line-height: {line_sp};">{icon_str} {esc(opt_text)}</div>'
+            opts_html += f'<div style="padding: 2px 4px; margin: 2px 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 3px; font-size: 7.5pt; line-height: {line_sp};">{icon_str} {esc(opt_text)}</div>'
         
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin-bottom: 4px; padding: 2px 4px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+        <div style="margin-bottom: 6px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 4px; page-break-inside: avoid !important; break-inside: avoid !important;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
             {img_tag_html}
-            <div style="margin-top: 1px; padding-right: 2px;">{opts_html}</div>
+            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
         """
     score_val, max_score_val, percent_val = s["score"] or 0, s["max_score"] or 0, s["percent"] or 0.0
@@ -913,8 +913,8 @@ def generate_trainee_exam_sheet_html(sid):
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 4px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ column-count: 2; column-gap: 3mm; column-fill: auto; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
     </style>
     </head>
     <body>
@@ -1021,17 +1021,17 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 3px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
         
-        opts_html = "".join([f'<div style="padding: 1px 3px; margin: 1px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 7pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 2px 4px; margin: 2px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 7.5pt; line-height: {line_sp};">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
-        <div style="margin-bottom: 4px; padding: 2px 4px; background: #ffffff; border: 1px solid #059669; border-radius: 3px; page-break-inside: avoid !important; break-inside: avoid !important;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1px; font-size: 7pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin-bottom: 6px; padding: 4px 6px; background: #ffffff; border: 1px solid #059669; border-radius: 4px; page-break-inside: avoid !important; break-inside: avoid !important;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.5pt; line-height: {line_sp};">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
-            <div style="margin-top: 1px; padding-right: 2px;">{opts_html}</div>
+            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
         </div>
         """
     return f"""
@@ -1050,8 +1050,8 @@ def generate_exam_template_print_html(template_id):
     }}
     .report-wrapper {{ max-width: 210mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 10pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2px 4px; border-radius: 3px; margin-top: 0 !important; margin-bottom: 2mm; font-size: 7pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ column-count: 2; column-gap: 3mm; column-fill: auto; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3px 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ column-count: 2; column-gap: 4mm; column-fill: auto; }}
     </style>
     </head>
     <body>
@@ -1070,7 +1070,7 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    m_top = "16mm" # ضبط الهامش العلوي ليكون كافياً ومتطابقاً لمنع تداخل الأسئلة مع الترويسة المثبتة
+    m_top = str(print_sett.get("margin_top", "16mm") or "16mm")
     m_bot = str(print_sett.get("margin_bottom", "8mm") or "8mm")
     m_right = str(print_sett.get("margin_right", "3mm") or "3mm")
     m_left = str(print_sett.get("margin_left", "3mm") or "3mm")
@@ -1144,7 +1144,7 @@ def render_print_button_only(html_content, label_prefix=""):
             font-family: 'Cairo', Tahoma, sans-serif !important;
         }}
         body {{
-            padding-top: 18mm !important;
+            padding-top: 15mm !important;
             padding-bottom: 0px !important;
             box-sizing: border-box !important;
         }}
