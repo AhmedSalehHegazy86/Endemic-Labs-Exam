@@ -1112,7 +1112,7 @@ def render_print_button_only(html_content, label_prefix=""):
     <style>
     @page {{
         size: A4 auto;
-        margin: {m_top} {m_right} 10mm {m_left} !important;
+        margin: {m_top} {m_right} 12mm {m_left} !important;
     }}
     @media print {{
         html, body {{
@@ -1129,30 +1129,32 @@ def render_print_button_only(html_content, label_prefix=""):
             display: block !important;
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 2px solid #059669;
+            border-top: 2.5px solid #059669;
             margin-top: 6mm;
-            padding: 8px 4px;
+            padding: 10px 8px;
             font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 11pt;
+            font-size: 13pt;
             font-weight: 900;
             color: #065f46;
             text-align: center;
             box-sizing: border-box;
             page-break-inside: avoid;
             break-inside: avoid;
+            page-break-before: auto;
+            break-before: auto;
         }}
         .print-footer-dynamic > div {{
             width: 100% !important;
             text-align: center !important;
         }}
         .page-number-box {{
-            margin-top: 4px;
-            font-size: 10pt;
-            font-weight: 700;
+            margin-top: 5px;
+            font-size: 11.5pt;
+            font-weight: 800;
             color: #047857;
             text-align: center;
-            border-top: 1px dotted #059669;
-            padding-top: 3px;
+            border-top: 1.5px dotted #059669;
+            padding-top: 4px;
         }}
     }}
     </style>
@@ -1160,7 +1162,7 @@ def render_print_button_only(html_content, label_prefix=""):
     
     footer_bar_html = f"""
     <div class="print-footer-dynamic">
-        <div style="text-align: center; width: 100%;">مسؤول التدريب &nbsp;&nbsp;|&nbsp;&nbsp; رئيس القسم &nbsp;&nbsp;|&nbsp;&nbsp; مدير المتوطنة &nbsp;&nbsp;|&nbsp;&nbsp; يعتمد: مدير عام الإدارة</div>
+        <div style="text-align: center; width: 100%; font-size: 13.5pt;">مسؤول التدريب &nbsp;&nbsp;|&nbsp;&nbsp; رئيس القسم &nbsp;&nbsp;|&nbsp;&nbsp; مدير المتوطنة &nbsp;&nbsp;|&nbsp;&nbsp; يعتمد: مدير عام الإدارة</div>
         <div class="page-number-box">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
     </div>
     """
