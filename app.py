@@ -863,7 +863,7 @@ def generate_trainee_exam_sheet_html(sid):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 3px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 25px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
@@ -883,13 +883,13 @@ def generate_trainee_exam_sheet_html(sid):
                 style_bg = "#fee2e2"
                 border_color = "#dc2626"
                 icon_str = "❌"
-            opts_html += f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 3px; font-size: 7.5pt; line-height: 1.1;">{icon_str} {esc(opt_text)}</div>'
+            opts_html += f'<div style="padding: 0.5mm 1.5mm; margin: 0 0 0.5mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 7pt; line-height: 1.05;">{icon_str} {esc(opt_text)}</div>'
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin: 0; padding: 2.5mm 3mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; display:flex; flex-direction:column; justify-content:flex-start; height:100%; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.5pt; line-height: 1.1;">({idx}) {esc(q_text_clean)} &nbsp;|&nbsp; النتيجة: {status_badge}</div>
+        <div style="margin: 0; padding: 2mm 2.5mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:45mm; min-height:45mm; max-height:45mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.2pt; line-height: 1.05; height: 11mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
             {img_tag_html}
-            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
+            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{opts_html}</div>
         </div>
         """
     score_val, max_score_val, percent_val = s["score"] or 0, s["max_score"] or 0, s["percent"] or 0.0
@@ -903,8 +903,8 @@ def generate_trainee_exam_sheet_html(sid):
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4mm 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; width: 100%; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3mm 6px; border-radius: 4px; margin-top: 2px !important; margin-bottom: 2mm; font-size: 7.2pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 45mm; gap: 2.5mm; width: 100%; }}
     </style>
     </head>
     <body>
@@ -998,16 +998,16 @@ def generate_exam_template_print_html(template_id):
             img_uri = parts[0].replace("IMAGE:", "").strip()
             q_text_clean = parts[1] if len(parts) > 1 else ""
             if img_uri:
-                img_tag_html = f'<div style="margin: 3px 0; text-align: center;"><img src="{img_uri}" style="max-height: 35px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
+                img_tag_html = f'<div style="margin: 2px 0; text-align: center;"><img src="{img_uri}" style="max-height: 25px; max-width: 100%; object-fit: contain; border-radius: 3px; border: 1px solid #cbd5e1;"></div>'
         else:
             q_text_clean = raw_q_text
         q_text_clean = clean_question_text(q_text_clean)
-        opts_html = "".join([f'<div style="padding: 1mm 2mm; margin: 0 0 .8mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 7.5pt; line-height: 1.1;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 0.5mm 1.5mm; margin: 0 0 0.5mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 7pt; line-height: 1.05;">🔲 {esc(opt)}</div>' for opt in opts])
         q_html_content += f"""
-        <div style="margin: 0; padding: 2.5mm 3mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; display:flex; flex-direction:column; justify-content:flex-start; height:100%; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.5pt; line-height: 1.1;">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin: 0; padding: 2mm 2.5mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:45mm; min-height:45mm; max-height:45mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 2px; font-size: 7.2pt; line-height: 1.05; height: 11mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
             {img_tag_html}
-            <div style="margin-top: 2px; padding-right: 2px;">{opts_html}</div>
+            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{opts_html}</div>
         </div>
         """
     return f"""
@@ -1020,8 +1020,8 @@ def generate_exam_template_print_html(template_id):
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
-    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 4mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 3mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; width: 100%; }}
+    .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 3mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.2pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 45mm; gap: 2.5mm; width: 100%; }}
     </style>
     </head>
     <body>
@@ -1761,7 +1761,7 @@ def admin_dashboard():
                     render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️ هيئة ⬅️ مركز ⬅ إدارة ⬅️ وحدة)")
+        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅️ هيئة ⬅️️ مركز ⬅ إدارة ⬅️ وحدة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
             with st.form("manual_hierarchical_form"):
@@ -2015,7 +2015,7 @@ def admin_dashboard():
                             st.warning("⚠ يرجى كتابة كلمة (حذف البنك) بشكل صحيح في حقل التأكيد لإتمام الحذف.")
 
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
-        st.subheader("🧑‍‍🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
+        st.subheader("🧑‍‍‍🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
         with db() as c:
             all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
         if all_tpls_records:
