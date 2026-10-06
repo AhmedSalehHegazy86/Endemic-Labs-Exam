@@ -490,6 +490,10 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 template_id INTEGER UNIQUE,
                 minutes_text TEXT NOT NULL,
+                training_items TEXT NOT NULL DEFAULT '',
+                training_goals TEXT NOT NULL DEFAULT '',
+                training_date TEXT NOT NULL DEFAULT '',
+                facility_name TEXT NOT NULL DEFAULT '',
                 updated_at TEXT NOT NULL
             );
         """)
@@ -514,7 +518,11 @@ def init_db():
         ("print_settings", "trainee_prefix", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "trainee_title", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''"),
-        ("print_settings", "professions_list_json", "TEXT NOT NULL DEFAULT '[]'")
+        ("print_settings", "professions_list_json", "TEXT NOT NULL DEFAULT '[]'"),
+        ("training_minutes", "training_items", "TEXT NOT NULL DEFAULT ''"),
+        ("training_minutes", "training_goals", "TEXT NOT NULL DEFAULT ''"),
+        ("training_minutes", "training_date", "TEXT NOT NULL DEFAULT ''"),
+        ("training_minutes", "facility_name", "TEXT NOT NULL DEFAULT ''")
     ]:
         try:
             with db() as c:
@@ -1888,7 +1896,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2172,25 +2180,31 @@ def admin_dashboard():
                     existing_min = c.execute("SELECT * FROM training_minutes WHERE template_id=?", (chosen_min_tpl_id,)).fetchone()
                     tpl_rec = c.execute("SELECT * FROM exam_templates WHERE id=?", (chosen_min_tpl_id,)).fetchone()
 
-                default_minutes_template_content = f"""محضر تدريب واجتماع تنظيمي
-إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة بالإدارة الصحية بأولاد صقر، وفي إطار رفع كفاءة العاملين وتطوير الأداء الفني والمهني.
-تم عقد الاجتماع والبرنامج التدريبي الخاص بنموذج: ({tpl_rec['name'] if tpl_rec else ''}) والتصنيف ({tpl_rec['exam_type'] if tpl_rec else ''}).
-وقد تناول البرنامج مناقشة المعايير والمهارات الفنية الخاصة بالفحوصات المعملية، طرق التشخيص، ومكافحة الأمراض المتوطنة، وتم استعراض الاستجابة والتقييم الدوري للعاملين بالوحدات.
-التوصيات:
-1. الالتزام بالدقة الكاملة في تنفيذ الفحوصات والتدابير الوقائية.
-2. المتابعة المستمرة لكافة السجلات والتقارير الدورية.
-3. استمرار البرامج التدريبية التنشيطية لجميع الفئات."""
+                default_min_text = f"إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة، وفي إطار رفع كفاءة العاملين وتطوير الأداء الفني والمهني للكوادر الطبية والمعملية."
+                default_items_text = f"1. مناقشة المعايير والمهارات الفنية الخاصة بنموذج ({tpl_rec['name'] if tpl_rec else ''}).\n2. استعراض طرق الفحص والتشخيص ومكافحة الأمراض المتوطنة بدقة.\n3. التوجيه بالمتابعة المستمرة لكافة السجلات والتقارير الدورية."
+                default_goals_text = f"1. رفع كفاءة العاملين بوحدات الأمراض المتوطنة.\n2. ضمان جودة الفحوصات المعملية والتشخيصية.\n3. الالتزام بالتدابير الوقائية وتطبيق المعايير القياسية."
+                default_date_val = now_cairo().strftime('%Y-%m-%d')
+                default_facility_val = "الإدارة الصحية بأولاد صقر - وحدة الأمراض المتوطنة"
 
-                current_minutes_text = existing_min["minutes_text"] if existing_min else default_minutes_template_content
+                cur_min_text = existing_min["minutes_text"] if existing_min and existing_min["minutes_text"] else default_min_text
+                cur_items_text = existing_min["training_items"] if existing_min and existing_min["training_items"] else default_items_text
+                cur_goals_text = existing_min["training_goals"] if existing_min and existing_min["training_goals"] else default_goals_text
+                cur_date_val = existing_min["training_date"] if existing_min and existing_min["training_date"] else default_date_val
+                cur_facility_val = existing_min["facility_name"] if existing_min and existing_min["facility_name"] else default_facility_val
 
                 with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}"):
-                    st.markdown("##### ✏ تعديل نص محضر التدريب (يمكنك التعديل بحرية):")
-                    edited_minutes_input = st.text_area("نص المحضر:", value=current_minutes_text, height=220)
+                    st.markdown("##### ✏ تعديل محضر التدريب والبنود والأهداف:")
+                    edited_facility_input = st.text_input("اسم المنشأة / جهة العمل:", value=cur_facility_val)
+                    edited_date_input = st.text_input("تاريخ محضر التدريب:", value=cur_date_val)
+                    edited_minutes_input = st.text_area("1. حقل محضر التدريب:", value=cur_min_text, height=120)
+                    edited_items_input = st.text_area("2. حقل بنود التدريب متوافقة مع النموذج:", value=cur_items_text, height=140)
+                    edited_goals_input = st.text_area("3. حقل الأهداف من التدريب متوافقة مع النموذج:", value=cur_goals_text, height=140)
+
                     if st.form_submit_button("💾 حفظ التعديلات على محضر التدريب", use_container_width=True):
                         with db() as c:
-                            c.execute("""INSERT INTO training_minutes(template_id, minutes_text, updated_at) VALUES(?,?,?)
-                                       ON CONFLICT(template_id) DO UPDATE SET minutes_text=excluded.minutes_text, updated_at=excluded.updated_at""",
-                                      (chosen_min_tpl_id, edited_minutes_input.strip(), now()))
+                            c.execute("""INSERT INTO training_minutes(template_id, minutes_text, training_items, training_goals, training_date, facility_name, updated_at) VALUES(?,?,?,?,?,?,?)
+                                       ON CONFLICT(template_id) DO UPDATE SET minutes_text=excluded.minutes_text, training_items=excluded.training_items, training_goals=excluded.training_goals, training_date=excluded.training_date, facility_name=excluded.facility_name, updated_at=excluded.updated_at""",
+                                      (chosen_min_tpl_id, edited_minutes_input.strip(), edited_items_input.strip(), edited_goals_input.strip(), edited_date_input.strip(), edited_facility_input.strip(), now()))
                         st.success("✅ تم حفظ وتعديل محضر التدريب بنجاح!")
                         st.rerun()
 
@@ -2200,30 +2214,50 @@ def admin_dashboard():
                 header_right_txt = print_sett_m.get('header_text', '')
                 line_sp_m = print_sett_m.get('line_spacing', 1.25)
 
+                final_min_t = edited_minutes_input if 'edited_minutes_input' in locals() else cur_min_text
+                final_items_t = edited_items_input if 'edited_items_input' in locals() else cur_items_text
+                final_goals_t = edited_goals_input if 'edited_goals_input' in locals() else cur_goals_text
+                final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
+                final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
+
                 minutes_print_html = f"""
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 15mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
-                .report-wrapper {{ width: 180mm; max-width: 180mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-                .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 3mm; margin-bottom: 4mm; }}
-                h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 4mm 0 !important; }}
-                .content-box {{ background: #f8fafc; border: 1px solid #059669; padding: 6mm; border-radius: 6px; font-size: 10pt; white-space: pre-wrap; line-height: 1.6; margin-bottom: 10mm; }}
-                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 25mm; font-size: 9pt; font-weight: bold; text-align: center; }}
+                .report-wrapper {{ width: 186mm; max-width: 186mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+                .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
+                h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2mm 0 !important; }}
+                .meta-info {{ display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2mm 4mm; border-radius: 4px; margin-bottom: 3mm; }}
+                .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 9pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
+                .section-title {{ font-weight: bold; color: #047857; font-size: 9.5pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
+                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 15mm; font-size: 8.5pt; font-weight: bold; text-align: center; }}
                 </style>
                 </head>
                 <body>
                 <div class="report-wrapper">
                     <div class="first-page-header">
-                        <div style="font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
+                        <div style="font-size: 8.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
                         <div>{render_logos_html()}</div>
                     </div>
                     <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
-                    <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4mm;">تاريخ التحرير: {now_cairo().strftime('%Y-%m-%d')}</div>
-                    <div class="content-box">{esc(edited_minutes_input if 'edited_minutes_input' in locals() else current_minutes_text)}</div>
+                    <div class="meta-info">
+                        <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
+                        <div>تاريخ التحرير: {esc(final_date_t)}</div>
+                    </div>
+                    
+                    <div class="section-title">1. محضر التدريب</div>
+                    <div class="section-box">{esc(final_min_t)}</div>
+
+                    <div class="section-title">2. بنود التدريب متوافقة مع النموذج</div>
+                    <div class="section-box">{esc(final_items_t)}</div>
+
+                    <div class="section-title">3. الأهداف من التدريب متوافقة مع النموذج</div>
+                    <div class="section-box">{esc(final_goals_t)}</div>
+
                     <div class="signatures-section">
                         <div>مسؤول التدريب</div>
                         <div>رئيس القسم</div>
@@ -2825,7 +2859,7 @@ def admin_dashboard():
             if uploaded_db_file is not None:
                 c_btn_res, c_btn_merge = st.columns(2)
                 with c_btn_res:
-                    if st.button("⚠️️ استبدال القاعدة الحالية بالكامل", use_container_width=True):
+                    if st.button("⚠ استبدال القاعدة الحالية بالكامل", use_container_width=True):
                         try:
                             with open(DB_PATH, "wb") as f_out:
                                 f_out.write(uploaded_db_file.getbuffer())
