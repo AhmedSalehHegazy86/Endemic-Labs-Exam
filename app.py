@@ -929,7 +929,7 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -966,7 +966,7 @@ def generate_general_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1002,7 +1002,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1075,7 +1075,7 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
@@ -1111,59 +1111,82 @@ def render_print_button_only(html_content, label_prefix=""):
     repeated_print_css = f"""
     <style>
     @page {{
-        size: A4 auto;
-        margin: {m_top} {m_right} 12mm {m_left} !important;
+        size: A4 portrait;
+        margin: {m_top} {m_right} 18mm {m_left} !important;
     }}
     @media print {{
         html, body {{
             margin: 0 !important;
             padding: 0 !important;
-            height: auto !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }}
-        .report-wrapper, .doc-wrapper {{
-            margin-bottom: 0 !important;
-        }}
         .print-footer-dynamic {{
-            display: block !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 2.5px solid #059669;
-            margin-top: 6mm;
-            padding: 10px 8px;
+            border-top: 2px solid #059669;
+            padding: 6px 4px !important;
             font-family: 'Cairo', Tahoma, sans-serif;
-            font-size: 13pt;
+            font-size: 11pt;
             font-weight: 900;
             color: #065f46;
             text-align: center;
             box-sizing: border-box;
-            page-break-inside: avoid;
-            break-inside: avoid;
-            page-break-before: auto;
-            break-before: auto;
+            z-index: 999999;
         }}
         .print-footer-dynamic > div {{
             width: 100% !important;
             text-align: center !important;
+            direction: rtl !important;
+        }}
+        .page-number-box::after {{
+            content: "صفحة " counter(page) " من " counter(pages);
         }}
         .page-number-box {{
-            margin-top: 5px;
-            font-size: 11.5pt;
+            margin-bottom: 3px;
+            font-size: 10pt;
             font-weight: 800;
             color: #047857;
             text-align: center;
-            border-top: 1.5px dotted #059669;
-            padding-top: 4px;
+            border-bottom: 1px dotted #059669;
+            padding-bottom: 2px;
+            direction: rtl !important;
         }}
+    }}
+    /* للشاشة أيضاً لضمان المعاينة الصحيحة */
+    .print-footer-dynamic {{
+        width: 100% !important;
+        background: #ffffff !important;
+        border-top: 2px solid #059669;
+        margin-top: 5mm;
+        padding: 8px 4px;
+        font-family: 'Cairo', Tahoma, sans-serif;
+        font-size: 11pt;
+        font-weight: 900;
+        color: #065f46;
+        text-align: center;
+        box-sizing: border-box;
+    }}
+    .page-number-box {{
+        margin-bottom: 3px;
+        font-size: 10pt;
+        font-weight: 800;
+        color: #047857;
+        text-align: center;
+        border-bottom: 1px dotted #059669;
+        padding-bottom: 2px;
     }}
     </style>
     """
     
     footer_bar_html = f"""
     <div class="print-footer-dynamic">
-        <div style="text-align: center; width: 100%; font-size: 13.5pt;">مسؤول التدريب &nbsp;&nbsp;|&nbsp;&nbsp; رئيس القسم &nbsp;&nbsp;|&nbsp;&nbsp; مدير المتوطنة &nbsp;&nbsp;|&nbsp;&nbsp; يعتمد: مدير عام الإدارة</div>
-        <div class="page-number-box">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+        <div class="page-number-box">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy &nbsp;|&nbsp; </div>
+        <div style="text-align: center; width: 100%; font-size: 12pt; font-weight: 900; color: #065f46;">مسؤول التدريب &nbsp;&nbsp;|&nbsp;&nbsp; رئيس القسم &nbsp;&nbsp;|&nbsp;&nbsp; مدير المتوطنة &nbsp;&nbsp;|&nbsp;&nbsp; يعتمد: مدير عام الإدارة</div>
     </div>
     """
     
@@ -1184,18 +1207,17 @@ def render_print_button_only(html_content, label_prefix=""):
         chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["رأسي (Portrait)", "أفقي (Landscape)"], key=orient_key)
     with col_opt2:
         copies_key = f"copies_{hash(label_prefix) & 0xffffffff}"
-        num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة (الحد الأقصى للاحتواء):", min_value=1, max_value=50, value=1, key=copies_key)
+        num_pages_to_print = st.number_input("عدد الأوراق / النسخ المطلوبة:", min_value=1, max_value=50, value=1, key=copies_key)
 
     js_code = """
     <div style="margin: 4px 0;">
         <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
-            🖨 طباعة / حفظ المستند (A4 """ + chosen_orient + """ - احتواء ضمن """ + str(num_pages_to_print) + """ صفحة - """ + label_prefix + """)
+            🖨 طباعة / حفظ المستند (A4 """ + chosen_orient + """ - """ + label_prefix + """)
         </button>
     </div>
     <script>
     function printDoc() {
         var win = window.open('', '_blank');
-        var targetPages = """ + str(num_pages_to_print) + """;
         var styledHtml = """ + encoded_html + """;
         win.document.write(styledHtml);
         win.document.close();
@@ -2280,7 +2302,7 @@ def admin_dashboard():
                 <head>
                 <meta charset="UTF-8">
                 <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm 12mm 8mm !important; }}
+                @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
                 body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                 .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
                 .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
