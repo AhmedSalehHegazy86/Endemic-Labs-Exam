@@ -916,7 +916,7 @@ def generate_trainee_exam_sheet_html(sid):
                 <div style="display: flex; flex-direction: row; gap: 4mm; align-items: flex-start; width: 100%;">
                     <div style="flex: 1; min-width: 0;">{opts_html}</div>
                     <div style="width: 32mm; flex-shrink: 0; text-align: center;">
-                        <img src="{img_uri}" style="max-height: 20mm; max-width: 32mm; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                        <img src="{img_uri}" style="max-height: 18mm; max-width: 32mm; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
                     </div>
                 </div>
                 '''
@@ -929,8 +929,8 @@ def generate_trainee_exam_sheet_html(sid):
         q_text_clean = clean_question_text(q_text_clean)
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin: 0; padding: 0.8mm 1.5mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.5px; font-size: 8.5pt; line-height: 1.0; height: 8.5mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
+        <div style="margin: 0; padding: 0.6mm 1.2mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:30mm; min-height:30mm; max-height:30mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.3px; font-size: 8pt; line-height: 1.0; height: 7.5mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
             <div style="margin-top: 0px; padding-right: 0px; flex-grow: 1;">{content_inner_html}</div>
         </div>
         """
@@ -947,7 +947,7 @@ def generate_trainee_exam_sheet_html(sid):
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 34mm; gap: 2mm; width: 100%; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30mm; gap: 2mm; width: 100%; }}
     </style>
     </head>
     <body>
@@ -1064,7 +1064,7 @@ def generate_exam_template_print_html(template_id):
                 <div style="display: flex; flex-direction: row; gap: 4mm; align-items: flex-start; width: 100%;">
                     <div style="flex: 1; min-width: 0;">{opts_html}</div>
                     <div style="width: 32mm; flex-shrink: 0; text-align: center;">
-                        <img src="{img_uri}" style="max-height: 20mm; max-width: 32mm; object-fit: contain; border-radius: 2mm; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                        <img src="{img_uri}" style="max-height: 18mm; max-width: 32mm; object-fit: contain; border-radius: 2mm; border: 1px solid #cbd5e1; display: block; margin: auto;">
                     </div>
                 </div>
                 '''
@@ -1076,8 +1076,8 @@ def generate_exam_template_print_html(template_id):
 
         q_text_clean = clean_question_text(q_text_clean)
         q_html_content += f"""
-        <div style="margin: 0; padding: 0.8mm 1.5mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.5px; font-size: 8.5pt; line-height: 1.0; height: 8.5mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
+        <div style="margin: 0; padding: 0.6mm 1.2mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:30mm; min-height:30mm; max-height:30mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.3px; font-size: 8pt; line-height: 1.0; height: 7.5mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
             <div style="margin-top: 0px; padding-right: 0px; flex-grow: 1;">{content_inner_html}</div>
         </div>
         """
@@ -1093,7 +1093,7 @@ def generate_exam_template_print_html(template_id):
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
-    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 34mm; gap: 2mm; width: 100%; }}
+    .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30mm; gap: 2mm; width: 100%; }}
     </style>
     </head>
     <body>
