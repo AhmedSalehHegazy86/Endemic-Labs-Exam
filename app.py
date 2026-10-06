@@ -486,6 +486,12 @@ def init_db():
                 details TEXT,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS training_minutes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                template_id INTEGER UNIQUE,
+                minutes_text TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
         """)
 
     for col_table, col_name, col_type in [
@@ -1882,7 +1888,7 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                         st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
-                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
+                df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍‍🗨" if x==1 else "ظاهر ✅")
                 df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
@@ -2063,7 +2069,7 @@ def admin_dashboard():
                         st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
+        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن", "📄 طباعة وتعديل محضر التدريب"])
         with sub_tabs[0]:
             df_pend = trainees_df("pending", include_hidden=False)
             if df_pend.empty:
@@ -2151,6 +2157,84 @@ def admin_dashboard():
                 trainee_exam_sheet_html = generate_trainee_exam_sheet_html(chosen_exam_session_id)
                 st.markdown("<br>", unsafe_allow_html=True)
                 render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
+        with sub_tabs[3]:
+            st.markdown("#### 📄 طباعة وتعديل محضر التدريب بناءً على النموذج المختار:")
+            with db() as c:
+                all_tpls_for_minutes = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
+            if not all_tpls_for_minutes:
+                st.info("لا توجد نماذج اختبارات مسجلة لإنشاء محضر التدريب لها.")
+            else:
+                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t['id'] for t in all_tpls_for_minutes}
+                sel_min_tpl_label = st.selectbox("اختر نموذج الاختبار لإنشاء أو تعديل محضر التدريب الخاص به:", list(minutes_tpl_map.keys()), key="sel_min_tpl")
+                chosen_min_tpl_id = minutes_tpl_map[sel_min_tpl_label]
+
+                with db() as c:
+                    existing_min = c.execute("SELECT * FROM training_minutes WHERE template_id=?", (chosen_min_tpl_id,)).fetchone()
+                    tpl_rec = c.execute("SELECT * FROM exam_templates WHERE id=?", (chosen_min_tpl_id,)).fetchone()
+
+                default_minutes_template_content = f"""محضر تدريب واجتماع تنظيمي
+إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة بالإدارة الصحية بأولاد صقر، وفي إطار رفع كفاءة العاملين وتطوير الأداء الفني والمهني.
+تم عقد الاجتماع والبرنامج التدريبي الخاص بنموذج: ({tpl_rec['name'] if tpl_rec else ''}) والتصنيف ({tpl_rec['exam_type'] if tpl_rec else ''}).
+وقد تناول البرنامج مناقشة المعايير والمهارات الفنية الخاصة بالفحوصات المعملية، طرق التشخيص، ومكافحة الأمراض المتوطنة، وتم استعراض الاستجابة والتقييم الدوري للعاملين بالوحدات.
+التوصيات:
+1. الالتزام بالدقة الكاملة في تنفيذ الفحوصات والتدابير الوقائية.
+2. المتابعة المستمرة لكافة السجلات والتقارير الدورية.
+3. استمرار البرامج التدريبية التنشيطية لجميع الفئات."""
+
+                current_minutes_text = existing_min["minutes_text"] if existing_min else default_minutes_template_content
+
+                with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}"):
+                    st.markdown("##### ✏ تعديل نص محضر التدريب (يمكنك التعديل بحرية):")
+                    edited_minutes_input = st.text_area("نص المحضر:", value=current_minutes_text, height=220)
+                    if st.form_submit_button("💾 حفظ التعديلات على محضر التدريب", use_container_width=True):
+                        with db() as c:
+                            c.execute("""INSERT INTO training_minutes(template_id, minutes_text, updated_at) VALUES(?,?,?)
+                                       ON CONFLICT(template_id) DO UPDATE SET minutes_text=excluded.minutes_text, updated_at=excluded.updated_at""",
+                                      (chosen_min_tpl_id, edited_minutes_input.strip(), now()))
+                        st.success("✅ تم حفظ وتعديل محضر التدريب بنجاح!")
+                        st.rerun()
+
+                st.markdown("---")
+                st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
+                print_sett_m = get_print_settings()
+                header_right_txt = print_sett_m.get('header_text', '')
+                line_sp_m = print_sett_m.get('line_spacing', 1.25)
+
+                minutes_print_html = f"""
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                <meta charset="UTF-8">
+                <style>
+                @page {{ size: A4 portrait; margin: 15mm !important; }}
+                body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
+                .report-wrapper {{ width: 180mm; max-width: 180mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+                .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 3mm; margin-bottom: 4mm; }}
+                h2 {{ text-align: center; color: #047857; font-size: 13pt; margin: 0 0 4mm 0 !important; }}
+                .content-box {{ background: #f8fafc; border: 1px solid #059669; padding: 6mm; border-radius: 6px; font-size: 10pt; white-space: pre-wrap; line-height: 1.6; margin-bottom: 10mm; }}
+                .signatures-section {{ display: flex; justify-content: space-between; margin-top: 25mm; font-size: 9pt; font-weight: bold; text-align: center; }}
+                </style>
+                </head>
+                <body>
+                <div class="report-wrapper">
+                    <div class="first-page-header">
+                        <div style="font-size: 9pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
+                        <div>{render_logos_html()}</div>
+                    </div>
+                    <h2>محضر اجتماع وتدريب وحدة الأمراض المتوطنة</h2>
+                    <div style="text-align: left; font-size: 8pt; color: #6b7280; margin-bottom: 4mm;">تاريخ التحرير: {now_cairo().strftime('%Y-%m-%d')}</div>
+                    <div class="content-box">{esc(edited_minutes_input if 'edited_minutes_input' in locals() else current_minutes_text)}</div>
+                    <div class="signatures-section">
+                        <div>مسؤول التدريب</div>
+                        <div>رئيس القسم</div>
+                        <div>مدير المتوطنة</div>
+                        <div>يعتمد مدير عام الإدارة</div>
+                    </div>
+                </div>
+                </body>
+                </html>
+                """
+                render_print_button_only(minutes_print_html, f"محضر تدريب نموذج رقم {chosen_min_tpl_id}")
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
         st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (مع إمكانية الحذف وإعادة الترتيب التلقائي للـ ID)")
@@ -2221,7 +2305,6 @@ def admin_dashboard():
                 new_tpl_cats = st.multiselect("المجالات / الأقسام:", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ النموذج والمواعيد", use_container_width=True):
                     if new_tpl_name.strip():
-                        # التحقق من وجود حد أدنى 4 أسئلة مصورة في النطاق المحدد أو البنك
                         with db() as c:
                             if new_tpl_cats:
                                 placeholders = ','.join(['?'] * len(new_tpl_cats))
@@ -2742,7 +2825,7 @@ def admin_dashboard():
             if uploaded_db_file is not None:
                 c_btn_res, c_btn_merge = st.columns(2)
                 with c_btn_res:
-                    if st.button("⚠️ استبدال القاعدة الحالية بالكامل", use_container_width=True):
+                    if st.button("⚠️️ استبدال القاعدة الحالية بالكامل", use_container_width=True):
                         try:
                             with open(DB_PATH, "wb") as f_out:
                                 f_out.write(uploaded_db_file.getbuffer())
