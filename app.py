@@ -905,7 +905,7 @@ def generate_trainee_exam_sheet_html(sid):
                 style_bg = "#fee2e2"
                 border_color = "#dc2626"
                 icon_str = "❌"
-            opts_html += f'<div style="padding: 0.2mm 1.2mm; margin: 0 0 0.2mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 8pt; line-height: 1.02;">{icon_str} {esc(opt_text)}</div>'
+            opts_html += f'<div style="padding: 0.1mm 1mm; margin: 0 0 0.1mm 0; background: {style_bg}; border: 1px solid {border_color}; border-radius: 2px; font-size: 8pt; line-height: 1.0;">{icon_str} {esc(opt_text)}</div>'
 
         if "IMAGE:" in raw_q_text:
             parts = raw_q_text.split("\n\n")
@@ -916,7 +916,7 @@ def generate_trainee_exam_sheet_html(sid):
                 <div style="display: flex; flex-direction: row; gap: 4mm; align-items: flex-start; width: 100%;">
                     <div style="flex: 1; min-width: 0;">{opts_html}</div>
                     <div style="width: 32mm; flex-shrink: 0; text-align: center;">
-                        <img src="{img_uri}" style="max-height: 22mm; max-width: 32mm; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                        <img src="{img_uri}" style="max-height: 20mm; max-width: 32mm; object-fit: contain; border-radius: 2px; border: 1px solid #cbd5e1; display: block; margin: auto;">
                     </div>
                 </div>
                 '''
@@ -929,9 +929,9 @@ def generate_trainee_exam_sheet_html(sid):
         q_text_clean = clean_question_text(q_text_clean)
         status_badge = '<span style="color: green; font-weight: bold;">صحيح</span>' if is_correct else '<span style="color: red; font-weight: bold;">خاطئ</span>'
         q_html_content += f"""
-        <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1.5px; font-size: 8.5pt; line-height: 1.02; height: 9mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
-            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{content_inner_html}</div>
+        <div style="margin: 0; padding: 0.8mm 1.5mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.5px; font-size: 8.5pt; line-height: 1.0; height: 8.5mm; overflow: hidden;">({idx}) {esc(q_text_clean)} | النتيجة: {status_badge}</div>
+            <div style="margin-top: 0px; padding-right: 0px; flex-grow: 1;">{content_inner_html}</div>
         </div>
         """
     score_val, max_score_val, percent_val = s["score"] or 0, s["max_score"] or 0, s["percent"] or 0.0
@@ -1053,7 +1053,7 @@ def generate_exam_template_print_html(template_id):
             opts = ["نعم", "لا"]
         raw_q_text = q["question"]
         
-        opts_html = "".join([f'<div style="padding: 0.2mm 1.2mm; margin: 0 0 0.2mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: 1.02;">🔲 {esc(opt)}</div>' for opt in opts])
+        opts_html = "".join([f'<div style="padding: 0.1mm 1mm; margin: 0 0 0.1mm 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; font-size: 8pt; line-height: 1.0;">🔲 {esc(opt)}</div>' for opt in opts])
         
         if "IMAGE:" in raw_q_text:
             parts = raw_q_text.split("\n\n")
@@ -1064,7 +1064,7 @@ def generate_exam_template_print_html(template_id):
                 <div style="display: flex; flex-direction: row; gap: 4mm; align-items: flex-start; width: 100%;">
                     <div style="flex: 1; min-width: 0;">{opts_html}</div>
                     <div style="width: 32mm; flex-shrink: 0; text-align: center;">
-                        <img src="{img_uri}" style="max-height: 22mm; max-width: 32mm; object-fit: contain; border-radius: 2mm; border: 1px solid #cbd5e1; display: block; margin: auto;">
+                        <img src="{img_uri}" style="max-height: 20mm; max-width: 32mm; object-fit: contain; border-radius: 2mm; border: 1px solid #cbd5e1; display: block; margin: auto;">
                     </div>
                 </div>
                 '''
@@ -1076,9 +1076,9 @@ def generate_exam_template_print_html(template_id):
 
         q_text_clean = clean_question_text(q_text_clean)
         q_html_content += f"""
-        <div style="margin: 0; padding: 1.2mm 1.8mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
-            <div style="font-weight: bold; color: #065f46; margin-bottom: 1.5px; font-size: 8.5pt; line-height: 1.02; height: 9mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
-            <div style="margin-top: 1px; padding-right: 2px; flex-grow: 1;">{content_inner_html}</div>
+        <div style="margin: 0; padding: 0.8mm 1.5mm; background:#ffffff; border:1px solid #059669; border-radius:4px; box-sizing:border-box; width:100%; height:34mm; min-height:34mm; max-height:34mm; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; page-break-inside:avoid; break-inside:avoid;">
+            <div style="font-weight: bold; color: #065f46; margin-bottom: 0.5px; font-size: 8.5pt; line-height: 1.0; height: 8.5mm; overflow: hidden;">({idx}) {esc(q_text_clean)}</div>
+            <div style="margin-top: 0px; padding-right: 0px; flex-grow: 1;">{content_inner_html}</div>
         </div>
         """
     return f"""
