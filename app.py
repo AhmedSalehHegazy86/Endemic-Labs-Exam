@@ -775,76 +775,28 @@ def generate_qr_code_base64(data_text):
     img.save(buffered, format="PNG")
     return "data:image/png;base64," + __import__("base64").b64encode(buffered.getvalue()).decode("utf-8")
 
-def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
-    """Generate one A4-landscape certificate.
-    Certificate content is contained inside one adjustable inner box so the
-    complete header/body/footer can be aligned to any uploaded background.
-    """
-    sett = get_print_settings()
-    title_val = (custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة")) or "شهادة"
-    notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد")
-    title_role_val = (sett.get("trainee_title", "") or "").strip()
-    prefix_val = (sett.get("trainee_prefix", "") or "").strip()
-
-    with db() as c:
-        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession,
-                        e.name template_name, e.exam_type
-                        FROM exam_sessions s
-                        JOIN trainees t ON t.id=s.trainee_id
-                        LEFT JOIN exam_templates e ON e.id=s.template_id
-                        WHERE s.id=?""", (sid,)).fetchone()
-        if not r:
-            return ""
-
-    status_text = "اجتاز الاختبار بنجاح" if r["passed"] else "لم يجتز الاختبار"
-    score_val = r["score"] or 0
-    max_score_val = r["max_score"] or 0
-    percent_val = r["percent"] or 0.0
-    tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
-    exam_type_str = r["exam_type"] or "قبل التدريب"
-
-    formatted_header = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
+def _certificate_background_css(sett):
+    """Return the certificate page background. Background image is the only frame source."""
     bg_data = sett.get("bg_base64", "") or ""
-    frame_data = sett.get("frame_base64", "") or ""
+    if bg_data:
+        return f"background-image:url('{bg_data}'); background-repeat:no-repeat; background-position:center center; background-size:100% 100%;"
+    return "background:#ffffff; border:1.2mm solid #059669;"
 
-    # The uploaded background/frame is the outer certificate sheet.
-    # The inner box is deliberately inset so every text/logo/footer item stays
-    # inside the visible border of the image.
-    bg_uri = frame_data or bg_data
-    if bg_uri:
-        outer_background = f"background-image:url('{bg_uri}'); background-repeat:no-repeat; background-position:center center; background-size:100% 100%;"
-    else:
-        outer_background = "background:#ffffff; border:1.2mm solid #059669;"
 
-    # Adjustable content box. Values can be changed later without touching
-    # the rest of the certificate rendering code.
-    box_inset = sett.get("cert_box_inset", "13mm") or "13mm"
-    box_top = box_right = box_bottom = box_left = box_inset
+def _certificate_inner_box_css(sett):
+    """Return the adjustable inner content box used for every certificate element."""
+    raw = sett.get("cert_box_inset", "13mm") or "13mm"
+    try:
+        value = float(str(raw).replace("mm", "").strip())
+    except Exception:
+        value = 13.0
+    value = max(4.0, min(35.0, value))
+    return f"top:{value:g}mm;right:{value:g}mm;bottom:{value:g}mm;left:{value:g}mm;"
 
-    prof_field_val = r["trainee_profession"] if r["trainee_profession"] else sett.get("trainee_profession", "أخصائي الأمراض المتوطنة")
 
-    # Prefix is used only once. If it is the same as the configured title,
-    # do not duplicate it.
-    parts = []
-    if prefix_val:
-        parts.append(prefix_val)
-    if title_role_val and title_role_val != prefix_val:
-        parts.append(title_role_val)
-    name_line = " ".join(parts + [str(r["trainee_name"]).strip()])
-
-    # Name/title are intentionally on a single independent line.
-    name_html = f"<div class='cert-person-line'>{esc(name_line)}</div>"
-
-    # Facility is intentionally a standalone line for both individual and
-    # facility/batch printing. The same certificate template is used for each
-    # person, while the selected facility appears independently.
-    facility_html = ""
-    if r["facility"]:
-        facility_html = f"<div class='cert-facility-line'>{esc(r['facility'])}</div>"
-
-    qr_data_str = str(r["certificate_id"] or f"ELX-{sid:06d}")
-    qr_base64 = generate_qr_code_base64(qr_data_str)
-
+def _certificate_common_html(inner_content, sett):
+    bg_css = _certificate_background_css(sett)
+    box_css = _certificate_inner_box_css(sett)
     return f"""
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -854,81 +806,146 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Reem+Kufi:wght@700&display=swap');
 @page {{ size:A4 landscape; margin:0 !important; }}
 html,body {{ margin:0 !important; padding:0 !important; width:297mm; height:210mm; }}
-body {{ font-family:'Cairo','Tahoma',sans-serif; direction:rtl; overflow:hidden;
-       -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }}
-.cert-page {{ width:297mm; height:210mm; position:relative; overflow:hidden; margin:0; padding:0; box-sizing:border-box; {outer_background} }}
-.cert-inner-box {{
-    position:absolute; top:{box_top}; right:{box_right}; bottom:{box_bottom}; left:{box_left};
-    width:auto; height:auto; box-sizing:border-box;
-    display:flex; flex-direction:column; justify-content:space-between;
-    overflow:hidden; text-align:center;
-    padding:5mm 8mm 4mm 8mm;
-}}
-.cert-header {{ flex:0 0 auto; width:100%; display:flex; justify-content:space-between; align-items:flex-start; direction:rtl; min-height:25mm; }}
-.header-right {{ text-align:right; font-size:11pt; line-height:1.35; font-weight:900; color:#064e3b; max-width:72%; }}
+body {{ font-family:'Cairo','Tahoma',sans-serif; direction:rtl; overflow:hidden; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }}
+.cert-page {{ width:297mm; height:210mm; position:relative; overflow:hidden; margin:0; padding:0; box-sizing:border-box; {bg_css} }}
+.cert-inner-box {{ position:absolute; {box_css} box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; text-align:center; padding:4mm 7mm 3mm 7mm; }}
+.cert-header {{ flex:0 0 auto; width:100%; display:flex; justify-content:space-between; align-items:flex-start; direction:rtl; min-height:24mm; }}
+.header-right {{ text-align:right; font-size:11pt; line-height:1.3; font-weight:900; color:#064e3b; max-width:72%; }}
 .cert-logos {{ text-align:left; flex:0 0 auto; }}
 .cert-body {{ flex:1 1 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; }}
-h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:34pt; line-height:1.1; margin:0 0 2mm 0; font-weight:700; }}
-.cert-divider {{ width:72%; border:0; border-top:1.2mm solid #059669; margin:0 auto 4mm auto; }}
-.cert-sub-text {{ font-size:13pt; line-height:1.35; color:#1f2937; margin:1mm 0 3mm; font-weight:800; }}
-.cert-person-line {{ font-size:25pt; line-height:1.2; color:#064e3b; font-weight:900; margin:2mm 0 3mm; white-space:nowrap; }}
-.cert-facility-line {{ font-size:19pt; line-height:1.25; color:#047857; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
-.cert-profession-line {{ font-size:15pt; line-height:1.25; color:#374151; font-weight:800; margin:1mm 0 2mm; }}
-.cert-notes {{ font-size:12.5pt; line-height:1.35; color:#374151; font-weight:700; margin:1mm auto 2mm; max-width:92%; }}
-.cert-details-row {{ width:92%; display:flex; justify-content:space-between; align-items:center; gap:8mm; margin-top:3mm; }}
-.cert-details {{ flex:1; text-align:right; font-size:11.5pt; line-height:1.55; color:#1f2937; font-weight:800; }}
-.cert-qr {{ flex:0 0 auto; display:flex; align-items:center; gap:3mm; direction:ltr; }}
-.cert-qr img {{ width:17mm; height:17mm; display:block; }}
-.cert-code {{ font-size:8.5pt; font-weight:900; color:#064e3b; white-space:nowrap; writing-mode:vertical-rl; transform:rotate(180deg); }}
+h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:32pt; line-height:1.05; margin:0 0 3mm 0; font-weight:700; }}
+.cert-prefix-line {{ font-size:18pt; line-height:1.2; color:#374151; font-weight:800; margin:1mm 0 2mm; min-height:7mm; }}
+.cert-person-line {{ font-size:25pt; line-height:1.15; color:#064e3b; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
+.cert-facility-line {{ font-size:20pt; line-height:1.2; color:#047857; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
+.cert-profession-line {{ font-size:16pt; line-height:1.25; color:#374151; font-weight:800; margin:1mm 0 3mm; white-space:nowrap; }}
+.cert-result-row {{ width:94%; display:flex; align-items:center; justify-content:center; gap:10mm; margin-top:4mm; }}
+.cert-result {{ font-size:15pt; line-height:1.35; color:#1f2937; font-weight:900; white-space:nowrap; }}
+.cert-number {{ font-size:12pt; line-height:1.2; color:#064e3b; font-weight:900; white-space:nowrap; }}
+.cert-qr {{ display:flex; align-items:center; gap:2mm; direction:ltr; flex:0 0 auto; }}
+.cert-qr img {{ width:18mm; height:18mm; display:block; }}
+.cert-code {{ font-size:8pt; font-weight:900; color:#064e3b; white-space:nowrap; }}
 .cert-footer {{ flex:0 0 auto; width:100%; }}
-.ownership-footer-row {{ width:100%; text-align:center; font-size:8.5pt; font-weight:800; color:#047857; border-top:0.35mm dotted #059669; padding-top:1.2mm; margin-top:1mm; line-height:1.2; }}
 .credits-footer-row {{ width:100%; display:flex; justify-content:space-between; align-items:flex-end; direction:rtl; font-size:9.5pt; font-weight:900; color:#065f46; margin-top:2mm; line-height:1.2; }}
+.ownership-footer-row {{ width:100%; text-align:center; font-size:8pt; font-weight:800; color:#047857; padding-top:1.2mm; margin-top:1mm; line-height:1.2; }}
 </style>
 </head>
 <body>
 <div class="cert-page">
   <div class="cert-inner-box">
-    <div class="cert-header">
-      <div class="header-right">{formatted_header}</div>
-      <div class="cert-logos">{render_logos_html()}</div>
-    </div>
-
-    <div class="cert-body">
-      <h1 class="cert-main-title">{esc(title_val)}</h1>
-      <hr class="cert-divider">
-      <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
-      {name_html}
-      {facility_html}
-      <div class="cert-profession-line">الوظيفة / التخصص: {esc(prof_field_val)}</div>
-      <div class="cert-notes">{esc(notes_val)}</div>
-      <div class="cert-details-row">
-        <div class="cert-details">
-          الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
-          النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b>
-          &nbsp;&nbsp;|&nbsp;&nbsp; الحالة:
-          <b style="color:{'green' if r['passed'] else 'red'};">{status_text}</b>
-        </div>
-        <div class="cert-qr">
-          <span class="cert-code">{esc(qr_data_str)}</span>
-          <img src="{qr_base64}" alt="QR Code">
-        </div>
-      </div>
-    </div>
-
-    <div class="cert-footer">
-      <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
-      <div class="credits-footer-row">
-        <span>مسؤول التدريب</span><span>رئيس القسم</span><span>مدير المتوطنة</span><span>يعتمد: مدير عام الإدارة</span>
-      </div>
-    </div>
+    {inner_content}
   </div>
 </div>
 </body>
 </html>
 """
 
+
+def _certificate_footer_html():
+    return """
+<div class="cert-footer">
+  <div class="credits-footer-row">
+    <span>مسؤول التدريب</span><span>رئيس القسم</span><span>مدير المتوطنة</span><span>يعتمد: مدير عام الإدارة</span>
+  </div>
+  <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+</div>
+"""
+
+
+def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
+    """Generate one individual A4-landscape certificate."""
+    sett = get_print_settings()
+    title_val = (custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة")) or "شهادة"
+    prefix_val = (sett.get("trainee_prefix", "") or "").strip()
+    title_role_val = (sett.get("trainee_title", "") or "").strip()
+
+    with db() as c:
+        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession,
+                        e.name template_name, e.exam_type
+                        FROM exam_sessions s
+                        JOIN trainees t ON t.id=s.trainee_id
+                        LEFT JOIN exam_templates e ON e.id=s.template_id
+                        WHERE s.id=?""", (sid,)).fetchone()
+    if not r:
+        return ""
+
+    name = str(r["trainee_name"] or "").strip()
+    prof = str(r["trainee_profession"] or sett.get("trainee_profession", "أخصائي الأمراض المتوطنة") or "").strip()
+    facility = str(r["facility"] or "").strip()
+    score = r["score"] or 0
+    max_score = r["max_score"] or 0
+    percent = float(r["percent"] or 0)
+    status_text = "اجتاز الاختبار بنجاح" if r["passed"] else "لم يجتز الاختبار"
+    cert_no = str(r["certificate_id"] or f"ELX-{sid:06d}")
+    qr = generate_qr_code_base64(cert_no)
+
+    # Prefix is a dedicated line; title + name are a separate line.
+    prefix_html = f"<div class='cert-prefix-line'>{esc(prefix_val)}</div>" if prefix_val else ""
+    person_label = " ".join(x for x in [title_role_val, name] if x)
+
+    inner = f"""
+<div class="cert-header">
+  <div class="header-right">{sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")}</div>
+  <div class="cert-logos">{render_logos_html()}</div>
+</div>
+<div class="cert-body">
+  <h1 class="cert-main-title">{esc(title_val)}</h1>
+  {prefix_html}
+  <div class="cert-person-line">{esc(person_label)}</div>
+  <div class="cert-profession-line">الوظيفة: {esc(prof)} &nbsp;&nbsp; | &nbsp;&nbsp; المنشأة: {esc(facility)}</div>
+  <div class="cert-result-row">
+    <div class="cert-result">النتيجة: {score} / {max_score} ({percent:.1f}%) — {status_text}</div>
+    <div class="cert-number">رقم الشهادة: {esc(cert_no)}</div>
+    <div class="cert-qr"><img src="{qr}" alt="QR"><span class="cert-code">QR</span></div>
+  </div>
+</div>
+{_certificate_footer_html()}
+"""
+    return _certificate_common_html(inner, sett)
+
+
+def generate_facility_certificate_html(facility_name, session_ids, custom_title=None):
+    """Generate one A4-landscape certificate evaluating an entire facility from submitted reports."""
+    sett = get_print_settings()
+    title_val = (custom_title or "شهادة تقييم منشأة") or "شهادة تقييم منشأة"
+    prefix_val = (sett.get("trainee_prefix", "") or "").strip()
+
+    rows = []
+    with db() as c:
+        for sid in session_ids:
+            row = c.execute("SELECT percent FROM exam_sessions WHERE id=? AND status='submitted'", (sid,)).fetchone()
+            if row:
+                rows.append(float(row["percent"] or 0))
+    if not rows:
+        return ""
+
+    avg = sum(rows) / len(rows)
+    facility_digest = hashlib.sha256(str(facility_name).encode("utf-8")).hexdigest()[:6].upper()
+    facility_code = "FAC-" + facility_digest
+    qr = generate_qr_code_base64(facility_code)
+    prefix_html = f"<div class='cert-prefix-line'>{esc(prefix_val)}</div>" if prefix_val else ""
+
+    inner = f"""
+<div class="cert-header">
+  <div class="header-right">{sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقيّة<br>الإدارة الصحية بأولاد صقر")}</div>
+  <div class="cert-logos">{render_logos_html()}</div>
+</div>
+<div class="cert-body">
+  <h1 class="cert-main-title">{esc(title_val)}</h1>
+  {prefix_html}
+  <div class="cert-facility-line">{esc(facility_name)}</div>
+  <div class="cert-result-row">
+    <div class="cert-result">نتيجة تقييم المنشأة: {avg:.1f}%</div>
+    <div class="cert-number">رقم الشهادة: {esc(facility_code)}</div>
+    <div class="cert-qr"><img src="{qr}" alt="QR"><span class="cert-code">QR</span></div>
+  </div>
+</div>
+{_certificate_footer_html()}
+"""
+    return _certificate_common_html(inner, sett)
+
+
 def generate_certificates_batch_html(session_ids, custom_title=None, custom_notes=None):
-    """Create one print document containing one certificate per A4 page."""
+    """Create one print document containing one individual certificate per A4 page."""
     pages = []
     for sid in session_ids:
         one = generate_customizable_certificate_html(sid, custom_title, custom_notes)
@@ -941,18 +958,8 @@ def generate_certificates_batch_html(session_ids, custom_title=None, custom_note
     if not pages:
         return ""
     return f"""
-<!DOCTYPE html>
-<html lang="ar" dir="rtl"><head><meta charset="UTF-8">
-<style>
-@page {{ size:A4 landscape; margin:0 !important; }}
-html,body {{ margin:0 !important; padding:0 !important; width:297mm; }}
-body {{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }}
-.cert-page {{ page-break-after:always !important; break-after:page !important; }}
-.cert-page:last-child {{ page-break-after:avoid !important; break-after:avoid-page !important; }}
-</style></head><body>
-{''.join(pages)}
-</body></html>
-"""
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<style>@page {{ size:A4 landscape; margin:0 !important; }} html,body {{margin:0!important;padding:0!important;width:297mm;}} body {{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}} .cert-page {{page-break-after:always!important;break-after:page!important;}} .cert-page:last-child {{page-break-after:avoid!important;break-after:avoid-page!important;}}</style></head><body>{''.join(pages)}</body></html>"""
 
 def generate_trainee_exam_sheet_html(sid):
     sett = get_print_settings()
@@ -1892,10 +1899,10 @@ def admin_dashboard():
         st.subheader("🎨 صفحة إدارة وضبط الشهادات المخصصة وطباعتها")
         cert_sub_tab1, cert_sub_tab2 = st.tabs([
             "⚙ إعدادات وتصميم الشهادة",
-            "🖨 طباعة الشهادات بناءً على التقارير (أفراد / جماعات / وحدات)"
+            "🖨 طباعة الشهادات بناءً على التقارير (فرد / منشأة)"
         ])
         with cert_sub_tab1:
-            st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصاميم الشهادات، الألقاب، المسافات، الخلفيات، الشعارات، والإطارات بمعزل عن باقي التقارير.")
+            st.info("💡 هذه الصفحة مخصصة بالكامل لضبط تصميم الشهادة، الألقاب، المسافات، الخلفية، والشعارات بمعزل عن باقي التقارير.")
             current_set = get_print_settings()
             professions_options_list = current_set.get("professions_list", [
                 "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
@@ -1935,14 +1942,9 @@ def admin_dashboard():
                     uploaded_logo3 = st.file_uploader("الشعار الثالث (أعلى يسار الشهادة):", type=["png", "jpg", "jpeg"], key="cert_logo3")
                     remove_logo3 = st.checkbox("حذف الشعار الثالث", key="c_rem3")
                 
-                st.markdown("#### 🖼 إطار وخلفية الشهادات:")
-                col_bg_up, col_frame_up = st.columns(2)
-                with col_bg_up:
-                    uploaded_bg = st.file_uploader("رفع خلفية الشهادة (صورة):", type=["png", "jpg", "jpeg"], key="cert_bg")
-                    remove_bg = st.checkbox("حذف الخلفية الحالية", key="c_rem_bg")
-                with col_frame_up:
-                    uploaded_frame = st.file_uploader("رفع إطار/هامش الشهادة الكبير:", type=["png", "jpg", "jpeg"], key="cert_frame")
-                    remove_frame = st.checkbox("حذف الإطار الحالي", key="c_rem_frame")
+                st.markdown("#### 🖼 خلفية الشهادة:")
+                uploaded_bg = st.file_uploader("رفع خلفية الشهادة (صورة):", type=["png", "jpg", "jpeg"], key="cert_bg")
+                remove_bg = st.checkbox("حذف الخلفية الحالية", key="c_rem_bg")
                 
                 current_logo1_val = current_set["logo_base64"]
                 if remove_logo1:
@@ -1969,10 +1971,6 @@ def admin_dashboard():
                     current_bg_val = f"data:image/{uploaded_bg.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_bg.read()).decode("utf-8")
                 
                 current_frame_val = current_set.get("frame_base64", "")
-                if remove_frame:
-                    current_frame_val = ""
-                elif uploaded_frame is not None:
-                    current_frame_val = f"data:image/{uploaded_frame.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_frame.read()).decode("utf-8")
                 
                 if st.form_submit_button("💾 حفظ إعدادات الشهادة المخصصة", use_container_width=True):
                     save_print_settings(
@@ -1988,46 +1986,57 @@ def admin_dashboard():
                     st.rerun()
 
         with cert_sub_tab2:
-            st.markdown("#### 🖨 طباعة شهادات بناءً على التقارير (أفراد / جماعات / وحدات)")
-            st.info("💡 يمكنك من هنا طباعة الشهادات مع إمكانية الفلترة الدقيقة حسب (متدرب فردي)، أو (حسب وحدة الأمراض المتوطنة وجهة العمل)، أو (طباعة جماعية لكل النتائج المعتمدة).")
+            st.markdown("#### 🖨 طباعة الشهادات بناءً على التقارير")
+            st.info("اختر طباعة شهادة فردية لمتدرب، أو شهادة تقييم للمنشأة بناءً على نتائج التقارير المعتمدة.")
             with db() as c:
-                all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
-                sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
+                all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0 ORDER BY facility").fetchall()]
+                sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession,
+                    s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type
+                    FROM exam_sessions s
+                    JOIN trainees t ON t.id=s.trainee_id
+                    LEFT JOIN exam_templates e ON e.id=s.template_id
+                    WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
+
             if not sessions_full_list:
                 st.info("لا توجد اختبارات مكتملة أو معتمدة للمتدربين الظاهرين حتى الآن.")
             else:
-                cert_print_type = st.radio("اختر نوع الطباعة للشهادات:", ["طباعة فردية (لمتدرب محدد)", "طباعة جماعية حسب وحدة الأمراض المتوطنة / الجهة", "طباعة جماعية شاملة لكل الشهادات"], horizontal=True)
+                cert_print_type = st.radio(
+                    "اختر نوع الشهادة:",
+                    ["شهادة فردية (لمتدرب محدد)", "شهادة تقييم منشأة"],
+                    horizontal=True
+                )
                 curr_sett = get_print_settings()
-                if "فردية (لمتدرب محدد)" in cert_print_type:
-                    sess_choices = {f"متدرب: {s['trainee_name']} | الوظيفة: {s['trainee_profession']} | الجهة: {s['facility']} | الاختبار: {s['tpl_name']} ({s['exam_type']}) - النتيجة: {s['percent']}%": s['id'] for s in sessions_full_list}
+
+                if cert_print_type == "شهادة فردية (لمتدرب محدد)":
+                    sess_choices = {
+                        f"متدرب: {s['trainee_name']} | الوظيفة: {s['trainee_profession']} | الجهة: {s['facility']} | النتيجة: {s['percent']}%": s['id']
+                        for s in sessions_full_list
+                    }
                     sel_sess_lbl = st.selectbox("اختر المتدرب للطباعة الفردية:", list(sess_choices.keys()))
                     chosen_sid_val = sess_choices[sel_sess_lbl]
-                    cert_html_ind = generate_customizable_certificate_html(chosen_sid_val, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
-                    render_print_button_only(cert_html_ind, f"شهادة متدرب رقم {chosen_sid_val}")
-                elif "حسب وحدة الأمراض المتوطنة" in cert_print_type:
-                    if not all_facilities_list:
-                        st.info("لا توجد وحدات أو منشآت مسجلة.")
-                    else:
-                        sel_fac_print = st.selectbox("اختر الوحدة الصحية / الجهة لطباعة شهادات العاملين بها:", all_facilities_list)
-                        fac_filtered_sessions = [s for s in sessions_full_list if s['facility'] == sel_fac_print]
-                        st.write(f"📊 عدد الشهادات المتاحة لهذه الوحدة: **{len(fac_filtered_sessions)}** شهادة.")
-                        if fac_filtered_sessions:
-                            combined_fac_html = generate_certificates_batch_html(
-                                [s['id'] for s in fac_filtered_sessions],
-                                curr_sett.get("default_cert_title"),
-                                curr_sett.get("default_cert_notes")
-                            )
-                            render_print_button_only(combined_fac_html, f"شهادات وحدة {sel_fac_print}")
-                        else:
-                            st.warning("⚠ لا توجد شهادات معتمدة لهذه الوحدة.")
-                else:
-                    st.markdown("##### 📚 طباعة وتصدير كافة الشهادات المعتمدة دفعة واحدة:")
-                    combined_all_cert_html = generate_certificates_batch_html(
-                        [s['id'] for s in sessions_full_list],
+                    cert_html_ind = generate_customizable_certificate_html(
+                        chosen_sid_val,
                         curr_sett.get("default_cert_title"),
-                        curr_sett.get("default_cert_notes")
+                        None
                     )
-                    render_print_button_only(combined_all_cert_html, "طباعة جماعية شاملة لكل الشهادات")
+                    render_print_button_only(cert_html_ind, f"شهادة متدرب رقم {chosen_sid_val}")
+
+                else:
+                    if not all_facilities_list:
+                        st.info("لا توجد منشآت مسجلة.")
+                    else:
+                        sel_fac_print = st.selectbox("اختر المنشأة لإصدار شهادة تقييم لها:", all_facilities_list)
+                        fac_filtered_sessions = [s for s in sessions_full_list if s['facility'] == sel_fac_print]
+                        st.write(f"📊 عدد النتائج المعتمدة للمنشأة: **{len(fac_filtered_sessions)}**")
+                        if fac_filtered_sessions:
+                            facility_html = generate_facility_certificate_html(
+                                sel_fac_print,
+                                [s['id'] for s in fac_filtered_sessions],
+                                "شهادة تقييم منشأة"
+                            )
+                            render_print_button_only(facility_html, f"شهادة تقييم منشأة {sel_fac_print}")
+                        else:
+                            st.warning("⚠ لا توجد نتائج معتمدة لهذه المنشأة.")
 
     elif selected_menu == "🏥 الهيكل الإداري":
         st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅ هيئة ⬅ مركز ⬅ إدارة ⬅ وحدة)")
