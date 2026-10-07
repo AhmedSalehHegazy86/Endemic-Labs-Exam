@@ -802,6 +802,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     
     line_html = f"<div class='cert-name'>{esc(title_role_str)}{esc(r['trainee_name'])}</div>"
     profession_line_html = f"<div style='font-size: 17pt; color: #047857; font-weight: 900; margin: 4px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
+    facility_line_html = f"<div style='font-size: 17pt; color: #047857; font-weight: 900; margin: 4px 0;'>جهة العمل: {esc(r['facility'])}</div>" if r['facility'] else ""
     
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
@@ -843,6 +844,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
             {line_html}
             {profession_line_html}
+            {facility_line_html}
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 6px; padding: 0 10mm;">
                 <div class="details-custom-box" style="text-align: right; margin: 0;">
                     الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
@@ -856,9 +858,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                         <img src="{qr_base64}" alt="QR Code">
                     </div>
                 </div>
-            </div>
-            <div style="font-size: 13pt; font-weight: 900; color: #1f2937; margin-top: 4px;">
-                جهة العمل: <b>{esc(r["facility"])}</b>
             </div>
         </div>
         <div>
