@@ -1305,8 +1305,7 @@ def render_print_button_only(html_content, label_prefix=""):
             .report-wrapper {{
                 margin-bottom: 0 !important;
                 padding-bottom: 15mm !important;
-                max-height: calc(var(--target-pages, 1) * 275mm);
-                overflow: hidden;
+                overflow: visible !important;
             }}
             .print-footer-dynamic:last-of-type {{
                 position: relative !important;
@@ -1411,15 +1410,9 @@ def render_print_button_only(html_content, label_prefix=""):
     
     if is_cert:
         chosen_orient = "أفقي (Landscape)"
-        target_pages_count = 1
     else:
-        col_opt1, col_opt2 = st.columns(2)
-        with col_opt1:
-            orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
-            chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["أفقي (Landscape)", "رأسي (Portrait)"], key=orient_key)
-        with col_opt2:
-            pages_key = f"pages_target_{hash(label_prefix) & 0xffffffff}"
-            target_pages_count = st.number_input("تحديد عدد الأوراق للنسخة الواحدة (لاحتواء المحتوى):", min_value=1, max_value=20, value=1, key=pages_key)
+        orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
+        chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["أفقي (Landscape)", "رأسي (Portrait)"], key=orient_key)
 
     js_code = """
     <div style="margin: 4px 0;">
@@ -1434,10 +1427,8 @@ def render_print_button_only(html_content, label_prefix=""):
         win.document.write(styledHtml);
         win.document.close();
         
-        var targetPages = """ + str(target_pages_count) + """;
-        var styleEl = win.document.createElement('style');
-        styleEl.innerHTML = '@media print { .report-wrapper { max-height: ' + (targetPages * 275) + 'mm !important; } }';
-        win.document.head.appendChild(styleEl);
+        // عدد الصفحات يُحدد تلقائياً بواسطة محرك الطباعة حسب طول المحتوى.
+        // لا يوجد أي حد ثابت لعدد الصفحات أو قص للمحتوى.
 
         win.focus();
         setTimeout(function(){
@@ -1775,10 +1766,32 @@ def admin_dashboard():
                     SELECT difficulty AS 'مستوى الصعوبة', category AS 'المجال / القسم', COUNT(id) AS 'عدد الأسئلة'
                     FROM questions WHERE active=1 GROUP BY difficulty, category ORDER BY COUNT(id) DESC
                 """, c)
+                df_q_category = pd.read_sql_query("""
+                    SELECT COALESCE(NULLIF(TRIM(category), ''), 'غير مصنف') AS 'التصنيف / القسم',
+                           COUNT(id) AS 'عدد الأسئلة'
+                    FROM questions
+                    WHERE active=1
+                    GROUP BY COALESCE(NULLIF(TRIM(category), ''), 'غير مصنف')
+                    ORDER BY COUNT(id) DESC, 'التصنيف / القسم' ASC
+                """, c)
             if df_q_analysis.empty:
                 st.info("بنك الأسئلة فارغ حالياً.")
             else:
+                st.markdown("#### 📚 توزيع بنك الأسئلة حسب مستوى الصعوبة والتصنيف:")
                 st.dataframe(df_q_analysis, use_container_width=True, hide_index=True)
+
+                st.markdown("---")
+                st.markdown("#### 🗂️ عدد الأسئلة في كل تصنيف داخل بنك الأسئلة:")
+                st.caption("يتم الحساب من الأسئلة النشطة فقط، مع تجميع كل الأسئلة التي تحمل نفس اسم التصنيف.")
+
+                total_category_questions = int(df_q_category['عدد الأسئلة'].sum())
+                category_count = len(df_q_category)
+                c1, c2 = st.columns(2)
+                c1.metric("إجمالي الأسئلة المصنفة", total_category_questions)
+                c2.metric("عدد التصنيفات", category_count)
+
+                st.dataframe(df_q_category, use_container_width=True, hide_index=True)
+
 
     elif selected_menu == "👥 إدارة المهن والوظائف":
         st.subheader("👥 إدارة الوظائف والتخصصات بالأمراض المتوطنة (مع إمكانية الحذف)")
@@ -2760,89 +2773,315 @@ def admin_dashboard():
                     st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
 
     elif selected_menu == "📊 التقارير":
-        st.subheader("📊 تقارير أداء وحدات الأمراض المتوطنة وتحليل النتائج")
+        st.subheader("📊 تقارير أداء وحدات الأمراض المتوطنة وتحليل النتائج (تستبعد المخفيين تلقائياً)")
+
         rep_tab1, rep_tab2, rep_tab3, rep_tab4, rep_tab5 = st.tabs([
-            "👤 تقرير فردي", "🏢 تقرير جماعي", "📋 النتائج الشامل", "📈 أداء الجهات", "🏆 النتائج والفلترة"
+            "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)",
+            "🏢 تقرير جماعي (لوحدة متوطنة مع فلترة ومقارنة فترات)",
+            "📋 تقرير النتائج الشامل",
+            "📈 تقرير أداء الجهات",
+            "🏆 عرض النتائج والفلترة والأعلى تقييماً"
         ])
 
+        # أدوات داخلية آمنة للتقارير
+        def _report_date_ok(d1, d2):
+            if d1 > d2:
+                st.warning("⚠️ تاريخ البداية يجب أن يكون قبل أو مساوياً لتاريخ النهاية.")
+                return False
+            return True
+
+        def _pct(v):
+            try:
+                return float(v or 0.0)
+            except Exception:
+                return 0.0
+
+        def _status(v):
+            return "اجتزت بنجاح" if v == 1 else ("لم تجتز" if v is not None else "لا توجد نتيجة")
+
+        def _excel_download(df, label, filename, key):
+            out = io.BytesIO()
+            with pd.ExcelWriter(out, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="Report")
+            st.download_button(
+                label, data=out.getvalue(), file_name=filename,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=key
+            )
+
         with rep_tab1:
-            st.markdown("#### 👤 التقرير الفردي للمتدرب")
+            st.markdown("#### 👤 التقرير الفردي للمتدرب (مع تحديد المدى الزمني ومقارنة فترتين)")
             with db() as c:
-                tr_rows = c.execute("SELECT id, name, facility, profession FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY id DESC").fetchall()
-            if not tr_rows:
+                tr_list_rep = c.execute(
+                    "SELECT id, name, facility, profession FROM trainees "
+                    "WHERE COALESCE(hidden,0)=0 ORDER BY id DESC"
+                ).fetchall()
+
+            if not tr_list_rep:
                 st.info("لا توجد بيانات متدربين ظاهرة متاحة.")
             else:
-                tr_choices = {f"{r['name']} — {r['profession'] or ''} — {r['facility'] or ''} (ID: {r['id']})": r['id'] for r in tr_rows}
-                chosen_tr_id = tr_choices[st.selectbox("اختر المتدرب:", list(tr_choices.keys()), key="rep_individual_trainee")]
+                tr_choices_rep = {
+                    f"متدرب: {t['name'] or ''} - الوظيفة: {t['profession'] or ''} - "
+                    f"الجهة: {t['facility'] or ''} (ID: {t['id']})": t['id']
+                    for t in tr_list_rep
+                }
+                sel_tr_rep_label = st.selectbox(
+                    "اختر المتدرب لاستعراض تقريره الفردي:",
+                    list(tr_choices_rep.keys()), key="sel_ind_tr_rep_v7"
+                )
+                chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
                 today = now_cairo().date()
-                c1,c2=st.columns(2)
+
+                c1, c2 = st.columns(2)
                 with c1:
-                    ds1=st.date_input("من تاريخ الفترة الأولى", today-timedelta(days=30), key="rep_ds1"); de1=st.date_input("إلى تاريخ الفترة الأولى", today, key="rep_de1")
+                    st.markdown("##### 📅 الفترة الأولى (التقرير الأساسي)")
+                    d_start_1 = st.date_input("من تاريخ الفترة الأولى", today-timedelta(days=30), key="rep_ds1_v7")
+                    d_end_1 = st.date_input("إلى تاريخ الفترة الأولى", today, key="rep_de1_v7")
                 with c2:
-                    ds2=st.date_input("من تاريخ الفترة الثانية", today-timedelta(days=60), key="rep_ds2"); de2=st.date_input("إلى تاريخ الفترة الثانية", today-timedelta(days=31), key="rep_de2")
-                with db() as c:
-                    tr=c.execute("SELECT name, facility, profession FROM trainees WHERE id=? AND COALESCE(hidden,0)=0",(chosen_tr_id,)).fetchone()
-                    q="""SELECT s.score,s.max_score,s.percent,s.passed,s.submitted_at,e.name tpl_name,e.exam_type FROM exam_sessions s LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.trainee_id=? AND s.status='submitted' AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?) ORDER BY s.id DESC LIMIT 1"""
-                    q1=c.execute(q,(chosen_tr_id,ds1.isoformat(),de1.isoformat())).fetchone(); q2=c.execute(q,(chosen_tr_id,ds2.isoformat(),de2.isoformat())).fetchone()
-                if tr:
-                    def _rtext(row):
-                        if not row or row['score'] is None: return "لا توجد نتيجة في هذه الفترة"
-                        pct=float(row['percent'] or 0); return f"{row['score'] or 0}/{row['max_score'] or 0} ({pct:.1f}%) — {row['tpl_name'] or 'اختبار معتمد'} ({row['exam_type'] or 'قبل التدريب'})"
-                    p1,p2=_rtext(q1),_rtext(q2)
-                    st.markdown(f"<div dir='rtl'><h3 style='text-align:center;color:#047857'>تقرير أداء المتدرب</h3><p><b>الاسم:</b> {esc(tr['name'] or '')} | <b>الوظيفة:</b> {esc(tr['profession'] or '')} | <b>المنشأة:</b> {esc(tr['facility'] or '')}</p><table style='width:100%;border-collapse:collapse'><tr><th>الفترة</th><th>النتيجة</th><th>الحالة</th></tr><tr><td>{ds1} إلى {de1}</td><td>{p1}</td><td>{'اجتزت بنجاح' if q1 and q1['passed'] else ('لم تجتز' if q1 else '-')}</td></tr><tr><td>{ds2} إلى {de2}</td><td>{p2}</td><td>{'اجتزت بنجاح' if q2 and q2['passed'] else ('لم تجتز' if q2 else '-')}</td></tr></table></div>",unsafe_allow_html=True)
-                    df=pd.DataFrame([{
-                        "اسم المتدرب":tr['name'] or "","الوظيفة":tr['profession'] or "","المنشأة":tr['facility'] or "",
-                        "الفترة الأولى":f"{ds1} إلى {de1}","نتيجة الأولى":p1,"الفترة الثانية":f"{ds2} إلى {de2}","نتيجة الثانية":p2
-                    }])
-                    out=io.BytesIO(); df.to_excel(out,index=False,engine='openpyxl'); st.download_button("📥 تحميل التقرير الفردي",out.getvalue(),f"individual_report_{chosen_tr_id}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.markdown("##### 📅 الفترة الثانية (للمقارنة)")
+                    d_start_2 = st.date_input("من تاريخ الفترة الثانية", today-timedelta(days=60), key="rep_ds2_v7")
+                    d_end_2 = st.date_input("إلى تاريخ الفترة الثانية", today-timedelta(days=31), key="rep_de2_v7")
+
+                if _report_date_ok(d_start_1, d_end_1) and _report_date_ok(d_start_2, d_end_2):
+                    with db() as c:
+                        ind_tr_data = c.execute(
+                            "SELECT id,name,facility,profession FROM trainees WHERE id=? AND COALESCE(hidden,0)=0",
+                            (chosen_tr_id,)
+                        ).fetchone()
+                        q = """
+                            SELECT s.id,s.score,s.max_score,s.percent,s.passed,s.submitted_at,
+                                   e.name AS tpl_name,e.exam_type
+                            FROM exam_sessions s
+                            LEFT JOIN exam_templates e ON e.id=s.template_id
+                            WHERE s.trainee_id=? AND s.status='submitted'
+                              AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?)
+                            ORDER BY s.id DESC LIMIT 1
+                        """
+                        s_q1 = c.execute(q, (chosen_tr_id,d_start_1.isoformat(),d_end_1.isoformat())).fetchone()
+                        s_q2 = c.execute(q, (chosen_tr_id,d_start_2.isoformat(),d_end_2.isoformat())).fetchone()
+
+                    if ind_tr_data:
+                        def _score_text(row):
+                            if not row or row["score"] is None:
+                                return "لا توجد نتيجة في هذه الفترة"
+                            return (
+                                f"{row['score'] or 0}/{row['max_score'] or 0} "
+                                f"({_pct(row['percent']):.1f}%) — "
+                                f"{row['tpl_name'] or 'اختبار معتمد'} "
+                                f"({row['exam_type'] or 'قبل التدريب'})"
+                            )
+
+                        p1_score = _score_text(s_q1)
+                        p2_score = _score_text(s_q2)
+                        p1_status = _status(s_q1["passed"] if s_q1 else None)
+                        p2_status = _status(s_q2["passed"] if s_q2 else None)
+
+                        individual_report_html = f"""
+                        <div style="font-family:'Cairo',sans-serif;direction:rtl;padding:10px;">
+                            <h3 style="color:#047857;text-align:center;">تقرير أداء ونتيجة متدرب (مع مقارنة الفترات)</h3>
+                            <hr style="border:1px solid #059669;">
+                            <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'] or '')} |
+                               <b>الوظيفة:</b> {esc(ind_tr_data['profession'] or '')} |
+                               <b>جهة العمل:</b> {esc(ind_tr_data['facility'] or '')}</p>
+                            <table style="width:100%;border-collapse:collapse;margin-top:15px;font-size:10pt;">
+                                <tr><th style="border:1px solid #cbd5e1;padding:8px;background:#059669;color:white;">فترة المقارنة</th>
+                                    <th style="border:1px solid #cbd5e1;padding:8px;background:#059669;color:white;">النتيجة والنسبة والتصنيف</th>
+                                    <th style="border:1px solid #cbd5e1;padding:8px;background:#059669;color:white;">حالة الاجتياز</th></tr>
+                                <tr><td style="border:1px solid #cbd5e1;padding:8px;font-weight:bold;">الفترة الأولى ({d_start_1} إلى {d_end_1})</td>
+                                    <td style="border:1px solid #cbd5e1;padding:8px;">{p1_score}</td>
+                                    <td style="border:1px solid #cbd5e1;padding:8px;">{p1_status}</td></tr>
+                                <tr><td style="border:1px solid #cbd5e1;padding:8px;font-weight:bold;">الفترة الثانية ({d_start_2} إلى {d_end_2})</td>
+                                    <td style="border:1px solid #cbd5e1;padding:8px;">{p2_score}</td>
+                                    <td style="border:1px solid #cbd5e1;padding:8px;">{p2_status}</td></tr>
+                            </table>
+                        </div>"""
+                        st.markdown(individual_report_html, unsafe_allow_html=True)
+
+                        df_ind = pd.DataFrame([{
+                            "اسم المتدرب": ind_tr_data["name"] or "",
+                            "الوظيفة": ind_tr_data["profession"] or "",
+                            "جهة العمل": ind_tr_data["facility"] or "",
+                            "الفترة الأولى": f"{d_start_1} إلى {d_end_1}",
+                            "نتيجة الفترة الأولى": p1_score,
+                            "حالة الفترة الأولى": p1_status,
+                            "الفترة الثانية": f"{d_start_2} إلى {d_end_2}",
+                            "نتيجة الفترة الثانية": p2_score,
+                            "حالة الفترة الثانية": p2_status
+                        }])
+                        _excel_download(df_ind,"📥 تحميل التقرير الفردي (.xlsx)",f"individual_report_{chosen_tr_id}.xlsx","dl_ind_report_v7")
+                        render_print_button_only(
+                            generate_general_report_html(f"مقارنة أداء المتدرب: {ind_tr_data['name'] or ''}", individual_report_html),
+                            f"مقارنة فترات المتدرب {chosen_tr_id}"
+                        )
 
         with rep_tab2:
-            st.markdown("#### 🏢 التقرير الجماعي للمنشأة")
+            st.markdown("#### 🏢 التقرير الجماعي لوحدة الأمراض المتوطنة (مقارنة فترتين)")
             with db() as c:
-                facs=[r[0] for r in c.execute("SELECT DISTINCT facility FROM trainees WHERE COALESCE(hidden,0)=0 AND facility IS NOT NULL AND TRIM(facility)<>'' ORDER BY facility").fetchall()]
-            if not facs: st.info("لا توجد منشآت ظاهرة مسجلة.")
+                facs_list_rep = [
+                    r[0] for r in c.execute(
+                        "SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL "
+                        "AND TRIM(facility)<>'' AND COALESCE(hidden,0)=0 ORDER BY facility"
+                    ).fetchall()
+                ]
+            if not facs_list_rep:
+                st.info("لا توجد وحدات أو جهات ظاهرة مسجلة.")
             else:
-                fac=st.selectbox("اختر المنشأة:",facs,key="rep_group_facility"); today=now_cairo().date()
+                sel_fac_rep = st.selectbox("اختر الوحدة الصحية / جهة العمل:", facs_list_rep, key="sel_group_fac_rep_v7")
+                today = now_cairo().date()
                 g1,g2=st.columns(2)
-                with g1: a1=st.date_input("من الفترة الأولى",today-timedelta(days=30),key="rep_gs1"); b1=st.date_input("إلى الفترة الأولى",today,key="rep_ge1")
-                with g2: a2=st.date_input("من الفترة الثانية",today-timedelta(days=60),key="rep_gs2"); b2=st.date_input("إلى الفترة الثانية",today-timedelta(days=31),key="rep_ge2")
-                with db() as c:
-                    sql="""SELECT COUNT(DISTINCT t.id) total, COUNT(s.id) exams, COALESCE(AVG(s.percent),0) avg_pct, COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) passed FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted' WHERE COALESCE(t.hidden,0)=0 AND t.facility=? AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?)"""
-                    a=c.execute(sql,(fac,a1.isoformat(),b1.isoformat())).fetchone(); b=c.execute(sql,(fac,a2.isoformat(),b2.isoformat())).fetchone()
-                df=pd.DataFrame([{"الفترة":f"{a1} إلى {b1}","المتدربون":a['total'] if a else 0,"الاختبارات":a['exams'] if a else 0,"المجتازون":a['passed'] if a else 0,"متوسط النسبة":f"{float(a['avg_pct'] or 0):.1f}%"},{"الفترة":f"{a2} إلى {b2}","المتدربون":b['total'] if b else 0,"الاختبارات":b['exams'] if b else 0,"المجتازون":b['passed'] if b else 0,"متوسط النسبة":f"{float(b['avg_pct'] or 0):.1f}%"}]); st.dataframe(df,use_container_width=True,hide_index=True)
-                out=io.BytesIO(); df.to_excel(out,index=False,engine='openpyxl'); st.download_button("📥 تحميل التقرير الجماعي",out.getvalue(),f"facility_report.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                with g1:
+                    gf_start_1=st.date_input("من تاريخ الفترة الأولى",today-timedelta(days=30),key="gfs1_v7")
+                    gf_end_1=st.date_input("إلى تاريخ الفترة الأولى",today,key="gfe1_v7")
+                with g2:
+                    gf_start_2=st.date_input("من تاريخ الفترة الثانية",today-timedelta(days=60),key="gfs2_v7")
+                    gf_end_2=st.date_input("إلى تاريخ الفترة الثانية",today-timedelta(days=31),key="gfe2_v7")
+
+                if _report_date_ok(gf_start_1,gf_end_1) and _report_date_ok(gf_start_2,gf_end_2):
+                    with db() as c:
+                        sql="""
+                        SELECT COUNT(DISTINCT t.id) AS total_tr,
+                               COUNT(s.id) AS exams,
+                               COALESCE(AVG(s.percent),0) AS avg_pct,
+                               COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_cnt
+                        FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id
+                        WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND t.facility=?
+                          AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?)
+                        """
+                        p1=c.execute(sql,(sel_fac_rep,gf_start_1.isoformat(),gf_end_1.isoformat())).fetchone()
+                        p2=c.execute(sql,(sel_fac_rep,gf_start_2.isoformat(),gf_end_2.isoformat())).fetchone()
+
+                    def _stat(row):
+                        return (int(row["total_tr"] or 0),int(row["exams"] or 0),int(row["passed_cnt"] or 0),_pct(row["avg_pct"]))
+                    a=_stat(p1); b=_stat(p2)
+                    group_compare_html=f"""
+                    <div style="font-family:'Cairo',sans-serif;direction:rtl;padding:10px;">
+                    <h3 style="color:#047857;text-align:center;">تقرير مقارنة أداء وحدة الأمراض المتوطنة: {esc(sel_fac_rep)}</h3>
+                    <table style="width:100%;border-collapse:collapse;font-size:10pt;">
+                    <tr><th>الفترة</th><th>إجمالي المتدربين</th><th>الاختبارات</th><th>المجتازون</th><th>متوسط النسبة %</th></tr>
+                    <tr><td>{gf_start_1} إلى {gf_end_1}</td><td>{a[0]}</td><td>{a[1]}</td><td>{a[2]}</td><td>{a[3]:.1f}%</td></tr>
+                    <tr><td>{gf_start_2} إلى {gf_end_2}</td><td>{b[0]}</td><td>{b[1]}</td><td>{b[2]}</td><td>{b[3]:.1f}%</td></tr>
+                    </table></div>"""
+                    st.markdown(group_compare_html,unsafe_allow_html=True)
+                    df_group=pd.DataFrame([
+                        {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_1} إلى {gf_end_1}","إجمالي المتدربين":a[0],"الاختبارات":a[1],"المجتازون":a[2],"متوسط النسبة %":f"{a[3]:.1f}%"},
+                        {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_2} إلى {gf_end_2}","إجمالي المتدربين":b[0],"الاختبارات":b[1],"المجتازون":b[2],"متوسط النسبة %":f"{b[3]:.1f}%"}
+                    ])
+                    _excel_download(df_group,"📥 تحميل التقرير الجماعي للوحدة (.xlsx)",f"facility_report_{sel_fac_rep}.xlsx","dl_group_report_v7")
+                    render_print_button_only(generate_general_report_html(f"مقارنة أداء وحدة الأمراض المتوطنة: {sel_fac_rep}",group_compare_html),f"مقارنة فترات وحدة {sel_fac_rep}")
 
         with rep_tab3:
+            st.markdown("#### 📋 التقرير الشامل لجميع نتائج المتدربين الظاهرين")
             with db() as c:
-                rows=c.execute("""SELECT t.id,t.name,t.profession,t.facility,s.score,s.max_score,s.percent,s.passed,s.certificate_id,s.submitted_at,e.exam_type,e.name template_name FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted' LEFT JOIN exam_templates e ON e.id=s.template_id WHERE COALESCE(t.hidden,0)=0 ORDER BY t.id DESC,s.id DESC""").fetchall()
-            data=[{"مسلسل":r['id'],"اسم المتدرب":r['name'] or "","الوظيفة":r['profession'] or "","المنشأة":r['facility'] or "","تصنيف الاختبار":r['exam_type'] or "","النسبة %":f"{float(r['percent'] or 0):.1f}%" if r['percent'] is not None else "-","الحالة":"اجتزت بنجاح" if r['passed']==1 else ("لم تجتز" if r['passed'] is not None else "لا توجد نتيجة"),"رقم الشهادة":r['certificate_id'] or "-","التاريخ":r['submitted_at'] or "-"} for r in rows]
-            df=pd.DataFrame(data); st.dataframe(df,use_container_width=True,hide_index=True) if not df.empty else st.info("لا توجد بيانات لعرضها.")
-            if not df.empty:
-                out=io.BytesIO(); df.to_excel(out,index=False,engine='openpyxl'); st.download_button("📥 تحميل النتائج الشامل",out.getvalue(),"all_trainees_results.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                rows=c.execute("""
+                    SELECT t.id,t.name,t.profession,t.facility,
+                           s.score,s.max_score,s.percent,s.passed,s.submitted_at,
+                           e.exam_type,e.name AS template_name
+                    FROM trainees t
+                    LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    LEFT JOIN exam_templates e ON e.id=s.template_id
+                    WHERE COALESCE(t.hidden,0)=0
+                    ORDER BY t.id DESC,s.id DESC
+                """).fetchall()
+                # رقم الشهادة اختياري حتى لا يتعطل التقرير مع قاعدة قديمة.
+                cols=[r[1] for r in c.execute("PRAGMA table_info(exam_sessions)").fetchall()]
+                has_cert="certificate_id" in cols
+                if has_cert:
+                    rows=c.execute("""
+                        SELECT t.id,t.name,t.profession,t.facility,s.score,s.max_score,s.percent,s.passed,
+                               s.certificate_id,s.submitted_at,e.exam_type,e.name AS template_name
+                        FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                        LEFT JOIN exam_templates e ON e.id=s.template_id
+                        WHERE COALESCE(t.hidden,0)=0 ORDER BY t.id DESC,s.id DESC
+                    """).fetchall()
+
+            data=[]
+            for r in rows:
+                data.append({
+                    "مسلسل":r["id"],"اسم المتدرب":r["name"] or "","الوظيفة":r["profession"] or "",
+                    "وحدة الأمراض المتوطنة":r["facility"] or "","تصنيف الاختبار":r["exam_type"] or "-",
+                    "الدرجة":f"{r['score'] or 0}/{r['max_score'] or 0}" if r["score"] is not None else "-",
+                    "النسبة المئوية %":f"{_pct(r['percent']):.1f}%" if r["percent"] is not None else "-",
+                    "الحالة":_status(r["passed"]),"رقم الشهادة":(r["certificate_id"] or "-") if has_cert else "-",
+                    "التاريخ":r["submitted_at"] or "-"
+                })
+            df_rep=pd.DataFrame(data)
+            if df_rep.empty: st.info("لا توجد بيانات متدربين ظاهرة لعرضها في التقرير.")
+            else:
+                st.dataframe(df_rep,use_container_width=True,hide_index=True)
+                _excel_download(df_rep,"📥 تحميل تقرير النتائج الشامل (.xlsx)","all_trainees_results.xlsx","dl_all_results_v7")
+                table_html=df_rep.to_html(index=False,border=0,classes="table")
+                render_print_button_only(generate_general_report_html("تقرير نتائج المتدربين الشامل",f"<div>{table_html}</div>"),"تقرير النتائج الشامل")
 
         with rep_tab4:
+            st.markdown("#### 📈 تحليل أداء جميع الجهات والوحدات")
             with db() as c:
-                rows=c.execute("""SELECT t.facility,COUNT(DISTINCT t.id) trainees_count,COUNT(s.id) exams_count,COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) passed_count,COALESCE(AVG(s.percent),0) avg_pct FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted' WHERE COALESCE(t.hidden,0)=0 AND t.facility IS NOT NULL AND TRIM(t.facility)<>'' GROUP BY t.facility ORDER BY avg_pct DESC""").fetchall()
-            df=pd.DataFrame([{"المنشأة":r['facility'] or "","إجمالي المتدربين":r['trainees_count'] or 0,"إجمالي الاختبارات":r['exams_count'] or 0,"المجتازون":r['passed_count'] or 0,"متوسط النسبة %":f"{float(r['avg_pct'] or 0):.1f}%"} for r in rows]); st.dataframe(df,use_container_width=True,hide_index=True) if not df.empty else st.info("لا توجد بيانات جهات أو وحدات لتحليلها.")
-            if not df.empty:
-                out=io.BytesIO(); df.to_excel(out,index=False,engine='openpyxl'); st.download_button("📥 تحميل تقرير أداء الجهات",out.getvalue(),"facilities_performance_report.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                rows=c.execute("""
+                    SELECT t.facility AS facility,
+                           COUNT(DISTINCT t.id) AS trainees_count,
+                           COUNT(s.id) AS exams_count,
+                           COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_count,
+                           COALESCE(AVG(s.percent),0) AS avg_pct
+                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    WHERE COALESCE(t.hidden,0)=0 AND t.facility IS NOT NULL AND TRIM(t.facility)<>''
+                    GROUP BY t.facility ORDER BY avg_pct DESC,t.facility
+                """).fetchall()
+            df_fac=pd.DataFrame([{
+                "وحدة الأمراض المتوطنة / الجهة":r["facility"] or "",
+                "إجمالي المتدربين":int(r["trainees_count"] or 0),
+                "إجمالي الاختبارات":int(r["exams_count"] or 0),
+                "المجتازون":int(r["passed_count"] or 0),
+                "متوسط النسبة %":round(_pct(r["avg_pct"]),1)
+            } for r in rows])
+            if df_fac.empty: st.info("لا توجد بيانات جهات أو وحدات لتحليلها.")
+            else:
+                st.dataframe(df_fac,use_container_width=True,hide_index=True)
+                _excel_download(df_fac,"📥 تحميل تقرير أداء الجهات ووحدات المتوطنة (.xlsx)","facilities_performance_report.xlsx","dl_fac_report_v7")
+                table_fac_html=df_fac.to_html(index=False,border=0,classes="table")
+                render_print_button_only(generate_general_report_html("تقرير أداء وحدات الأمراض المتوطنة والجهات",f"<div>{table_fac_html}</div>"),"تقرير أداء الجهات")
 
         with rep_tab5:
+            st.markdown("#### 🏆 عرض نتائج الاختبارات مع الفلترة والطباعة الفردية والجماعية")
             with db() as c:
-                rows=c.execute("""SELECT s.id session_id,t.name trainee_name,t.profession trainee_profession,t.facility,s.score,s.max_score,s.percent,s.passed,e.name template_name,e.exam_type,s.submitted_at FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 ORDER BY COALESCE(s.percent,0) DESC,s.id DESC""").fetchall()
-            if not rows: st.info("لا توجد نتائج مكتملة.")
+                all_sessions_results=c.execute("""
+                    SELECT s.id AS session_id,t.name AS trainee_name,t.facility,t.profession AS trainee_profession,
+                           s.score,s.max_score,s.percent,s.passed,e.name AS template_name,e.exam_type,s.submitted_at
+                    FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id
+                    LEFT JOIN exam_templates e ON e.id=s.template_id
+                    WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0
+                    ORDER BY COALESCE(s.percent,0) DESC,s.id DESC
+                """).fetchall()
+            if not all_sessions_results:
+                st.info("لا توجد اختبارات مكتملة أو نتائج مسجلة حتى الآن.")
             else:
-                mode=st.radio("فلترة النتائج:",["عرض الكل","الأعلى تقييماً (85% فأكثر)","المجتازون فقط"],horizontal=True,key="rep_filter_mode"); filtered=[]
-                for r in rows:
-                    pct=float(r['percent'] or 0); passed=(r['passed']==1)
-                    if "85%" in mode and pct<85: continue
-                    if "المجتازون" in mode and not passed: continue
-                    filtered.append(r)
-                st.write(f"📊 عدد النتائج: **{len(filtered)}**")
-                df=pd.DataFrame([{"المتدرب":r['trainee_name'] or "","الوظيفة":r['trainee_profession'] or "","المنشأة":r['facility'] or "","الاختبار":f"{r['template_name'] or 'اختبار معتمد'} ({r['exam_type'] or 'قبل التدريب'})","الدرجة":f"{r['score'] or 0}/{r['max_score'] or 0}","النسبة %":f"{float(r['percent'] or 0):.1f}%","الحالة":"اجتزت بنجاح" if r['passed']==1 else "لم تجتز","التاريخ":r['submitted_at'] or "-"} for r in filtered]); st.dataframe(df,use_container_width=True,hide_index=True)
-                if filtered:
-                    choices={f"{r['trainee_name']} | {float(r['percent'] or 0):.1f}% | {r['facility']} (ID:{r['session_id']})":r['session_id'] for r in filtered}; sel=st.selectbox("اختر نتيجة للطباعة:",list(choices.keys()),key="rep_print_session"); render_print_button_only(generate_trainee_exam_sheet_html(choices[sel]),f"تقرير نتيجة الممتحن {choices[sel]}")
-                    out=io.BytesIO(); df.to_excel(out,index=False,engine='openpyxl'); st.download_button("📥 تحميل النتائج المفلترة",out.getvalue(),"filtered_results.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                filter_mode=st.radio("فلترة النتائج:",["عرض الكل (مرتبة تنازلياً)","فقط الأعلى تقييماً (النسبة >= 85%)","فقط المجتازين بنجاح"],horizontal=True,key="rep_filter_mode_v7")
+                filtered_sessions=[]
+                for r in all_sessions_results:
+                    pct=_pct(r["percent"]); passed=(r["passed"]==1)
+                    if "الأعلى تقييماً" in filter_mode and pct<85: continue
+                    if "المجتازين بنجاح" in filter_mode and not passed: continue
+                    filtered_sessions.append(r)
+                st.write(f"📊 عدد النتائج المعروضة بعد الفلترة: **{len(filtered_sessions)}** نتيجة.")
+                if filtered_sessions:
+                    df_res=pd.DataFrame([{
+                        "رقم الاختبار":r["session_id"],"المتدرب":r["trainee_name"] or "","الوظيفة":r["trainee_profession"] or "",
+                        "وحدة الأمراض المتوطنة":r["facility"] or "","الاختبار":f"{r['template_name'] or 'اختبار معتمد'} ({r['exam_type'] or 'قبل التدريب'})",
+                        "الدرجة":f"{r['score'] or 0}/{r['max_score'] or 0}","النسبة %":f"{_pct(r['percent']):.1f}%",
+                        "الحالة":_status(r["passed"]),"التاريخ":r["submitted_at"] or "-"
+                    } for r in filtered_sessions])
+                    st.dataframe(df_res,use_container_width=True,hide_index=True)
+                    _excel_download(df_res,"📥 تحميل النتائج المفلترة (.xlsx)","filtered_results.xlsx","dl_filtered_results_v7")
+
+                    st.markdown("---")
+                    print_choice_mode=st.radio("اختر نوع طباعة النتائج:",["طباعة نتيجة ممتحن فردي محدد","طباعة نتائج جميع الممتحنين الظاهرين (القائمة المعروضة)"],horizontal=True,key="rep_print_mode_v7")
+                    if "فردي محدد" in print_choice_mode:
+                        single_map={f"المتدرب: {r['trainee_name'] or ''} | النسبة: {_pct(r['percent']):.1f}% | الجهة: {r['facility'] or ''} (ID: {r['session_id']})":r["session_id"] for r in filtered_sessions}
+                        sel_single=st.selectbox("اختر الممتحن لطباعة تقرير نتيجته المفصلة:",list(single_map.keys()),key="rep_print_session_v7")
+                        render_print_button_only(generate_trainee_exam_sheet_html(single_map[sel_single]),f"تقرير نتيجة الممتحن رقم {single_map[sel_single]}")
+                    else:
+                        combined="".join(generate_trainee_exam_sheet_html(r["session_id"])+"<div style='page-break-after:always;'></div>" for r in filtered_sessions)
+                        render_print_button_only(combined,"طباعة نتائج جميع الممتحنين")
+                else:
+                    st.warning("⚠️ لا توجد نتائج تطابق شروط الفلترة المحددة.")
 
     elif selected_menu == "📈 خطط العمل":
         st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بالأمراض المتوطنة (مع إمكانية الحذف)")
