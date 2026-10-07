@@ -823,7 +823,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .cert-sub-text {{ font-size: 15pt; line-height: 1.4; color: #1f2937; margin: 4px 0; font-weight: 900; }}
     .cert-name {{ font-size: 24pt; color: #065f46; font-weight: 900; margin: 6px 0; letter-spacing: 0.5px; }}
     .details-custom-box {{ font-size: 13pt; font-weight: 900; color: #1f2937; margin: 4px auto; padding: 2px; line-height: 1.45; }}
-    .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 0px; }}
     .qr-box img {{ width: 16mm; height: 16mm; display: block; }}
     .ownership-footer-row {{ width: 100%; text-align: center; font-size: 10pt; font-weight: 900; color: #047857; border-top: 1px dotted #059669; padding-top: 2px; margin-top: 2px; }}
     .credits-footer-row {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; font-size: 10.5pt; font-weight: 900; color: #065f46; margin-top: 2px; }}
@@ -836,16 +835,16 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div style="text-align: left;">{render_logos_html()}</div>
         </div>
         <div class="cert-body">
-            <h1 class="cert-main-title">{esc(title_val)}</h1>
-            <hr style="width: 22%; border: 2.5px solid #059669; margin: 2px auto 4px auto;">
-            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin: 4px 0 10px 0; padding: 0 10mm;">
-                <div class="qr-box">
-                    <img src="{qr_base64}" alt="QR Code">
-                </div>
-                <div style="font-size: 12pt; font-weight: 900; color: #065f46; direction: rtl;">
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; margin: 0 0 4px 0; padding: 0 5mm;">
+                <h1 class="cert-main-title" style="margin: 0; text-align: right;">{esc(title_val)}</h1>
+                <div style="font-size: 12pt; font-weight: 900; color: #065f46; text-align: right;">
                     رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
                 </div>
+                <div class="qr-box" style="text-align: left;">
+                    <img src="{qr_base64}" alt="QR Code">
+                </div>
             </div>
+            <hr style="width: 100%; border: 2px solid #059669; margin: 2px auto 8px auto;">
             <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
             {line_html}
             {profession_line_html}
@@ -3221,7 +3220,7 @@ def trainee_portal():
             with col_s1:
                 st.markdown(f"🟢 **وقت البدء:**\n`{format_s}`")
             with col_s2:
-                st.markdown(f"🔴 **وقت النهاية:**\n`{format_e}`")
+                st.markdown(f"🔴 **و وقت النهاية:**\n`{format_e}`")
         st.success("🟢 **الاختبار مفتوح ومتاح الآن للتنفيذ!**")
         try:
             sid = start_session(tr["id"], matching_template["id"])
