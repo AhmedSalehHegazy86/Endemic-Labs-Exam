@@ -476,7 +476,8 @@ def init_db():
                 trainee_prefix TEXT NOT NULL DEFAULT '',
                 trainee_title TEXT NOT NULL DEFAULT '',
                 trainee_profession TEXT NOT NULL DEFAULT '',
-                professions_list_json TEXT NOT NULL DEFAULT '[]'
+                professions_list_json TEXT NOT NULL DEFAULT '[]',
+                cert_box_inset TEXT NOT NULL DEFAULT '13mm'
             );
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -519,6 +520,7 @@ def init_db():
         ("print_settings", "trainee_title", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "professions_list_json", "TEXT NOT NULL DEFAULT '[]'"),
+        ("print_settings", "cert_box_inset", "TEXT NOT NULL DEFAULT '13mm'"),
         ("training_minutes", "training_items", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_goals", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_date", "TEXT NOT NULL DEFAULT ''"),
@@ -544,8 +546,8 @@ def init_db():
                 "مراقب صحي",
                 "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ]
-            c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False)))
+            c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False), "13mm"))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
@@ -588,11 +590,11 @@ def get_print_settings():
         "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
     }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm"):
     with db() as c:
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False)))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset))
 
 def get_hierarchical_data(include_hidden=False):
     with db() as c:
@@ -774,169 +776,183 @@ def generate_qr_code_base64(data_text):
     return "data:image/png;base64," + __import__("base64").b64encode(buffered.getvalue()).decode("utf-8")
 
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
-    """إنشاء شهادة A4 أفقي: صفحة واحدة فقط، بدون صفحات فارغة، مع دعم الإطار/الخلفية والشعارات."""
+    """Generate one A4-landscape certificate.
+    Certificate content is contained inside one adjustable inner box so the
+    complete header/body/footer can be aligned to any uploaded background.
+    """
     sett = get_print_settings()
-    title_val = (custom_title or sett.get("default_cert_title") or "شهادة").strip()
-    notes_val = (custom_notes if custom_notes is not None else sett.get("default_cert_notes", "")).strip()
-    prefix_val = (sett.get("trainee_prefix") or "").strip()
-    title_role_val = (sett.get("trainee_title") or "").strip()
+    title_val = (custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة")) or "شهادة"
+    notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد")
+    title_role_val = (sett.get("trainee_title", "") or "").strip()
+    prefix_val = (sett.get("trainee_prefix", "") or "").strip()
 
     with db() as c:
-        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility,
-                         t.profession trainee_profession, e.name template_name,
-                         e.exam_type
-                         FROM exam_sessions s
-                         JOIN trainees t ON t.id=s.trainee_id
-                         LEFT JOIN exam_templates e ON e.id=s.template_id
-                         WHERE s.id=?""", (sid,)).fetchone()
-    if not r:
-        return ""
+        r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession,
+                        e.name template_name, e.exam_type
+                        FROM exam_sessions s
+                        JOIN trainees t ON t.id=s.trainee_id
+                        LEFT JOIN exam_templates e ON e.id=s.template_id
+                        WHERE s.id=?""", (sid,)).fetchone()
+        if not r:
+            return ""
 
     status_text = "اجتاز الاختبار بنجاح" if r["passed"] else "لم يجتز الاختبار"
-    status_color = "#047857" if r["passed"] else "#b91c1c"
-    score_val = r["score"] if r["score"] is not None else 0
-    max_score_val = r["max_score"] if r["max_score"] is not None else 0
-    percent_val = float(r["percent"] or 0.0)
+    score_val = r["score"] or 0
+    max_score_val = r["max_score"] or 0
+    percent_val = r["percent"] or 0.0
     tpl_name = r["template_name"] or "اختبار تقييمي معتمد"
     exam_type_str = r["exam_type"] or "قبل التدريب"
 
-    header_text = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
+    formatted_header = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
     bg_data = sett.get("bg_base64", "") or ""
     frame_data = sett.get("frame_base64", "") or ""
 
-    if frame_data:
-        cert_background = f"background-image:url('{frame_data}'); background-repeat:no-repeat; background-position:center; background-size:100% 100%;"
-    elif bg_data:
-        cert_background = f"background-image:url('{bg_data}'); background-repeat:no-repeat; background-position:center; background-size:cover;"
+    # The uploaded background/frame is the outer certificate sheet.
+    # The inner box is deliberately inset so every text/logo/footer item stays
+    # inside the visible border of the image.
+    bg_uri = frame_data or bg_data
+    if bg_uri:
+        outer_background = f"background-image:url('{bg_uri}'); background-repeat:no-repeat; background-position:center center; background-size:100% 100%;"
     else:
-        cert_background = "background:#ffffff;"
+        outer_background = "background:#ffffff; border:1.2mm solid #059669;"
 
-    # الاسم: بادئة + لقب + اسم المتدرب
-    name_parts = [x for x in [prefix_val, title_role_val, str(r["trainee_name"] or "").strip()] if x]
-    full_name = " ".join(name_parts)
-    profession = r["trainee_profession"] or sett.get("trainee_profession", "")
+    # Adjustable content box. Values can be changed later without touching
+    # the rest of the certificate rendering code.
+    box_inset = sett.get("cert_box_inset", "13mm") or "13mm"
+    box_top = box_right = box_bottom = box_left = box_inset
 
-    qr_base64 = generate_qr_code_base64(str(r["certificate_id"] or f"ELX-{int(sid):06d}"))
+    prof_field_val = r["trainee_profession"] if r["trainee_profession"] else sett.get("trainee_profession", "أخصائي الأمراض المتوطنة")
 
-    logos_html = render_logos_html()
-    notes_html = f'<div class="cert-notes">{esc(notes_val)}</div>' if notes_val else ""
-    frame_border = "" if frame_data else "border:2.5px solid #059669;"
+    # Prefix is used only once. If it is the same as the configured title,
+    # do not duplicate it.
+    parts = []
+    if prefix_val:
+        parts.append(prefix_val)
+    if title_role_val and title_role_val != prefix_val:
+        parts.append(title_role_val)
+    name_line = " ".join(parts + [str(r["trainee_name"]).strip()])
 
-    return f"""<!DOCTYPE html>
+    # Name/title are intentionally on a single independent line.
+    name_html = f"<div class='cert-person-line'>{esc(name_line)}</div>"
+
+    # Facility is intentionally a standalone line for both individual and
+    # facility/batch printing. The same certificate template is used for each
+    # person, while the selected facility appears independently.
+    facility_html = ""
+    if r["facility"]:
+        facility_html = f"<div class='cert-facility-line'>{esc(r['facility'])}</div>"
+
+    qr_data_str = str(r["certificate_id"] or f"ELX-{sid:06d}")
+    qr_base64 = generate_qr_code_base64(qr_data_str)
+
+    return f"""
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;900&family=Reem+Kufi:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Reem+Kufi:wght@700&display=swap');
 @page {{ size:A4 landscape; margin:0 !important; }}
-* {{ box-sizing:border-box; }}
-html, body {{ width:297mm; height:210mm; margin:0; padding:0; }}
-body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-.cert-page {{ width:297mm; height:210mm; padding:0; margin:0; page-break-after:avoid !important; break-after:avoid-page !important; page-break-inside:avoid !important; break-inside:avoid-page !important; }}
-.cert-wrapper {{ width:297mm; height:210mm; margin:0; position:relative; overflow:hidden; {frame_border} {cert_background} background-origin:border-box; border-radius:0; display:flex; flex-direction:column; padding:12mm 18mm 10mm; }}
-.cert-wrapper::after {{ content:""; position:absolute; inset:3mm; border:1px solid rgba(5,150,105,.45); border-radius:2mm; pointer-events:none; }}
-.cert-header {{ position:relative; z-index:2; flex:0 0 31mm; min-height:31mm; width:100%; display:grid; grid-template-columns:1fr auto; align-items:start; column-gap:10mm; direction:rtl; }}
-.header-right {{ text-align:right; font-size:10.5pt; font-weight:900; color:#064e3b; line-height:1.35; padding-top:1mm; }}
-.logo-area {{ display:flex; justify-content:flex-start; align-items:flex-start; }}
-.cert-body {{ position:relative; z-index:2; flex:1 1 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:center; text-align:center; padding:0 5mm; overflow:hidden; }}
-.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:34pt; line-height:1.1; margin:0; font-weight:700; letter-spacing:1px; }}
-.title-line {{ width:72%; height:1px; background:#059669; margin:3mm auto 5mm; position:relative; }}
-.title-line::after {{ content:""; position:absolute; left:50%; top:-1.2mm; transform:translateX(-50%); width:4mm; height:4mm; background:#fff; border:1px solid #059669; border-radius:50%; }}
-.cert-sub-text {{ font-size:13pt; line-height:1.45; color:#1f2937; font-weight:800; margin:1mm 0 3mm; }}
-.cert-name {{ font-size:25pt; line-height:1.25; color:#064e3b; font-weight:900; margin:1mm 0 2mm; }}
-.info-line {{ font-size:13.5pt; line-height:1.45; color:#065f46; font-weight:900; margin:1mm 0; }}
-.result-box {{ width:88%; margin:4mm auto 0; padding:3mm 6mm; border:1px solid #a7f3d0; border-radius:3mm; background:rgba(240,253,244,.88); display:flex; justify-content:space-between; align-items:center; gap:8mm; text-align:right; font-size:11.5pt; font-weight:800; color:#1f2937; }}
-.result-main {{ flex:1; line-height:1.65; }}
-.qr-wrap {{ width:25mm; text-align:center; flex:0 0 25mm; }}
-.qr-wrap img {{ width:20mm; height:20mm; display:block; margin:0 auto 1mm; }}
-.cert-code {{ font-size:8pt; font-weight:900; color:#065f46; direction:ltr; }}
-.cert-notes {{ font-size:10pt; line-height:1.35; color:#374151; font-weight:700; margin-top:3mm; }}
-.cert-footer {{ position:relative; z-index:2; flex:0 0 auto; width:100%; margin-top:2mm; }}
-.ownership {{ text-align:center; font-size:8.5pt; font-weight:800; color:#047857; border-top:1px dotted #059669; padding-top:1.5mm; margin-bottom:2.5mm; }}
-.signatures {{ display:grid; grid-template-columns:repeat(4,1fr); gap:4mm; align-items:end; text-align:center; color:#064e3b; font-size:9.5pt; font-weight:900; }}
-.signature {{ min-height:10mm; border-top:1px solid rgba(5,150,105,.35); padding-top:1.5mm; }}
-@media print {{
-  html, body {{ width:297mm !important; height:210mm !important; margin:0 !important; padding:0 !important; }}
-  .cert-page {{ width:297mm !important; height:210mm !important; padding:0 !important; margin:0 !important; page-break-after:avoid !important; break-after:avoid-page !important; }}
-  .cert-wrapper {{ width:297mm !important; height:210mm !important; padding:12mm 18mm 10mm !important; margin:0 !important; }}
-  .cert-wrapper {{ page-break-inside:avoid !important; break-inside:avoid-page !important; }}
+html,body {{ margin:0 !important; padding:0 !important; width:297mm; height:210mm; }}
+body {{ font-family:'Cairo','Tahoma',sans-serif; direction:rtl; overflow:hidden;
+       -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }}
+.cert-page {{ width:297mm; height:210mm; position:relative; overflow:hidden; margin:0; padding:0; box-sizing:border-box; {outer_background} }}
+.cert-inner-box {{
+    position:absolute; top:{box_top}; right:{box_right}; bottom:{box_bottom}; left:{box_left};
+    width:auto; height:auto; box-sizing:border-box;
+    display:flex; flex-direction:column; justify-content:space-between;
+    overflow:hidden; text-align:center;
+    padding:5mm 8mm 4mm 8mm;
 }}
+.cert-header {{ flex:0 0 auto; width:100%; display:flex; justify-content:space-between; align-items:flex-start; direction:rtl; min-height:25mm; }}
+.header-right {{ text-align:right; font-size:11pt; line-height:1.35; font-weight:900; color:#064e3b; max-width:72%; }}
+.cert-logos {{ text-align:left; flex:0 0 auto; }}
+.cert-body {{ flex:1 1 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; }}
+h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:34pt; line-height:1.1; margin:0 0 2mm 0; font-weight:700; }}
+.cert-divider {{ width:72%; border:0; border-top:1.2mm solid #059669; margin:0 auto 4mm auto; }}
+.cert-sub-text {{ font-size:13pt; line-height:1.35; color:#1f2937; margin:1mm 0 3mm; font-weight:800; }}
+.cert-person-line {{ font-size:25pt; line-height:1.2; color:#064e3b; font-weight:900; margin:2mm 0 3mm; white-space:nowrap; }}
+.cert-facility-line {{ font-size:19pt; line-height:1.25; color:#047857; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
+.cert-profession-line {{ font-size:15pt; line-height:1.25; color:#374151; font-weight:800; margin:1mm 0 2mm; }}
+.cert-notes {{ font-size:12.5pt; line-height:1.35; color:#374151; font-weight:700; margin:1mm auto 2mm; max-width:92%; }}
+.cert-details-row {{ width:92%; display:flex; justify-content:space-between; align-items:center; gap:8mm; margin-top:3mm; }}
+.cert-details {{ flex:1; text-align:right; font-size:11.5pt; line-height:1.55; color:#1f2937; font-weight:800; }}
+.cert-qr {{ flex:0 0 auto; display:flex; align-items:center; gap:3mm; direction:ltr; }}
+.cert-qr img {{ width:17mm; height:17mm; display:block; }}
+.cert-code {{ font-size:8.5pt; font-weight:900; color:#064e3b; white-space:nowrap; writing-mode:vertical-rl; transform:rotate(180deg); }}
+.cert-footer {{ flex:0 0 auto; width:100%; }}
+.ownership-footer-row {{ width:100%; text-align:center; font-size:8.5pt; font-weight:800; color:#047857; border-top:0.35mm dotted #059669; padding-top:1.2mm; margin-top:1mm; line-height:1.2; }}
+.credits-footer-row {{ width:100%; display:flex; justify-content:space-between; align-items:flex-end; direction:rtl; font-size:9.5pt; font-weight:900; color:#065f46; margin-top:2mm; line-height:1.2; }}
 </style>
 </head>
 <body>
 <div class="cert-page">
-  <div class="cert-wrapper">
+  <div class="cert-inner-box">
     <div class="cert-header">
-      <div class="header-right">{header_text}</div>
-      <div class="logo-area">{logos_html}</div>
+      <div class="header-right">{formatted_header}</div>
+      <div class="cert-logos">{render_logos_html()}</div>
     </div>
 
     <div class="cert-body">
-      <div class="cert-main-title">{esc(title_val)}</div>
-      <div class="title-line"></div>
+      <h1 class="cert-main-title">{esc(title_val)}</h1>
+      <hr class="cert-divider">
       <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
-      <div class="cert-name">{esc(full_name)}</div>
-      {f'<div class="info-line">التخصص / الوظيفة: {esc(profession)}</div>' if profession else ''}
-      {f'<div class="info-line">جهة العمل: {esc(r["facility"])}</div>' if r["facility"] else ''}
-
-      <div class="result-box">
-        <div class="result-main">
-          الاختبار: <b>{esc(tpl_name)}</b> ({esc(exam_type_str)})<br>
-          النتيجة: <b>{score_val} / {max_score_val}</b> &nbsp; | &nbsp; النسبة: <b>{percent_val:.1f}%</b><br>
-          الحالة: <b style="color:{status_color};">{status_text}</b>
+      {name_html}
+      {facility_html}
+      <div class="cert-profession-line">الوظيفة / التخصص: {esc(prof_field_val)}</div>
+      <div class="cert-notes">{esc(notes_val)}</div>
+      <div class="cert-details-row">
+        <div class="cert-details">
+          الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
+          النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b>
+          &nbsp;&nbsp;|&nbsp;&nbsp; الحالة:
+          <b style="color:{'green' if r['passed'] else 'red'};">{status_text}</b>
         </div>
-        <div class="qr-wrap">
+        <div class="cert-qr">
+          <span class="cert-code">{esc(qr_data_str)}</span>
           <img src="{qr_base64}" alt="QR Code">
-          <div class="cert-code">{esc(r["certificate_id"] or "")}</div>
         </div>
       </div>
-      {notes_html}
     </div>
 
     <div class="cert-footer">
-      <div class="ownership">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
-      <div class="signatures">
-        <div class="signature">مسؤول التدريب</div>
-        <div class="signature">رئيس القسم</div>
-        <div class="signature">مدير المتوطنة</div>
-        <div class="signature">يعتمد: مدير عام الإدارة</div>
+      <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+      <div class="credits-footer-row">
+        <span>مسؤول التدريب</span><span>رئيس القسم</span><span>مدير المتوطنة</span><span>يعتمد: مدير عام الإدارة</span>
       </div>
     </div>
   </div>
 </div>
 </body>
-</html>"""
-
+</html>
+"""
 
 def generate_certificates_batch_html(session_ids, custom_title=None, custom_notes=None):
-    """إنشاء ملف HTML واحد للشهادات الجماعية؛ يمنع تكرار DOCTYPE ويمنع الصفحة البيضاء الأخيرة."""
+    """Create one print document containing one certificate per A4 page."""
     pages = []
     for sid in session_ids:
         one = generate_customizable_certificate_html(sid, custom_title, custom_notes)
         if not one:
             continue
-        body = one[one.find('<body>') + len('<body>'):one.rfind('</body>')]
-        pages.append(body)
+        body_start = one.find('<body>')
+        body_end = one.rfind('</body>')
+        if body_start >= 0 and body_end >= 0:
+            pages.append(one[body_start + len('<body>'):body_end])
     if not pages:
         return ""
-
-    sett = get_print_settings()
-    return f"""<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
+    return f"""
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="UTF-8">
 <style>
 @page {{ size:A4 landscape; margin:0 !important; }}
-html,body {{ margin:0 !important; padding:0 !important; width:297mm; min-height:210mm; }}
-body {{ background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }}
+html,body {{ margin:0 !important; padding:0 !important; width:297mm; }}
+body {{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }}
 .cert-page {{ page-break-after:always !important; break-after:page !important; }}
 .cert-page:last-child {{ page-break-after:avoid !important; break-after:avoid-page !important; }}
-</style>
-</head>
-<body>
+</style></head><body>
 {''.join(pages)}
-</body>
-</html>"""
+</body></html>
+"""
 
 def generate_trainee_exam_sheet_html(sid):
     sett = get_print_settings()
@@ -1190,7 +1206,7 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    is_cert = "شهاد" in label_prefix
+    is_cert = ("شهاد" in label_prefix) or ("certificate" in label_prefix.lower())
     
     if is_cert:
         repeated_print_css = """
@@ -1898,6 +1914,14 @@ def admin_dashboard():
                 
                 st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
                 line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
+                cert_box_inset_val = st.number_input(
+                    "📐 حجم مربع محتوى الشهادة داخل صورة الخلفية (المسافة من الإطار):",
+                    min_value=4.0, max_value=35.0,
+                    value=float(str(current_set.get("cert_box_inset", "13mm")).replace("mm", "").strip() or 13),
+                    step=0.5,
+                    help="كلما زادت القيمة صغر مربع المحتوى وابتعد عن إطار الصورة. كلما قلت كبر مربع المحتوى واقترب من الإطار."
+                )
+                cert_box_inset_css = f"{cert_box_inset_val:g}mm"
                 
                 st.markdown("#### 🖼 شعارات الشهادات المخصصة:")
                 col_logo1, col_logo2, col_logo3 = st.columns(3)
@@ -1957,7 +1981,8 @@ def admin_dashboard():
                         current_logo1_val, current_logo2_val, current_logo3_val,
                         current_bg_val, current_frame_val,
                         current_set["default_cert_title"], current_set["default_cert_notes"],
-                        trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list
+                        trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list,
+                        cert_box_inset_css
                     )
                     st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!")
                     st.rerun()
