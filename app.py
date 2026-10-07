@@ -246,7 +246,7 @@ def clean_question_text(q_text):
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"^\s*(?:سؤال\s*(?:رقم|#)?\s*)?\d+\s*[\)\].:-]+\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"[ \t]+", " ", cleaned)
-    cleaned = re.sub(r"\s+([،,:؛؟.)])", r"\1", cleaned)
+    cleaned = re.sub(r"\s+([،,:؛.)])", r"\1", cleaned)
     return cleaned.strip()
 
 def normalize_text(x):
@@ -815,7 +815,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     @page {{ size: A4 landscape; margin: 0 !important; }}
     html, body {{ margin: 0 !important; padding: 0 !important; width: 297mm; height: 210mm; overflow: hidden; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #f9fafb; }}
-    .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {cert_container_style} display: flex; flex-direction: column; justify-content: space-between; padding: 22mm 32mm 15mm 32mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
+    .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {cert_container_style} display: flex; flex-direction: column; justify-content: space-between; padding: 12mm 32mm 15mm 32mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
     .cert-header {{ width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; direction: rtl; margin-top: 14mm; }}
     .header-right {{ text-align: right; font-size: 12pt; font-weight: 900; color: #065f46; line-height: 1.35; }}
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
@@ -838,6 +838,14 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <div class="cert-body">
             <h1 class="cert-main-title">{esc(title_val)}</h1>
             <hr style="width: 22%; border: 2.5px solid #059669; margin: 2px auto 4px auto;">
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin: 4px 0 10px 0; padding: 0 10mm;">
+                <div class="qr-box">
+                    <img src="{qr_base64}" alt="QR Code">
+                </div>
+                <div style="font-size: 12pt; font-weight: 900; color: #065f46; direction: rtl;">
+                    رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
+                </div>
+            </div>
             <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
             {line_html}
             {profession_line_html}
@@ -847,14 +855,6 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             </div>
         </div>
         <div>
-            <div class="cert-middle-section">
-                <div class="qr-box">
-                    <img src="{qr_base64}" alt="QR Code">
-                </div>
-                <div style="font-size: 11pt; font-weight: 900; color: #065f46; direction: rtl;">
-                    رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
-                </div>
-            </div>
             <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
             <div class="credits-footer-row">
                 <span>مسؤول التدريب</span>
