@@ -800,7 +800,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     prof_field_val = r["trainee_profession"] if r["trainee_profession"] is not None else (sett.get("trainee_profession", "أخصائي الأمراض المتوطنة"))
     
     line_html = f"<div class='cert-name'>{esc(title_role_str)}{esc(r['trainee_name'])}</div>"
-    profession_line_html = f"<div style='font-size: 15pt; color: #047857; font-weight: bold; margin: 4px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
+    profession_line_html = f"<div style='font-size: 15pt; color: #047857; font-weight: bold; margin: 2px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
     
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
@@ -814,18 +814,18 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     @page {{ size: A4 landscape; margin: 0 !important; }}
     html, body {{ margin: 0 !important; padding: 0 !important; width: 297mm; height: 210mm; overflow: hidden; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #f9fafb; }}
-    .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {frame_style} {bg_style} display: flex; flex-direction: column; justify-content: space-between; padding: 12mm 18mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
+    .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {frame_style} {bg_style} display: flex; flex-direction: column; justify-content: space-between; padding: 10mm 18mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
     .cert-header {{ width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; direction: rtl; }}
-    .header-right {{ text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
+    .header-right {{ text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
-    h1.cert-main-title {{ color: #047857; font-size: 32pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
-    .cert-sub-text {{ font-size: 15.5pt; line-height: 1.6; color: #1f2937; margin: 6px 0; font-weight: 800; }}
-    .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0; }}
-    p {{ font-size: 13.5pt; line-height: 1.6; color: #1f2937; margin: 4px 0; font-weight: 700; }}
-    .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 6px auto; padding: 4px; }}
-    .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 6px; padding-top: 6px; }}
+    h1.cert-main-title {{ color: #047857; font-size: 30pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
+    .cert-sub-text {{ font-size: 15pt; line-height: 1.5; color: #1f2937; margin: 4px 0; font-weight: 800; }}
+    .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 2px 0; }}
+    p {{ font-size: 13.5pt; line-height: 1.5; color: #1f2937; margin: 2px 0; font-weight: 700; }}
+    .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 4px auto; padding: 2px; }}
+    .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 0px; padding-top: 0px; }}
     .qr-box img {{ width: 18mm; height: 18mm; display: block; }}
-    .ownership-footer-row {{ width: 100%; text-align: center; font-size: 10pt; font-weight: 800; color: #047857; border-top: 1px dotted #059669; padding-top: 3px; margin-top: 2px; }}
+    .ownership-footer-row {{ width: 100%; text-align: center; font-size: 10pt; font-weight: 800; color: #047857; border-top: 1px dotted #059669; padding-top: 2px; margin-top: 0px; }}
     .credits-footer-row {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; font-size: 10.5pt; font-weight: 900; color: #065f46; margin-top: 2px; }}
     </style>
     </head>
@@ -837,7 +837,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         </div>
         <div class="cert-body">
             <h1 class="cert-main-title">{esc(title_val)}</h1>
-            <hr style="width: 25%; border: 2px solid #059669; margin: 4px auto 10px auto;">
+            <hr style="width: 25%; border: 2px solid #059669; margin: 2px auto 6px auto;">
             <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
             {line_html}
             {profession_line_html}
