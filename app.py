@@ -757,9 +757,9 @@ def render_logos_html():
     logos_list_html = ""
     for i, logo in enumerate(logos, start=1):
         if logo:
-            logos_list_html += f'<img src="{logo}" style="width:45px; height:45px; object-fit:contain; display:block;" alt="Logo {i}">'
+            logos_list_html += f'<img src="{logo}" style="width:40px; height:40px; object-fit:contain; display:block;" alt="Logo {i}">'
     return f"""
-    <div style="display:flex; flex-direction:row; gap:8px; align-items:center; justify-content:flex-start; direction:ltr;">
+    <div style="display:flex; flex-direction:row; gap:6px; align-items:center; justify-content:flex-start; direction:ltr;">
         {logos_list_html}
     </div>
     """
@@ -789,18 +789,18 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     formatted_header = sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")
     bg_data = sett.get("bg_base64", "")
     frame_data = sett.get("frame_base64", "")
-    bg_style = f"background: url('{bg_data}') no-repeat center center; background-size: cover;" if bg_data else "background: #ffffff;"
     
+    # جعل الإطار يعمل كخلفية متكاملة للشهادة بحيث يظهر المحتوى بالكامل بداخله
     if frame_data:
-        frame_style = f"background-image: url('{frame_data}'); background-repeat: no-repeat; background-position: center; background-size: 100% 100%; border: none;"
+        cert_container_style = f"background-image: url('{frame_data}'); background-repeat: no-repeat; background-position: center; background-size: 100% 100%; border: none;"
     else:
-        frame_style = "border: 6px solid #059669;"
+        cert_container_style = "border: 6px solid #059669; background: #ffffff;"
 
     title_role_str = f"{title_role_val} " if title_role_val else ""
     prof_field_val = r["trainee_profession"] if r["trainee_profession"] is not None else (sett.get("trainee_profession", "أخصائي الأمراض المتوطنة"))
     
     line_html = f"<div class='cert-name'>{esc(title_role_str)}{esc(r['trainee_name'])}</div>"
-    profession_line_html = f"<div style='font-size: 15pt; color: #047857; font-weight: bold; margin: 2px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
+    profession_line_html = f"<div style='font-size: 14pt; color: #047857; font-weight: bold; margin: 2px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
     
     qr_data_str = f"{r['certificate_id']}"
     qr_base64 = generate_qr_code_base64(qr_data_str)
@@ -814,19 +814,19 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     @page {{ size: A4 landscape; margin: 0 !important; }}
     html, body {{ margin: 0 !important; padding: 0 !important; width: 297mm; height: 210mm; overflow: hidden; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #f9fafb; }}
-    .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {frame_style} {bg_style} display: flex; flex-direction: column; justify-content: space-between; padding: 10mm 18mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
+    .cert-wrapper {{ width: 285mm; height: 198mm; box-sizing: border-box; {cert_container_style} display: flex; flex-direction: column; justify-content: space-between; padding: 22mm 30mm 15mm 30mm; position: relative; margin: auto; page-break-after: avoid !important; break-after: avoid-page !important; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }}
     .cert-header {{ width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; direction: rtl; }}
-    .header-right {{ text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.3; }}
+    .header-right {{ text-align: right; font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.25; }}
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
-    h1.cert-main-title {{ color: #047857; font-size: 30pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
-    .cert-sub-text {{ font-size: 15pt; line-height: 1.5; color: #1f2937; margin: 4px 0; font-weight: 800; }}
-    .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 2px 0; }}
-    p {{ font-size: 13.5pt; line-height: 1.5; color: #1f2937; margin: 2px 0; font-weight: 700; }}
-    .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 4px auto; padding: 2px; }}
+    h1.cert-main-title {{ color: #047857; font-size: 26pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
+    .cert-sub-text {{ font-size: 14pt; line-height: 1.4; color: #1f2937; margin: 3px 0; font-weight: 800; }}
+    .cert-name {{ font-size: 19pt; color: #065f46; font-weight: 900; margin: 2px 0; }}
+    p {{ font-size: 13pt; line-height: 1.4; color: #1f2937; margin: 2px 0; font-weight: 700; }}
+    .details-custom-box {{ font-size: 11pt; font-weight: bold; color: #1f2937; margin: 3px auto; padding: 2px; }}
     .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 0px; padding-top: 0px; }}
-    .qr-box img {{ width: 18mm; height: 18mm; display: block; }}
-    .ownership-footer-row {{ width: 100%; text-align: center; font-size: 10pt; font-weight: 800; color: #047857; border-top: 1px dotted #059669; padding-top: 2px; margin-top: 0px; }}
-    .credits-footer-row {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; font-size: 10.5pt; font-weight: 900; color: #065f46; margin-top: 2px; }}
+    .qr-box img {{ width: 15mm; height: 15mm; display: block; }}
+    .ownership-footer-row {{ width: 100%; text-align: center; font-size: 9.5pt; font-weight: 800; color: #047857; border-top: 1px dotted #059669; padding-top: 2px; margin-top: 2px; }}
+    .credits-footer-row {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; font-size: 10pt; font-weight: 900; color: #065f46; margin-top: 2px; }}
     </style>
     </head>
     <body>
@@ -837,7 +837,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         </div>
         <div class="cert-body">
             <h1 class="cert-main-title">{esc(title_val)}</h1>
-            <hr style="width: 25%; border: 2px solid #059669; margin: 2px auto 6px auto;">
+            <hr style="width: 20%; border: 2px solid #059669; margin: 2px auto 4px auto;">
             <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
             {line_html}
             {profession_line_html}
@@ -851,7 +851,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                 <div class="qr-box">
                     <img src="{qr_base64}" alt="QR Code">
                 </div>
-                <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; direction: rtl;">
+                <div style="font-size: 10pt; font-weight: bold; color: #065f46; direction: rtl;">
                     رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
                 </div>
             </div>
@@ -1989,7 +1989,7 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
+                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
                 with st.form("manage_single_hier_form"):
                     selected_item_manage = st.selectbox("اختر وحدة الأمراض المتوطنة أو المنشأة لإدارتها:", list(facility_map.keys()))
                     target_id = facility_map[selected_item_manage]
@@ -3273,7 +3273,7 @@ def exam_interface(session_id):
             answered += 1
     st.progress(answered / len(rows) if rows else 0)
     if st.button("تسليم الاختبار نهائياً", use_container_width=True):
-        res = submit_session(session_id)
+        res = submit_submit_session_status = submit_session(session_id)
         if res:
             st.session_state.last_result_id = session_id
             st.session_state.exam_session_id = None
