@@ -820,7 +820,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
     h1.cert-main-title {{ color: #047857; font-size: 32pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
     .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0; }}
-    p {{ font-size: 12pt; line-height: 1.5; color: #1f2937; margin: 3px 0; }}
+    p {{ font-size: 13.5pt; line-height: 1.6; color: #1f2937; margin: 4px 0; font-weight: 700; }}
     .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 6px auto; padding: 4px; }}
     .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 6px; padding-top: 6px; }}
     .qr-box img {{ width: 18mm; height: 18mm; display: block; }}
