@@ -819,6 +819,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .header-right {{ text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; line-height: 1.4; }}
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
     h1.cert-main-title {{ color: #047857; font-size: 32pt; margin: 0 0 2px 0; font-weight: 900; letter-spacing: 1px; }}
+    .cert-sub-text {{ font-size: 15.5pt; line-height: 1.6; color: #1f2937; margin: 6px 0; font-weight: 800; }}
     .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0; }}
     p {{ font-size: 13.5pt; line-height: 1.6; color: #1f2937; margin: 4px 0; font-weight: 700; }}
     .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 6px auto; padding: 4px; }}
@@ -837,7 +838,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
         <div class="cert-body">
             <h1 class="cert-main-title">{esc(title_val)}</h1>
             <hr style="width: 25%; border: 2px solid #059669; margin: 4px auto 10px auto;">
-            <p>تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</p>
+            <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
             {line_html}
             {profession_line_html}
             <div class="details-custom-box">
