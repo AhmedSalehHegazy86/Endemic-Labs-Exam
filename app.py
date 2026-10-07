@@ -521,6 +521,8 @@ def init_db():
         ("print_settings", "trainee_profession", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "professions_list_json", "TEXT NOT NULL DEFAULT '[]'"),
         ("print_settings", "cert_box_inset", "TEXT NOT NULL DEFAULT '13mm'"),
+        ("print_settings", "cert_trainee_extra", "TEXT NOT NULL DEFAULT ''"),
+        ("print_settings", "cert_facility_extra", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_items", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_goals", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_date", "TEXT NOT NULL DEFAULT ''"),
@@ -590,11 +592,17 @@ def get_print_settings():
         "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
     }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm"):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None):
     with db() as c:
+        old_cert = c.execute("SELECT cert_trainee_extra, cert_facility_extra FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
+        if cert_trainee_extra is None:
+            cert_trainee_extra = old_cert["cert_trainee_extra"] if old_cert and "cert_trainee_extra" in old_cert.keys() else ""
+        if cert_facility_extra is None:
+            cert_facility_extra = old_cert["cert_facility_extra"] if old_cert and "cert_facility_extra" in old_cert.keys() else ""
         c.execute("DELETE FROM print_settings")
         c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset))
+        c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or ""))
 
 def get_hierarchical_data(include_hidden=False):
     with db() as c:
@@ -813,11 +821,11 @@ body {{ font-family:'Cairo','Tahoma',sans-serif; direction:rtl; overflow:hidden;
 .header-right {{ text-align:right; font-size:11pt; line-height:1.3; font-weight:900; color:#064e3b; max-width:72%; }}
 .cert-logos {{ text-align:left; flex:0 0 auto; }}
 .cert-body {{ flex:0 0 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; overflow:hidden; }}
-h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:32pt; line-height:1.05; margin:0 0 2mm 0; font-weight:700; }}
+h1.cert-main-title {{ font-family:'Reem Kufi','Amiri','Cairo',serif; color:#047857; font-size:32pt; line-height:1.05; margin:0 0 2mm 0; font-weight:700; }}
 .cert-prefix-line {{ font-size:18pt; line-height:1.2; color:#374151; font-weight:800; margin:1mm 0 2mm; min-height:7mm; }}
 .cert-person-line {{ font-size:25pt; line-height:1.15; color:#064e3b; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
 .cert-facility-line {{ font-size:20pt; line-height:1.2; color:#047857; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
-.cert-profession-line {{ font-size:16pt; line-height:1.25; color:#374151; font-weight:800; margin:1mm 0 3mm; white-space:nowrap; }}
+.cert-profession-line {{ font-size:16pt; line-height:1.2; color:#374151; font-weight:800; margin:0.5mm 0 1.5mm; white-space:nowrap; min-height:0; }}
 .cert-result-row {{ width:94%; display:flex; align-items:center; justify-content:center; gap:10mm; margin-top:2mm; margin-bottom:0; }}
 .cert-result {{ font-size:15pt; line-height:1.35; color:#1f2937; font-weight:900; white-space:nowrap; }}
 .cert-number {{ font-size:12pt; line-height:1.2; color:#064e3b; font-weight:900; white-space:nowrap; }}
@@ -854,7 +862,7 @@ def _certificate_footer_html():
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     """Generate one individual A4-landscape certificate."""
     sett = get_print_settings()
-    title_val = (custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة")) or "شهادة"
+    title_val = "شَهَادَةُ حُضُورِ دَوْرَةٍ تَدْرِيبِيَّةٍ"
     prefix_val = (sett.get("trainee_prefix", "") or "").strip()
     title_role_val = (sett.get("trainee_title", "") or "").strip()
 
@@ -892,6 +900,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
   {prefix_html}
   <div class="cert-person-line">{esc(person_label)}</div>
   <div class="cert-profession-line">الوظيفة: {esc(prof)} &nbsp;&nbsp; | &nbsp;&nbsp; المنشأة: {esc(facility)}</div>
+  <div class="cert-profession-line">{esc(str(sett.get("cert_trainee_extra", "") or "").strip())}</div>
   <div class="cert-result-row">
     <div class="cert-result">النتيجة: {score} / {max_score} ({percent:.1f}%) — {status_text}</div>
     <div class="cert-number">رقم الشهادة: {esc(cert_no)}</div>
@@ -933,6 +942,7 @@ def generate_facility_certificate_html(facility_name, session_ids, custom_title=
   <h1 class="cert-main-title">{esc(title_val)}</h1>
   {prefix_html}
   <div class="cert-facility-line">{esc(facility_name)}</div>
+  <div class="cert-profession-line">{esc(str(sett.get("cert_facility_extra", "") or "").strip())}</div>
   <div class="cert-result-row">
     <div class="cert-result">نتيجة تقييم المنشأة: {avg:.1f}%</div>
     <div class="cert-number">رقم الشهادة: {esc(facility_code)}</div>
@@ -1918,7 +1928,16 @@ def admin_dashboard():
                     curr_prof = current_set.get("trainee_profession", "أخصائي الأمراض المتوطنة")
                     prof_idx = professions_options_list.index(curr_prof) if curr_prof in professions_options_list else 0
                     trainee_profession_val = st.selectbox("3. اختيار الوظيفة الافتراضية للشهادات:", professions_options_list, index=prof_idx)
-                
+                cert_trainee_extra_val = st.text_input(
+                    "4. نص إضافي لشهادة المتدرب (يظهر بعد سطر الوظيفة والمنشأة):",
+                    value=current_set.get("cert_trainee_extra", ""),
+                    placeholder="مثال: أتم حضور الدورة التدريبية بنجاح"
+                )
+                cert_facility_extra_val = st.text_input(
+                    "5. نص إضافي لشهادة المنشأة (يظهر بعد سطر اسم المنشأة):",
+                    value=current_set.get("cert_facility_extra", ""),
+                    placeholder="مثال: اجتازت المنشأة متطلبات التقييم"
+                )
                 st.markdown("#### 📐 التحكم بالمسافات بين الأسطر وتخطيط الشهادة:")
                 line_spacing_val = st.number_input("المسافة بين الأسطر داخل الشهادة:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
                 cert_box_inset_val = st.number_input(
@@ -1980,7 +1999,7 @@ def admin_dashboard():
                         current_bg_val, current_frame_val,
                         current_set["default_cert_title"], current_set["default_cert_notes"],
                         trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list,
-                        cert_box_inset_css
+                        cert_box_inset_css, cert_trainee_extra_val, cert_facility_extra_val
                     )
                     st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!")
                     st.rerun()
@@ -2774,7 +2793,7 @@ def admin_dashboard():
                     <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 10px;">
                         <h3 style="color: #047857; text-align: center;">تقرير أداء ونتيجة متدرب (مع مقارنة الفترات)</h3>
                         <hr style="border: 1px solid #059669;">
-                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>الوظيفة:</b> {esc(ind_tr_data.get('profession',''))} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
+                        <p><b>اسم المتدرب:</b> {esc(ind_tr_data['name'])} | <b>الوظيفة:</b> {esc((ind_tr_data['profession'] if 'profession' in ind_tr_data.keys() and ind_tr_data['profession'] is not None else ''))} | <b>جهة العمل:</b> {esc(ind_tr_data['facility'])}</p>
                         <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt;">
                             <tr>
                                 <th style="border: 1px solid #cbd5e1; padding: 8px; background-color: #059669; color: white;">فترة المقارنة</th>
