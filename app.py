@@ -837,7 +837,7 @@ h1.cert-main-title {{ font-family:'Reem Kufi','Amiri','Cairo',serif; color:#0478
 .cert-code {{ font-size:8pt; font-weight:900; color:#064e3b; white-space:nowrap; }}
 .cert-footer {{ flex:0 0 auto; width:100%; margin-top:4mm; }}
 .credits-footer-row {{ width:100%; display:flex; justify-content:space-between; align-items:flex-end; direction:rtl; font-size:9.5pt; font-weight:900; color:#065f46; margin-top:2mm; line-height:1.2; }}
-.ownership-footer-row {{ width:100%; text-align:center; font-size:8pt; font-weight:800; color:#047857; padding-top:1.2mm; margin-top:1mm; line-height:1.2; }}
+.ownership-footer-row {{ width:100%; text-align:center; font-size:8pt; font-weight:800; color:#047857; padding:1.5mm 0; margin-top:1mm; line-height:1.2; border-top:1.2px solid #047857; border-bottom:1.2px solid #047857; box-sizing:border-box; }}
 </style>
 </head>
 <body>
@@ -2896,6 +2896,9 @@ def admin_dashboard():
                             </table>
                         </div>"""
                         st.markdown(individual_report_html, unsafe_allow_html=True)
+                        st.markdown("##### 📊 الرسم البياني لمقارنة الفترتين")
+                        chart_ind = pd.DataFrame({"الفترة": ["الفترة الأولى", "الفترة الثانية"], "النسبة %": [_pct(s_q1["percent"] if s_q1 else 0), _pct(s_q2["percent"] if s_q2 else 0)]}).set_index("الفترة")
+                        st.bar_chart(chart_ind, use_container_width=True)
 
                         df_ind = pd.DataFrame([{
                             "اسم المتدرب": ind_tr_data["name"] or "",
@@ -2962,6 +2965,9 @@ def admin_dashboard():
                     <tr><td>{gf_start_2} إلى {gf_end_2}</td><td>{b[0]}</td><td>{b[1]}</td><td>{b[2]}</td><td>{b[3]:.1f}%</td></tr>
                     </table></div>"""
                     st.markdown(group_compare_html,unsafe_allow_html=True)
+                    st.markdown("##### 📊 الرسم البياني لمقارنة أداء الوحدة")
+                    chart_group = pd.DataFrame({"الفترة": ["الفترة الأولى", "الفترة الثانية"], "متوسط النسبة %": [a[3], b[3]]}).set_index("الفترة")
+                    st.bar_chart(chart_group, use_container_width=True)
                     df_group=pd.DataFrame([
                         {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_1} إلى {gf_end_1}","إجمالي المتدربين":a[0],"الاختبارات":a[1],"المجتازون":a[2],"متوسط النسبة %":f"{a[3]:.1f}%"},
                         {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_2} إلى {gf_end_2}","إجمالي المتدربين":b[0],"الاختبارات":b[1],"المجتازون":b[2],"متوسط النسبة %":f"{b[3]:.1f}%"}
@@ -3008,6 +3014,12 @@ def admin_dashboard():
             if df_rep.empty: st.info("لا توجد بيانات متدربين ظاهرة لعرضها في التقرير.")
             else:
                 st.dataframe(df_rep,use_container_width=True,hide_index=True)
+                st.markdown("##### 📊 الرسم البياني لحالة النتائج")
+                pass_count = int(sum(1 for r in data if r["الحالة"] == "اجتزت بنجاح"))
+                fail_count = int(sum(1 for r in data if r["الحالة"] == "لم تجتز"))
+                no_result_count = int(sum(1 for r in data if r["الحالة"] == "لا توجد نتيجة"))
+                chart_all = pd.DataFrame({"الحالة": ["اجتزت بنجاح", "لم تجتز", "لا توجد نتيجة"], "العدد": [pass_count, fail_count, no_result_count]}).set_index("الحالة")
+                st.bar_chart(chart_all, use_container_width=True)
                 _excel_download(df_rep,"📥 تحميل تقرير النتائج الشامل (.xlsx)","all_trainees_results.xlsx","dl_all_results_v7")
                 table_html=df_rep.to_html(index=False,border=0,classes="table")
                 render_print_button_only(generate_general_report_html("تقرير نتائج المتدربين الشامل",f"<div>{table_html}</div>"),"تقرير النتائج الشامل")
@@ -3035,6 +3047,9 @@ def admin_dashboard():
             if df_fac.empty: st.info("لا توجد بيانات جهات أو وحدات لتحليلها.")
             else:
                 st.dataframe(df_fac,use_container_width=True,hide_index=True)
+                st.markdown("##### 📊 الرسم البياني لمتوسط أداء الجهات")
+                chart_fac = df_fac[["وحدة الأمراض المتوطنة / الجهة", "متوسط النسبة %"]].set_index("وحدة الأمراض المتوطنة / الجهة")
+                st.bar_chart(chart_fac, use_container_width=True)
                 _excel_download(df_fac,"📥 تحميل تقرير أداء الجهات ووحدات المتوطنة (.xlsx)","facilities_performance_report.xlsx","dl_fac_report_v7")
                 table_fac_html=df_fac.to_html(index=False,border=0,classes="table")
                 render_print_button_only(generate_general_report_html("تقرير أداء وحدات الأمراض المتوطنة والجهات",f"<div>{table_fac_html}</div>"),"تقرير أداء الجهات")
@@ -3053,6 +3068,15 @@ def admin_dashboard():
             if not all_sessions_results:
                 st.info("لا توجد اختبارات مكتملة أو نتائج مسجلة حتى الآن.")
             else:
+                st.markdown("##### 📊 الرسم البياني العام للنتائج")
+                chart_results_base = pd.DataFrame([{
+                    "الفئة": "مجتازون",
+                    "العدد": int(sum(1 for r in all_sessions_results if r["passed"] == 1))
+                }, {
+                    "الفئة": "غير مجتازين",
+                    "العدد": int(sum(1 for r in all_sessions_results if r["passed"] == 0))
+                }]).set_index("الفئة")
+                st.bar_chart(chart_results_base, use_container_width=True)
                 filter_mode=st.radio("فلترة النتائج:",["عرض الكل (مرتبة تنازلياً)","فقط الأعلى تقييماً (النسبة >= 85%)","فقط المجتازين بنجاح"],horizontal=True,key="rep_filter_mode_v7")
                 filtered_sessions=[]
                 for r in all_sessions_results:
