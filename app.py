@@ -775,9 +775,8 @@ def generate_qr_code_base64(data_text):
 
 def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=None):
     sett = get_print_settings()
-    title_val = custom_title if custom_title is not None else sett.get("default_cert_title", "شهادة")
+    title_val = "شهادة"
     notes_val = custom_notes if custom_notes is not None else sett.get("default_cert_notes", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد")
-    prefix_val = sett.get("trainee_prefix", "").strip()
     title_role_val = sett.get("trainee_title", "").strip()
     with db() as c:
         r = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
@@ -797,11 +796,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     else:
         frame_style = "border: 6px solid #059669;"
 
-    prefix_str = f"{prefix_val} " if prefix_val else ""
     title_role_str = f"{title_role_val} " if title_role_val else ""
     prof_field_val = r["trainee_profession"] if r["trainee_profession"] is not None else (sett.get("trainee_profession", "أخصائي الأمراض المتوطنة"))
     
-    line_html = f"<div class='cert-name'>{esc(prefix_str)}{esc(title_role_str)}{esc(r['trainee_name'])}</div>"
+    line_html = f"<div class='cert-name'>{esc(title_role_str)}{esc(r['trainee_name'])}</div>"
     profession_line_html = f"<div style='font-size: 15pt; color: #047857; font-weight: bold; margin: 4px 0;'>التخصص / الوظيفة: {esc(prof_field_val)}</div>" if prof_field_val else ""
     
     qr_data_str = f"{r['certificate_id']}"
@@ -824,9 +822,10 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .cert-name {{ font-size: 20pt; color: #065f46; font-weight: 900; margin: 4px 0; }}
     p {{ font-size: 12pt; line-height: 1.5; color: #1f2937; margin: 3px 0; }}
     .details-custom-box {{ font-size: 11.5pt; font-weight: bold; color: #1f2937; margin: 6px auto; padding: 4px; }}
-    .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 6px; border-top: 1px solid #e5e7eb; padding-top: 6px; }}
+    .cert-middle-section {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: ltr; margin-top: 6px; padding-top: 6px; }}
     .qr-box img {{ width: 18mm; height: 18mm; display: block; }}
-    .notes-box {{ background: rgba(240,253,244,0.95); border: 2px dashed #059669; padding: 6px 12px; margin: 6px auto; width: 80%; border-radius: 6px; font-weight: bold; color: #065f46; font-size: 11pt; }}
+    .ownership-footer-row {{ width: 100%; text-align: center; font-size: 10pt; font-weight: 800; color: #047857; border-top: 1px dotted #059669; padding-top: 3px; margin-top: 2px; }}
+    .credits-footer-row {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; font-size: 10.5pt; font-weight: 900; color: #065f46; margin-top: 2px; }}
     </style>
     </head>
     <body>
@@ -855,7 +854,13 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                     رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
                 </div>
             </div>
-            {f'<div class="notes-box">{esc(notes_val)}</div>' if notes_val else ''}
+            <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
+            <div class="credits-footer-row">
+                <span>مسؤول التدريب</span>
+                <span>رئيس القسم</span>
+                <span>مدير المتوطنة</span>
+                <span>يعتمد: مدير عام الإدارة</span>
+            </div>
         </div>
     </div>
     </body>
