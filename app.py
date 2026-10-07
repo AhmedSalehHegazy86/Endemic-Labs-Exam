@@ -812,6 +812,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     <head>
     <meta charset="UTF-8">
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@700&display=swap');
     @page {{ size: A4 landscape; margin: 0 !important; }}
     html, body {{ margin: 0 !important; padding: 0 !important; width: 297mm; height: 210mm; overflow: hidden; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; display: flex; justify-content: center; align-items: center; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #f9fafb; }}
@@ -819,7 +820,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .cert-header {{ width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; direction: rtl; margin-top: 14mm; }}
     .header-right {{ text-align: right; font-size: 12pt; font-weight: 900; color: #065f46; line-height: 1.35; }}
     .cert-body {{ text-align: center; width: 100%; margin: auto 0; }}
-    h1.cert-main-title {{ color: #047857; font-size: 32pt; margin: 0 0 4px 0; font-weight: 900; letter-spacing: 1px; }}
+    h1.cert-main-title {{ font-family: 'Reem Kufi', 'Cairo', sans-serif; color: #047857; font-size: 36pt; margin: 0 0 4px 0; font-weight: 700; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }}
     .cert-sub-text {{ font-size: 15pt; line-height: 1.4; color: #1f2937; margin: 4px 0; font-weight: 900; }}
     .cert-name {{ font-size: 24pt; color: #065f46; font-weight: 900; margin: 6px 0; letter-spacing: 0.5px; }}
     .details-custom-box {{ font-size: 13pt; font-weight: 900; color: #1f2937; margin: 4px auto; padding: 2px; line-height: 1.45; }}
@@ -835,13 +836,17 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div style="text-align: left;">{render_logos_html()}</div>
         </div>
         <div class="cert-body">
-            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; margin: 0 0 4px 0; padding: 0 5mm;">
-                <h1 class="cert-main-title" style="margin: 0; text-align: right;">{esc(title_val)}</h1>
-                <div style="font-size: 12pt; font-weight: 900; color: #065f46; text-align: right;">
-                    رقم التحقق والشهادة الرسمي: <span style="font-weight: 900; color: #047857;">{r["certificate_id"]}</span>
+            <div style="width: 100%; position: relative; margin: 0 0 4px 0; padding: 0 5mm; min-height: 50px;">
+                <div style="text-align: center; width: 100%;">
+                    <h1 class="cert-main-title">{esc(title_val)}</h1>
                 </div>
-                <div class="qr-box" style="text-align: left;">
-                    <img src="{qr_base64}" alt="QR Code">
+                <div style="position: absolute; left: 5mm; top: 0; display: flex; flex-direction: row; align-items: center; gap: 6px;">
+                    <div style="font-size: 10pt; font-weight: 900; color: #065f46; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; text-align: center;">
+                        {r["certificate_id"]}
+                    </div>
+                    <div class="qr-box">
+                        <img src="{qr_base64}" alt="QR Code">
+                    </div>
                 </div>
             </div>
             <hr style="width: 100%; border: 2px solid #059669; margin: 2px auto 8px auto;">
