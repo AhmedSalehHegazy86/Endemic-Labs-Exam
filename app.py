@@ -824,7 +824,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     .cert-sub-text {{ font-size: 15pt; line-height: 1.4; color: #1f2937; margin: 4px 0; font-weight: 900; }}
     .cert-name {{ font-size: 24pt; color: #065f46; font-weight: 900; margin: 6px 0; letter-spacing: 0.5px; }}
     .details-custom-box {{ font-size: 13pt; font-weight: 900; color: #1f2937; margin: 4px auto; padding: 2px; line-height: 1.45; }}
-    .qr-box img {{ width: 16mm; height: 16mm; display: block; }}
+    .qr-box img {{ width: 15mm; height: 15mm; display: block; }}
     .ownership-footer-row {{ width: 100%; text-align: center; font-size: 10pt; font-weight: 900; color: #047857; border-top: 1px dotted #059669; padding-top: 2px; margin-top: 2px; }}
     .credits-footer-row {{ width: 100%; display: flex; justify-content: space-between; align-items: center; direction: rtl; font-size: 10.5pt; font-weight: 900; color: #065f46; margin-top: 2px; }}
     </style>
@@ -836,12 +836,20 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
             <div style="text-align: left;">{render_logos_html()}</div>
         </div>
         <div class="cert-body">
-            <div style="width: 100%; position: relative; margin: 0 0 4px 0; padding: 0 5mm; min-height: 50px;">
-                <div style="text-align: center; width: 100%;">
-                    <h1 class="cert-main-title">{esc(title_val)}</h1>
+            <div style="width: 100%; position: relative; margin: 0 0 4px 0; text-align: center;">
+                <h1 class="cert-main-title">{esc(title_val)}</h1>
+            </div>
+            <hr style="width: 100%; border: 2px solid #059669; margin: 2px auto 8px auto;">
+            <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
+            {line_html}
+            {profession_line_html}
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 6px; padding: 0 10mm;">
+                <div class="details-custom-box" style="text-align: right; margin: 0;">
+                    الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
+                    النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b>
                 </div>
-                <div style="position: absolute; left: 5mm; top: 0; display: flex; flex-direction: row; align-items: center; gap: 6px;">
-                    <div style="font-size: 10pt; font-weight: 900; color: #065f46; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; text-align: center;">
+                <div style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
+                    <div style="font-size: 9.5pt; font-weight: 900; color: #065f46; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; text-align: center;">
                         {r["certificate_id"]}
                     </div>
                     <div class="qr-box">
@@ -849,13 +857,8 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                     </div>
                 </div>
             </div>
-            <hr style="width: 100%; border: 2px solid #059669; margin: 2px auto 8px auto;">
-            <div class="cert-sub-text">تشهد الإدارة الصحية بأولاد صقر - قسم المتوطنة وقسم المعامل - وحدة تدريب معامل المتوطنة</div>
-            {line_html}
-            {profession_line_html}
-            <div class="details-custom-box">
-                جهة العمل: <b>{esc(r["facility"])}</b> &nbsp;|&nbsp; الاختبار: <b>{esc(tpl_name)} ({esc(exam_type_str)})</b><br>
-                النتيجة: <b>{score_val} / {max_score_val} ({percent_val:.1f}%)</b> &nbsp;|&nbsp; الحالة: <b style="color: {'green' if r['passed'] else 'red'};">{status_text}</b>
+            <div style="font-size: 13pt; font-weight: 900; color: #1f2937; margin-top: 4px;">
+                جهة العمل: <b>{esc(r["facility"])}</b>
             </div>
         </div>
         <div>
@@ -3277,7 +3280,7 @@ def exam_interface(session_id):
             answered += 1
     st.progress(answered / len(rows) if rows else 0)
     if st.button("تسليم الاختبار نهائياً", use_container_width=True):
-        res = submit_submit_session_status = submit_session(session_id)
+        res = submit_session(session_id)
         if res:
             st.session_state.last_result_id = session_id
             st.session_state.exam_session_id = None
