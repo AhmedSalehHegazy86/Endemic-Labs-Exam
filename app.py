@@ -808,23 +808,23 @@ def _certificate_common_html(inner_content, sett):
 html,body {{ margin:0 !important; padding:0 !important; width:297mm; height:210mm; }}
 body {{ font-family:'Cairo','Tahoma',sans-serif; direction:rtl; overflow:hidden; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }}
 .cert-page {{ width:297mm; height:210mm; position:relative; overflow:hidden; margin:0; padding:0; box-sizing:border-box; {bg_css} }}
-.cert-inner-box {{ position:absolute; {box_css} box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; text-align:center; padding:4mm 7mm 3mm 7mm; }}
-.cert-header {{ flex:0 0 auto; width:100%; display:flex; justify-content:space-between; align-items:flex-start; direction:rtl; min-height:24mm; }}
+.cert-inner-box {{ position:absolute; {box_css} box-sizing:border-box; display:flex; flex-direction:column; justify-content:flex-start; overflow:hidden; text-align:center; padding:4mm 7mm 3mm 7mm; }}
+.cert-header {{ flex:0 0 auto; width:100%; display:flex; justify-content:space-between; align-items:flex-start; direction:rtl; min-height:18mm; margin-bottom:0; }}
 .header-right {{ text-align:right; font-size:11pt; line-height:1.3; font-weight:900; color:#064e3b; max-width:72%; }}
 .cert-logos {{ text-align:left; flex:0 0 auto; }}
-.cert-body {{ flex:1 1 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; }}
-h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:32pt; line-height:1.05; margin:0 0 3mm 0; font-weight:700; }}
+.cert-body {{ flex:0 0 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; overflow:hidden; }}
+h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:32pt; line-height:1.05; margin:0 0 2mm 0; font-weight:700; }}
 .cert-prefix-line {{ font-size:18pt; line-height:1.2; color:#374151; font-weight:800; margin:1mm 0 2mm; min-height:7mm; }}
 .cert-person-line {{ font-size:25pt; line-height:1.15; color:#064e3b; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
 .cert-facility-line {{ font-size:20pt; line-height:1.2; color:#047857; font-weight:900; margin:1mm 0 3mm; white-space:nowrap; }}
 .cert-profession-line {{ font-size:16pt; line-height:1.25; color:#374151; font-weight:800; margin:1mm 0 3mm; white-space:nowrap; }}
-.cert-result-row {{ width:94%; display:flex; align-items:center; justify-content:center; gap:10mm; margin-top:4mm; }}
+.cert-result-row {{ width:94%; display:flex; align-items:center; justify-content:center; gap:10mm; margin-top:2mm; margin-bottom:0; }}
 .cert-result {{ font-size:15pt; line-height:1.35; color:#1f2937; font-weight:900; white-space:nowrap; }}
 .cert-number {{ font-size:12pt; line-height:1.2; color:#064e3b; font-weight:900; white-space:nowrap; }}
 .cert-qr {{ display:flex; align-items:center; gap:2mm; direction:ltr; flex:0 0 auto; }}
 .cert-qr img {{ width:18mm; height:18mm; display:block; }}
 .cert-code {{ font-size:8pt; font-weight:900; color:#064e3b; white-space:nowrap; }}
-.cert-footer {{ flex:0 0 auto; width:100%; }}
+.cert-footer {{ flex:0 0 auto; width:100%; margin-top:4mm; }}
 .credits-footer-row {{ width:100%; display:flex; justify-content:space-between; align-items:flex-end; direction:rtl; font-size:9.5pt; font-weight:900; color:#065f46; margin-top:2mm; line-height:1.2; }}
 .ownership-footer-row {{ width:100%; text-align:center; font-size:8pt; font-weight:800; color:#047857; padding-top:1.2mm; margin-top:1mm; line-height:1.2; }}
 </style>
@@ -843,10 +843,10 @@ h1.cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857;
 def _certificate_footer_html():
     return """
 <div class="cert-footer">
+  <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
   <div class="credits-footer-row">
     <span>مسؤول التدريب</span><span>رئيس القسم</span><span>مدير المتوطنة</span><span>يعتمد: مدير عام الإدارة</span>
   </div>
-  <div class="ownership-footer-row">جميع الحقوق محفوظة © 2026 | تطوير Dr/Ahmed.S.Hegazy</div>
 </div>
 """
 
