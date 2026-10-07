@@ -832,13 +832,13 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 * {{ box-sizing:border-box; }}
 html, body {{ width:297mm; height:210mm; margin:0; padding:0; }}
 body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; direction:rtl; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden; }}
-.cert-page {{ width:297mm; height:210mm; padding:6mm; page-break-after:avoid !important; break-after:avoid-page !important; page-break-inside:avoid !important; break-inside:avoid-page !important; }}
-.cert-wrapper {{ width:285mm; height:198mm; margin:0 auto; position:relative; overflow:hidden; {frame_border} {cert_background} border-radius:3mm; display:flex; flex-direction:column; padding:9mm 15mm 7mm; }}
+.cert-page {{ width:297mm; height:210mm; padding:0; margin:0; page-break-after:avoid !important; break-after:avoid-page !important; page-break-inside:avoid !important; break-inside:avoid-page !important; }}
+.cert-wrapper {{ width:297mm; height:210mm; margin:0; position:relative; overflow:hidden; {frame_border} {cert_background} background-origin:border-box; border-radius:0; display:flex; flex-direction:column; padding:12mm 18mm 10mm; }}
 .cert-wrapper::after {{ content:""; position:absolute; inset:3mm; border:1px solid rgba(5,150,105,.45); border-radius:2mm; pointer-events:none; }}
-.cert-header {{ position:relative; z-index:2; min-height:31mm; width:100%; display:grid; grid-template-columns:1fr auto; align-items:start; column-gap:12mm; direction:rtl; }}
+.cert-header {{ position:relative; z-index:2; flex:0 0 31mm; min-height:31mm; width:100%; display:grid; grid-template-columns:1fr auto; align-items:start; column-gap:10mm; direction:rtl; }}
 .header-right {{ text-align:right; font-size:10.5pt; font-weight:900; color:#064e3b; line-height:1.35; padding-top:1mm; }}
 .logo-area {{ display:flex; justify-content:flex-start; align-items:flex-start; }}
-.cert-body {{ position:relative; z-index:2; flex:1; width:100%; display:flex; flex-direction:column; justify-content:center; text-align:center; padding:0 7mm; }}
+.cert-body {{ position:relative; z-index:2; flex:1 1 auto; min-height:0; width:100%; display:flex; flex-direction:column; justify-content:center; text-align:center; padding:0 5mm; overflow:hidden; }}
 .cert-main-title {{ font-family:'Reem Kufi','Cairo',sans-serif; color:#047857; font-size:34pt; line-height:1.1; margin:0; font-weight:700; letter-spacing:1px; }}
 .title-line {{ width:72%; height:1px; background:#059669; margin:3mm auto 5mm; position:relative; }}
 .title-line::after {{ content:""; position:absolute; left:50%; top:-1.2mm; transform:translateX(-50%); width:4mm; height:4mm; background:#fff; border:1px solid #059669; border-radius:50%; }}
@@ -851,13 +851,14 @@ body {{ font-family:'Cairo','Tahoma',sans-serif; background:#fff; direction:rtl;
 .qr-wrap img {{ width:20mm; height:20mm; display:block; margin:0 auto 1mm; }}
 .cert-code {{ font-size:8pt; font-weight:900; color:#065f46; direction:ltr; }}
 .cert-notes {{ font-size:10pt; line-height:1.35; color:#374151; font-weight:700; margin-top:3mm; }}
-.cert-footer {{ position:relative; z-index:2; width:100%; margin-top:3mm; }}
+.cert-footer {{ position:relative; z-index:2; flex:0 0 auto; width:100%; margin-top:2mm; }}
 .ownership {{ text-align:center; font-size:8.5pt; font-weight:800; color:#047857; border-top:1px dotted #059669; padding-top:1.5mm; margin-bottom:2.5mm; }}
 .signatures {{ display:grid; grid-template-columns:repeat(4,1fr); gap:4mm; align-items:end; text-align:center; color:#064e3b; font-size:9.5pt; font-weight:900; }}
 .signature {{ min-height:10mm; border-top:1px solid rgba(5,150,105,.35); padding-top:1.5mm; }}
 @media print {{
   html, body {{ width:297mm !important; height:210mm !important; margin:0 !important; padding:0 !important; }}
-  .cert-page {{ width:297mm !important; height:210mm !important; page-break-after:avoid !important; break-after:avoid-page !important; }}
+  .cert-page {{ width:297mm !important; height:210mm !important; padding:0 !important; margin:0 !important; page-break-after:avoid !important; break-after:avoid-page !important; }}
+  .cert-wrapper {{ width:297mm !important; height:210mm !important; padding:12mm 18mm 10mm !important; margin:0 !important; }}
   .cert-wrapper {{ page-break-inside:avoid !important; break-inside:avoid-page !important; }}
 }}
 </style>
@@ -1189,7 +1190,7 @@ def generate_exam_template_print_html(template_id):
 
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
-    is_cert = "شهادة" in label_prefix or "الشهادة" in label_prefix
+    is_cert = "شهاد" in label_prefix
     
     if is_cert:
         repeated_print_css = """
