@@ -1766,6 +1766,18 @@ def login_portal():
                 else:
                     st.error("بيانات غير صحيحة.")
 
+def report_chart_html(title, labels, values, unit=""):
+    """Printable, self-contained horizontal bar chart for report printing."""
+    vals = [float(v or 0) for v in values]
+    max_v = max(vals) if vals else 1.0
+    if max_v <= 0: max_v = 1.0
+    rows = []
+    for label, val in zip(labels, vals):
+        width = max(0.0, min(100.0, (val / max_v) * 100.0))
+        value_text = f"{val:.1f}" if not float(val).is_integer() else f"{int(val)}"
+        rows.append(f"<div style='margin:8px 0;'><div style='display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:9.5pt;'><span>{esc(label)}</span><span>{value_text}{esc(unit)}</span></div><div style='height:10mm;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px;overflow:hidden;margin-top:2px;'><div style='height:100%;width:{width:.2f}%;background:#059669;'></div></div></div>")
+    return f"<div style='font-family:Cairo,sans-serif;direction:rtl;border:1px solid #059669;border-radius:6px;padding:10px;margin:8px 0;page-break-inside:avoid;'><h3 style='text-align:center;color:#047857;margin:0 0 10px;font-size:12pt;'>{esc(title)}</h3>{''.join(rows)}</div>"
+
 def admin_dashboard():
     header()
     c_info, c_btn = st.columns([4, 1])
@@ -1802,18 +1814,6 @@ def admin_dashboard():
     st.markdown("---")
     
 
-
-def report_chart_html(title, labels, values, unit=""):
-    """Printable, self-contained horizontal bar chart for report printing."""
-    vals = [float(v or 0) for v in values]
-    max_v = max(vals) if vals else 1.0
-    if max_v <= 0: max_v = 1.0
-    rows = []
-    for label, val in zip(labels, vals):
-        width = max(0.0, min(100.0, (val / max_v) * 100.0))
-        value_text = f"{val:.1f}" if not float(val).is_integer() else f"{int(val)}"
-        rows.append(f"<div style='margin:8px 0;'><div style='display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:9.5pt;'><span>{esc(label)}</span><span>{value_text}{esc(unit)}</span></div><div style='height:10mm;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px;overflow:hidden;margin-top:2px;'><div style='height:100%;width:{width:.2f}%;background:#059669;'></div></div></div>")
-    return f"<div style='font-family:Cairo,sans-serif;direction:rtl;border:1px solid #059669;border-radius:6px;padding:10px;margin:8px 0;page-break-inside:avoid;'><h3 style='text-align:center;color:#047857;margin:0 0 10px;font-size:12pt;'>{esc(title)}</h3>{''.join(rows)}</div>"
 
     if selected_menu == "📊 لوحة التحكم":
         st.subheader("📊 لوحة المؤشرات العامة والتحليلات الشاملة للأمراض المتوطنة")
