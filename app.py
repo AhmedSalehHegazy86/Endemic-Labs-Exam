@@ -558,6 +558,34 @@ def init_db():
         except:
             pass
 
+    # منع تكرار الممتحن على مستوى قاعدة البيانات: الهاتف هو المعرف الرئيسي، والرقم القومي معرف فريد أيضاً.
+    # استخدمنا Triggers بالإضافة إلى فحوصات الواجهة حتى يتم منع التكرار حتى عند التعديل المباشر أو أي مسار آخر.
+    with db() as c:
+        c.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_trainees_unique_phone_insert
+            BEFORE INSERT ON trainees
+            WHEN TRIM(COALESCE(NEW.phone,'')) <> '' AND EXISTS (SELECT 1 FROM trainees WHERE TRIM(phone)=TRIM(NEW.phone))
+            BEGIN SELECT RAISE(ABORT, 'DUPLICATE_TRAINEE_PHONE'); END;
+        """)
+        c.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_trainees_unique_phone_update
+            BEFORE UPDATE OF phone ON trainees
+            WHEN TRIM(COALESCE(NEW.phone,'')) <> '' AND EXISTS (SELECT 1 FROM trainees WHERE TRIM(phone)=TRIM(NEW.phone) AND id<>NEW.id)
+            BEGIN SELECT RAISE(ABORT, 'DUPLICATE_TRAINEE_PHONE'); END;
+        """)
+        c.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_trainees_unique_national_id_insert
+            BEFORE INSERT ON trainees
+            WHEN TRIM(COALESCE(NEW.national_id,'')) <> '' AND EXISTS (SELECT 1 FROM trainees WHERE TRIM(national_id)=TRIM(NEW.national_id))
+            BEGIN SELECT RAISE(ABORT, 'DUPLICATE_TRAINEE_NATIONAL_ID'); END;
+        """)
+        c.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_trainees_unique_national_id_update
+            BEFORE UPDATE OF national_id ON trainees
+            WHEN TRIM(COALESCE(NEW.national_id,'')) <> '' AND EXISTS (SELECT 1 FROM trainees WHERE TRIM(national_id)=TRIM(NEW.national_id) AND id<>NEW.id)
+            BEGIN SELECT RAISE(ABORT, 'DUPLICATE_TRAINEE_NATIONAL_ID'); END;
+        """)
+
     with db() as c:
         cnt = c.execute("SELECT COUNT(*) FROM print_settings").fetchone()[0]
         if cnt == 0:
@@ -735,11 +763,41 @@ def login_user(u, p):
     return None
 
 def create_trainee(facility, name, phone, national_id, profession, assigned_template_id=None):
+    phone_norm = normalize_text(phone)
+    nid_norm = normalize_text(national_id)
     with db() as c:
-        cur = c.execute("INSERT INTO trainees(facility,name,phone,national_id,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                        (facility, normalize_text(name), normalize_text(phone), normalize_text(national_id), profession, "pending", assigned_template_id, now(), now(), 0))
-        tid = cur.lastrowid
-        return tid
+        if phone_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(phone)=TRIM(?) LIMIT 1", (phone_norm,)).fetchone():
+            raise ValueError("DUPLICATE_TRAINEE_PHONE")
+        if nid_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(national_id)=TRIM(?) LIMIT 1", (nid_norm,)).fetchone():
+            raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
+        try:
+            cur = c.execute("INSERT INTO trainees(facility,name,phone,national_id,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                            (facility, normalize_text(name), phone_norm, nid_norm, profession, "pending", assigned_template_id, now(), now(), 0))
+        except sqlite3.IntegrityError as e:
+            if "DUPLICATE_TRAINEE_PHONE" in str(e):
+                raise ValueError("DUPLICATE_TRAINEE_PHONE")
+            if "DUPLICATE_TRAINEE_NATIONAL_ID" in str(e):
+                raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
+            raise
+        return cur.lastrowid
+
+def update_trainee_data(tid, facility, name, phone, national_id, profession):
+    phone_norm = normalize_text(phone)
+    nid_norm = normalize_text(national_id)
+    with db() as c:
+        if phone_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(phone)=TRIM(?) AND id<>? LIMIT 1", (phone_norm, int(tid))).fetchone():
+            raise ValueError("DUPLICATE_TRAINEE_PHONE")
+        if nid_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(national_id)=TRIM(?) AND id<>? LIMIT 1", (nid_norm, int(tid))).fetchone():
+            raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
+        try:
+            c.execute("UPDATE trainees SET facility=?, name=?, phone=?, national_id=?, profession=?, updated_at=? WHERE id=?",
+                      (facility.strip(), normalize_text(name), phone_norm, nid_norm, profession, now(), int(tid)))
+        except sqlite3.IntegrityError as e:
+            if "DUPLICATE_TRAINEE_PHONE" in str(e):
+                raise ValueError("DUPLICATE_TRAINEE_PHONE")
+            if "DUPLICATE_TRAINEE_NATIONAL_ID" in str(e):
+                raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
+            raise
 
 def trainee_by_credentials(name, facility):
     with db() as c:
@@ -2522,35 +2580,80 @@ def admin_dashboard():
                         st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
-        sub_tabs = st.tabs(["الطلبات المعلقة", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن", "📄 طباعة وتعديل محضر التدريب"])
+        sub_tabs = st.tabs(["🆕 قبول المسجلين الجدد", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
         with sub_tabs[0]:
+            st.markdown("#### 🆕 قبول المسجلين الجدد وتعديل بياناتهم")
+            st.caption("يمكن البحث بالرقم القومي، تعديل بيانات الطلب قبل الاعتماد، ثم اختيار نموذج الاختبار وفق الهيكل الإداري.")
+            search_nid = st.text_input("🔎 بحث عن متدرب بالرقم القومي:", value="", max_chars=14, key="pending_nid_search")
+            search_digits = re.sub(r"\D", "", search_nid or "")
+            if search_digits:
+                with db() as c:
+                    search_rows = c.execute("SELECT * FROM trainees WHERE national_id=? ORDER BY id DESC", (search_digits,)).fetchall()
+                if search_rows:
+                    st.success(f"تم العثور على {len(search_rows)} سجل مطابق للرقم القومي.")
+                    for sr in search_rows:
+                        st.info(f"ID: {sr['id']} | الاسم: {sr['name']} | الهاتف: {sr['phone']} | الحالة: {sr['status']} | الجهة: {sr['facility']}")
+                elif len(search_digits) == 14:
+                    st.warning("لا يوجد متدرب مسجل بهذا الرقم القومي.")
+
             df_pend = trainees_df("pending", include_hidden=False)
             if df_pend.empty:
-                st.info("لا توجد طلبات معلقة حالياً.")
+                st.info("لا توجد طلبات تسجيل جديدة معلقة حالياً.")
             else:
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
-                        st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **الوظيفة:** {r.get('profession','')} | **الجهة:** {r['facility']}")
-                        with st.form(f"approve_form_{r['id']}"):
-                            applicable_tpls = [t for t in all_tpls_records if template_matches_facility(t, r['facility'])]
+                        st.markdown(f"### 👤 طلب تسجيل رقم {int(r['id'])}")
+                        with st.form(f"approve_edit_form_{int(r['id'])}"):
+                            edit_name = st.text_input("اسم المتدرب:", value=str(r.get('name') or ''), key=f"pend_name_{int(r['id'])}")
+                            ec1, ec2 = st.columns(2)
+                            with ec1:
+                                edit_nid = st.text_input("الرقم القومي:", value=str(r.get('national_id') or ''), max_chars=14, key=f"pend_nid_{int(r['id'])}")
+                            with ec2:
+                                edit_phone = st.text_input("رقم الهاتف / المعرف الرئيسي:", value=str(r.get('phone') or ''), key=f"pend_phone_{int(r['id'])}")
+                            ec3, ec4 = st.columns(2)
+                            with ec3:
+                                edit_prof = st.text_input("الوظيفة:", value=str(r.get('profession') or 'أخصائي الأمراض المتوطنة'), key=f"pend_prof_{int(r['id'])}")
+                            with ec4:
+                                edit_facility = st.text_input("جهة العمل / المنشأة:", value=str(r.get('facility') or ''), key=f"pend_fac_{int(r['id'])}")
+                            applicable_tpls = [t for t in all_tpls_records if template_matches_facility(t, edit_facility)]
                             applicable_labels = [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}" for t in applicable_tpls] or ["لا يوجد نموذج ضمن نطاق هذه الجهة"]
                             applicable_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}": t['id'] for t in applicable_tpls}
-                            chosen_tpl = st.selectbox("نموذج الاختبار المخصص حسب الهيكل الإداري:", applicable_labels, key=f"app_tpl_{r['id']}")
-                            c1, c2 = st.columns(2)
-                            with c1:
+                            chosen_tpl = st.selectbox("نموذج الاختبار المخصص حسب الهيكل الإداري:", applicable_labels, key=f"app_tpl_{int(r['id'])}")
+                            bc1, bc2, bc3 = st.columns(3)
+                            with bc1:
+                                save_data_btn = st.form_submit_button("💾 حفظ تعديل البيانات", use_container_width=True)
+                            with bc2:
                                 app_btn = st.form_submit_button("✅ اعتماد", use_container_width=True)
-                            with c2:
+                            with bc3:
                                 rej_btn = st.form_submit_button("❌ رفض", use_container_width=True)
-                            if app_btn:
-                                if applicable_map and chosen_tpl in applicable_map:
-                                    set_trainee_status_and_template(int(r['id']), "approved", applicable_map[chosen_tpl])
-                                    st.success("✅ تم الاعتماد بنجاح!")
-                                    st.rerun()
+                            if save_data_btn or app_btn:
+                                digits_nid = re.sub(r"\D", "", edit_nid or "")
+                                phone_norm = normalize_text(edit_phone)
+                                if not edit_name.strip() or not phone_norm or len(digits_nid) != 14 or not edit_facility.strip():
+                                    st.error("⚠ يجب استكمال الاسم والهاتف وجهة العمل، وأن يكون الرقم القومي 14 رقماً.")
                                 else:
-                                    st.warning("⚠ يرجى تحديد نموذج اختبار صحيح.")
+                                    try:
+                                        update_trainee_data(int(r['id']), edit_facility.strip(), edit_name.strip(), phone_norm, digits_nid, edit_prof.strip())
+                                        if app_btn:
+                                            if applicable_map and chosen_tpl in applicable_map:
+                                                set_trainee_status_and_template(int(r['id']), "approved", applicable_map[chosen_tpl])
+                                                st.success("✅ تم حفظ البيانات واعتماد المتدرب بنجاح.")
+                                                st.rerun()
+                                            else:
+                                                st.warning("⚠ تم حفظ البيانات، لكن يجب تحديد نموذج اختبار صحيح للاعتماد.")
+                                        else:
+                                            st.success("✅ تم حفظ تعديلات بيانات المتدرب بنجاح.")
+                                            st.rerun()
+                                    except ValueError as e:
+                                        if str(e) == "DUPLICATE_TRAINEE_PHONE":
+                                            st.error("❌ رقم الهاتف مستخدم بالفعل لمتدرب آخر، ولا يمكن تكراره.")
+                                        elif str(e) == "DUPLICATE_TRAINEE_NATIONAL_ID":
+                                            st.error("❌ الرقم القومي مستخدم بالفعل لمتدرب آخر، ولا يمكن تكراره.")
+                                        else:
+                                            st.error(f"تعذر حفظ البيانات: {e}")
                             if rej_btn:
                                 set_trainee_status_and_template(int(r['id']), "rejected", r.get('assigned_template_id'))
-                                st.warning("تم الرفض.")
+                                st.warning("تم رفض طلب التسجيل.")
                                 st.rerun()
         with sub_tabs[1]:
             df_all_tr = trainees_df(include_hidden=True)
@@ -2613,163 +2716,6 @@ def admin_dashboard():
                 trainee_exam_sheet_html = generate_trainee_exam_sheet_html(chosen_exam_session_id)
                 st.markdown("<br>", unsafe_allow_html=True)
                 render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
-        with sub_tabs[3]:
-            st.markdown("#### 📄 طباعة وتعديل محضر التدريب:")
-            with db() as c:
-                all_tpls_for_minutes = c.execute("SELECT * FROM exam_templates ORDER BY name ASC").fetchall()
-            if not all_tpls_for_minutes:
-                st.info("لا توجد نماذج اختبارات مسجلة لإنشاء محضر التدريب لها.")
-            else:
-                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_for_minutes}
-                sel_min_tpl_label = st.selectbox("اختر نموذج الاختبار لإنشاء أو تعديل محضر التدريب الخاص به:", list(minutes_tpl_map.keys()), key="sel_min_tpl")
-                chosen_min_tpl_id = minutes_tpl_map[sel_min_tpl_label]
-
-                with db() as c:
-                    existing_min = c.execute("SELECT * FROM training_minutes WHERE template_id=?", (chosen_min_tpl_id,)).fetchone()
-                    tpl_rec = c.execute("SELECT * FROM exam_templates WHERE id=?", (chosen_min_tpl_id,)).fetchone()
-
-                default_min_text = f"إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة، وفي إطار رفع كفاءة العاملين وتطوير الأداء الفني والمهني للكوادر الطبية والمعملية."
-                default_items_text = f"1. مناقشة المعايير والمهارات الفنية الخاصة بنموذج ({tpl_rec['name'] if tpl_rec else ''}).\n2. استعراض طرق الفحص والتشخيص ومكافحة الأمراض المتوطنة بدقة.\n3. التوجيه بالمتابعة المستمرة لكافة السجلات والتقارير الدورية."
-                default_goals_text = f"1. رفع كفاءة العاملين بوحدات الأمراض المتوطنة.\n2. ضمان جودة الفحوصات المعملية والتشخيصية.\n3. الالتزام بالتدابير الوقائية وتطبيق المعايير القياسية."
-                default_date_val = now_cairo().strftime('%Y-%m-%d')
-                default_facility_val = "الإدارة الصحية بأولاد صقر - وحدة الأمراض المتوطنة"
-
-                cur_min_text = existing_min["minutes_text"] if existing_min and existing_min["minutes_text"] else default_min_text
-                cur_items_text = existing_min["training_items"] if existing_min and existing_min["training_items"] else default_items_text
-                cur_goals_text = existing_min["training_goals"] if existing_min and existing_min["training_goals"] else default_goals_text
-                cur_date_val = existing_min["training_date"] if existing_min and existing_min["training_date"] else default_date_val
-                cur_facility_val = existing_min["facility_name"] if existing_min and existing_min["facility_name"] else default_facility_val
-
-                with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}"):
-                    st.markdown("##### ✏ تعديل محضر التدريب والبنود والأهداف:")
-                    edited_facility_input = st.text_input("اسم المنشأة / جهة العمل:", value=cur_facility_val)
-                    edited_date_input = st.text_input("تاريخ محضر التدريب:", value=cur_date_val)
-                    edited_minutes_input = st.text_area("1. محضر التدريب:", value=cur_min_text, height=120)
-                    edited_items_input = st.text_area("2. بنود التدريب:", value=cur_items_text, height=140)
-                    edited_goals_input = st.text_area("3. الأهداف من التدريب:", value=cur_goals_text, height=140)
-
-                    if st.form_submit_button("💾 حفظ التعديلات على محضر التدريب", use_container_width=True):
-                        with db() as c:
-                            c.execute("""INSERT INTO training_minutes(template_id, minutes_text, training_items, training_goals, training_date, facility_name, updated_at) VALUES(?,?,?,?,?,?,?)
-                                       ON CONFLICT(template_id) DO UPDATE SET minutes_text=excluded.minutes_text, training_items=excluded.training_items, training_goals=excluded.training_goals, training_date=excluded.training_date, facility_name=excluded.facility_name, updated_at=excluded.updated_at""",
-                                      (chosen_min_tpl_id, edited_minutes_input.strip(), edited_items_input.strip(), edited_goals_input.strip(), edited_date_input.strip(), edited_facility_input.strip(), now()))
-                        st.success("✅ تم حفظ وتعديل محضر التدريب بنجاح!")
-                        st.rerun()
-
-                st.markdown("---")
-                st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
-                print_sett_m = get_print_settings()
-                header_right_txt = print_sett_m.get('header_text', '')
-                line_sp_m = print_sett_m.get('line_spacing', 1.25)
-
-                final_min_t = edited_minutes_input if 'edited_minutes_input' in locals() else cur_min_text
-                final_items_t = edited_items_input if 'edited_items_input' in locals() else cur_items_text
-                final_goals_t = edited_goals_input if 'edited_goals_input' in locals() else cur_goals_text
-                final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
-                final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
-
-                days_ar = {
-                    'Monday': 'الإثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
-                    'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت', 'Sunday': 'الأحد'
-                }
-                day_name_str = ""
-                try:
-                    parsed_dt = datetime.strptime(final_date_t.strip(), "%Y-%m-%d")
-                    eng_day = parsed_dt.strftime("%A")
-                    day_name_str = days_ar.get(eng_day, "")
-                except:
-                    pass
-                
-                date_display_block = (f"<b>اليوم:</b> {day_name_str}<br>" if day_name_str else "") + f"<b>التاريخ:</b> {final_date_t}"
-
-                signatures_rows_html = ""
-                for i in range(1, 7):
-                    signatures_rows_html += f"""
-                    <tr>
-                        <td style="border: 1px solid #059669; padding: 4px; text-align: center; font-size: 10pt; width: 12%;">{i}</td>
-                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 50%;">&nbsp;</td>
-                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 38%;">&nbsp;</td>
-                    </tr>
-                    """
-
-                side_by_side_tables_html = f"""
-                <div style="display: flex; flex-direction: row; gap: 4mm; width: 100%; margin-top: 3mm; margin-bottom: 3mm; page-break-inside: avoid; break-inside: avoid;">
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; color: #047857; font-size: 10.5pt; margin-bottom: 1mm; text-align: center;">كشف توقيع المتدربين (أ)</div>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background-color: #059669; color: white;">
-                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">م</th>
-                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">اسم المتدرب</th>
-                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">الوظيفة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {signatures_rows_html}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; color: #047857; font-size: 10.5pt; margin-bottom: 1mm; text-align: center;">كشف توقيع المتدربين (ب)</div>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background-color: #059669; color: white;">
-                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">م</th>
-                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">اسم المتدرب</th>
-                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">الوظيفة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {signatures_rows_html}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                """
-
-                minutes_print_html = f"""
-                <!DOCTYPE html>
-                <html lang="ar" dir="rtl">
-                <head>
-                <meta charset="UTF-8">
-                <style>
-                @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
-                body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
-                .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
-                .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
-                h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 0 0 2mm 0 !important; }}
-                .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
-                .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 12pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
-                .section-title {{ font-weight: bold; color: #047857; font-size: 13pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
-                </style>
-                </head>
-                <body>
-                <div class="report-wrapper">
-                    <div class="first-page-header">
-                        <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
-                        <div>{render_logos_html()}</div>
-                    </div>
-                    <h2>محضر تدريب</h2>
-                    <div class="meta-info">
-                        <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
-                        <div style="text-align: left;">{date_display_block}</div>
-                    </div>
-                    
-                    <div class="section-title">1. محضر التدريب</div>
-                    <div class="section-box">{esc(final_min_t)}</div>
-
-                    <div class="section-title">2. بنود التدريب</div>
-                    <div class="section-box">{esc(final_items_t)}</div>
-
-                    <div class="section-title">3. الأهداف من التدريب</div>
-                    <div class="section-box">{esc(final_goals_t)}</div>
-
-                    {side_by_side_tables_html}
-                </div>
-                </body>
-                </html>
-                """
-                render_print_button_only(minutes_print_html, f"محضر تدريب نموذج رقم {chosen_min_tpl_id}")
 
     elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
         st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (مع إمكانية الحذف وإعادة الترتيب التلقائي للـ ID)")
@@ -3330,7 +3276,7 @@ def admin_dashboard():
 
     elif selected_menu == "📈 خطط العمل":
         st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بالأمراض المتوطنة (مع إمكانية الحذف)")
-        plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
+        plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة", "📄 محاضر التدريب"])
         with plan_tabs[0]:
             st.markdown("#### 🏥 تحديد نطاق خطة العمل حسب الهيكل الإداري")
             plan_scope = hierarchy_scope_widget("نطاق خطة العمل:", "plan_scope_v12")
@@ -3457,6 +3403,164 @@ def admin_dashboard():
                         c.execute("DELETE FROM action_plans WHERE id=?", (chosen_plan_id,))
                     st.success("✅ تم حذف خطة العمل بنجاح!")
                     st.rerun()
+
+        with plan_tabs[2]:
+            st.markdown("#### 📄 طباعة وتعديل محضر التدريب:")
+            with db() as c:
+                all_tpls_for_minutes = c.execute("SELECT * FROM exam_templates ORDER BY name ASC").fetchall()
+            if not all_tpls_for_minutes:
+                st.info("لا توجد نماذج اختبارات مسجلة لإنشاء محضر التدريب لها.")
+            else:
+                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_for_minutes}
+                sel_min_tpl_label = st.selectbox("اختر نموذج الاختبار لإنشاء أو تعديل محضر التدريب الخاص به:", list(minutes_tpl_map.keys()), key="sel_min_tpl")
+                chosen_min_tpl_id = minutes_tpl_map[sel_min_tpl_label]
+
+                with db() as c:
+                    existing_min = c.execute("SELECT * FROM training_minutes WHERE template_id=?", (chosen_min_tpl_id,)).fetchone()
+                    tpl_rec = c.execute("SELECT * FROM exam_templates WHERE id=?", (chosen_min_tpl_id,)).fetchone()
+
+                default_min_text = f"إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة، وفي إطار رفع كفاءة العاملين وتطوير الأداء الفني والمهني للكوادر الطبية والمعملية."
+                default_items_text = f"1. مناقشة المعايير والمهارات الفنية الخاصة بنموذج ({tpl_rec['name'] if tpl_rec else ''}).\n2. استعراض طرق الفحص والتشخيص ومكافحة الأمراض المتوطنة بدقة.\n3. التوجيه بالمتابعة المستمرة لكافة السجلات والتقارير الدورية."
+                default_goals_text = f"1. رفع كفاءة العاملين بوحدات الأمراض المتوطنة.\n2. ضمان جودة الفحوصات المعملية والتشخيصية.\n3. الالتزام بالتدابير الوقائية وتطبيق المعايير القياسية."
+                default_date_val = now_cairo().strftime('%Y-%m-%d')
+                default_facility_val = "الإدارة الصحية بأولاد صقر - وحدة الأمراض المتوطنة"
+
+                cur_min_text = existing_min["minutes_text"] if existing_min and existing_min["minutes_text"] else default_min_text
+                cur_items_text = existing_min["training_items"] if existing_min and existing_min["training_items"] else default_items_text
+                cur_goals_text = existing_min["training_goals"] if existing_min and existing_min["training_goals"] else default_goals_text
+                cur_date_val = existing_min["training_date"] if existing_min and existing_min["training_date"] else default_date_val
+                cur_facility_val = existing_min["facility_name"] if existing_min and existing_min["facility_name"] else default_facility_val
+
+                with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}"):
+                    st.markdown("##### ✏ تعديل محضر التدريب والبنود والأهداف:")
+                    edited_facility_input = st.text_input("اسم المنشأة / جهة العمل:", value=cur_facility_val)
+                    edited_date_input = st.text_input("تاريخ محضر التدريب:", value=cur_date_val)
+                    edited_minutes_input = st.text_area("1. محضر التدريب:", value=cur_min_text, height=120)
+                    edited_items_input = st.text_area("2. بنود التدريب:", value=cur_items_text, height=140)
+                    edited_goals_input = st.text_area("3. الأهداف من التدريب:", value=cur_goals_text, height=140)
+
+                    if st.form_submit_button("💾 حفظ التعديلات على محضر التدريب", use_container_width=True):
+                        with db() as c:
+                            c.execute("""INSERT INTO training_minutes(template_id, minutes_text, training_items, training_goals, training_date, facility_name, updated_at) VALUES(?,?,?,?,?,?,?)
+                                       ON CONFLICT(template_id) DO UPDATE SET minutes_text=excluded.minutes_text, training_items=excluded.training_items, training_goals=excluded.training_goals, training_date=excluded.training_date, facility_name=excluded.facility_name, updated_at=excluded.updated_at""",
+                                      (chosen_min_tpl_id, edited_minutes_input.strip(), edited_items_input.strip(), edited_goals_input.strip(), edited_date_input.strip(), edited_facility_input.strip(), now()))
+                        st.success("✅ تم حفظ وتعديل محضر التدريب بنجاح!")
+                        st.rerun()
+
+                st.markdown("---")
+                st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
+                print_sett_m = get_print_settings()
+                header_right_txt = print_sett_m.get('header_text', '')
+                line_sp_m = print_sett_m.get('line_spacing', 1.25)
+
+                final_min_t = edited_minutes_input if 'edited_minutes_input' in locals() else cur_min_text
+                final_items_t = edited_items_input if 'edited_items_input' in locals() else cur_items_text
+                final_goals_t = edited_goals_input if 'edited_goals_input' in locals() else cur_goals_text
+                final_date_t = edited_date_input if 'edited_date_input' in locals() else cur_date_val
+                final_fac_t = edited_facility_input if 'edited_facility_input' in locals() else cur_facility_val
+
+                days_ar = {
+                    'Monday': 'الإثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
+                    'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت', 'Sunday': 'الأحد'
+                }
+                day_name_str = ""
+                try:
+                    parsed_dt = datetime.strptime(final_date_t.strip(), "%Y-%m-%d")
+                    eng_day = parsed_dt.strftime("%A")
+                    day_name_str = days_ar.get(eng_day, "")
+                except:
+                    pass
+                
+                date_display_block = (f"<b>اليوم:</b> {day_name_str}<br>" if day_name_str else "") + f"<b>التاريخ:</b> {final_date_t}"
+
+                signatures_rows_html = ""
+                for i in range(1, 7):
+                    signatures_rows_html += f"""
+                    <tr>
+                        <td style="border: 1px solid #059669; padding: 4px; text-align: center; font-size: 10pt; width: 12%;">{i}</td>
+                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 50%;">&nbsp;</td>
+                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 38%;">&nbsp;</td>
+                    </tr>
+                    """
+
+                side_by_side_tables_html = f"""
+                <div style="display: flex; flex-direction: row; gap: 4mm; width: 100%; margin-top: 3mm; margin-bottom: 3mm; page-break-inside: avoid; break-inside: avoid;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #047857; font-size: 10.5pt; margin-bottom: 1mm; text-align: center;">كشف توقيع المتدربين (أ)</div>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #059669; color: white;">
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">م</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">اسم المتدرب</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">الوظيفة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {signatures_rows_html}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #047857; font-size: 10.5pt; margin-bottom: 1mm; text-align: center;">كشف توقيع المتدربين (ب)</div>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #059669; color: white;">
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">م</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">اسم المتدرب</th>
+                                    <th style="border: 1px solid #059669; padding: 5px; font-size: 10pt; text-align: center;">الوظيفة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {signatures_rows_html}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                """
+
+                minutes_print_html = f"""
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                <meta charset="UTF-8">
+                <style>
+                @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+                body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
+                .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
+                .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
+                h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 0 0 2mm 0 !important; }}
+                .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
+                .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 12pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
+                .section-title {{ font-weight: bold; color: #047857; font-size: 13pt; margin-bottom: 1mm; border-bottom: 1px dashed #059669; padding-bottom: 1mm; }}
+                </style>
+                </head>
+                <body>
+                <div class="report-wrapper">
+                    <div class="first-page-header">
+                        <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
+                        <div>{render_logos_html()}</div>
+                    </div>
+                    <h2>محضر تدريب</h2>
+                    <div class="meta-info">
+                        <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
+                        <div style="text-align: left;">{date_display_block}</div>
+                    </div>
+                    
+                    <div class="section-title">1. محضر التدريب</div>
+                    <div class="section-box">{esc(final_min_t)}</div>
+
+                    <div class="section-title">2. بنود التدريب</div>
+                    <div class="section-box">{esc(final_items_t)}</div>
+
+                    <div class="section-title">3. الأهداف من التدريب</div>
+                    <div class="section-box">{esc(final_goals_t)}</div>
+
+                    {side_by_side_tables_html}
+                </div>
+                </body>
+                </html>
+                """
+                render_print_button_only(minutes_print_html, f"محضر تدريب نموذج رقم {chosen_min_tpl_id}")
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
