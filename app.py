@@ -265,14 +265,14 @@ def reindex_hierarchical_facilities():
 def reindex_trainees():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT id, facility, name, phone, national_id, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM trainees")
         c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["facility"], r["name"], r["phone"], r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
+            c.execute("INSERT INTO trainees(id, facility, name, phone, national_id, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r["national_id"] if r["national_id"] is not None else "", r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
             id_mapping[old_id] = new_id
         for old_id, new_id in id_mapping.items():
             c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
@@ -402,7 +402,8 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 facility TEXT NOT NULL,
                 name TEXT NOT NULL,
-                phone TEXT,
+                phone TEXT NOT NULL,
+                national_id TEXT NOT NULL DEFAULT '',
                 profession TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة',
                 status TEXT NOT NULL DEFAULT 'pending',
                 assigned_template_id INTEGER,
@@ -512,6 +513,8 @@ def init_db():
     for col_table, col_name, col_type in [
         ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
         ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة'"),
+        ("trainees", "phone", "TEXT NOT NULL DEFAULT ''"),
+        ("trainees", "national_id", "TEXT NOT NULL DEFAULT ''"),
         ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
         ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
         ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
@@ -718,7 +721,8 @@ def ensure_admin():
             c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,permissions_json,active,created_at) VALUES(?,?,?,?,?,?)",
                       ("admin", hash_password("admin"), "admin", json.dumps(all_modules, ensure_ascii=False), 1, now()))
         else:
-            c.execute("UPDATE users SET permissions_json=? WHERE role='admin'", (json.dumps(all_modules, ensure_ascii=False),))
+            # أي حساب يحمل دور admin هو مالك المنصة، وتُعاد له جميع الصلاحيات تلقائياً.
+            c.execute("UPDATE users SET permissions_json=?, active=1 WHERE role='admin'", (json.dumps(all_modules, ensure_ascii=False),))
 
 ensure_admin()
 
@@ -730,10 +734,10 @@ def login_user(u, p):
             return dict(user)
     return None
 
-def create_trainee(facility, name, phone, profession, assigned_template_id=None):
+def create_trainee(facility, name, phone, national_id, profession, assigned_template_id=None):
     with db() as c:
-        cur = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
-                        (facility, normalize_text(name), normalize_text(phone), profession, "pending", assigned_template_id, now(), now(), 0))
+        cur = c.execute("INSERT INTO trainees(facility,name,phone,national_id,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (facility, normalize_text(name), normalize_text(phone), normalize_text(national_id), profession, "pending", assigned_template_id, now(), now(), 0))
         tid = cur.lastrowid
         return tid
 
@@ -741,6 +745,21 @@ def trainee_by_credentials(name, facility):
     with db() as c:
         r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active') AND hidden=0", (normalize_text(name), facility)).fetchone()
         return dict(r) if r else None
+
+def trainee_by_phone(phone):
+    phone_norm = normalize_text(phone)
+    if not phone_norm:
+        return None
+    with db() as c:
+        r = c.execute("SELECT * FROM trainees WHERE phone=? AND status IN ('approved','active') AND hidden=0 LIMIT 1", (phone_norm,)).fetchone()
+        return dict(r) if r else None
+
+def phone_exists(phone):
+    phone_norm = normalize_text(phone)
+    if not phone_norm:
+        return False
+    with db() as c:
+        return c.execute("SELECT 1 FROM trainees WHERE phone=? LIMIT 1", (phone_norm,)).fetchone() is not None
 
 def set_trainee_status_and_template(tid, status, assigned_template_id):
     with db() as c:
@@ -754,7 +773,7 @@ def set_bulk_template_for_all(assigned_template_id):
 
 def trainees_df(status=None, include_hidden=False):
     with db() as c:
-        q = "SELECT id, facility, name, phone, profession, status, assigned_template_id, created_at, approved_at, hidden FROM trainees"
+        q = "SELECT id, facility, name, phone, national_id, profession, status, assigned_template_id, created_at, approved_at, hidden FROM trainees"
         conditions = []
         args = []
         if status:
@@ -1695,59 +1714,76 @@ def login_portal():
         if st.button("🔍 التحقق من شهادة (QR)", use_container_width=True):
             st.session_state.show_verification_portal = True
             st.rerun()
+
     hier_data = get_hierarchical_data(include_hidden=False)
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"])
-    with st.form("trainee_request_hierarchical"):
-        st.markdown("##### 📍 الجهة الإدارية التابع لها:")
-        st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
-        st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True)
-        if not hier_data:
-            st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
-            facility_final_str = ""
-        else:
-            govs_list = sorted(list(set(item["governorate"] for item in hier_data)))
-            sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + govs_list, index=0)
-            filtered_auths = sorted(list(set(item["authority"] for item in hier_data if sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov)))
-            sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + filtered_auths, index=0)
-            filtered_centers = sorted(list(set(item["center"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth))))
-            sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers, index=0)
-            filtered_admins = sorted(list(set(item["administration"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center))))
-            sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + filtered_admins, index=0)
-            filtered_facs = sorted(list(set(item["facility_name"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center) and (sel_admin == "-- اختر الإدارة --" or item["administration"] == sel_admin))))
-            sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + filtered_facs, index=0)
-            if sel_gov != "-- اختر المحافظة --" and sel_auth != "-- اختر الهيئة --" and sel_center != "-- اختر المركز --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --":
-                facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_gov} - {sel_auth} - {sel_center} - {sel_admin} - {sel_fac}"
-            else:
+
+    reg_tab, exam_tab = st.tabs(["📝 تسجيل لأول مرة", "🔐 التسجيل ودخول الامتحان"])
+
+    with reg_tab:
+        st.markdown("### 📝 تسجيل الممتحن لأول مرة")
+        st.info("أدخل بياناتك مرة واحدة. بعد إرسال الطلب سيظهر للإدارة في قسم **قبول تسجيل الجدد**، ولا يمكن دخول الامتحان قبل اعتماد التسجيل.")
+        with st.form("trainee_first_registration"):
+            st.markdown("##### 📍 الجهة الإدارية التابع لها:")
+            st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
+            st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True)
+            if not hier_data:
+                st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
                 facility_final_str = ""
-        name = st.text_input("الاسم الرباعي:", value="")
-        phone = st.text_input("رقم الهاتف:", value="")
-        selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
-        with db() as c:
-            all_tpls_opts = {f"{row['name']} ({row['exam_type']})": row["id"] for row in c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()}
-        tpl_choices_list = ["-- اختر نموذج الاختبار --"] + list(all_tpls_opts.keys()) if all_tpls_opts else ["لا توجد نماذج اختبارات مسجلة"]
-        selected_req_tpl_name = st.selectbox("اختر نموذج الاختبار:", tpl_choices_list, index=0)
-        if st.form_submit_button("إرسال الطلب والدخول", use_container_width=True):
-            if not facility_final_str:
-                st.warning("⚠ يرجى استكمال اختيار جميع حقول الهيكل الإداري المتسلسلة بدقة.")
-            elif selected_req_tpl_name == "-- اختر نموذج الاختبار --":
-                st.warning("⚠ يرجى اختيار نموذج الاختبار.")
-            elif name.strip() and all_tpls_opts:
-                assigned_tpl_id = all_tpls_opts.get(selected_req_tpl_name)
-                existing = trainee_by_credentials(name, facility_final_str)
-                if existing:
-                    st.session_state.trainee_id = existing["id"]
-                    st.session_state.trainee_name = existing["name"]
-                    st.success("تم الدخول بنجاح...")
-                    st.rerun()
-                else:
-                    tid = create_trainee(facility_final_str, name, phone, selected_profession, assigned_tpl_id)
-                    st.session_state.trainee_id = tid
-                    st.session_state.trainee_name = name
-                    st.success("✅ تم التسجيل بنجاح!")
-                    st.rerun()
             else:
-                st.warning("الرجاء إدخال البيانات المطلوبة.")
+                govs_list = sorted(set(item["governorate"] for item in hier_data))
+                sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + govs_list)
+                filtered_auths = sorted(set(item["authority"] for item in hier_data if sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov))
+                sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + filtered_auths)
+                filtered_centers = sorted(set(item["center"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth)))
+                sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers)
+                filtered_admins = sorted(set(item["administration"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center)))
+                sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + filtered_admins)
+                filtered_facs = sorted(set(item["facility_name"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center) and (sel_admin == "-- اختر الإدارة --" or item["administration"] == sel_admin)))
+                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + filtered_facs)
+                facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_gov} - {sel_auth} - {sel_center} - {sel_admin} - {sel_fac}" if all(x != y for x,y in [(sel_gov,"-- اختر المحافظة --"),(sel_auth,"-- اختر الهيئة --"),(sel_center,"-- اختر المركز --"),(sel_admin,"-- اختر الإدارة --"),(sel_fac,"-- اختر المنشأة --")]) else ""
+            name = st.text_input("الاسم الرباعي:")
+            national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
+            phone = st.text_input("رقم الهاتف:", help="رقم الهاتف هو المعرف الرئيسي والفريد بعد اعتماد التسجيل.")
+            selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
+            if st.form_submit_button("📨 إرسال طلب التسجيل", use_container_width=True):
+                digits_nid = re.sub(r"\D", "", national_id)
+                phone_norm = normalize_text(phone)
+                if not facility_final_str:
+                    st.warning("⚠ يرجى استكمال اختيار الهيكل الإداري بالكامل.")
+                elif not name.strip() or not phone_norm or not digits_nid:
+                    st.warning("⚠ يرجى إدخال الاسم والرقم القومي ورقم الهاتف.")
+                elif len(digits_nid) != 14:
+                    st.warning("⚠ الرقم القومي يجب أن يتكون من 14 رقماً.")
+                elif phone_exists(phone_norm):
+                    st.error("❌ رقم الهاتف مستخدم بالفعل لممتحن مسجل. رقم الهاتف يجب أن يكون فريداً.")
+                else:
+                    with db() as c:
+                        nid_exists = c.execute("SELECT 1 FROM trainees WHERE national_id=? LIMIT 1", (digits_nid,)).fetchone()
+                    if nid_exists:
+                        st.error("❌ الرقم القومي مستخدم بالفعل في تسجيل سابق.")
+                    else:
+                        tid = create_trainee(facility_final_str, name, phone_norm, digits_nid, selected_profession, None)
+                        st.success(f"✅ تم إرسال طلب التسجيل بنجاح. رقم الطلب: {tid}. انتظر اعتماد الإدارة.")
+
+    with exam_tab:
+        st.markdown("### 🔐 التسجيل ودخول الامتحان")
+        st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف فقط** لطلب دخول الامتحان.")
+        with st.form("trainee_phone_login"):
+            phone_login = st.text_input("رقم الهاتف:", placeholder="أدخل رقم الهاتف المسجل")
+            if st.form_submit_button("🚪 طلب دخول الامتحان", use_container_width=True):
+                tr = trainee_by_phone(phone_login)
+                if not tr:
+                    st.error("❌ لم يتم العثور على تسجيل معتمد بهذا الرقم. تأكد من الرقم أو انتظر اعتماد الإدارة.")
+                elif not tr.get("assigned_template_id"):
+                    st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
+                else:
+                    st.session_state.trainee_id = tr["id"]
+                    st.session_state.trainee_name = tr["name"]
+                    st.success("✅ تم التحقق من رقم الهاتف بنجاح. جاري الانتقال إلى الامتحان...")
+                    st.rerun()
+
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
             u = st.text_input("اسم المستخدم", value="")
@@ -1759,24 +1795,32 @@ def login_portal():
                     st.session_state.username = user["username"]
                     st.session_state.role = user["role"]
                     try:
-                        st.session_state.permissions = json.loads(user["permissions_json"]) if user["permissions_json"] else []
+                        stored_permissions = json.loads(user["permissions_json"]) if user["permissions_json"] else []
                     except:
-                        st.session_state.permissions = list(ALL_MENU_MODULES.keys())
+                        stored_permissions = []
+                    # المالك لا يعتمد على permissions_json للوصول؛ جميع الوحدات متاحة له دائماً.
+                    st.session_state.permissions = list(ALL_MENU_MODULES.keys()) if user["role"] == "admin" else stored_permissions
                     st.rerun()
                 else:
-                    st.error("بيانات غير صحيحة.")
+                    st.error("بيانات الدخول غير صحيحة.")
 
-def report_chart_html(title, labels, values, unit=""):
-    """Printable, self-contained horizontal bar chart for report printing."""
-    vals = [float(v or 0) for v in values]
-    max_v = max(vals) if vals else 1.0
-    if max_v <= 0: max_v = 1.0
-    rows = []
-    for label, val in zip(labels, vals):
-        width = max(0.0, min(100.0, (val / max_v) * 100.0))
-        value_text = f"{val:.1f}" if not float(val).is_integer() else f"{int(val)}"
-        rows.append(f"<div style='margin:8px 0;'><div style='display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:9.5pt;'><span>{esc(label)}</span><span>{value_text}{esc(unit)}</span></div><div style='height:10mm;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px;overflow:hidden;margin-top:2px;'><div style='height:100%;width:{width:.2f}%;background:#059669;'></div></div></div>")
-    return f"<div style='font-family:Cairo,sans-serif;direction:rtl;border:1px solid #059669;border-radius:6px;padding:10px;margin:8px 0;page-break-inside:avoid;'><h3 style='text-align:center;color:#047857;margin:0 0 10px;font-size:12pt;'>{esc(title)}</h3>{''.join(rows)}</div>"
+def is_owner():
+    """المالك/مدير النظام يمتلك صلاحية عليا على جميع أجزاء البرنامج."""
+    return str(st.session_state.get("role", "")).strip().lower() == "admin"
+
+def has_permission(module_key):
+    """فحص مركزي للصلاحيات: المالك يتجاوز أي قائمة صلاحيات محفوظة."""
+    if is_owner():
+        return True
+    perms = st.session_state.get("permissions") or []
+    return module_key in perms
+
+def require_permission(module_key):
+    """منع الوصول المباشر لأي قسم عند عدم امتلاك الصلاحية."""
+    if has_permission(module_key):
+        return True
+    st.error("⛔ ليس لديك صلاحية للوصول إلى هذا القسم.")
+    return False
 
 def admin_dashboard():
     header()
@@ -1791,8 +1835,11 @@ def admin_dashboard():
             st.session_state.permissions = []
             st.rerun()
     all_modules_list = list(ALL_MENU_MODULES.keys())
-    user_perms = st.session_state.permissions if st.session_state.role != "admin" else all_modules_list
-    available_menus = [m for m in all_modules_list if m in user_perms]
+    # المالك يرى كل أجزاء النظام دائماً، حتى لو كانت permissions_json قديمة أو ناقصة.
+    if is_owner():
+        available_menus = all_modules_list
+    else:
+        available_menus = [m for m in all_modules_list if has_permission(m)]
     if not available_menus:
         st.warning("⚠ لا توجد صلاحيات مصرحة.")
         return
