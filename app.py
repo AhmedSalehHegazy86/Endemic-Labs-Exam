@@ -297,14 +297,14 @@ def reindex_questions():
 def reindex_templates():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at FROM exam_templates ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility FROM exam_templates ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM exam_templates")
         c.execute("DELETE FROM sqlite_sequence WHERE name='exam_templates'")
         t_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"]))
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"], r["scope_governorate"] or "", r["scope_authority"] or "", r["scope_center"] or "", r["scope_administration"] or "", r["scope_facility"] or ""))
             t_mapping[old_id] = new_id
         for old_id, new_id in t_mapping.items():
             c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
@@ -391,7 +391,12 @@ def init_db():
                 start_time TEXT,
                 end_time TEXT,
                 active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                scope_governorate TEXT NOT NULL DEFAULT '',
+                scope_authority TEXT NOT NULL DEFAULT '',
+                scope_center TEXT NOT NULL DEFAULT '',
+                scope_administration TEXT NOT NULL DEFAULT '',
+                scope_facility TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS trainees (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -456,7 +461,12 @@ def init_db():
                 time_frame_type TEXT NOT NULL,
                 start_date TEXT,
                 end_date TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                scope_governorate TEXT NOT NULL DEFAULT '',
+                scope_authority TEXT NOT NULL DEFAULT '',
+                scope_center TEXT NOT NULL DEFAULT '',
+                scope_administration TEXT NOT NULL DEFAULT '',
+                scope_facility TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS print_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -507,6 +517,16 @@ def init_db():
         ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
         ("exam_templates", "start_time", "TEXT"),
         ("exam_templates", "end_time", "TEXT"),
+        ("exam_templates", "scope_governorate", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "scope_authority", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "scope_center", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "scope_administration", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_governorate", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_authority", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_center", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_administration", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "start_date", "TEXT"),
         ("action_plans", "end_date", "TEXT"),
         ("print_settings", "line_spacing", "REAL NOT NULL DEFAULT 1.25"),
@@ -616,6 +636,80 @@ def get_hierarchical_data(include_hidden=False):
         rows = c.execute(q).fetchall()
         return [dict(r) for r in rows] if rows else []
 
+def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:", key="hier_scope"):
+    """Return a hierarchical scope as five fields. Empty fields mean all values at that level."""
+    rows = get_hierarchical_data(include_hidden=False)
+    levels = [
+        ("كل الهيكل الإداري", ""),
+        ("المحافظة", "governorate"),
+        ("الهيئة", "authority"),
+        ("المركز", "center"),
+        ("الإدارة", "administration"),
+        ("الوحدة / المنشأة", "facility_name"),
+    ]
+    level_label = st.selectbox(label, [x[0] for x in levels], key=f"{key}_level")
+    level_field = dict(levels)[level_label]
+    if not level_field:
+        return {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
+    scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
+    field_map = [
+        ("governorate", "scope_governorate", "المحافظة"),
+        ("authority", "scope_authority", "الهيئة"),
+        ("center", "scope_center", "المركز"),
+        ("administration", "scope_administration", "الإدارة"),
+        ("facility_name", "scope_facility", "الوحدة / المنشأة"),
+    ]
+    current = rows
+    for src, dst, title in field_map:
+        if src == level_field or any(src == x[0] for x in field_map[:[x[0] for x in field_map].index(level_field)+1]):
+            vals = sorted({str(r.get(src) or "").strip() for r in current if str(r.get(src) or "").strip()})
+            if not vals:
+                st.warning(f"لا توجد بيانات متاحة لمستوى {title} في الهيكل الإداري.")
+                return scope
+            chosen = st.selectbox(title, vals, key=f"{key}_{src}")
+            scope[dst] = chosen
+            current = [r for r in current if str(r.get(src) or "").strip() == chosen]
+        if src == level_field:
+            break
+    return scope
+
+def hierarchy_scope_sql(alias, scope):
+    conditions, args = [], []
+    mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_center","center"),("scope_administration","administration"),("scope_facility","facility_name")]
+    scoped = False
+    for scope_key, col in mapping:
+        val = str(scope.get(scope_key) or "").strip()
+        if val:
+            scoped = True
+            conditions.append(f"{alias}.{col}=?")
+            args.append(val)
+    if scoped:
+        conditions.insert(0, f"COALESCE({alias}.hidden,0)=0")
+    return (" AND ".join(conditions) if conditions else "1=1"), args
+
+def template_scope_text(row):
+    parts = [row.get("scope_governorate"), row.get("scope_authority"), row.get("scope_center"), row.get("scope_administration"), row.get("scope_facility")]
+    parts = [str(x).strip() for x in parts if str(x or "").strip()]
+    return "كل الهيكل الإداري" if not parts else " ← ".join(parts)
+
+def template_matches_facility(template_row, facility_name):
+    """Check whether a template scope contains the trainee facility."""
+    t = dict(template_row) if not isinstance(template_row, dict) else template_row
+    vals = {
+        "governorate": t.get("scope_governorate") or "",
+        "authority": t.get("scope_authority") or "",
+        "center": t.get("scope_center") or "",
+        "administration": t.get("scope_administration") or "",
+        "facility_name": t.get("scope_facility") or "",
+    }
+    if not any(vals.values()):
+        return True
+    with db() as c:
+        h = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 LIMIT 1", (facility_name,)).fetchone()
+    if not h:
+        return False
+    return all((not v) or str(h[k] or "").strip() == str(v).strip() for k, v in vals.items())
+
 def ensure_admin():
     with db() as c:
         u = c.execute("SELECT * FROM users WHERE role='admin'").fetchone()
@@ -701,6 +795,20 @@ def start_session(trainee_id, template_id):
         if not t:
             raise ValueError("نموذج الاختبار غير موجود.")
         t_dict = dict(t)
+        trainee_row = c.execute("SELECT facility FROM trainees WHERE id=? AND hidden=0", (trainee_id,)).fetchone()
+        if not trainee_row:
+            raise ValueError("المتدرب غير موجود أو غير متاح حالياً.")
+        scope_values = {
+            "governorate": t_dict.get("scope_governorate") or "",
+            "authority": t_dict.get("scope_authority") or "",
+            "center": t_dict.get("scope_center") or "",
+            "administration": t_dict.get("scope_administration") or "",
+            "facility_name": t_dict.get("scope_facility") or "",
+        }
+        if any(scope_values.values()):
+            h_row = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 LIMIT 1", (trainee_row["facility"],)).fetchone()
+            if not h_row or not all((not v) or str(h_row[k] or "").strip() == str(v).strip() for k, v in scope_values.items()):
+                raise ValueError("هذا النموذج غير مخصص للجهة الإدارية التابعة لك.")
         start_t_str = t_dict.get("start_time")
         end_t_str = t_dict.get("end_time")
         if start_t_str and end_t_str:
@@ -1693,6 +1801,20 @@ def admin_dashboard():
     selected_menu = st.session_state.active_admin_tab
     st.markdown("---")
     
+
+
+def report_chart_html(title, labels, values, unit=""):
+    """Printable, self-contained horizontal bar chart for report printing."""
+    vals = [float(v or 0) for v in values]
+    max_v = max(vals) if vals else 1.0
+    if max_v <= 0: max_v = 1.0
+    rows = []
+    for label, val in zip(labels, vals):
+        width = max(0.0, min(100.0, (val / max_v) * 100.0))
+        value_text = f"{val:.1f}" if not float(val).is_integer() else f"{int(val)}"
+        rows.append(f"<div style='margin:8px 0;'><div style='display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:9.5pt;'><span>{esc(label)}</span><span>{value_text}{esc(unit)}</span></div><div style='height:10mm;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px;overflow:hidden;margin-top:2px;'><div style='height:100%;width:{width:.2f}%;background:#059669;'></div></div></div>")
+    return f"<div style='font-family:Cairo,sans-serif;direction:rtl;border:1px solid #059669;border-radius:6px;padding:10px;margin:8px 0;page-break-inside:avoid;'><h3 style='text-align:center;color:#047857;margin:0 0 10px;font-size:12pt;'>{esc(title)}</h3>{''.join(rows)}</div>"
+
     if selected_menu == "📊 لوحة التحكم":
         st.subheader("📊 لوحة المؤشرات العامة والتحليلات الشاملة للأمراض المتوطنة")
         with db() as c:
@@ -1864,22 +1986,12 @@ def admin_dashboard():
             st.download_button("📥 تحميل تقرير وتوزيع التخصصات (.xlsx)", data=out_prof_bytes.getvalue(), file_name="professions_breakdown.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
-        st.subheader("🖨 ضبط اعدادات الطباعة و الهوامش للتقارير العامة (مع إمكانية رفع الصور والشعارات)")
+        st.subheader("🖨 ضبط إعدادات الطباعة للتقارير العامة (الهوامش تلقائية)")
         current_set = get_print_settings()
         with st.form("print_settings_form"):
             header_text_val = st.text_area("نص ترويسة الجهة العامة (أعلى يمين التقارير):", value=current_set.get("header_text", "جمهورية مصر العربية"))
-            st.markdown("#### 📏 هوامش الورق المطبوع للتقارير العامة (مقاس A4):")
-            col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-            with col_m1:
-                m_top = st.text_input("الهامش العلوي:", value=current_set["margin_top"])
-            with col_m2:
-                m_bot = st.text_input("الهامش السفلي:", value="auto (تلقائي بنهاية النص)", disabled=True)
-            with col_m3:
-                m_right = st.text_input("الهامش الأيمن:", value=current_set["margin_right"])
-            with col_m4:
-                m_left = st.text_input("الهامش الأيسر:", value=current_set["margin_left"])
-            with col_m5:
-                line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
+            st.info("📐 تم ضبط هوامش الطباعة تلقائياً حسب مقاس A4، ولا تحتاج إلى تعديل يدوي.")
+            line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
             st.markdown("#### 🖼 رفع الصور والشعارات لترويسة التقارير:")
             col_logo1, col_logo2, col_logo3 = st.columns(3)
             with col_logo1:
@@ -1912,7 +2024,7 @@ def admin_dashboard():
             
             if st.form_submit_button("💾 حفظ ضبط اعدادات الطباعة و الهوامش", use_container_width=True):
                 save_print_settings(
-                    header_text_val, m_top, "auto", m_right, m_left, line_spacing_val,
+                    header_text_val, "12mm", "auto", "8mm", "8mm", line_spacing_val,
                     current_logo1_val, current_logo2_val, current_logo3_val,
                     current_set.get("bg_base64", ""), current_set.get("frame_base64", ""),
                     current_set["default_cert_title"], current_set["default_cert_notes"],
@@ -2029,14 +2141,21 @@ def admin_dashboard():
         with cert_sub_tab2:
             st.markdown("#### 🖨 طباعة الشهادات بناءً على التقارير")
             st.info("اختر طباعة شهادة فردية لمتدرب، أو شهادة تقييم للمنشأة بناءً على نتائج التقارير المعتمدة.")
+            st.markdown("#### 🏥 تحديد نطاق الشهادات حسب الهيكل الإداري")
+            cert_scope = hierarchy_scope_widget("نطاق الشهادات:", "cert_scope_v12")
+            cert_scope_sql, cert_scope_args = hierarchy_scope_sql("h", cert_scope)
             with db() as c:
-                all_facilities_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0 ORDER BY facility").fetchall()]
+                all_facilities_list = [row[0] for row in c.execute(
+                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {cert_scope_sql} ORDER BY t.facility",
+                    tuple(cert_scope_args)
+                ).fetchall()]
                 sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession,
                     s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type
                     FROM exam_sessions s
                     JOIN trainees t ON t.id=s.trainee_id
+                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
                     LEFT JOIN exam_templates e ON e.id=s.template_id
-                    WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC""").fetchall()
+                    WHERE s.status='submitted' AND t.hidden=0 AND {cert_scope_sql} ORDER BY s.id DESC""".format(cert_scope_sql=cert_scope_sql), tuple(cert_scope_args)).fetchall()
 
             if not sessions_full_list:
                 st.info("لا توجد اختبارات مكتملة أو معتمدة للمتدربين الظاهرين حتى الآن.")
@@ -2336,20 +2455,22 @@ def admin_dashboard():
     elif selected_menu == "🧑‍🔬 المتدربين والنماذج":
         st.subheader("🧑🔬 إدارة واعتماد المتدربين والنماذج المرتبطة بهم")
         with db() as c:
-            all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
+            all_tpls_records = c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC").fetchall()
         if all_tpls_records:
-            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'})" for row in all_tpls_records]
-            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'})": row["id"] for row in all_tpls_records}
+            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(row))}" for row in all_tpls_records]
+            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(row))}": row["id"] for row in all_tpls_records}
         else:
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
         with st.container(border=True):
             st.markdown("##### 🚀 التعميم الجماعي لنموذج على كافة المتدربين:")
             with st.form("bulk_assign_form_fixed"):
-                bulk_tpl_sel = st.selectbox("اختر نموذج الاختبار لتعميمه على الجميع:", tpl_names_list)
+                global_tpl_labels = [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}" for t in all_tpls_records if not any((t[k] or "").strip() for k in ["scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility"])]
+                global_tpl_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_records if not any((t[k] or "").strip() for k in ["scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility"])}
+                bulk_tpl_sel = st.selectbox("اختر نموذج الاختبار لتعميمه على الجميع (النماذج العامة فقط):", global_tpl_labels or ["لا يوجد نموذج عام"] )
                 if st.form_submit_button("تعميم الاختبار واعتماد الجميع", use_container_width=True):
-                    if tpl_map_dict and bulk_tpl_sel in tpl_map_dict:
-                        set_bulk_template_for_all(tpl_map_dict[bulk_tpl_sel])
+                    if global_tpl_map and bulk_tpl_sel in global_tpl_map:
+                        set_bulk_template_for_all(global_tpl_map[bulk_tpl_sel])
                         st.success("✅ تم التعميم والاعتماد بنجاح لكافة المتدربين!")
                         st.rerun()
                     else:
@@ -2364,15 +2485,18 @@ def admin_dashboard():
                     with st.container(border=True):
                         st.write(f"**ID:** {r['id']} | **الاسم:** {r['name']} | **الوظيفة:** {r.get('profession','')} | **الجهة:** {r['facility']}")
                         with st.form(f"approve_form_{r['id']}"):
-                            chosen_tpl = st.selectbox("نموذج الاختبار المخصص:", tpl_names_list, key=f"app_tpl_{r['id']}")
+                            applicable_tpls = [t for t in all_tpls_records if template_matches_facility(t, r['facility'])]
+                            applicable_labels = [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}" for t in applicable_tpls] or ["لا يوجد نموذج ضمن نطاق هذه الجهة"]
+                            applicable_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}": t['id'] for t in applicable_tpls}
+                            chosen_tpl = st.selectbox("نموذج الاختبار المخصص حسب الهيكل الإداري:", applicable_labels, key=f"app_tpl_{r['id']}")
                             c1, c2 = st.columns(2)
                             with c1:
                                 app_btn = st.form_submit_button("✅ اعتماد", use_container_width=True)
                             with c2:
                                 rej_btn = st.form_submit_button("❌ رفض", use_container_width=True)
                             if app_btn:
-                                if tpl_map_dict and chosen_tpl in tpl_map_dict:
-                                    set_trainee_status_and_template(int(r['id']), "approved", tpl_map_dict[chosen_tpl])
+                                if applicable_map and chosen_tpl in applicable_map:
+                                    set_trainee_status_and_template(int(r['id']), "approved", applicable_map[chosen_tpl])
                                     st.success("✅ تم الاعتماد بنجاح!")
                                     st.rerun()
                                 else:
@@ -2445,11 +2569,11 @@ def admin_dashboard():
         with sub_tabs[3]:
             st.markdown("#### 📄 طباعة وتعديل محضر التدريب:")
             with db() as c:
-                all_tpls_for_minutes = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
+                all_tpls_for_minutes = c.execute("SELECT * FROM exam_templates ORDER BY name ASC").fetchall()
             if not all_tpls_for_minutes:
                 st.info("لا توجد نماذج اختبارات مسجلة لإنشاء محضر التدريب لها.")
             else:
-                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t['id'] for t in all_tpls_for_minutes}
+                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_for_minutes}
                 sel_min_tpl_label = st.selectbox("اختر نموذج الاختبار لإنشاء أو تعديل محضر التدريب الخاص به:", list(minutes_tpl_map.keys()), key="sel_min_tpl")
                 chosen_min_tpl_id = minutes_tpl_map[sel_min_tpl_label]
 
@@ -2609,7 +2733,7 @@ def admin_dashboard():
             if not tpls:
                 st.info("لا توجد نماذج اختبارات مسجلة حتى الآن.")
             else:
-                tpl_dropdown_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t for t in tpls}
+                tpl_dropdown_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t for t in tpls}
                 selected_dropdown_label = st.selectbox("🔍 اختر نموذج الاختبار من القائمة المنسدلة لعرضه وطباعته:", list(tpl_dropdown_map.keys()))
                 if selected_dropdown_label:
                     t_dict = dict(tpl_dropdown_map[selected_dropdown_label])
@@ -2628,6 +2752,7 @@ def admin_dashboard():
                     with st.container(border=True):
                         st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')} &nbsp;|&nbsp; <span style='color: #059669; font-size: 14px;'>[{exam_type_badge}]</span>", unsafe_allow_html=True)
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
+                        st.info(f"🏥 نطاق الهيكل الإداري للنموذج: **{template_scope_text(t_dict)}**")
                         exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
                         render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
         elif sub_tpl_mode == "➕ إنشاء نموذج جديد":
@@ -2666,6 +2791,9 @@ def admin_dashboard():
                         end_m = st.number_input("الدقيقة (0-59):", min_value=0, max_value=59, value=0, key="em_in")
                     with eh_col3:
                         end_ampm = st.selectbox("الفترة:", ["صباحاً", "مساءً"], index=1, key="eap_in")
+                st.markdown("#### 🏥 ربط النموذج بالهيكل الإداري")
+                new_tpl_scope = hierarchy_scope_widget("نطاق النموذج داخل الهيكل الإداري:", "new_tpl_scope_v12")
+                st.caption("إذا اخترت (كل الهيكل الإداري) يصبح النموذج متاحاً لجميع الجهات. وإلا سيظهر ويُستخدم داخل النطاق المحدد فقط.")
                 new_tpl_cats = st.multiselect("المجالات / الأقسام:", categories_pool_opts)
                 if st.form_submit_button("💾 حفظ النموذج والمواعيد", use_container_width=True):
                     if new_tpl_name.strip():
@@ -2690,15 +2818,22 @@ def admin_dashboard():
                             end_dt_str = datetime.combine(end_d, datetime.min.time().replace(hour=e_h24, minute=e_m24), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
                             final_num_q = 999999 if is_open_questions else int(new_tpl_num_q)
                             with db() as c:
-                                c.execute("INSERT INTO exam_templates(name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                                          (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass), json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now()))
+                                c.execute("""INSERT INTO exam_templates(
+                                    name, exam_type, num_questions, duration_minutes, pass_percent, categories_json,
+                                    start_time, end_time, created_at, scope_governorate, scope_authority, scope_center,
+                                    scope_administration, scope_facility
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                          (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass),
+                                           json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now(),
+                                           new_tpl_scope["scope_governorate"], new_tpl_scope["scope_authority"], new_tpl_scope["scope_center"],
+                                           new_tpl_scope["scope_administration"], new_tpl_scope["scope_facility"]))
                             st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!")
                             st.rerun()
         else:
             with db() as c:
                 tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
             if tpls_del:
-                tpl_map = {f"نموذج رقم {t['id']} - {t['name']} [{t['exam_type']}]": t['id'] for t in tpls_del}
+                tpl_map = {f"نموذج رقم {t['id']} - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t['id'] for t in tpls_del}
                 with st.form("delete_template_form"):
                     selected_tpl_label = st.selectbox("اختر النموذج للحذف:", list(tpl_map.keys()))
                     if st.form_submit_button("🗑 حذف نموذج الاختبار وإعادة الترتيب", use_container_width=True):
@@ -2772,8 +2907,14 @@ def admin_dashboard():
                                           (new_sid, q_id, pos, json.dumps([0,1,2,3]), correct_ans, 1))
                     st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
 
+
     elif selected_menu == "📊 التقارير":
         st.subheader("📊 تقارير أداء وحدات الأمراض المتوطنة وتحليل النتائج (تستبعد المخفيين تلقائياً)")
+
+        st.markdown("#### 🏥 تحديد نطاق التقارير حسب الهيكل الإداري")
+        rep_scope = hierarchy_scope_widget("نطاق التقارير:", "reports_scope_v12")
+        rep_scope_sql, rep_scope_args = hierarchy_scope_sql("h", rep_scope)
+        st.caption("جميع التقارير والرسوم البيانية والنتائج أسفل الصفحة ستلتزم بهذا النطاق الإداري.")
 
         rep_tab1, rep_tab2, rep_tab3, rep_tab4, rep_tab5 = st.tabs([
             "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)",
@@ -2813,8 +2954,10 @@ def admin_dashboard():
             st.markdown("#### 👤 التقرير الفردي للمتدرب (مع تحديد المدى الزمني ومقارنة فترتين)")
             with db() as c:
                 tr_list_rep = c.execute(
-                    "SELECT id, name, facility, profession FROM trainees "
-                    "WHERE COALESCE(hidden,0)=0 ORDER BY id DESC"
+                    f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t "
+                    f"LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility "
+                    f"WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.id DESC",
+                    tuple(rep_scope_args)
                 ).fetchall()
 
             if not tr_list_rep:
@@ -2875,6 +3018,10 @@ def admin_dashboard():
                         p2_score = _score_text(s_q2)
                         p1_status = _status(s_q1["passed"] if s_q1 else None)
                         p2_status = _status(s_q2["passed"] if s_q2 else None)
+                        p1_pct = _pct(s_q1["percent"] if s_q1 else 0)
+                        p2_pct = _pct(s_q2["percent"] if s_q2 else 0)
+                        individual_delta = p2_pct - p1_pct
+                        individual_delta_text = f"{individual_delta:+.1f} نقطة مئوية (الفترة الثانية − الأولى)"
 
                         individual_report_html = f"""
                         <div style="font-family:'Cairo',sans-serif;direction:rtl;padding:10px;">
@@ -2893,12 +3040,15 @@ def admin_dashboard():
                                 <tr><td style="border:1px solid #cbd5e1;padding:8px;font-weight:bold;">الفترة الثانية ({d_start_2} إلى {d_end_2})</td>
                                     <td style="border:1px solid #cbd5e1;padding:8px;">{p2_score}</td>
                                     <td style="border:1px solid #cbd5e1;padding:8px;">{p2_status}</td></tr>
+                                <tr><td colspan="3" style="border:1px solid #059669;padding:8px;background:#ecfdf5;font-weight:900;color:#065f46;text-align:center;">الفارق بين الفترتين: {individual_delta_text}</td></tr>
                             </table>
                         </div>"""
                         st.markdown(individual_report_html, unsafe_allow_html=True)
                         st.markdown("##### 📊 الرسم البياني لمقارنة الفترتين")
                         chart_ind = pd.DataFrame({"الفترة": ["الفترة الأولى", "الفترة الثانية"], "النسبة %": [_pct(s_q1["percent"] if s_q1 else 0), _pct(s_q2["percent"] if s_q2 else 0)]}).set_index("الفترة")
                         st.bar_chart(chart_ind, use_container_width=True)
+                        chart_ind_html = report_chart_html("الرسم البياني — مقارنة الفترتين", ["الفترة الأولى", "الفترة الثانية"], [p1_pct, p2_pct], "%")
+                        render_print_button_only(generate_general_report_html("الرسم البياني لمقارنة أداء المتدرب", chart_ind_html), f"طباعة رسم مقارنة المتدرب {chosen_tr_id}")
 
                         df_ind = pd.DataFrame([{
                             "اسم المتدرب": ind_tr_data["name"] or "",
@@ -2909,7 +3059,8 @@ def admin_dashboard():
                             "حالة الفترة الأولى": p1_status,
                             "الفترة الثانية": f"{d_start_2} إلى {d_end_2}",
                             "نتيجة الفترة الثانية": p2_score,
-                            "حالة الفترة الثانية": p2_status
+                            "حالة الفترة الثانية": p2_status,
+                            "الفارق بين الفترتين (الثانية - الأولى)": f"{individual_delta:+.1f} نقطة مئوية"
                         }])
                         _excel_download(df_ind,"📥 تحميل التقرير الفردي (.xlsx)",f"individual_report_{chosen_tr_id}.xlsx","dl_ind_report_v7")
                         render_print_button_only(
@@ -2922,8 +3073,10 @@ def admin_dashboard():
             with db() as c:
                 facs_list_rep = [
                     r[0] for r in c.execute(
-                        "SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL "
-                        "AND TRIM(facility)<>'' AND COALESCE(hidden,0)=0 ORDER BY facility"
+                        f"SELECT DISTINCT t.facility FROM trainees t "
+                        f"LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility "
+                        f"WHERE t.facility IS NOT NULL AND TRIM(t.facility)<>'' AND COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.facility",
+                        tuple(rep_scope_args)
                     ).fetchall()
                 ]
             if not facs_list_rep:
@@ -2947,15 +3100,21 @@ def admin_dashboard():
                                COALESCE(AVG(s.percent),0) AS avg_pct,
                                COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_cnt
                         FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id
+                        LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
                         WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND t.facility=?
+                          AND {rep_scope_sql}
                           AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?)
                         """
-                        p1=c.execute(sql,(sel_fac_rep,gf_start_1.isoformat(),gf_end_1.isoformat())).fetchone()
-                        p2=c.execute(sql,(sel_fac_rep,gf_start_2.isoformat(),gf_end_2.isoformat())).fetchone()
+                        p1=c.execute(sql.format(rep_scope_sql=rep_scope_sql), tuple([sel_fac_rep] + rep_scope_args + [gf_start_1.isoformat(),gf_end_1.isoformat()])).fetchone()
+                        p2=c.execute(sql.format(rep_scope_sql=rep_scope_sql), tuple([sel_fac_rep] + rep_scope_args + [gf_start_2.isoformat(),gf_end_2.isoformat()])).fetchone()
 
                     def _stat(row):
                         return (int(row["total_tr"] or 0),int(row["exams"] or 0),int(row["passed_cnt"] or 0),_pct(row["avg_pct"]))
                     a=_stat(p1); b=_stat(p2)
+                    group_delta_pct = b[3] - a[3]
+                    group_delta_tr = b[0] - a[0]
+                    group_delta_exams = b[1] - a[1]
+                    group_delta_passed = b[2] - a[2]
                     group_compare_html=f"""
                     <div style="font-family:'Cairo',sans-serif;direction:rtl;padding:10px;">
                     <h3 style="color:#047857;text-align:center;">تقرير مقارنة أداء وحدة الأمراض المتوطنة: {esc(sel_fac_rep)}</h3>
@@ -2963,14 +3122,17 @@ def admin_dashboard():
                     <tr><th>الفترة</th><th>إجمالي المتدربين</th><th>الاختبارات</th><th>المجتازون</th><th>متوسط النسبة %</th></tr>
                     <tr><td>{gf_start_1} إلى {gf_end_1}</td><td>{a[0]}</td><td>{a[1]}</td><td>{a[2]}</td><td>{a[3]:.1f}%</td></tr>
                     <tr><td>{gf_start_2} إلى {gf_end_2}</td><td>{b[0]}</td><td>{b[1]}</td><td>{b[2]}</td><td>{b[3]:.1f}%</td></tr>
+                    <tr><td colspan="5" style="border:1px solid #059669;padding:7px;background:#ecfdf5;font-weight:900;color:#065f46;text-align:center;">الفارق (الثانية − الأولى): المتدربون {group_delta_tr:+d} | الاختبارات {group_delta_exams:+d} | المجتازون {group_delta_passed:+d} | متوسط النسبة {group_delta_pct:+.1f} نقطة مئوية</td></tr>
                     </table></div>"""
                     st.markdown(group_compare_html,unsafe_allow_html=True)
                     st.markdown("##### 📊 الرسم البياني لمقارنة أداء الوحدة")
                     chart_group = pd.DataFrame({"الفترة": ["الفترة الأولى", "الفترة الثانية"], "متوسط النسبة %": [a[3], b[3]]}).set_index("الفترة")
                     st.bar_chart(chart_group, use_container_width=True)
+                    chart_group_html = report_chart_html("الرسم البياني — مقارنة أداء الوحدة", ["الفترة الأولى", "الفترة الثانية"], [a[3], b[3]], "%")
+                    render_print_button_only(generate_general_report_html("الرسم البياني لمقارنة أداء الوحدة", chart_group_html), f"طباعة رسم مقارنة الوحدة {sel_fac_rep}")
                     df_group=pd.DataFrame([
                         {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_1} إلى {gf_end_1}","إجمالي المتدربين":a[0],"الاختبارات":a[1],"المجتازون":a[2],"متوسط النسبة %":f"{a[3]:.1f}%"},
-                        {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_2} إلى {gf_end_2}","إجمالي المتدربين":b[0],"الاختبارات":b[1],"المجتازون":b[2],"متوسط النسبة %":f"{b[3]:.1f}%"}
+                        {"وحدة الأمراض المتوطنة":sel_fac_rep,"الفترة":f"{gf_start_2} إلى {gf_end_2}","إجمالي المتدربين":b[0],"الاختبارات":b[1],"المجتازون":b[2],"متوسط النسبة %":f"{b[3]:.1f}%","الفارق (الثانية - الأولى)":f"{group_delta_pct:+.1f} نقطة مئوية"}
                     ])
                     _excel_download(df_group,"📥 تحميل التقرير الجماعي للوحدة (.xlsx)",f"facility_report_{sel_fac_rep}.xlsx","dl_group_report_v7")
                     render_print_button_only(generate_general_report_html(f"مقارنة أداء وحدة الأمراض المتوطنة: {sel_fac_rep}",group_compare_html),f"مقارنة فترات وحدة {sel_fac_rep}")
@@ -2983,11 +3145,12 @@ def admin_dashboard():
                            s.score,s.max_score,s.percent,s.passed,s.submitted_at,
                            e.exam_type,e.name AS template_name
                     FROM trainees t
+                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
                     LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     LEFT JOIN exam_templates e ON e.id=s.template_id
-                    WHERE COALESCE(t.hidden,0)=0
+                    WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
                     ORDER BY t.id DESC,s.id DESC
-                """).fetchall()
+                """.format(rep_scope_sql=rep_scope_sql), tuple(rep_scope_args)).fetchall()
                 # رقم الشهادة اختياري حتى لا يتعطل التقرير مع قاعدة قديمة.
                 cols=[r[1] for r in c.execute("PRAGMA table_info(exam_sessions)").fetchall()]
                 has_cert="certificate_id" in cols
@@ -2995,10 +3158,12 @@ def admin_dashboard():
                     rows=c.execute("""
                         SELECT t.id,t.name,t.profession,t.facility,s.score,s.max_score,s.percent,s.passed,
                                s.certificate_id,s.submitted_at,e.exam_type,e.name AS template_name
-                        FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                        FROM trainees t
+                        LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                        LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                         LEFT JOIN exam_templates e ON e.id=s.template_id
-                        WHERE COALESCE(t.hidden,0)=0 ORDER BY t.id DESC,s.id DESC
-                    """).fetchall()
+                        WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.id DESC,s.id DESC
+                    """.format(rep_scope_sql=rep_scope_sql), tuple(rep_scope_args)).fetchall()
 
             data=[]
             for r in rows:
@@ -3020,6 +3185,8 @@ def admin_dashboard():
                 no_result_count = int(sum(1 for r in data if r["الحالة"] == "لا توجد نتيجة"))
                 chart_all = pd.DataFrame({"الحالة": ["اجتزت بنجاح", "لم تجتز", "لا توجد نتيجة"], "العدد": [pass_count, fail_count, no_result_count]}).set_index("الحالة")
                 st.bar_chart(chart_all, use_container_width=True)
+                chart_all_html = report_chart_html("الرسم البياني — حالة النتائج", ["اجتاز بنجاح", "لم يجتز", "لا توجد نتيجة"], [pass_count, fail_count, no_result_count], "")
+                render_print_button_only(generate_general_report_html("الرسم البياني لحالة النتائج", chart_all_html), "طباعة رسم حالة النتائج")
                 _excel_download(df_rep,"📥 تحميل تقرير النتائج الشامل (.xlsx)","all_trainees_results.xlsx","dl_all_results_v7")
                 table_html=df_rep.to_html(index=False,border=0,classes="table")
                 render_print_button_only(generate_general_report_html("تقرير نتائج المتدربين الشامل",f"<div>{table_html}</div>"),"تقرير النتائج الشامل")
@@ -3033,10 +3200,12 @@ def admin_dashboard():
                            COUNT(s.id) AS exams_count,
                            COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_count,
                            COALESCE(AVG(s.percent),0) AS avg_pct
-                    FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
-                    WHERE COALESCE(t.hidden,0)=0 AND t.facility IS NOT NULL AND TRIM(t.facility)<>''
+                    FROM trainees t
+                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                    LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
+                    WHERE COALESCE(t.hidden,0)=0 AND t.facility IS NOT NULL AND TRIM(t.facility)<>'' AND {rep_scope_sql}
                     GROUP BY t.facility ORDER BY avg_pct DESC,t.facility
-                """).fetchall()
+                """.format(rep_scope_sql=rep_scope_sql), tuple(rep_scope_args)).fetchall()
             df_fac=pd.DataFrame([{
                 "وحدة الأمراض المتوطنة / الجهة":r["facility"] or "",
                 "إجمالي المتدربين":int(r["trainees_count"] or 0),
@@ -3050,6 +3219,8 @@ def admin_dashboard():
                 st.markdown("##### 📊 الرسم البياني لمتوسط أداء الجهات")
                 chart_fac = df_fac[["وحدة الأمراض المتوطنة / الجهة", "متوسط النسبة %"]].set_index("وحدة الأمراض المتوطنة / الجهة")
                 st.bar_chart(chart_fac, use_container_width=True)
+                chart_fac_html = report_chart_html("الرسم البياني — متوسط أداء الجهات", df_fac["وحدة الأمراض المتوطنة / الجهة"].tolist(), df_fac["متوسط النسبة %"].tolist(), "%")
+                render_print_button_only(generate_general_report_html("الرسم البياني لمتوسط أداء الجهات", chart_fac_html), "طباعة رسم أداء الجهات")
                 _excel_download(df_fac,"📥 تحميل تقرير أداء الجهات ووحدات المتوطنة (.xlsx)","facilities_performance_report.xlsx","dl_fac_report_v7")
                 table_fac_html=df_fac.to_html(index=False,border=0,classes="table")
                 render_print_button_only(generate_general_report_html("تقرير أداء وحدات الأمراض المتوطنة والجهات",f"<div>{table_fac_html}</div>"),"تقرير أداء الجهات")
@@ -3061,10 +3232,11 @@ def admin_dashboard():
                     SELECT s.id AS session_id,t.name AS trainee_name,t.facility,t.profession AS trainee_profession,
                            s.score,s.max_score,s.percent,s.passed,e.name AS template_name,e.exam_type,s.submitted_at
                     FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id
+                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
                     LEFT JOIN exam_templates e ON e.id=s.template_id
-                    WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0
+                    WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
                     ORDER BY COALESCE(s.percent,0) DESC,s.id DESC
-                """).fetchall()
+                """.format(rep_scope_sql=rep_scope_sql), tuple(rep_scope_args)).fetchall()
             if not all_sessions_results:
                 st.info("لا توجد اختبارات مكتملة أو نتائج مسجلة حتى الآن.")
             else:
@@ -3077,6 +3249,8 @@ def admin_dashboard():
                     "العدد": int(sum(1 for r in all_sessions_results if r["passed"] == 0))
                 }]).set_index("الفئة")
                 st.bar_chart(chart_results_base, use_container_width=True)
+                chart_results_html = report_chart_html("الرسم البياني — النتائج العامة", ["مجتازون", "غير مجتازين"], [int(sum(1 for r in all_sessions_results if r["passed"] == 1)), int(sum(1 for r in all_sessions_results if r["passed"] == 0))], "")
+                render_print_button_only(generate_general_report_html("الرسم البياني العام للنتائج", chart_results_html), "طباعة الرسم البياني العام")
                 filter_mode=st.radio("فلترة النتائج:",["عرض الكل (مرتبة تنازلياً)","فقط الأعلى تقييماً (النسبة >= 85%)","فقط المجتازين بنجاح"],horizontal=True,key="rep_filter_mode_v7")
                 filtered_sessions=[]
                 for r in all_sessions_results:
@@ -3111,9 +3285,18 @@ def admin_dashboard():
         st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بالأمراض المتوطنة (مع إمكانية الحذف)")
         plan_tabs = st.tabs(["➕ إنشاء وتحديث خطة عمل ذكية", "📋 استعراض وإدارة خطط العمل المسجلة"])
         with plan_tabs[0]:
+            st.markdown("#### 🏥 تحديد نطاق خطة العمل حسب الهيكل الإداري")
+            plan_scope = hierarchy_scope_widget("نطاق خطة العمل:", "plan_scope_v12")
+            plan_scope_sql, plan_scope_args = hierarchy_scope_sql("h", plan_scope)
             with db() as c:
-                all_tr_list = c.execute("SELECT id, name, facility, profession FROM trainees WHERE hidden=0 ORDER BY id ASC").fetchall()
-                all_fac_list = [row[0] for row in c.execute("SELECT DISTINCT facility FROM trainees WHERE facility IS NOT NULL AND facility != '' AND hidden=0").fetchall()]
+                all_tr_list = c.execute(
+                    f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility WHERE t.hidden=0 AND {plan_scope_sql} ORDER BY t.id ASC",
+                    tuple(plan_scope_args)
+                ).fetchall()
+                all_fac_list = [row[0] for row in c.execute(
+                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {plan_scope_sql} ORDER BY t.facility",
+                    tuple(plan_scope_args)
+                ).fetchall()]
             with st.form("create_action_plan_form"):
                 target_category = st.radio("نطاق الخطة:", ["فرد (متدرب محدد)", "جماعة (وحدة الأمراض المتوطنة بالكامل)"], horizontal=True)
                 auto_weakness_text = ""
@@ -3180,17 +3363,26 @@ def admin_dashboard():
                         st.warning("⚠ يرجى استكمال البيانات.")
                     else:
                         with db() as c:
-                            c.execute("""INSERT INTO action_plans(target_type, target_name, weakness_areas, action_steps, time_frame_type, start_date, end_date, created_at) VALUES(?,?,?,?,?,?,?,?)""",
-                                      (target_category, target_name, weak_areas.strip(), action_steps.strip(), "من تاريخ إلى تاريخ", plan_start_date.isoformat(), plan_end_date.isoformat(), now()))
+                            c.execute("""INSERT INTO action_plans(
+                                target_type, target_name, weakness_areas, action_steps, time_frame_type, start_date, end_date, created_at,
+                                scope_governorate, scope_authority, scope_center, scope_administration, scope_facility
+                            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                      (target_category, target_name, weak_areas.strip(), action_steps.strip(), "من تاريخ إلى تاريخ",
+                                       plan_start_date.isoformat(), plan_end_date.isoformat(), now(),
+                                       plan_scope["scope_governorate"], plan_scope["scope_authority"], plan_scope["scope_center"],
+                                       plan_scope["scope_administration"], plan_scope["scope_facility"]))
                         st.success("✅ تم حفظ خطة العمل بناءً على التحليل التلقائي بنجاح!")
                         st.rerun()
         with plan_tabs[1]:
             with db() as c:
-                plans_list = c.execute("SELECT * FROM action_plans ORDER BY id DESC").fetchall()
+                plans_list = c.execute(
+                    f"SELECT * FROM action_plans WHERE " + " AND ".join([f"{k}=?" for k in ["scope_governorate","scope_authority","scope_center","scope_administration","scope_facility"] if str(plan_scope.get(k) or "").strip()]) + " ORDER BY id DESC",
+                    tuple(str(plan_scope.get(k) or "").strip() for k in ["scope_governorate","scope_authority","scope_center","scope_administration","scope_facility"] if str(plan_scope.get(k) or "").strip())
+                ).fetchall() if any(str(plan_scope.get(k) or "").strip() for k in ["scope_governorate","scope_authority","scope_center","scope_administration","scope_facility"]) else c.execute("SELECT * FROM action_plans ORDER BY id DESC").fetchall()
             if not plans_list:
                 st.info("لا توجد خطط عمل مسجلة حتى الآن.")
             else:
-                plan_map = {f"خطة رقم ({p['id']}) - [{p['target_type']}] المستهدف: {p['target_name']} (من {p['start_date']} إلى {p['end_date']})": p['id'] for p in plans_list}
+                plan_map = {f"خطة رقم ({p['id']}) - [{p['target_type']}] المستهدف: {p['target_name']} | الهيكل: {template_scope_text(dict(p))} (من {p['start_date']} إلى {p['end_date']})": p['id'] for p in plans_list}
                 sel_plan_label = st.selectbox("اختر خطة العمل للمعاينة والطباعة الذكية:", list(plan_map.keys()))
                 chosen_plan_id = plan_map[sel_plan_label]
                 with db() as c:
@@ -3199,7 +3391,7 @@ def admin_dashboard():
                 <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 5px; page-break-inside: avoid; break-inside: avoid;">
                     <h3 style="color: #047857; text-align: center; font-size: 14pt; margin: 5px 0;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء بوحدات الأمراض المتوطنة</h3>
                     <hr style="border: 1px solid #059669; margin: 8px 0;">
-                    <p style="font-size: 9.5pt; margin: 4px 0;"><b>نوع النطاق:</b> {esc(p_data['target_type'])} | <b>المستهدف:</b> {esc(p_data['target_name'])} | <b>الفترة الزمنية:</b> من {esc(p_data['start_date'])} إلى {esc(p_data['end_date'])}</p>
+                    <p style="font-size: 9.5pt; margin: 4px 0;"><b>نوع النطاق:</b> {esc(p_data['target_type'])} | <b>المستهدف:</b> {esc(p_data['target_name'])} | <b>الهيكل الإداري:</b> {esc(template_scope_text(p_data))} | <b>الفترة الزمنية:</b> من {esc(p_data['start_date'])} إلى {esc(p_data['end_date'])}</p>
                     <div style="background: #f0fdf4; border: 1px solid #059669; padding: 8px; border-radius: 6px; margin: 10px 0; page-break-inside: avoid; break-inside: avoid;">
                         <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🎯 نقاط الضعف المرصودة (بناءً على التقييم الآلي):</h4>
                         <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 9.5pt;">{esc(p_data['weakness_areas'])}</p>
