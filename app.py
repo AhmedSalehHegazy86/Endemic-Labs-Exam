@@ -214,12 +214,18 @@ document.addEventListener("keydown", function(e) {
         return false;
     }
 });
-window.addEventListener("blur", function() {
-    document.body.style.filter = "blur(8px)";
+function concealSensitiveView() {
+    if (document.body) document.body.style.filter = "blur(14px)";
+}
+function revealSensitiveView() {
+    if (document.body) document.body.style.filter = "none";
+}
+window.addEventListener("blur", concealSensitiveView);
+window.addEventListener("focus", revealSensitiveView);
+document.addEventListener("visibilitychange", function() {
+    if (document.hidden) concealSensitiveView(); else revealSensitiveView();
 });
-window.addEventListener("focus", function() {
-    document.body.style.filter = "none";
-});
+window.addEventListener("pagehide", concealSensitiveView);
 </script>
 """, unsafe_allow_html=True)
 
@@ -316,7 +322,9 @@ def trainee_matches_hierarchy(facility_value, hierarchy_row):
 def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     """SQL predicate for trainee records stored with a full administrative path."""
     keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
-    if not any(str(scope.get(k) or "").strip() for k in keys):
+    if scope.get("_scope_denied"):
+        return "0=1", []
+    if scope.get("scope_all") is True or not any(str(scope.get(k) or "").strip() for k in keys):
         return "1=1", []
     scope_sql, args = hierarchy_scope_sql("h", scope)
     pred = (f"EXISTS (SELECT 1 FROM hierarchical_facilities h WHERE ({scope_sql}) AND "
@@ -440,6 +448,7 @@ def init_db():
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
                 permissions_json TEXT NOT NULL DEFAULT '[]',
+                hierarchy_scope_json TEXT NOT NULL DEFAULT '{}',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL,
                 last_login TEXT
@@ -509,6 +518,7 @@ def init_db():
                 started_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
                 submitted_at TEXT,
+                review_expires_at TEXT,
                 status TEXT NOT NULL DEFAULT 'active',
                 score REAL,
                 max_score REAL,
@@ -608,6 +618,7 @@ def init_db():
         ("trainees", "national_id", "TEXT NOT NULL DEFAULT ''"),
         ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
         ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
+        ("users", "hierarchy_scope_json", "TEXT NOT NULL DEFAULT '{}'"),
         ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
         ("exam_templates", "start_time", "TEXT"),
         ("exam_templates", "end_time", "TEXT"),
@@ -625,6 +636,7 @@ def init_db():
         ("action_plans", "template_id", "INTEGER"),
         ("action_plans", "start_date", "TEXT"),
         ("action_plans", "end_date", "TEXT"),
+        ("exam_sessions", "review_expires_at", "TEXT"),
         ("print_settings", "line_spacing", "REAL NOT NULL DEFAULT 1.25"),
         ("print_settings", "logo2_base64", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "logo3_base64", "TEXT NOT NULL DEFAULT ''"),
@@ -701,6 +713,9 @@ def init_db():
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                       (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False), "13mm"))
 
+        # Preserve legacy users' previous unrestricted access with an explicit marker.
+        c.execute("UPDATE users SET hierarchy_scope_json=? WHERE hierarchy_scope_json IS NULL OR TRIM(hierarchy_scope_json)='' OR hierarchy_scope_json='{}'", (json.dumps({"scope_all": True}),))
+
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
         if cnt_tpl == 0:
             default_start = now_cairo().isoformat(timespec="seconds")
@@ -757,13 +772,103 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
 def get_hierarchical_data(include_hidden=False):
+    """Return only hierarchy nodes within the logged-in user's assigned scope."""
     with db() as c:
         q = "SELECT * FROM hierarchical_facilities"
         if not include_hidden:
             q += " WHERE hidden = 0"
         q += " ORDER BY id ASC"
-        rows = c.execute(q).fetchall()
-        return [dict(r) for r in rows] if rows else []
+        rows = [dict(r) for r in c.execute(q).fetchall()]
+    if not rows:
+        return []
+    # The system owner retains unrestricted access; scoped users only see assigned nodes.
+    if st.session_state.get("logged_in") and not is_owner():
+        scope = st.session_state.get("user_hierarchy_scope") or {}
+        if scope.get("scope_all") is True:
+            return rows
+        keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+        if not any(str(scope.get(k) or "").strip() for k in keys):
+            return []
+        if any(str(scope.get(k) or "").strip() for k in keys):
+            mapping = (("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name"))
+            rows = [r for r in rows if all(not str(scope.get(sk) or "").strip() or str(r.get(col) or "").strip() == str(scope.get(sk) or "").strip() for sk, col in mapping)]
+    return rows
+
+def current_user_trainee_scope():
+    """Return the authenticated user's enforced hierarchy scope. Empty scope is fail-closed unless explicitly marked all."""
+    if not st.session_state.get("logged_in") or is_owner():
+        return {}
+    scope = st.session_state.get("user_hierarchy_scope") or {}
+    if scope.get("scope_all") is True:
+        return {"scope_all": True}
+    keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+    vals = {k: str(scope.get(k) or "").strip() for k in keys}
+    return vals if any(vals.values()) else {**vals, "_scope_denied": True}
+
+def user_can_access_trainee_id(trainee_id, conn=None):
+    """Server-side authorization check; unauthenticated access fails closed."""
+    if not st.session_state.get("logged_in"):
+        return False
+    if is_owner():
+        return True
+    scope = current_user_trainee_scope()
+    if scope.get("scope_all") is True:
+        return True
+    pred, args = hierarchy_filter_for_trainees(scope, "t")
+    own_conn = conn is None
+    if own_conn:
+        ctx = db()
+        conn = ctx.__enter__()
+    try:
+        row = conn.execute(f"SELECT 1 FROM trainees t WHERE t.id=? AND {pred} LIMIT 1", (int(trainee_id), *args)).fetchone()
+        return row is not None
+    finally:
+        if own_conn:
+            ctx.__exit__(None, None, None)
+
+def enforce_trainee_scope_or_raise(trainee_id, conn=None):
+    if not user_can_access_trainee_id(trainee_id, conn):
+        raise PermissionError("خارج نطاق الهيكل الإداري المخصص لهذا المستخدم")
+
+def enforce_session_access_or_raise(session_id, conn=None):
+    """Authorize a session by admin hierarchy scope or the public trainee's own identity."""
+    own_conn = conn is None
+    if own_conn:
+        ctx = db()
+        conn = ctx.__enter__()
+    try:
+        row = conn.execute("SELECT trainee_id FROM exam_sessions WHERE id=?", (int(session_id),)).fetchone()
+        if not row:
+            raise PermissionError("جلسة الاختبار غير موجودة أو غير متاحة.")
+        trainee_id = int(row["trainee_id"])
+        if st.session_state.get("logged_in"):
+            if not is_owner():
+                enforce_trainee_scope_or_raise(trainee_id, conn)
+        else:
+            # The public exam portal may access only the session belonging to its authenticated trainee.
+            current_tid = st.session_state.get("trainee_id")
+            if not current_tid or int(current_tid) != trainee_id:
+                raise PermissionError("لا يمكنك الوصول إلى جلسة اختبار تخص متدربًا آخر.")
+        return True
+    finally:
+        if own_conn:
+            ctx.__exit__(None, None, None)
+
+def effective_hierarchy_scope(requested):
+    assigned = current_user_trainee_scope()
+    if assigned.get("scope_all") is True:
+        return requested
+    if assigned.get("_scope_denied"):
+        return {"_scope_denied": True}
+    # Assigned scope is authoritative. A page filter may narrow it, never widen it.
+    out = dict(assigned)
+    for key, value in (requested or {}).items():
+        if value and not out.get(key):
+            out[key] = value
+        elif value and out.get(key) and str(value) != str(out[key]):
+            # Conflicting narrowing choice produces an impossible scope.
+            out[key] = "__NO_ACCESS__"
+    return out
 
 def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:", key="hier_scope"):
     """Choose a scope from the current hierarchy: authority -> administration -> facility."""
@@ -778,6 +883,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
     level_field = dict(levels)[level_label]
     scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
     if not level_field:
+        scope = effective_hierarchy_scope(scope)
         st.session_state["_last_hierarchy_scope"] = scope
         return scope
     current = rows
@@ -796,10 +902,15 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
         current = [r for r in current if str(r.get(src) or "").strip() == chosen]
         if src == level_field:
             break
+    scope = effective_hierarchy_scope(scope)
     st.session_state["_last_hierarchy_scope"] = dict(scope)
     return scope
 
 def hierarchy_scope_sql(alias, scope):
+    if (scope or {}).get("_scope_denied"):
+        return "0=1", []
+    if (scope or {}).get("scope_all") is True:
+        return "1=1", []
     conditions, args = [], []
     mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_center","center"),("scope_administration","administration"),("scope_facility","facility_name")]
     scoped = False
@@ -982,6 +1093,7 @@ def update_trainee_data(tid, facility, name, phone, national_id, profession, wor
     if not is_valid_egyptian_national_id(nid_norm):
         raise ValueError("INVALID_TRAINEE_NATIONAL_ID")
     with db() as c:
+        enforce_trainee_scope_or_raise(tid, c)
         if _find_duplicate_trainee_value(c, "phone", phone_norm, exclude_id=tid):
             raise ValueError("DUPLICATE_TRAINEE_PHONE")
         if _find_duplicate_trainee_value(c, "national_id", nid_norm, exclude_id=tid):
@@ -1026,6 +1138,7 @@ def phone_exists(phone):
 
 def set_trainee_status_and_template(tid, status, assigned_template_id):
     with db() as c:
+        enforce_trainee_scope_or_raise(tid, c)
         c.execute("""UPDATE trainees SET status=?, assigned_template_id=?, updated_at=?, approved_at=CASE WHEN ?='approved' THEN ? ELSE approved_at END WHERE id=?""",
                   (status, assigned_template_id, now(), status, now(), tid))
 
@@ -1044,6 +1157,11 @@ def trainees_df(status=None, include_hidden=False):
             args.append(status)
         if not include_hidden:
             conditions.append("hidden=0")
+        # Central safeguard: every dataframe-based trainee list respects the logged-in user's assigned scope.
+        scope_pred, scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "trainees")
+        if scope_pred != "1=1":
+            conditions.append(scope_pred)
+            args.extend(scope_args)
         if conditions:
             q += " WHERE " + " AND ".join(conditions)
         q += " ORDER BY id DESC"
@@ -1072,6 +1190,14 @@ def choose_questions(t):
         return all_db_questions[:limit_count]
 
 def start_session(trainee_id, template_id):
+    # A public portal may only start an exam for the authenticated trainee.
+    if st.session_state.get("logged_in"):
+        if not is_owner():
+            enforce_trainee_scope_or_raise(trainee_id)
+    else:
+        current_tid = st.session_state.get("trainee_id")
+        if not current_tid or int(current_tid) != int(trainee_id):
+            raise PermissionError("يجب تسجيل دخول المتدرب نفسه قبل بدء الاختبار.")
     with db() as c:
         t = c.execute("SELECT * FROM exam_templates WHERE id=?", (template_id,)).fetchone()
         if not t:
@@ -1136,8 +1262,12 @@ def start_session(trainee_id, template_id):
 
 def submit_session(sid):
     with db() as c:
-        s = c.execute("SELECT * FROM exam_sessions WHERE id=?", (sid,)).fetchone()
-        if not s or s["status"] != "active":
+        s = c.execute("SELECT * FROM exam_sessions WHERE id=?", (int(sid),)).fetchone()
+        if not s:
+            raise PermissionError("جلسة الاختبار غير موجودة أو غير متاحة.")
+        # Fail closed: a missing identity never grants access to a session.
+        enforce_session_access_or_raise(sid, c)
+        if s["status"] != "active":
             return None
         rows = c.execute("SELECT eq.*, q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=?", (sid,)).fetchall()
         correct = sum(1 for r in rows if r["selected_option"] is not None and int(r["selected_option"]) == int(r["answer"]))
@@ -1148,10 +1278,23 @@ def submit_session(sid):
         pass_pct = float(t_dict.get("pass_percent", 60.0))
         passed = 1 if percent >= pass_pct else 0
         cert = f"ELX-{sid:06d}"
-        c.execute("UPDATE exam_sessions SET status='submitted', submitted_at=?, score=?, max_score=?, percent=?, passed=?, certificate_id=? WHERE id=?",
-                  (now(), correct, max_score, percent, passed, cert, sid))
-        c.execute("UPDATE trainees SET status='completed', updated_at=? WHERE id=?", (now(), s["trainee_id"]))
-        return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert}
+        submitted_dt = now_cairo()
+        try:
+            started_dt = datetime.fromisoformat(s["started_at"])
+            expires_dt = datetime.fromisoformat(s["expires_at"])
+            if started_dt.tzinfo is None:
+                started_dt = started_dt.replace(tzinfo=CAIRO_TZ)
+            if expires_dt.tzinfo is None:
+                expires_dt = expires_dt.replace(tzinfo=CAIRO_TZ)
+            exam_duration_minutes = max(1, int((expires_dt - started_dt).total_seconds() // 60))
+        except Exception:
+            exam_duration_minutes = max(1, int(t_dict.get("duration_minutes", 60)))
+        review_expires = (submitted_dt + timedelta(minutes=exam_duration_minutes)).isoformat(timespec="seconds")
+        submitted_str = submitted_dt.isoformat(timespec="seconds")
+        c.execute("UPDATE exam_sessions SET status='submitted', submitted_at=?, review_expires_at=?, score=?, max_score=?, percent=?, passed=?, certificate_id=? WHERE id=?",
+                  (submitted_str, review_expires, correct, max_score, percent, passed, cert, sid))
+        c.execute("UPDATE trainees SET status='completed', updated_at=? WHERE id=?", (submitted_str, s["trainee_id"]))
+        return {"score": correct, "max_score": max_score, "percent": percent, "passed": passed, "certificate_id": cert, "review_expires_at": review_expires}
 
 def render_logos_html():
     sett = get_print_settings()
@@ -1270,6 +1413,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
                         WHERE s.id=?""", (sid,)).fetchone()
     if not r:
         return ""
+    enforce_session_access_or_raise(sid)
 
     name = str(r["trainee_name"] or "").strip()
     prof = str(r["trainee_profession"] or sett.get("trainee_profession", "أخصائي الأمراض المتوطنة") or "").strip()
@@ -1313,11 +1457,17 @@ def generate_facility_certificate_html(facility_name, session_ids, custom_title=
     title_val = (custom_title or "شهادة تقييم منشأة") or "شهادة تقييم منشأة"
     prefix_val = (sett.get("trainee_prefix", "") or "").strip()
 
+    if not st.session_state.get("logged_in"):
+        raise PermissionError("يجب تسجيل دخول الإدارة لإنشاء شهادة تقييم منشأة.")
     rows = []
     with db() as c:
         for sid in session_ids:
-            row = c.execute("SELECT percent FROM exam_sessions WHERE id=? AND status='submitted'", (sid,)).fetchone()
+            row = c.execute("SELECT s.percent, s.trainee_id, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=? AND s.status='submitted' AND t.hidden=0", (sid,)).fetchone()
             if row:
+                if st.session_state.get("logged_in") and not is_owner():
+                    enforce_trainee_scope_or_raise(row["trainee_id"], c)
+                if str(row["facility"] or "").strip() != str(facility_name or "").strip():
+                    continue
                 rows.append(float(row["percent"] or 0))
     if not rows:
         return ""
@@ -1368,6 +1518,8 @@ def generate_certificates_batch_html(session_ids, custom_title=None, custom_note
 <style>@page {{ size:A4 landscape; margin:0 !important; }} html,body {{margin:0!important;padding:0!important;width:297mm;}} body {{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}} .cert-page {{page-break-after:always!important;break-after:page!important;}} .cert-page:last-child {{page-break-after:avoid!important;break-after:avoid-page!important;}}</style></head><body>{''.join(pages)}</body></html>"""
 
 def generate_trainee_exam_sheet_html(sid):
+    if not st.session_state.get("logged_in"):
+        raise PermissionError("طباعة نموذج الإجابة متاحة للإدارة المصرح لها فقط.")
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
     header_right_text = ''
@@ -1375,6 +1527,7 @@ def generate_trainee_exam_sheet_html(sid):
         s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
         if not s:
             return ""
+        enforce_session_access_or_raise(sid, c)
         rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (sid,)).fetchall()
     header_right_text = hierarchy_header_html(facility_value=s["facility"])
     q_html_content = ""
@@ -1607,6 +1760,8 @@ def generate_action_plan_report_html(title, content_html, target_pages=1, header
     """
 
 def generate_exam_template_print_html(template_id):
+    if not st.session_state.get("logged_in"):
+        raise PermissionError("طباعة نموذج الاختبار متاحة للإدارة المصرح لها فقط.")
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
     header_right_text = sett.get('header_text', '')
@@ -2191,6 +2346,10 @@ def login_portal():
                         stored_permissions = []
                     # المالك لا يعتمد على permissions_json للوصول؛ جميع الوحدات متاحة له دائماً.
                     st.session_state.permissions = list(ALL_MENU_MODULES.keys()) if user["role"] == "admin" else stored_permissions
+                    try:
+                        st.session_state.user_hierarchy_scope = json.loads(user.get("hierarchy_scope_json") or "{}") if hasattr(user, "get") else json.loads(user["hierarchy_scope_json"] or "{}")
+                    except Exception:
+                        st.session_state.user_hierarchy_scope = {}
                     st.rerun()
                 else:
                     st.error("بيانات الدخول غير صحيحة.")
@@ -2255,19 +2414,21 @@ def admin_dashboard():
 
     if selected_menu == "📊 لوحة التحكم":
         st.subheader("📊 لوحة المؤشرات العامة والتحليلات الشاملة للأمراض المتوطنة")
+        dash_scope = current_user_trainee_scope()
+        dash_pred, dash_args = hierarchy_filter_for_trainees(dash_scope, "t")
         with db() as c:
-            cnts = c.execute("""SELECT 
-                (SELECT COUNT(*) FROM trainees WHERE hidden=0) tr,
-                (SELECT COUNT(*) FROM trainees WHERE status='pending' AND hidden=0) pend,
-                (SELECT COUNT(*) FROM trainees WHERE status='approved' AND hidden=0) appr,
-                (SELECT COUNT(*) FROM trainees WHERE status='completed' AND hidden=0) comp,
+            cnts = c.execute(f"""SELECT 
+                (SELECT COUNT(*) FROM trainees t WHERE t.hidden=0 AND {dash_pred}) tr,
+                (SELECT COUNT(*) FROM trainees t WHERE t.status='pending' AND t.hidden=0 AND {dash_pred}) pend,
+                (SELECT COUNT(*) FROM trainees t WHERE t.status='approved' AND t.hidden=0 AND {dash_pred}) appr,
+                (SELECT COUNT(*) FROM trainees t WHERE t.status='completed' AND t.hidden=0 AND {dash_pred}) comp,
                 (SELECT COUNT(*) FROM questions WHERE active=1) qs,
                 (SELECT COUNT(*) FROM exam_templates WHERE active=1) tpls,
-                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) ex,
-                (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0) avgp,
-                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND s.passed=1 AND t.hidden=0) passed_cnt,
+                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 AND {dash_pred}) ex,
+                (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 AND {dash_pred}) avgp,
+                (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND s.passed=1 AND t.hidden=0 AND {dash_pred}) passed_cnt,
                 (SELECT COUNT(*) FROM hierarchical_facilities WHERE hidden=0) facs_cnt
-            """).fetchone()
+            """, tuple(dash_args * 7)).fetchone()
         total_tr = cnts["tr"] or 1
         passed_cnt = cnts["passed_cnt"] or 0
         pass_ratio = (passed_cnt / total_tr) * 100
@@ -2297,25 +2458,27 @@ def admin_dashboard():
         tab_db_1, tab_db_2, tab_db_3 = st.tabs(["👥 تحليل التخصصات والوظائف", "🏥 توزيع وحدات الأمراض المتوطنة", "📚 تفاصيل بنك الأسئلة والصعوبة"])
         with tab_db_1:
             with db() as c:
-                df_prof_analysis = pd.read_sql_query("""
-                    SELECT profession AS 'الوظيفة / التخصص', COUNT(id) AS 'إجمالي العاملين',
-                           SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار',
-                           SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS 'قيد الانتظار'
-                    FROM trainees WHERE hidden=0 GROUP BY profession ORDER BY COUNT(id) DESC
-                """, c)
+                dash_pred_prof, dash_args_prof = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
+                df_prof_analysis = pd.read_sql_query(f"""
+                    SELECT t.profession AS 'الوظيفة / التخصص', COUNT(t.id) AS 'إجمالي العاملين',
+                           SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار',
+                           SUM(CASE WHEN t.status='pending' THEN 1 ELSE 0 END) AS 'قيد الانتظار'
+                    FROM trainees t WHERE t.hidden=0 AND {dash_pred_prof} GROUP BY t.profession ORDER BY COUNT(t.id) DESC
+                """, c, params=dash_args_prof)
             if df_prof_analysis.empty:
                 st.info("لا توجد بيانات متدربين مسجلة لتحليلها.")
             else:
                 st.dataframe(df_prof_analysis, use_container_width=True, hide_index=True)
         with tab_db_2:
             with db() as c:
-                df_fac_analysis = pd.read_sql_query("""
+                dash_pred_fac, dash_args_fac = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
+                df_fac_analysis = pd.read_sql_query(f"""
                     SELECT t.facility AS 'وحدة الأمراض المتوطنة / المنشأة', COUNT(t.id) AS 'عدد العاملين',
                            SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END) AS 'عدد المجتازين',
                            COALESCE(AVG(s.percent), 0) AS 'متوسط نسبة النجاح %'
                     FROM trainees t LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
-                    WHERE t.hidden=0 GROUP BY t.facility ORDER BY COUNT(t.id) DESC
-                """, c)
+                    WHERE t.hidden=0 AND {dash_pred_fac} GROUP BY t.facility ORDER BY COUNT(t.id) DESC
+                """, c, params=dash_args_fac)
             if df_fac_analysis.empty:
                 st.info("لا توجد بيانات منشآت مسجلة.")
             else:
@@ -2408,11 +2571,12 @@ def admin_dashboard():
         st.markdown("---")
         st.markdown("#### 📊 تقسيم وإحصائيات العاملين والممتحنين حسب التخصصات:")
         with db() as c:
-            df_prof_stats = pd.read_sql_query("""
-                SELECT profession AS 'الوظيفة / التخصص', COUNT(id) AS 'إجمالي العاملين',
-                       SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار'
-                FROM trainees WHERE hidden=0 GROUP BY profession ORDER BY COUNT(id) DESC
-            """, c)
+            prof_scope_pred, prof_scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
+            df_prof_stats = pd.read_sql_query(f"""
+                SELECT t.profession AS 'الوظيفة / التخصص', COUNT(t.id) AS 'إجمالي العاملين',
+                       SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END) AS 'المكتملين للاختبار'
+                FROM trainees t WHERE t.hidden=0 AND {prof_scope_pred} GROUP BY t.profession ORDER BY COUNT(t.id) DESC
+            """, c, params=prof_scope_args)
         if df_prof_stats.empty:
             st.info("لا توجد بيانات متدربين مسجلة حتى الآن.")
         else:
@@ -2934,8 +3098,9 @@ def admin_dashboard():
             search_nid = st.text_input("🔎 بحث عن متدرب بالرقم القومي:", value="", max_chars=14, key="pending_nid_search")
             search_digits = normalize_national_id(search_nid)
             if search_digits:
+                search_scope_pred, search_scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
                 with db() as c:
-                    search_rows = c.execute("SELECT * FROM trainees WHERE national_id=? ORDER BY id DESC", (search_digits,)).fetchall()
+                    search_rows = c.execute(f"SELECT t.* FROM trainees t WHERE t.national_id=? AND {search_scope_pred} ORDER BY t.id DESC", (search_digits, *search_scope_args)).fetchall()
                 if search_rows:
                     st.success(f"تم العثور على {len(search_rows)} سجل مطابق للرقم القومي.")
                     for sr in search_rows:
@@ -3044,11 +3209,13 @@ def admin_dashboard():
                             st.rerun()
                     if hide_t_btn:
                         with db() as c:
+                            enforce_trainee_scope_or_raise(int(target_tr_id), c)
                             c.execute("UPDATE trainees SET hidden=1 WHERE id=?", (int(target_tr_id),))
                         st.success("✅ تم إخفاء المتدرب بنجاح!")
                         st.rerun()
                     if show_t_btn:
                         with db() as c:
+                            enforce_trainee_scope_or_raise(int(target_tr_id), c)
                             c.execute("UPDATE trainees SET hidden=0 WHERE id=?", (int(target_tr_id),))
                         st.success("✅ تم إظهار المتدرب بنجاح!")
                         st.rerun()
@@ -3304,8 +3471,9 @@ def admin_dashboard():
                 selected_manual_facility = st.selectbox("المنشأة:", facility_choices, key="manual_exam_facility_choice_v2")
             else:
                 selected_manual_facility = str(manual_scope.get("scope_facility") or "")
+            user_scope_pred, user_scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
             with db() as c:
-                facility_trainees = [dict(r) for r in c.execute("SELECT id,name,facility,profession,status FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE").fetchall()]
+                facility_trainees = [dict(r) for r in c.execute(f"SELECT t.id,t.name,t.facility,t.profession,t.status FROM trainees t WHERE COALESCE(t.hidden,0)=0 AND {user_scope_pred} ORDER BY t.name COLLATE NOCASE", tuple(user_scope_args)).fetchall()]
             eligible_manual_trainees = [t for t in facility_trainees if (not selected_manual_facility or str(t.get("facility") or "").strip() == selected_manual_facility) and (not manual_profession or str(t.get("profession") or "").strip() == manual_profession)]
             manual_trainee_labels = {f"{t['name']} — {t['profession']} (#{t['id']})": t["id"] for t in eligible_manual_trainees}
             manual_selected_labels = st.multiselect("اختيار متدرب واحد أو أكثر من المنشأة:", list(manual_trainee_labels.keys()), key="manual_exam_trainees_v2", help="اختر فردًا واحدًا أو عدة أفراد. إذا لم تختر أسماء، يمكنك إدخال اسم جديد يدويًا.")
@@ -3398,7 +3566,8 @@ def admin_dashboard():
             elif not assessment_facility_default and assessment_hier:
                 assessment_facility_default = assessment_hier[0].get("facility_name", "")
             with db() as c:
-                assessment_trainees = [dict(r) for r in c.execute("SELECT id,name,profession,facility FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE").fetchall()]
+                assessment_scope_pred, assessment_scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
+                assessment_trainees = [dict(r) for r in c.execute(f"SELECT t.id,t.name,t.profession,t.facility FROM trainees t WHERE COALESCE(t.hidden,0)=0 AND {assessment_scope_pred} ORDER BY t.name COLLATE NOCASE", tuple(assessment_scope_args)).fetchall()]
             facility_assessment_trainees = [t for t in assessment_trainees if (not assessment_facility_default or str(t.get("facility") or "").strip() == assessment_facility_default) and (not assessment_profession or str(t.get("profession") or "").strip() == assessment_profession)]
             st.multiselect("المتدربون المسجلون بهذه المنشأة (اختياري):", [f"{t['name']} — {t['profession']}" for t in facility_assessment_trainees], key="real_assessment_trainees_v2", help="تظهر الأسماء المسجلة في المنشأة المختارة حسب الوظيفة.")
             assessment_items = [
@@ -3508,6 +3677,7 @@ def admin_dashboard():
                     list(tr_choices_rep.keys()), key="sel_ind_tr_rep_v7"
                 )
                 chosen_tr_id = tr_choices_rep[sel_tr_rep_label]
+                enforce_trainee_scope_or_raise(chosen_tr_id)
                 today = now_cairo().date()
 
                 c1, c2 = st.columns(2)
@@ -4155,9 +4325,10 @@ def admin_dashboard():
                 line_sp_m = print_sett_m.get('line_spacing', 1.25)
 
                 # أسماء المتدربين تتعبأ تلقائياً وفق نطاق النموذج والمهنة والتخصيص الحالي.
+                user_scope_pred, user_scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
                 with db() as c:
                     all_minutes_trainees = [dict(r) for r in c.execute(
-                        "SELECT id, name, profession, facility, assigned_template_id FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE"
+                        f"SELECT t.id, t.name, t.profession, t.facility, t.assigned_template_id FROM trainees t WHERE COALESCE(t.hidden,0)=0 AND {user_scope_pred} ORDER BY t.name COLLATE NOCASE", tuple(user_scope_args)
                     ).fetchall()]
                 hierarchy_rows_minutes = get_hierarchical_data(include_hidden=False)
                 matching_minutes_trainees = []
@@ -4396,6 +4567,9 @@ def admin_dashboard():
                     ed_hidden = st.checkbox("إخفاء السجل من القوائم العامة", value=bool(selected_record.get("hidden", 0)))
                     save_trainee_db = st.form_submit_button("💾 حفظ جميع التعديلات", use_container_width=True)
                 if save_trainee_db:
+                    if not user_can_access_trainee_id(selected_record_id):
+                        st.error("⛔ لا يمكنك تعديل متدرب خارج نطاق الهيكل الإداري المخصص لك.")
+                        st.stop()
                     ed_nid_norm = normalize_national_id(ed_nid)
                     ed_phone_norm = normalize_egyptian_phone(ed_phone)
                     if not ed_name.strip() or not ed_facility.strip():
@@ -4498,13 +4672,34 @@ def admin_dashboard():
                 selected_modules_checkboxes = {}
                 for mod_key, mod_desc in ALL_MENU_MODULES.items():
                     selected_modules_checkboxes[mod_key] = st.checkbox(f"{mod_key} ({mod_desc})", value=True)
+                st.markdown("#### 🏥 تحديد نطاق الهيكل الإداري للمستخدم")
+                st.caption("اختر كل الهيكل أو قصر صلاحيات المستخدم على مديرية/جهة أو إدارة أو منشأة محددة.")
+                add_scope_rows = get_hierarchical_data(include_hidden=False)
+                add_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "الإدارة", "المنشأة"], key="add_user_scope_level")
+                add_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
+                if add_scope_level != "كل الهيكل الإداري":
+                    scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("administration", "scope_administration", "الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
+                    scope_current_rows = add_scope_rows
+                    stop_field = {"المديرية / الجهة":"authority", "الإدارة":"administration", "المنشأة":"facility_name"}[add_scope_level]
+                    for src_field, dst_field, scope_title in scope_steps:
+                        vals = sorted({str(rr.get(src_field) or "").strip() for rr in scope_current_rows if str(rr.get(src_field) or "").strip()})
+                        if not vals:
+                            st.warning("لا توجد بيانات متاحة في الهيكل الإداري لتحديد النطاق.")
+                            break
+                        chosen_scope_val = st.selectbox(f"{scope_title} المسموح بها:", vals, key=f"add_user_scope_{src_field}")
+                        add_user_scope[dst_field] = chosen_scope_val
+                        scope_current_rows = [rr for rr in scope_current_rows if str(rr.get(src_field) or "").strip() == chosen_scope_val]
+                        if src_field == stop_field:
+                            break
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
                     if new_u_name.strip() and new_u_pass.strip():
                         assigned_perms = [k for k, v in selected_modules_checkboxes.items() if v]
                         with db() as c:
                             try:
-                                c.execute("INSERT INTO users(username, password_hash, role, permissions_json, active, created_at) VALUES(?,?,?,?,?,?)",
-                                          (new_u_name.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), 1, now()))
+                                if not any(str(add_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
+                                    add_user_scope["scope_all"] = True
+                                c.execute("INSERT INTO users(username, password_hash, role, permissions_json, hierarchy_scope_json, active, created_at) VALUES(?,?,?,?,?,?,?)",
+                                          (new_u_name.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), json.dumps(add_user_scope, ensure_ascii=False), 1, now()))
                                 st.success("✅ تم الإضافة!")
                             except sqlite3.IntegrityError:
                                 st.error("مستخدم مسبقاً.")
@@ -4512,7 +4707,7 @@ def admin_dashboard():
                         st.warning("أدخل البيانات.")
         with tab_u2:
             with db() as c:
-                all_users = c.execute("SELECT id, username, role, permissions_json FROM users WHERE role != 'admin'").fetchall()
+                all_users = c.execute("SELECT id, username, role, permissions_json, hierarchy_scope_json FROM users WHERE role != 'admin'").fetchall()
             if not all_users:
                 st.info("لا توجد مستخدمين.")
             else:
@@ -4523,6 +4718,36 @@ def admin_dashboard():
                     curr_user_perms = json.loads(target_user["permissions_json"]) if target_user["permissions_json"] else []
                 except:
                     curr_user_perms = []
+                try:
+                    curr_hierarchy_scope = json.loads(target_user["hierarchy_scope_json"] or "{}")
+                except Exception:
+                    curr_hierarchy_scope = {}
+                st.markdown("#### 🏥 نطاق الهيكل الإداري المسموح للمستخدم")
+                edit_scope_rows = get_hierarchical_data(include_hidden=False)
+                existing_scope_level = "كل الهيكل الإداري"
+                if curr_hierarchy_scope.get("scope_facility"):
+                    existing_scope_level = "المنشأة"
+                elif curr_hierarchy_scope.get("scope_administration"):
+                    existing_scope_level = "الإدارة"
+                elif curr_hierarchy_scope.get("scope_authority"):
+                    existing_scope_level = "المديرية / الجهة"
+                edit_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "الإدارة", "المنشأة"], index=["كل الهيكل الإداري", "المديرية / الجهة", "الإدارة", "المنشأة"].index(existing_scope_level), key=f"edit_user_scope_level_{target_user['id']}")
+                edit_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
+                if edit_scope_level != "كل الهيكل الإداري":
+                    scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("administration", "scope_administration", "الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
+                    scope_current_rows = edit_scope_rows
+                    stop_field = {"المديرية / الجهة":"authority", "الإدارة":"administration", "المنشأة":"facility_name"}[edit_scope_level]
+                    for src_field, dst_field, scope_title in scope_steps:
+                        vals = sorted({str(rr.get(src_field) or "").strip() for rr in scope_current_rows if str(rr.get(src_field) or "").strip()})
+                        if not vals:
+                            break
+                        old_value = str(curr_hierarchy_scope.get(dst_field) or "")
+                        idx = vals.index(old_value) if old_value in vals else 0
+                        chosen_scope_val = st.selectbox(f"{scope_title} المسموح بها:", vals, index=idx, key=f"edit_user_scope_{target_user['id']}_{src_field}")
+                        edit_user_scope[dst_field] = chosen_scope_val
+                        scope_current_rows = [rr for rr in scope_current_rows if str(rr.get(src_field) or "").strip() == chosen_scope_val]
+                        if src_field == stop_field:
+                            break
                 with st.form(f"edit_user_perms_{target_user['id']}"):
                     edit_checkboxes = {}
                     for mod_key, mod_desc in ALL_MENU_MODULES.items():
@@ -4535,8 +4760,10 @@ def admin_dashboard():
                         del_btn = st.form_submit_button("🗑 حذف المستخدم", use_container_width=True)
                     if save_btn:
                         new_assigned = [k for k, v in edit_checkboxes.items() if v]
+                        if not any(str(edit_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
+                            edit_user_scope["scope_all"] = True
                         with db() as c:
-                            c.execute("UPDATE users SET permissions_json=? WHERE id=?", (json.dumps(new_assigned, ensure_ascii=False), target_user["id"]))
+                            c.execute("UPDATE users SET permissions_json=?, hierarchy_scope_json=? WHERE id=?", (json.dumps(new_assigned, ensure_ascii=False), json.dumps(edit_user_scope, ensure_ascii=False), target_user["id"]))
                         st.success("✅ تم التحديث!")
                         st.rerun()
                     if del_btn:
@@ -4704,41 +4931,130 @@ def trainee_portal():
             st.session_state.trainee_id = ""
             st.rerun()
 
+def render_readonly_trainee_exam_review(session_id):
+    """Show the trainee's own submitted exam and selected answers read-only until review expiry; never expose answer key."""
+    with db() as c:
+        session = c.execute("SELECT s.*, t.name trainee_name, t.facility, e.name template_name FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=? AND t.hidden=0", (int(session_id),)).fetchone()
+        if not session:
+            st.warning("نموذج المراجعة غير متاح.")
+            return
+        enforce_session_access_or_raise(session_id, c)
+        expiry_raw = session["review_expires_at"]
+        if not expiry_raw:
+            # Backward compatibility for older completed sessions: duration after submission.
+            try:
+                tpl = c.execute("SELECT duration_minutes FROM exam_templates WHERE id=?", (session["template_id"],)).fetchone()
+                mins = max(1, int(tpl["duration_minutes"] or 60)) if tpl else 60
+                sub_dt = datetime.fromisoformat(session["submitted_at"] or session["expires_at"])
+                if sub_dt.tzinfo is None: sub_dt = sub_dt.replace(tzinfo=CAIRO_TZ)
+                expiry_raw = (sub_dt + timedelta(minutes=mins)).isoformat(timespec="seconds")
+                c.execute("UPDATE exam_sessions SET review_expires_at=? WHERE id=? AND review_expires_at IS NULL", (expiry_raw, int(session_id)))
+            except Exception:
+                expiry_raw = None
+        try:
+            review_expiry = datetime.fromisoformat(expiry_raw) if expiry_raw else None
+            if review_expiry and review_expiry.tzinfo is None: review_expiry = review_expiry.replace(tzinfo=CAIRO_TZ)
+        except Exception:
+            review_expiry = None
+        if not review_expiry or now_cairo() >= review_expiry:
+            st.info("انتهت مدة عرض نموذج الامتحان الخاص بك.")
+            return
+        rows = c.execute("SELECT eq.position, eq.selected_option, eq.option_order_json, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position", (int(session_id),)).fetchall()
+        trainee_name = session["trainee_name"]
+        template_name = session["template_name"] or "الاختبار"
+    remaining = max(0, int((review_expiry - now_cairo()).total_seconds()))
+    st.markdown(f"""<div style="border:2px solid #0f766e;border-radius:12px;padding:16px;margin:12px 0;background:#f0fdfa;color:#134e4a;text-align:center">
+    <h3>📘 نموذج امتحانك — للعرض فقط</h3><b>المتدرب:</b> {esc(trainee_name)} &nbsp; | &nbsp; <b>النموذج:</b> {esc(template_name)}<br>
+    <b>متبقي لعرض النموذج:</b> <span id="review-timer">{remaining // 60:02d}:{remaining % 60:02d}</span><br><small>لن يمكنك تعديل الإجابات، ولا يعرض هذا النموذج مفتاح الإجابات الصحيحة.</small></div>""", unsafe_allow_html=True)
+    # A browser-side countdown improves visibility; server-side expiry check remains authoritative on rerun.
+    components.html(f"""<script>(function(){{let s={remaining};const el=window.parent.document.getElementById('review-timer');function tick(){{if(s<=0){{window.parent.location.reload();return;}}if(el)el.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');s--;setTimeout(tick,1000);}}tick();}})();</script>""", height=0)
+    for idx, row in enumerate(rows, start=1):
+        try: opts = json.loads(row["options_json"] or "[]")
+        except Exception: opts = []
+        try: order = json.loads(row["option_order_json"] or "[]")
+        except Exception: order = list(range(len(opts)))
+        if sorted(order) != list(range(len(opts))): order = list(range(len(opts)))
+        selected = row["selected_option"]
+        option_lines=[]
+        for oi in order:
+            chosen = selected is not None and int(oi) == int(selected)
+            option_lines.append(f"<div style='padding:6px 10px;margin:4px 0;border:1px solid {'#0f766e' if chosen else '#d1d5db'};border-radius:6px;background:{'#ccfbf1' if chosen else '#fff'}'>{'☑' if chosen else '☐'} {esc(opts[oi] if oi < len(opts) else '')}</div>")
+        qtext = clean_question_text(row["question"] or "")
+        st.markdown(f"<div style='border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin:10px 0'><b>السؤال {idx}:</b> {esc(qtext)}{''.join(option_lines)}</div>", unsafe_allow_html=True)
+
 def exam_interface(session_id):
     header()
     with db() as c:
-        session = c.execute("SELECT s.*, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=? AND t.hidden=0", (session_id,)).fetchone()
-        rows = c.execute("""SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (session_id,)).fetchall()
+        session = c.execute("SELECT s.*, t.facility, t.id AS scoped_trainee_id, t.name AS scoped_trainee_name FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=? AND t.hidden=0", (int(session_id),)).fetchone()
+        if not session:
+            st.error("جلسة الاختبار غير موجودة أو غير متاحة.")
+            return
+        # Authorization must succeed for every request, including direct URL/session-id access.
+        enforce_session_access_or_raise(session_id, c)
+        if session["status"] != "active":
+            st.error("هذه الجلسة غير نشطة أو تم تسليمها بالفعل.")
+            return
+        try:
+            exam_expiry = datetime.fromisoformat(session["expires_at"])
+            if exam_expiry.tzinfo is None:
+                exam_expiry = exam_expiry.replace(tzinfo=CAIRO_TZ)
+        except Exception:
+            exam_expiry = now_cairo() - timedelta(seconds=1)
+        exam_is_expired = now_cairo() >= exam_expiry
+        rows = c.execute("SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position", (int(session_id),)).fetchall()
+
+    # Dynamic visible watermark discourages sharing; browser controls cannot fully block OS screenshots.
+    st.markdown(
+        f"<div style='position:sticky;top:0;z-index:9999;background:rgba(255,255,255,.96);border:1px solid #b91c1c;color:#991b1b;padding:8px;text-align:center;font-weight:800;pointer-events:none;'>نسخة مخصصة للمتدرب: {esc(session['scoped_trainee_name'])} | رقم الجلسة: {int(session_id)} | يمنع تداول محتوى الاختبار</div>",
+        unsafe_allow_html=True,
+    )
+    if exam_is_expired:
+        st.warning("انتهى الوقت المحدد للاختبار. يتم الآن اعتماد الإجابات المحفوظة تلقائياً.")
+        auto_result = submit_session(session_id)
+        if auto_result is not None:
+            st.session_state.last_result_id = int(session_id)
+            st.session_state.exam_session_id = None
+            st.rerun()
+        return
+
     answered = 0
     for idx, row in enumerate(rows, start=1):
         try:
             opts = json.loads(row["options_json"])
-        except:
+        except Exception:
             opts = ["نعم", "لا"]
-        order = json.loads(row["option_order_json"])
+        try:
+            order = json.loads(row["option_order_json"])
+            if sorted(order) != list(range(len(opts))):
+                order = list(range(len(opts)))
+        except Exception:
+            order = list(range(len(opts)))
         disp_opts = [opts[i] for i in order]
         curr_idx = None
         if row["selected_option"] is not None:
             try:
                 curr_idx = disp_opts.index(opts[row["selected_option"]])
-            except:
+            except Exception:
                 pass
         question_text = esc(clean_question_text(row["question"]))
         st.markdown(f'<div class="question"><strong style="color:#065f46;">({idx})</strong> {question_text}</div>', unsafe_allow_html=True)
-        choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed")
-        if choice:
+        choice = st.radio("اختر الإجابة:", disp_opts, index=curr_idx, key=f"q_{row['id']}", label_visibility="collapsed", disabled=exam_is_expired)
+        if choice and not exam_is_expired:
             sel = order[disp_opts.index(choice)]
             with db() as c:
-                c.execute("UPDATE exam_questions SET selected_option=?, is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END WHERE id=?",
-                          (sel, sel, row["id"]))
+                enforce_session_access_or_raise(session_id, c)
+                c.execute("""UPDATE exam_questions
+                             SET selected_option=?, is_correct=CASE WHEN ?=(SELECT answer FROM questions WHERE id=question_id) THEN 1 ELSE 0 END
+                             WHERE id=? AND session_id=? AND EXISTS (
+                                 SELECT 1 FROM exam_sessions s WHERE s.id=? AND s.status='active'
+                             )""", (sel, sel, int(row["id"]), int(session_id), int(session_id)))
             answered += 1
     st.progress(answered / len(rows) if rows else 0)
     if st.button("تسليم الاختبار نهائياً", use_container_width=True):
         res = submit_session(session_id)
-        if res:
-            st.session_state.last_result_id = session_id
+        if res is not None:
+            st.session_state.last_result_id = int(session_id)
             st.session_state.exam_session_id = None
-            st.success("🎉 تم تسليم الاختبار بنجاح!")
             st.rerun()
 
 # ============================================================
@@ -4754,11 +5070,30 @@ elif st.session_state.get("exam_session_id"):
 elif st.session_state.trainee_id and not st.session_state.logged_in:
     if st.session_state.get("last_result_id"):
         sid = st.session_state.last_result_id
+        try:
+            enforce_session_access_or_raise(sid)
+        except PermissionError:
+            st.session_state.last_result_id = None
+            st.error("لا يمكنك الوصول إلى نتيجة تخص متدربًا آخر.")
+            st.stop()
         header()
-        st.success("تم تسليم الاختبار بنجاح ونتيجتك جاهزة!")
+        with db() as c:
+            result_row = c.execute("SELECT s.*, t.name trainee_name, e.duration_minutes FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?", (int(sid),)).fetchone()
+        if not result_row:
+            st.error("تعذر العثور على نتيجة الاختبار.")
+            st.stop()
+        if int(result_row["passed"] or 0) == 1:
+            st.success(f"🎉 ألف مبروك يا {esc(result_row['trainee_name'])}! لقد اجتزت الاختبار بنجاح.")
+            st.balloons()
+        else:
+            st.warning(f"💪 حظ أوفر المرة القادمة يا {esc(result_row['trainee_name'])}. لا تيأس، واصل التعلم والمحاولة.")
+        st.markdown(f"**النتيجة:** {float(result_row['score'] or 0):g} من {float(result_row['max_score'] or 0):g} — **النسبة:** {float(result_row['percent'] or 0):.1f}%")
+        st.caption("تم تسليم الاختبار أو اعتماده تلقائيًا عند انتهاء الوقت. نموذج الامتحان التالي للعرض فقط، ولن يؤثر على النتيجة.")
+        render_readonly_trainee_exam_review(sid)
         curr_sett = get_print_settings()
         cert_html = generate_customizable_certificate_html(sid, curr_sett.get("default_cert_title"), curr_sett.get("default_cert_notes"))
-        render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
+        if int(result_row["passed"] or 0) == 1:
+            render_print_button_only(cert_html, f"الشهادة المعتمدة {sid}")
         if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = ""
             st.session_state.last_result_id = None
