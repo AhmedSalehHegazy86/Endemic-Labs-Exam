@@ -803,7 +803,14 @@ def hierarchy_scope_sql(alias, scope):
 def template_scope_text(row):
     parts = [row.get("scope_authority"), row.get("scope_administration"), row.get("scope_facility")]
     parts = [str(x).strip() for x in parts if str(x or "").strip()]
-    return "كل الهيكل الإداري" if not parts else " ← ".join(parts)
+    label = "كل الهيكل الإداري" if not parts else " ← ".join(parts)
+    try:
+        extra_scopes = get_template_scopes(row.get("id")) if row.get("id") else []
+        if extra_scopes:
+            label += f" (+{len(extra_scopes)} أماكن إضافية)"
+    except Exception:
+        pass
+    return label
 
 def hierarchy_header_html(scope=None, facility_value=None):
     # Build a print header reflecting exactly the selected hierarchy level.
@@ -3173,24 +3180,72 @@ def admin_dashboard():
                             st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!")
                             st.rerun()
         elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
-            st.markdown("#### 👷 تعديل المهنة المخصصة لنموذج اختبار موجود")
+            st.markdown("#### 🗓 تعديل تاريخ ووقت نموذج الاختبار والمهنة المخصصة")
             with db() as c:
-                editable_tpls = c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
+                editable_tpls = [dict(r) for r in c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()]
             if not editable_tpls:
                 st.info("لا توجد نماذج اختبارات لتعديلها.")
             else:
-                editable_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) — المهنة الحالية: {t['profession'] or 'كل الوظائف'}": dict(t) for t in editable_tpls}
+                editable_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) — {template_scope_text(t)}": t for t in editable_tpls}
+                edit_tpl_label = st.selectbox("اختر نموذج الاختبار المراد تعديله:", list(editable_map.keys()), key="edit_template_schedule_select_v2")
+                selected_edit_tpl = editable_map[edit_tpl_label]
+                def _template_dt(value, fallback):
+                    try:
+                        parsed = datetime.fromisoformat(str(value))
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=CAIRO_TZ)
+                        return parsed.astimezone(CAIRO_TZ)
+                    except Exception:
+                        return fallback
+                now_edit = now_cairo()
+                edit_start_dt = _template_dt(selected_edit_tpl.get("start_time"), now_edit)
+                edit_end_dt = _template_dt(selected_edit_tpl.get("end_time"), now_edit + timedelta(days=1))
                 edit_professions = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
-                with st.form("edit_template_profession_form"):
-                    edit_tpl_label = st.selectbox("اختر نموذج الاختبار:", list(editable_map.keys()))
-                    edit_tpl_profession = st.selectbox("المهنة المسموح لها بأداء الاختبار:", edit_professions, help="اختيار كل الوظائف يجعل النموذج متاحاً لجميع المهن.")
-                    if st.form_submit_button("💾 حفظ المهنة للنموذج", use_container_width=True):
-                        edit_tpl_id = editable_map[edit_tpl_label]["id"]
-                        profession_to_save = "" if edit_tpl_profession == "كل الوظائف" else edit_tpl_profession
-                        with db() as c:
-                            c.execute("UPDATE exam_templates SET profession=? WHERE id=?", (profession_to_save, edit_tpl_id))
-                        st.success("✅ تم تحديث المهنة المخصصة لنموذج الاختبار.")
-                        st.rerun()
+                current_prof = selected_edit_tpl.get("profession") or "كل الوظائف"
+                if current_prof not in edit_professions:
+                    edit_professions.append(current_prof)
+                with st.form(f"edit_template_schedule_form_{selected_edit_tpl['id']}"):
+                    st.markdown("##### ⏰ موعد بدء الاختبار")
+                    sd_col, st_col = st.columns(2)
+                    with sd_col:
+                        edit_start_date = st.date_input("تاريخ البدء", value=edit_start_dt.date(), key=f"edit_tpl_sd_{selected_edit_tpl['id']}")
+                    with st_col:
+                        es1, es2, es3 = st.columns(3)
+                        with es1:
+                            edit_start_hour = st.number_input("الساعة", min_value=1, max_value=12, value=edit_start_dt.hour % 12 or 12, key=f"edit_tpl_sh_{selected_edit_tpl['id']}")
+                        with es2:
+                            edit_start_minute = st.number_input("الدقيقة", min_value=0, max_value=59, value=edit_start_dt.minute, key=f"edit_tpl_sm_{selected_edit_tpl['id']}")
+                        with es3:
+                            edit_start_ampm = st.selectbox("الفترة", ["صباحاً", "مساءً"], index=0 if edit_start_dt.hour < 12 else 1, key=f"edit_tpl_sap_{selected_edit_tpl['id']}")
+                    st.markdown("##### ⏰ موعد انتهاء الاختبار")
+                    ed_col, et_col = st.columns(2)
+                    with ed_col:
+                        edit_end_date = st.date_input("تاريخ النهاية", value=edit_end_dt.date(), key=f"edit_tpl_ed_{selected_edit_tpl['id']}")
+                    with et_col:
+                        ee1, ee2, ee3 = st.columns(3)
+                        with ee1:
+                            edit_end_hour = st.number_input("الساعة ", min_value=1, max_value=12, value=edit_end_dt.hour % 12 or 12, key=f"edit_tpl_eh_{selected_edit_tpl['id']}")
+                        with ee2:
+                            edit_end_minute = st.number_input("الدقيقة ", min_value=0, max_value=59, value=edit_end_dt.minute, key=f"edit_tpl_em_{selected_edit_tpl['id']}")
+                        with ee3:
+                            edit_end_ampm = st.selectbox("الفترة ", ["صباحاً", "مساءً"], index=0 if edit_end_dt.hour < 12 else 1, key=f"edit_tpl_eap_{selected_edit_tpl['id']}")
+                    edit_tpl_profession = st.selectbox("المهنة المسموح لها بأداء الاختبار:", edit_professions, index=edit_professions.index(current_prof), help="اختيار كل الوظائف يجعل النموذج متاحاً لجميع المهن.", key=f"edit_tpl_prof_{selected_edit_tpl['id']}")
+                    if st.form_submit_button("💾 حفظ الموعد والمهنة", use_container_width=True):
+                        def _to24(hour, ampm):
+                            h = int(hour) % 12
+                            return h + (12 if "مساءً" in ampm else 0)
+                        start_h24 = _to24(edit_start_hour, edit_start_ampm)
+                        end_h24 = _to24(edit_end_hour, edit_end_ampm)
+                        saved_start = datetime.combine(edit_start_date, datetime.min.time().replace(hour=start_h24, minute=int(edit_start_minute)), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
+                        saved_end = datetime.combine(edit_end_date, datetime.min.time().replace(hour=end_h24, minute=int(edit_end_minute)), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
+                        if datetime.fromisoformat(saved_end) <= datetime.fromisoformat(saved_start):
+                            st.error("تاريخ ووقت النهاية يجب أن يكونا بعد تاريخ ووقت البدء.")
+                        else:
+                            profession_to_save = "" if edit_tpl_profession == "كل الوظائف" else edit_tpl_profession
+                            with db() as c:
+                                c.execute("UPDATE exam_templates SET start_time=?, end_time=?, profession=? WHERE id=?", (saved_start, saved_end, profession_to_save, selected_edit_tpl["id"]))
+                            st.success("تم حفظ تاريخ ووقت الاختبار والمهنة المخصصة بنجاح.")
+                            st.rerun()
         else:
             with db() as c:
                 tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
@@ -3809,6 +3864,9 @@ def admin_dashboard():
                 tpl_dict_for_minutes = dict(tpl_rec) if tpl_rec else {}
                 minute_scope_parts = [str(tpl_dict_for_minutes.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility')]
                 minute_scope_parts = [x for x in minute_scope_parts if x]
+                if not minute_scope_parts:
+                    minute_scope_parts = [str(minutes_scope.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility')]
+                    minute_scope_parts = [x for x in minute_scope_parts if x]
                 default_facility_val = " - ".join(minute_scope_parts) if minute_scope_parts else "كل الهيكل الإداري"
                 default_min_text = (
                     f"إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة، "
@@ -3834,11 +3892,24 @@ def admin_dashboard():
                 cur_items_text = existing_min["training_items"] if existing_min and existing_min["training_items"] else default_items_text
                 cur_goals_text = existing_min["training_goals"] if existing_min and existing_min["training_goals"] else default_goals_text
                 cur_date_val = existing_min["training_date"] if existing_min and existing_min["training_date"] else default_date_val
-                cur_facility_val = existing_min["facility_name"] if existing_min and existing_min["facility_name"] else default_facility_val
+                # Always default the first field from the selected template / hierarchy, not stale saved text.
+                cur_facility_val = default_facility_val
 
+                hierarchy_rows_for_minutes = get_hierarchical_data(include_hidden=False)
+                hierarchy_paths_for_minutes = []
+                for hr in hierarchy_rows_for_minutes:
+                    path_parts = [str(hr.get(k) or '').strip() for k in ('authority', 'administration', 'facility_name') if str(hr.get(k) or '').strip()]
+                    path_label = " - ".join(path_parts)
+                    if path_label and path_label not in hierarchy_paths_for_minutes:
+                        hierarchy_paths_for_minutes.append(path_label)
+                if not hierarchy_paths_for_minutes:
+                    hierarchy_paths_for_minutes = [cur_facility_val or "كل الهيكل الإداري"]
+                if cur_facility_val not in hierarchy_paths_for_minutes and cur_facility_val != "كل الهيكل الإداري":
+                    hierarchy_paths_for_minutes.insert(0, cur_facility_val)
+                facility_default_index = hierarchy_paths_for_minutes.index(cur_facility_val) if cur_facility_val in hierarchy_paths_for_minutes else 0
                 with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}"):
                     st.markdown("##### ✏ تعديل محضر التدريب والبنود والأهداف:")
-                    edited_facility_input = st.text_input("اسم المنشأة / جهة العمل:", value=cur_facility_val)
+                    edited_facility_input = st.selectbox("الهيكل الإداري / المنشأة:", hierarchy_paths_for_minutes, index=facility_default_index, key=f"minutes_facility_hierarchy_{chosen_min_tpl_id}")
                     edited_date_input = st.text_input("تاريخ محضر التدريب:", value=cur_date_val)
                     edited_minutes_input = st.text_area("1. محضر التدريب:", value=cur_min_text, height=120)
                     edited_items_input = st.text_area("2. بنود التدريب:", value=cur_items_text, height=140)
