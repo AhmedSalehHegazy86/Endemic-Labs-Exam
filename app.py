@@ -421,7 +421,7 @@ ALL_MENU_MODULES = {
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "📚 قاعدة بيانات المتدربين": "عرض وتعديل وطباعة وتصدير جميع بيانات المتدربين",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
-    "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
+    "✍ التسجيل اليدوي للاختبارات و التقييم الواقعي": "التسجيل اليدوي للاختبارات و التقييم الواقعي للمنشآت",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
     "📊 التقارير": "التقارير وتحليل الأداء للأمراض المتوطنة",
@@ -545,6 +545,19 @@ def init_db():
                 scope_administration TEXT NOT NULL DEFAULT '',
                 scope_facility TEXT NOT NULL DEFAULT '',
                 template_id INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS facility_real_assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                visit_date TEXT NOT NULL,
+                governorate TEXT NOT NULL DEFAULT '',
+                authority TEXT NOT NULL DEFAULT '',
+                administration TEXT NOT NULL DEFAULT '',
+                facility TEXT NOT NULL DEFAULT '',
+                profession TEXT NOT NULL DEFAULT '',
+                responsible_person TEXT NOT NULL DEFAULT '',
+                items_json TEXT NOT NULL DEFAULT '{}',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS print_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3262,67 +3275,126 @@ def admin_dashboard():
                         st.success("✅ تم الحذف وإعادة الترتيب التلقائي بنجاح!")
                         st.rerun()
 
-    elif selected_menu == "✍ تسجيل نتيجة يدوي":
-        st.subheader("✍ تسجيل نتيجة يدوي (مع اختيار الأسئلة الخاطئة لضمان الدقة)")
-        hier_data = get_hierarchical_data(include_hidden=False)
-        default_fac_str = hier_data[0]["facility_name"] if hier_data else ""
-        print_st_m = get_print_settings()
-        prof_manual_list = print_st_m.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
-        with db() as c:
-            all_tpls_records = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC").fetchall()
-        manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in all_tpls_records} if all_tpls_records else {}
-        manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات مسجلة"]
-        with st.form("manual_score_form_enhanced"):
-            m_trainee_name = st.text_input("اسم المتدرب:", value="")
-            m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
-            m_profession = st.selectbox("الوظيفة / التخصص:", prof_manual_list)
-            selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
-            c1, c2 = st.columns(2)
-            with c1:
-                manual_score = st.number_input("الدرجة الحاصل عليها:", min_value=0, max_value=9999, value=45)
-            with c2:
-                manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
-            manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
-            calc_pct = (manual_score / manual_max) * 100 if manual_max > 0 else 0
-            st.info(f"📊 النسبة المئوية المحسوبة: **{calc_pct:.1f}%**")
+    elif selected_menu in ("✍ تسجيل نتيجة يدوي", "✍ التسجيل اليدوي للاختبارات و التقييم الواقعي"):
+        st.subheader("✍ التسجيل اليدوي للاختبارات و التقييم الواقعي")
+        manual_exam_tab, facility_assessment_tab = st.tabs(["📝 التسجيل اليدوي للاختبارات", "🏥 التقييم الواقعي للمنشآت"])
+
+        with manual_exam_tab:
+            st.markdown("#### 🏢 تحديد الهيكل الإداري والوظيفي للاختبار")
+            manual_scope = hierarchy_scope_widget("الهيكل الإداري للمتدرب:", "manual_exam_hierarchy_v1")
+            manual_profession_list = get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
+            manual_profession = st.selectbox("الوظيفة / التخصص:", manual_profession_list, key="manual_exam_profession_v1")
+            hier_data = get_hierarchical_data(include_hidden=False)
+            default_fac_str = str(manual_scope.get("scope_facility") or (hier_data[0]["facility_name"] if hier_data else ""))
+            print_st_m = get_print_settings()
+            prof_manual_list = print_st_m.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
             with db() as c:
-                all_questions_db = c.execute("SELECT id, question, category FROM questions WHERE active=1").fetchall()
-            selected_wrong_q_ids = []
-            if calc_pct < 100.0 and all_questions_db:
-                st.markdown("---")
-                st.markdown("#### ❌ حدد الأسئلة التي أخطأ فيها المتدرب (لضمان دقة خطط العمل وتقارير الضعف):")
-                q_options_dict = {f"سؤال ({q['id']}) - [{q['category']}] {q['question'][:50]}...": q['id'] for q in all_questions_db}
-                selected_wrong_labels = st.multiselect("اختر الأسئلة الخاطئة من القائمة:", list(q_options_dict.keys()))
-                selected_wrong_q_ids = [q_options_dict[lbl] for lbl in selected_wrong_labels]
-            if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
-                if not m_trainee_name.strip():
-                    st.warning("⚠ يرجى إدخال اسم المتدرب.")
-                elif not manual_tpl_choices:
-                    st.warning("⚠ يرجى إنشاء نماذج اختبارات أولاً.")
-                else:
-                    with db() as c:
-                        tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
-                        cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
-                                           (m_facility_name, normalize_text(m_trainee_name), "0000000000", m_profession, "completed", tpl_id_val, now(), now(), 0))
-                        new_tid = cur_tr.lastrowid
-                        passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
-                        cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                                             (new_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, calc_pct, passed_flag))
-                        new_sid = cur_sess.lastrowid
-                        cert_code = f"ELX-{new_sid:06d}"
-                        c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
-                        all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
-                        for pos, q_item in enumerate(all_bank_qs):
-                            q_id = q_item["id"]
-                            correct_ans = q_item["answer"]
-                            if q_id in selected_wrong_q_ids:
-                                wrong_opt = (correct_ans + 1) % 4
-                                c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
-                                          (new_sid, q_id, pos, json.dumps([0,1,2,3]), wrong_opt, 0))
-                            else:
-                                c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
-                                          (new_sid, q_id, pos, json.dumps([0,1,2,3]), correct_ans, 1))
-                    st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
+                all_tpls_records = c.execute("SELECT id, name, exam_type, profession FROM exam_templates ORDER BY name ASC").fetchall()
+            scope_tpls = []
+            for row in all_tpls_records:
+                rowd = dict(row)
+                if rowd.get("profession") and rowd.get("profession") != manual_profession:
+                    continue
+                scope_tpls.append(rowd)
+            manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in scope_tpls} if scope_tpls else {}
+            manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات متوافقة مع الوظيفة"]
+            with st.form("manual_score_form_enhanced"):
+                m_trainee_name = st.text_input("اسم المتدرب:", value="")
+                m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
+                m_profession = st.selectbox("الوظيفة / التخصص:", prof_manual_list, index=prof_manual_list.index(manual_profession) if manual_profession in prof_manual_list else 0)
+                selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
+                c1, c2 = st.columns(2)
+                with c1:
+                    manual_score = st.number_input("الدرجة الحاصل عليها:", min_value=0, max_value=9999, value=45)
+                with c2:
+                    manual_max = st.number_input("الدرجة الكلية:", min_value=1, max_value=9999, value=50)
+                manual_passed = st.radio("الحالة:", ["اجتزت بنجاح", "لم تجتز الاختبار"])
+                calc_pct = (manual_score / manual_max) * 100 if manual_max > 0 else 0
+                st.info(f"📊 النسبة المئوية المحسوبة: **{calc_pct:.1f}%**")
+                with db() as c:
+                    all_questions_db = c.execute("SELECT id, question, category FROM questions WHERE active=1").fetchall()
+                selected_wrong_q_ids = []
+                if calc_pct < 100.0 and all_questions_db:
+                    st.markdown("---")
+                    st.markdown("#### ❌ حدد الأسئلة التي أخطأ فيها المتدرب (لضمان دقة خطط العمل وتقارير الضعف):")
+                    q_options_dict = {f"سؤال ({q['id']}) - [{q['category']}] {q['question'][:50]}...": q['id'] for q in all_questions_db}
+                    selected_wrong_labels = st.multiselect("اختر الأسئلة الخاطئة من القائمة:", list(q_options_dict.keys()))
+                    selected_wrong_q_ids = [q_options_dict[lbl] for lbl in selected_wrong_labels]
+                if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
+                    if not m_trainee_name.strip():
+                        st.warning("⚠ يرجى إدخال اسم المتدرب.")
+                    elif not manual_tpl_choices:
+                        st.warning("⚠ يرجى إنشاء نموذج اختبار متوافق مع الوظيفة أولاً.")
+                    else:
+                        with db() as c:
+                            tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
+                            cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
+                                               (m_facility_name, normalize_text(m_trainee_name), "0000000000", m_profession, "completed", tpl_id_val, now(), now(), 0))
+                            new_tid = cur_tr.lastrowid
+                            passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
+                            cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                                 (new_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, calc_pct, passed_flag))
+                            new_sid = cur_sess.lastrowid
+                            cert_code = f"ELX-{new_sid:06d}"
+                            c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
+                            all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
+                            for pos, q_item in enumerate(all_bank_qs):
+                                q_id, correct_ans = q_item["id"], q_item["answer"]
+                                if q_id in selected_wrong_q_ids:
+                                    wrong_opt = (correct_ans + 1) % 4
+                                    c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
+                                              (new_sid, q_id, pos, json.dumps([0,1,2,3]), wrong_opt, 0))
+                                else:
+                                    c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
+                                              (new_sid, q_id, pos, json.dumps([0,1,2,3]), correct_ans, 1))
+                        st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
+
+        with facility_assessment_tab:
+            st.markdown("#### 🏥 نموذج التقييم الواقعي للمنشآت")
+            st.caption("اختر الهيكل الإداري والوظيفة أولاً، ثم قيّم عناصر الزيارة الميدانية وفق النموذج.")
+            assessment_scope = hierarchy_scope_widget("الهيكل الإداري للمنشأة:", "real_assessment_hierarchy_v1")
+            assessment_professions = get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
+            assessment_profession = st.selectbox("الوظيفة / التخصص المسؤول عن التقييم:", assessment_professions, key="real_assessment_profession_v1")
+            assessment_hier = get_hierarchical_data(include_hidden=False)
+            assessment_facility_default = str(assessment_scope.get("scope_facility") or "")
+            if not assessment_facility_default and assessment_hier:
+                assessment_facility_default = assessment_hier[0].get("facility_name", "")
+            assessment_items = [
+                "توافر أدوات ومستلزمات الفحص",
+                "الالتزام بإجراءات جمع العينات",
+                "الالتزام بإجراءات الفحص المعملي",
+                "تطبيق قواعد مكافحة العدوى",
+                "تسجيل النتائج وحفظ السجلات",
+                "تطبيق إجراءات ضبط الجودة",
+                "توافر العاملين المدربين",
+                "تنفيذ التوصيات السابقة",
+            ]
+            with st.form("facility_real_assessment_form_v1"):
+                visit_date = st.date_input("تاريخ الزيارة:", value=date.today(), key="real_assessment_date_v1")
+                assessment_facility = st.text_input("اسم المنشأة:", value=assessment_facility_default, key="real_assessment_facility_v1")
+                assessment_responsible = st.text_input("اسم مسؤول المنشأة / التقييم:", key="real_assessment_responsible_v1")
+                st.markdown("##### تقييم عناصر الزيارة")
+                item_results = {}
+                for i, item in enumerate(assessment_items):
+                    left, right = st.columns([3, 2])
+                    with left:
+                        st.write(item)
+                    with right:
+                        item_results[item] = st.selectbox("الحالة", ["مطابق", "غير مطابق", "يحتاج إلى تحسين", "لا ينطبق"], key=f"real_assess_item_{i}", label_visibility="collapsed")
+                assessment_notes = st.text_area("الملاحظات والتوصيات:", key="real_assessment_notes_v1")
+                if st.form_submit_button("💾 حفظ التقييم الواقعي للمنشأة", use_container_width=True):
+                    if not assessment_facility.strip():
+                        st.error("يرجى تحديد اسم المنشأة من الهيكل الإداري أو إدخاله.")
+                    else:
+                        with db() as c:
+                            c.execute("INSERT INTO facility_real_assessments(visit_date,governorate,authority,administration,facility,profession,responsible_person,items_json,notes,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                      (visit_date.isoformat(), assessment_scope.get("scope_governorate", ""), assessment_scope.get("scope_authority", ""), assessment_scope.get("scope_administration", ""), assessment_facility, assessment_profession, assessment_responsible, json.dumps(item_results, ensure_ascii=False), assessment_notes, now()))
+                        st.success("تم حفظ التقييم الواقعي للمنشأة بنجاح.")
+            with db() as c:
+                saved_assessments = c.execute("SELECT * FROM facility_real_assessments ORDER BY id DESC LIMIT 100").fetchall()
+            if saved_assessments:
+                st.markdown("#### 📋 التقييمات الواقعية المسجلة")
+                st.dataframe([{"التاريخ": r["visit_date"], "المديرية / الجهة": r["authority"], "الإدارة": r["administration"], "المنشأة": r["facility"], "الوظيفة": r["profession"], "مسؤول التقييم": r["responsible_person"]} for r in saved_assessments], use_container_width=True, hide_index=True)
 
 
     elif selected_menu == "📊 التقارير":
