@@ -3366,6 +3366,12 @@ def admin_dashboard():
                                     c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
                                               (new_sid, q_id, pos, json.dumps([0,1,2,3]), selected_option, 0 if is_wrong else 1))
                         st.success(f"✅ تم تسجيل نتيجة {len(selected_ids)} متدرب/متدربين بنجاح. أرقام الشهادات: **{', '.join(cert_codes)}**")
+                        manual_print_rows = "".join(
+                            f"<tr><td>{esc(tid)}</td><td>{esc(next((t['name'] for t in facility_trainees if t['id']==tid), m_trainee_name))}</td><td>{esc(m_profession)}</td><td>{esc(m_facility_name)}</td><td>{manual_score}/{manual_max}</td><td>{calc_pct:.1f}%</td><td>{esc(manual_passed)}</td></tr>"
+                            for tid in selected_ids
+                        )
+                        manual_print_html = f"<table class='table' style='width:100%;border-collapse:collapse' border='1'><thead><tr><th>رقم</th><th>الاسم</th><th>الوظيفة</th><th>المنشأة</th><th>الدرجة</th><th>النسبة</th><th>الحالة</th></tr></thead><tbody>{manual_print_rows}</tbody></table>"
+                        render_print_button_only(generate_general_report_html("التسجيل اليدوي لنتائج الاختبارات", manual_print_html), "🖨 طباعة نتائج التسجيل اليدوي")
 
         with facility_assessment_tab:
             st.markdown("#### 🏥 نموذج التقييم الواقعي للمنشآت")
@@ -3420,7 +3426,10 @@ def admin_dashboard():
                 saved_assessments = c.execute("SELECT * FROM facility_real_assessments ORDER BY id DESC LIMIT 100").fetchall()
             if saved_assessments:
                 st.markdown("#### 📋 التقييمات الواقعية المسجلة")
-                st.dataframe([{"التاريخ": r["visit_date"], "المديرية / الجهة": r["authority"], "الإدارة": r["administration"], "المنشأة": r["facility"], "الوظيفة": r["profession"], "مسؤول التقييم": r["responsible_person"]} for r in saved_assessments], use_container_width=True, hide_index=True)
+                saved_assessment_view = [{"التاريخ": r["visit_date"], "المديرية / الجهة": r["authority"], "الإدارة": r["administration"], "المنشأة": r["facility"], "الوظيفة": r["profession"], "مسؤول التقييم": r["responsible_person"]} for r in saved_assessments]
+                st.dataframe(saved_assessment_view, use_container_width=True, hide_index=True)
+                assess_table_html = pd.DataFrame(saved_assessment_view).to_html(index=False, border=1, classes="table")
+                render_print_button_only(generate_general_report_html("التقييمات الواقعية المسجلة", assess_table_html), "🖨 طباعة التقييمات الواقعية")
 
 
     elif selected_menu == "📊 التقارير":
@@ -3431,12 +3440,13 @@ def admin_dashboard():
         rep_scope_sql, rep_scope_args = hierarchy_scope_sql("h", rep_scope)
         st.caption("جميع التقارير والرسوم البيانية والنتائج أسفل الصفحة ستلتزم بهذا النطاق الإداري.")
 
-        rep_tab1, rep_tab2, rep_tab3, rep_tab4, rep_tab5 = st.tabs([
+        rep_tab1, rep_tab2, rep_tab3, rep_tab4, rep_tab5, rep_tab6 = st.tabs([
             "👤 تقرير فردي (لمتدرب مع فلترة ومقارنة فترات)",
             "🏢 تقرير جماعي (لوحدة متوطنة مع فلترة ومقارنة فترات)",
             "📋 تقرير النتائج الشامل",
             "📈 تقرير أداء الجهات",
-            "🏆 عرض النتائج والفلترة والأعلى تقييماً"
+            "🏆 عرض النتائج والفلترة والأعلى تقييماً",
+            "🏥 تقارير التقييم الواقعي ومقارنة الفترات"
         ])
 
         # أدوات داخلية آمنة للتقارير
@@ -3795,6 +3805,112 @@ def admin_dashboard():
                         render_print_button_only(combined,"طباعة نتائج جميع الممتحنين")
                 else:
                     st.warning("⚠️ لا توجد نتائج تطابق شروط الفلترة المحددة.")
+
+        with rep_tab6:
+            st.markdown("#### 🏥 حساب التقييم الواقعي للفرد أو المجموعة أو المنشأة")
+            today_assess = now_cairo().date()
+            scope_assess_report = hierarchy_scope_widget("نطاق التقييم الواقعي:", "real_assessment_report_scope_v1")
+            assess_professions_report = get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
+            profession_filter = st.selectbox("فلترة الوظيفة:", ["كل الوظائف"] + list(assess_professions_report), key="real_assess_report_prof_v1")
+            with db() as c:
+                assessment_records = [dict(r) for r in c.execute("SELECT * FROM facility_real_assessments ORDER BY visit_date, id").fetchall()]
+            def _assessment_in_scope(r, scope):
+                pairs = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_administration", "administration"), ("scope_facility", "facility")]
+                return all(not str(scope.get(sk) or "").strip() or str(r.get(rk) or "").strip() == str(scope.get(sk) or "").strip() for sk, rk in pairs)
+            filtered_assessments = [r for r in assessment_records if _assessment_in_scope(r, scope_assess_report) and (profession_filter == "كل الوظائف" or r.get("profession") == profession_filter)]
+            report_kind = st.radio("نوع التقرير:", ["منشأة", "فرد / مسؤول تقييم", "مجموعة منشآت"], horizontal=True, key="real_assess_report_kind_v1")
+            if report_kind == "منشأة":
+                facility_options = sorted({r.get("facility", "") for r in filtered_assessments if r.get("facility")})
+                chosen_facility = st.selectbox("اختر المنشأة:", facility_options or ["لا توجد منشآت مسجلة"], key="real_assess_report_fac_v1")
+                filtered_assessments = [r for r in filtered_assessments if r.get("facility") == chosen_facility]
+            elif report_kind == "فرد / مسؤول تقييم":
+                person_options = sorted({r.get("responsible_person", "") for r in filtered_assessments if r.get("responsible_person")})
+                chosen_person = st.selectbox("اختر الفرد / مسؤول التقييم:", person_options or ["لا توجد أسماء مسجلة"], key="real_assess_report_person_v1")
+                filtered_assessments = [r for r in filtered_assessments if r.get("responsible_person") == chosen_person]
+            else:
+                st.caption("سيتم تجميع التقييمات لكل المنشآت المطابقة للهيكل الإداري المختار.")
+            st.markdown("##### 📅 تحديد فترة التقرير")
+            ad1, ad2 = st.columns(2)
+            with ad1:
+                assess_from = st.date_input("من تاريخ:", today_assess - timedelta(days=30), key="real_assess_report_from_v1")
+            with ad2:
+                assess_to = st.date_input("إلى تاريخ:", today_assess, key="real_assess_report_to_v1")
+            def _assessment_summary(records):
+                counts = {"مطابق": 0, "غير مطابق": 0, "يحتاج إلى تحسين": 0, "لا ينطبق": 0}
+                total = 0
+                for rec in records:
+                    try: items = json.loads(rec.get("items_json") or "{}")
+                    except Exception: items = {}
+                    for status in items.values():
+                        if status in counts: counts[status] += 1
+                        if status in ("مطابق", "غير مطابق", "يحتاج إلى تحسين"): total += 1
+                score = (counts["مطابق"] / total * 100) if total else 0.0
+                return counts, total, score
+            def _assessment_table_html(records, title):
+                rows_html = []
+                for rec in records:
+                    try: items = json.loads(rec.get("items_json") or "{}")
+                    except Exception: items = {}
+                    cts = {"مطابق": 0, "غير مطابق": 0, "يحتاج إلى تحسين": 0, "لا ينطبق": 0}
+                    for value in items.values():
+                        if value in cts: cts[value] += 1
+                    denom = cts["مطابق"] + cts["غير مطابق"] + cts["يحتاج إلى تحسين"]
+                    pct = cts["مطابق"] * 100 / denom if denom else 0
+                    rows_html.append(f"<tr><td>{esc(rec.get('visit_date'))}</td><td>{esc(rec.get('authority'))}</td><td>{esc(rec.get('administration'))}</td><td>{esc(rec.get('facility'))}</td><td>{esc(rec.get('profession'))}</td><td>{cts['مطابق']}</td><td>{cts['غير مطابق']}</td><td>{cts['يحتاج إلى تحسين']}</td><td>{pct:.1f}%</td><td>{esc(rec.get('responsible_person'))}</td></tr>")
+                return f"<h3>{esc(title)}</h3><table class='table' style='width:100%;border-collapse:collapse' border='1'><thead><tr><th>التاريخ</th><th>الجهة</th><th>الإدارة</th><th>المنشأة</th><th>الوظيفة</th><th>مطابق</th><th>غير مطابق</th><th>تحسين</th><th>النسبة</th><th>مسؤول التقييم</th></tr></thead><tbody>{''.join(rows_html)}</tbody></table>"
+            if assess_from > assess_to:
+                st.warning("تاريخ البداية يجب ألا يتجاوز تاريخ النهاية.")
+            else:
+                period_records = [r for r in filtered_assessments if str(assess_from) <= str(r.get("visit_date") or "") <= str(assess_to)]
+                if not period_records:
+                    st.info("لا توجد تقييمات واقعية في الفترة المحددة وضمن الفلاتر المختارة.")
+                else:
+                    counts, denominator, score = _assessment_summary(period_records)
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("عدد التقييمات", len(period_records))
+                    m2.metric("متوسط نسبة المطابقة", f"{score:.1f}%")
+                    m3.metric("عناصر مطابقة", counts["مطابق"])
+                    m4.metric("عناصر غير مطابقة", counts["غير مطابق"])
+                    view_html = _assessment_table_html(period_records, f"تقرير التقييم الواقعي من {assess_from} إلى {assess_to}")
+                    view_rows = []
+                    for rec in period_records:
+                        try: items = json.loads(rec.get("items_json") or "{}")
+                        except Exception: items = {}
+                        cc = {"مطابق": 0, "غير مطابق": 0, "يحتاج إلى تحسين": 0, "لا ينطبق": 0}
+                        for value in items.values():
+                            if value in cc: cc[value] += 1
+                        den = cc["مطابق"] + cc["غير مطابق"] + cc["يحتاج إلى تحسين"]
+                        view_rows.append({"التاريخ":rec.get("visit_date"),"الجهة":rec.get("authority"),"الإدارة":rec.get("administration"),"المنشأة":rec.get("facility"),"الوظيفة":rec.get("profession"),"مطابق":cc["مطابق"],"غير مطابق":cc["غير مطابق"],"يحتاج إلى تحسين":cc["يحتاج إلى تحسين"],"نسبة المطابقة %":round(cc["مطابق"]*100/den,1) if den else 0,"مسؤول التقييم":rec.get("responsible_person")})
+                    st.dataframe(pd.DataFrame(view_rows), use_container_width=True, hide_index=True)
+                    render_print_button_only(generate_general_report_html("تقرير التقييم الواقعي", view_html), "🖨 طباعة تقرير التقييم الواقعي")
+                    _excel_download(pd.DataFrame(view_rows), "📥 تحميل تقرير التقييم الواقعي Excel", "real_assessment_report.xlsx", "dl_real_assess_report_v1")
+            st.markdown("---")
+            st.markdown("#### 📊 مقارنة التقييم الواقعي بين فترتين")
+            p1, p2 = st.columns(2)
+            with p1:
+                compare_from_1 = st.date_input("بداية الفترة الأولى:", today_assess - timedelta(days=60), key="real_assess_cmp_from1_v1")
+                compare_to_1 = st.date_input("نهاية الفترة الأولى:", today_assess - timedelta(days=31), key="real_assess_cmp_to1_v1")
+            with p2:
+                compare_from_2 = st.date_input("بداية الفترة الثانية:", today_assess - timedelta(days=30), key="real_assess_cmp_from2_v1")
+                compare_to_2 = st.date_input("نهاية الفترة الثانية:", today_assess, key="real_assess_cmp_to2_v1")
+            if compare_from_1 > compare_to_1 or compare_from_2 > compare_to_2:
+                st.warning("يرجى التأكد من أن بداية كل فترة تسبق نهايتها.")
+            else:
+                recs1 = [r for r in filtered_assessments if str(compare_from_1) <= str(r.get("visit_date") or "") <= str(compare_to_1)]
+                recs2 = [r for r in filtered_assessments if str(compare_from_2) <= str(r.get("visit_date") or "") <= str(compare_to_2)]
+                c1s, n1, score1 = _assessment_summary(recs1)
+                c2s, n2, score2 = _assessment_summary(recs2)
+                comp_df = pd.DataFrame([
+                    {"المؤشر": "عدد التقييمات", "الفترة الأولى": len(recs1), "الفترة الثانية": len(recs2), "التغير": len(recs2)-len(recs1)},
+                    {"المؤشر": "نسبة المطابقة %", "الفترة الأولى": round(score1,1), "الفترة الثانية": round(score2,1), "التغير": round(score2-score1,1)},
+                    {"المؤشر": "عناصر مطابقة", "الفترة الأولى": c1s["مطابق"], "الفترة الثانية": c2s["مطابق"], "التغير": c2s["مطابق"]-c1s["مطابق"]},
+                    {"المؤشر": "عناصر غير مطابقة", "الفترة الأولى": c1s["غير مطابق"], "الفترة الثانية": c2s["غير مطابق"], "التغير": c2s["غير مطابق"]-c1s["غير مطابق"]},
+                    {"المؤشر": "يحتاج إلى تحسين", "الفترة الأولى": c1s["يحتاج إلى تحسين"], "الفترة الثانية": c2s["يحتاج إلى تحسين"], "التغير": c2s["يحتاج إلى تحسين"]-c1s["يحتاج إلى تحسين"]},
+                ])
+                st.dataframe(comp_df, use_container_width=True, hide_index=True)
+                comp_html = comp_df.to_html(index=False, border=1, classes="table")
+                render_print_button_only(generate_general_report_html("مقارنة التقييم الواقعي بين فترتين", comp_html), "🖨 طباعة مقارنة الفترتين")
+                _excel_download(comp_df, "📥 تحميل مقارنة الفترتين Excel", "real_assessment_period_comparison.xlsx", "dl_real_assess_cmp_v1")
 
     elif selected_menu == "📈 خطط العمل":
         st.subheader("📈 خطط العمل التدريبية ومعالجة نقاط الضعف بالأمراض المتوطنة (مع إمكانية الحذف)")
