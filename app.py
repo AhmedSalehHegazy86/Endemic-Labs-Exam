@@ -360,14 +360,14 @@ def reindex_questions():
 def reindex_templates():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility FROM exam_templates ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, profession FROM exam_templates ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM exam_templates")
         c.execute("DELETE FROM sqlite_sequence WHERE name='exam_templates'")
         t_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"], r["scope_governorate"] or "", r["scope_authority"] or "", r["scope_center"] or "", r["scope_administration"] or "", r["scope_facility"] or ""))
+            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, profession) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"], r["scope_governorate"] or "", r["scope_authority"] or "", r["scope_center"] or "", r["scope_administration"] or "", r["scope_facility"] or "", r["profession"] or ""))
             t_mapping[old_id] = new_id
         for old_id, new_id in t_mapping.items():
             c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
@@ -460,7 +460,8 @@ def init_db():
                 scope_authority TEXT NOT NULL DEFAULT '',
                 scope_center TEXT NOT NULL DEFAULT '',
                 scope_administration TEXT NOT NULL DEFAULT '',
-                scope_facility TEXT NOT NULL DEFAULT ''
+                scope_facility TEXT NOT NULL DEFAULT '',
+                profession TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS trainees (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -592,6 +593,7 @@ def init_db():
         ("exam_templates", "scope_center", "TEXT NOT NULL DEFAULT ''"),
         ("exam_templates", "scope_administration", "TEXT NOT NULL DEFAULT ''"),
         ("exam_templates", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "profession", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_governorate", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_authority", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_center", "TEXT NOT NULL DEFAULT ''"),
@@ -870,6 +872,13 @@ def template_matches_scope(template_row, scope):
         return True
     return False
 
+def template_matches_profession(template_row, trainee_profession):
+    """Legacy/blank profession means all professions; otherwise require an exact normalized match."""
+    t = dict(template_row) if not isinstance(template_row, dict) else template_row
+    required = normalize_text(t.get("profession") or "")
+    actual = normalize_text(trainee_profession or "")
+    return not required or required in {normalize_text("كل الوظائف"), normalize_text("جميع الوظائف")} or required == actual
+
 def template_matches_facility(template_row, facility_name):
     """Check whether a template scope contains the trainee facility."""
     t = dict(template_row) if not isinstance(template_row, dict) else template_row
@@ -1038,9 +1047,11 @@ def start_session(trainee_id, template_id):
         if not t:
             raise ValueError("نموذج الاختبار غير موجود.")
         t_dict = dict(t)
-        trainee_row = c.execute("SELECT facility FROM trainees WHERE id=? AND hidden=0", (trainee_id,)).fetchone()
+        trainee_row = c.execute("SELECT facility, profession FROM trainees WHERE id=? AND hidden=0", (trainee_id,)).fetchone()
         if not trainee_row:
             raise ValueError("المتدرب غير موجود أو غير متاح حالياً.")
+        if not template_matches_profession(t_dict, trainee_row["profession"]):
+            raise ValueError("هذا النموذج مخصص لمهنة أخرى، ولا يمكن استخدامه لهذه الوظيفة.")
         scope_values = {
             "governorate": t_dict.get("scope_governorate") or "",
             "authority": t_dict.get("scope_authority") or "",
@@ -1613,8 +1624,14 @@ def render_print_button_only(html_content, label_prefix=""):
         m_top = "12mm"
         m_right = "8mm"
         m_left = "8mm"
+        # Apply Arabic Naskh typography to every non-certificate printout only.
+        # Certificate HTML is intentionally left untouched to preserve its existing design.
         repeated_print_css = f"""
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+        html, body, body * {{
+            font-family: 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', serif !important;
+        }}
         @page {{
             size: A4 portrait;
             margin: {m_top} {m_right} 16mm {m_left} !important;
@@ -2034,10 +2051,17 @@ def login_portal():
                 elif not tr.get("assigned_template_id"):
                     st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
                 else:
-                    st.session_state.trainee_id = tr["id"]
-                    st.session_state.trainee_name = tr["name"]
-                    st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
-                    st.rerun()
+                    with db() as c:
+                        login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
+                    if not login_tpl:
+                        st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
+                    elif not template_matches_profession(dict(login_tpl), tr.get("profession", "")):
+                        st.error(f"❌ نموذج الاختبار المحدد غير مخصص لمهنتك ({tr.get('profession') or 'غير محددة'}). يرجى مراجعة الإدارة لتخصيص النموذج الصحيح.")
+                    else:
+                        st.session_state.trainee_id = tr["id"]
+                        st.session_state.trainee_name = tr["name"]
+                        st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
+                        st.rerun()
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
@@ -2773,8 +2797,8 @@ def admin_dashboard():
         with db() as c:
             all_tpls_records = c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC").fetchall()
         if all_tpls_records:
-            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(row))}" for row in all_tpls_records]
-            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(row))}": row["id"] for row in all_tpls_records}
+            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | المهنة: {row['profession'] or 'كل الوظائف'} | {template_scope_text(dict(row))}" for row in all_tpls_records]
+            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | المهنة: {row['profession'] or 'كل الوظائف'} | {template_scope_text(dict(row))}": row["id"] for row in all_tpls_records}
         else:
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
@@ -2986,15 +3010,17 @@ def admin_dashboard():
                     with st.container(border=True):
                         st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')} &nbsp;|&nbsp; <span style='color: #059669; font-size: 14px;'>[{exam_type_badge}]</span>", unsafe_allow_html=True)
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
-                        st.info(f"🏥 نطاق الهيكل الإداري للنموذج: **{template_scope_text(t_dict)}**")
+                        st.info(f"👷 المهنة المخصصة: **{t_dict.get('profession') or 'كل الوظائف'}**  \n\n🏥 نطاق الهيكل الإداري للنموذج: **{template_scope_text(t_dict)}**")
                         exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
                         render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
         elif sub_tpl_mode == "➕ إنشاء نموذج جديد":
             categories_pool_opts = [
                 "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
             ]
+            tpl_profession_options = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
             with st.form("create_template_schedule_form"):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
+                new_tpl_profession = st.selectbox("المهنة المسموح لها بأداء هذا الاختبار:", tpl_profession_options, help="لن يتمكن من دخول هذا النموذج إلا المتدرب المسجل بنفس المهنة. اختر كل الوظائف لإتاحته للجميع.")
                 st.markdown("#### 🎯 تحديد تصنيف نموذج الاختبار:")
                 new_exam_type = st.radio("نوع النموذج:", ["قبل التدريب", "بعد التدريب", "تقييم شامل"], horizontal=True)
                 is_open_questions = st.checkbox("عدد أسئلة مفتوح (كامل البنك)", value=True)
@@ -3055,14 +3081,34 @@ def admin_dashboard():
                                 c.execute("""INSERT INTO exam_templates(
                                     name, exam_type, num_questions, duration_minutes, pass_percent, categories_json,
                                     start_time, end_time, created_at, scope_governorate, scope_authority, scope_center,
-                                    scope_administration, scope_facility
-                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                    scope_administration, scope_facility, profession
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                           (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass),
                                            json.dumps(new_tpl_cats, ensure_ascii=False), start_dt_str, end_dt_str, now(),
                                            new_tpl_scope["scope_governorate"], new_tpl_scope["scope_authority"], new_tpl_scope["scope_center"],
-                                           new_tpl_scope["scope_administration"], new_tpl_scope["scope_facility"]))
+                                           new_tpl_scope["scope_administration"], new_tpl_scope["scope_facility"],
+                                           "" if new_tpl_profession == "كل الوظائف" else new_tpl_profession))
                             st.success("✅ تم إنشاء وتحديد موعد وتصنيف النموذج بنجاح!")
                             st.rerun()
+        elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
+            st.markdown("#### 👷 تعديل المهنة المخصصة لنموذج اختبار موجود")
+            with db() as c:
+                editable_tpls = c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
+            if not editable_tpls:
+                st.info("لا توجد نماذج اختبارات لتعديلها.")
+            else:
+                editable_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) — المهنة الحالية: {t['profession'] or 'كل الوظائف'}": dict(t) for t in editable_tpls}
+                edit_professions = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
+                with st.form("edit_template_profession_form"):
+                    edit_tpl_label = st.selectbox("اختر نموذج الاختبار:", list(editable_map.keys()))
+                    edit_tpl_profession = st.selectbox("المهنة المسموح لها بأداء الاختبار:", edit_professions, help="اختيار كل الوظائف يجعل النموذج متاحاً لجميع المهن.")
+                    if st.form_submit_button("💾 حفظ المهنة للنموذج", use_container_width=True):
+                        edit_tpl_id = editable_map[edit_tpl_label]["id"]
+                        profession_to_save = "" if edit_tpl_profession == "كل الوظائف" else edit_tpl_profession
+                        with db() as c:
+                            c.execute("UPDATE exam_templates SET profession=? WHERE id=?", (profession_to_save, edit_tpl_id))
+                        st.success("✅ تم تحديث المهنة المخصصة لنموذج الاختبار.")
+                        st.rerun()
         else:
             with db() as c:
                 tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
@@ -4141,6 +4187,12 @@ def trainee_portal():
     is_exam_open = False
     if matching_template:
         t_dict = dict(matching_template)
+        if not template_matches_profession(t_dict, tr["profession"]):
+            st.error(f"❌ نموذج الاختبار المخصص لك غير مناسب لمهنتك ({tr['profession'] or 'غير محددة'}). يرجى التواصل مع الإدارة لتعديل التخصيص.")
+            if st.button("🚪 تسجيل الخروج", use_container_width=True):
+                st.session_state.trainee_id = ""
+                st.rerun()
+            return
         start_t = t_dict.get("start_time")
         end_t = t_dict.get("end_time")
         if start_t and end_t:
