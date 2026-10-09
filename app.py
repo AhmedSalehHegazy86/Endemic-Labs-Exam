@@ -2078,92 +2078,102 @@ def login_portal():
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"])
 
-    reg_tab, exam_tab = st.tabs(["📝 تسجيل لأول مرة", "🔐 التسجيل ودخول الامتحان"])
+    # الصفحة الرئيسية: أزرار واضحة بالترتيب المطلوب، مع إبقاء دخول الإدارة مخفياً داخل expander.
+    if "login_portal_section" not in st.session_state:
+        st.session_state.login_portal_section = "exam"
+    st.markdown("<style>div.stButton > button[kind='secondary'] {min-height: 3.2rem; font-weight: 600;} .portal-gap {height: 22px;}</style>", unsafe_allow_html=True)
+    if st.button("🔐 تسجيل دخول الامتحان", key="portal_exam_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "exam" else "secondary"):
+        st.session_state.login_portal_section = "exam"
+        st.rerun()
+    if st.button("📝 تسجيل أول مرة", key="portal_register_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "register" else "secondary"):
+        st.session_state.login_portal_section = "register"
+        st.rerun()
+    st.markdown('<div class="portal-gap"></div>', unsafe_allow_html=True)
 
-    with reg_tab:
-        st.markdown("### 📝 تسجيل الممتحن لأول مرة")
-        st.info("أدخل بياناتك مرة واحدة. بعد إرسال الطلب سيظهر للإدارة في قسم **قبول تسجيل الجدد**، ولا يمكن دخول الامتحان قبل اعتماد التسجيل.")
-        st.markdown("##### 📍 الجهة الإدارية التابع لها:")
-        st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="reg_country_fixed")
-        st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="reg_ministry_fixed")
-        if not hier_data:
-            st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
-            facility_final_str = ""
-        else:
-            auths_list = sorted({str(item.get("authority") or "").strip() for item in hier_data if str(item.get("authority") or "").strip()})
-            sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, key="reg_authority", on_change=_reset_reg_admin_and_facility)
-            rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
-            admins_list = sorted({str(item.get("administration") or "").strip() for item in rows_auth if str(item.get("administration") or "").strip()})
-            sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
-            rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
-            facilities_list = sorted({str(item.get("facility_name") or "").strip() for item in rows_admin if str(item.get("facility_name") or "").strip()})
-            sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, key="reg_facility", disabled=not bool(rows_admin))
-            facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
-        with st.form("trainee_first_registration"):
-            name = st.text_input("الاسم الرباعي:")
-            national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
-            phone = st.text_input("رقم الهاتف:", help="رقم الهاتف هو المعرف الرئيسي والفريد بعد اعتماد التسجيل.")
-            selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
-            work_start_date = st.date_input(
-                "📅 تاريخ استلام العمل:",
-                value=now_cairo().date(),
-                max_value=now_cairo().date(),
-                format="DD/MM/YYYY",
-                help="اختر تاريخ استلام العمل الفعلي."
-            )
-            if st.form_submit_button("📨 إرسال طلب التسجيل", use_container_width=True):
-                digits_nid = normalize_national_id(national_id)
-                phone_norm = normalize_egyptian_phone(phone)
-                if not facility_final_str:
-                    st.warning("⚠ يرجى استكمال اختيار الهيكل الإداري بالكامل.")
-                elif not name.strip() or not phone_norm or not digits_nid:
-                    st.warning("⚠ يرجى إدخال الاسم والرقم القومي ورقم الهاتف.")
-                elif not is_valid_egyptian_national_id(digits_nid):
-                    st.warning("⚠ الرقم القومي غير صحيح. تأكد من 14 رقماً وتاريخ الميلاد وكود المحافظة.")
-                elif not is_valid_egyptian_mobile(phone_norm):
-                    st.warning("⚠ أدخل رقم موبايل مصري صحيحاً مثل 01012345678 أو +201012345678.")
-                elif phone_exists(phone_norm):
-                    st.error("❌ رقم الهاتف مستخدم بالفعل لممتحن مسجل. رقم الهاتف يجب أن يكون فريداً.")
-                else:
-                    with db() as c:
-                        nid_exists = c.execute("SELECT 1 FROM trainees WHERE national_id=? LIMIT 1", (digits_nid,)).fetchone()
-                    if nid_exists:
-                        st.error("❌ الرقم القومي مستخدم بالفعل في تسجيل سابق.")
+    if st.session_state.login_portal_section == "register":
+            st.markdown("### 📝 تسجيل الممتحن لأول مرة")
+            st.info("أدخل بياناتك مرة واحدة. بعد إرسال الطلب سيظهر للإدارة في قسم **قبول تسجيل الجدد**، ولا يمكن دخول الامتحان قبل اعتماد التسجيل.")
+            st.markdown("##### 📍 الجهة الإدارية التابع لها:")
+            st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="reg_country_fixed")
+            st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="reg_ministry_fixed")
+            if not hier_data:
+                st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+                facility_final_str = ""
+            else:
+                auths_list = sorted({str(item.get("authority") or "").strip() for item in hier_data if str(item.get("authority") or "").strip()})
+                sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, key="reg_authority", on_change=_reset_reg_admin_and_facility)
+                rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
+                admins_list = sorted({str(item.get("administration") or "").strip() for item in rows_auth if str(item.get("administration") or "").strip()})
+                sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
+                rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
+                facilities_list = sorted({str(item.get("facility_name") or "").strip() for item in rows_admin if str(item.get("facility_name") or "").strip()})
+                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, key="reg_facility", disabled=not bool(rows_admin))
+                facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
+            with st.form("trainee_first_registration"):
+                name = st.text_input("الاسم الرباعي:")
+                national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
+                phone = st.text_input("رقم الهاتف:", help="رقم الهاتف هو المعرف الرئيسي والفريد بعد اعتماد التسجيل.")
+                selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
+                work_start_date = st.date_input(
+                    "📅 تاريخ استلام العمل:",
+                    value=now_cairo().date(),
+                    max_value=now_cairo().date(),
+                    format="DD/MM/YYYY",
+                    help="اختر تاريخ استلام العمل الفعلي."
+                )
+                if st.form_submit_button("📨 إرسال طلب التسجيل", use_container_width=True):
+                    digits_nid = normalize_national_id(national_id)
+                    phone_norm = normalize_egyptian_phone(phone)
+                    if not facility_final_str:
+                        st.warning("⚠ يرجى استكمال اختيار الهيكل الإداري بالكامل.")
+                    elif not name.strip() or not phone_norm or not digits_nid:
+                        st.warning("⚠ يرجى إدخال الاسم والرقم القومي ورقم الهاتف.")
+                    elif not is_valid_egyptian_national_id(digits_nid):
+                        st.warning("⚠ الرقم القومي غير صحيح. تأكد من 14 رقماً وتاريخ الميلاد وكود المحافظة.")
+                    elif not is_valid_egyptian_mobile(phone_norm):
+                        st.warning("⚠ أدخل رقم موبايل مصري صحيحاً مثل 01012345678 أو +201012345678.")
+                    elif phone_exists(phone_norm):
+                        st.error("❌ رقم الهاتف مستخدم بالفعل لممتحن مسجل. رقم الهاتف يجب أن يكون فريداً.")
                     else:
-                        try:
-                            tid = create_trainee(
-                                facility_final_str, name, phone_norm, digits_nid,
-                                selected_profession, None, work_start_date.isoformat()
-                            )
-                            st.success(f"✅ تم إرسال طلب التسجيل بنجاح. رقم الطلب: {tid}. انتظر اعتماد الإدارة.")
-                        except ValueError as e:
-                            msg = {"DUPLICATE_TRAINEE_PHONE": "رقم الهاتف مستخدم بالفعل.", "DUPLICATE_TRAINEE_NATIONAL_ID": "الرقم القومي مستخدم بالفعل.", "INVALID_TRAINEE_PHONE": "رقم الموبايل المصري غير صحيح.", "INVALID_TRAINEE_NATIONAL_ID": "الرقم القومي غير صحيح."}.get(str(e), str(e))
-                            st.error("❌ " + msg)
+                        with db() as c:
+                            nid_exists = c.execute("SELECT 1 FROM trainees WHERE national_id=? LIMIT 1", (digits_nid,)).fetchone()
+                        if nid_exists:
+                            st.error("❌ الرقم القومي مستخدم بالفعل في تسجيل سابق.")
+                        else:
+                            try:
+                                tid = create_trainee(
+                                    facility_final_str, name, phone_norm, digits_nid,
+                                    selected_profession, None, work_start_date.isoformat()
+                                )
+                                st.success(f"✅ تم إرسال طلب التسجيل بنجاح. رقم الطلب: {tid}. انتظر اعتماد الإدارة.")
+                            except ValueError as e:
+                                msg = {"DUPLICATE_TRAINEE_PHONE": "رقم الهاتف مستخدم بالفعل.", "DUPLICATE_TRAINEE_NATIONAL_ID": "الرقم القومي مستخدم بالفعل.", "INVALID_TRAINEE_PHONE": "رقم الموبايل المصري غير صحيح.", "INVALID_TRAINEE_NATIONAL_ID": "الرقم القومي غير صحيح."}.get(str(e), str(e))
+                                st.error("❌ " + msg)
 
-    with exam_tab:
-        st.markdown("### 🔐 التسجيل ودخول الامتحان")
-        st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
-        with st.form("trainee_phone_login"):
-            phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
-            nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
-            if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
-                tr = trainee_by_phone_and_national_id(phone_login, nid_login)
-                if not tr:
-                    st.error("❌ بيانات الدخول غير متطابقة مع تسجيل معتمد. راجع رقم الهاتف والرقم القومي.")
-                elif not tr.get("assigned_template_id"):
-                    st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
-                else:
-                    with db() as c:
-                        login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
-                    if not login_tpl:
-                        st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
-                    elif not template_matches_profession(dict(login_tpl), tr.get("profession", "")):
-                        st.error(f"❌ نموذج الاختبار المحدد غير مخصص لمهنتك ({tr.get('profession') or 'غير محددة'}). يرجى مراجعة الإدارة لتخصيص النموذج الصحيح.")
+    if st.session_state.login_portal_section == "exam":
+            st.markdown("### 🔐 التسجيل ودخول الامتحان")
+            st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
+            with st.form("trainee_phone_login"):
+                phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
+                nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
+                if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
+                    tr = trainee_by_phone_and_national_id(phone_login, nid_login)
+                    if not tr:
+                        st.error("❌ بيانات الدخول غير متطابقة مع تسجيل معتمد. راجع رقم الهاتف والرقم القومي.")
+                    elif not tr.get("assigned_template_id"):
+                        st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
                     else:
-                        st.session_state.trainee_id = tr["id"]
-                        st.session_state.trainee_name = tr["name"]
-                        st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
-                        st.rerun()
+                        with db() as c:
+                            login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
+                        if not login_tpl:
+                            st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
+                        elif not template_matches_profession(dict(login_tpl), tr.get("profession", "")):
+                            st.error(f"❌ نموذج الاختبار المحدد غير مخصص لمهنتك ({tr.get('profession') or 'غير محددة'}). يرجى مراجعة الإدارة لتخصيص النموذج الصحيح.")
+                        else:
+                            st.session_state.trainee_id = tr["id"]
+                            st.session_state.trainee_name = tr["name"]
+                            st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
+                            st.rerun()
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
