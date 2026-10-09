@@ -78,6 +78,7 @@ html, body, [class*="css"] {
     direction: rtl;
     text-align: right;
     font-family: 'Cairo', 'Tahoma', sans-serif !important;
+    font-size: 16px;
     color-scheme: light !important;
     -webkit-user-select: none !important;
     -moz-user-select: none !important;
@@ -99,6 +100,15 @@ body::after {
     pointer-events: none;
     z-index: 999998;
     background: radial-gradient(circle, rgba(255,255,255,0) 70%, rgba(5,150,105,0.03) 100%);
+}
+.stApp, .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] {
+    font-size: 16px;
+}
+.stApp h1 { font-size: 1.8rem !important; }
+.stApp h2 { font-size: 1.55rem !important; }
+.stApp h3 { font-size: 1.3rem !important; }
+.stApp input, .stApp textarea, .stApp select, .stApp button {
+    font-size: 15px !important;
 }
 .block-container {
     max-width: 1150px !important;
@@ -1632,6 +1642,11 @@ def render_print_button_only(html_content, label_prefix=""):
         html, body, body * {{
             font-family: 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', serif !important;
         }}
+        html, body {{ font-size: 11pt; }}
+        body {{ line-height: 1.35; }}
+        p, li {{ font-size: 10.5pt; }}
+        table {{ font-size: 9.5pt; }}
+        th, td {{ line-height: 1.25; }}
         @page {{
             size: A4 portrait;
             margin: {m_top} {m_right} 16mm {m_left} !important;
@@ -3720,11 +3735,30 @@ def admin_dashboard():
                     existing_min = c.execute("SELECT * FROM training_minutes WHERE template_id=?", (chosen_min_tpl_id,)).fetchone()
                     tpl_rec = c.execute("SELECT * FROM exam_templates WHERE id=?", (chosen_min_tpl_id,)).fetchone()
 
-                default_min_text = f"إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة، وفي إطار رفع كفاءة العاملين وتطوير الأداء الفني والمهني للكوادر الطبية والمعملية."
-                default_items_text = f"1. مناقشة المعايير والمهارات الفنية الخاصة بنموذج ({tpl_rec['name'] if tpl_rec else ''}).\n2. استعراض طرق الفحص والتشخيص ومكافحة الأمراض المتوطنة بدقة.\n3. التوجيه بالمتابعة المستمرة لكافة السجلات والتقارير الدورية."
-                default_goals_text = f"1. رفع كفاءة العاملين بوحدات الأمراض المتوطنة.\n2. ضمان جودة الفحوصات المعملية والتشخيصية.\n3. الالتزام بالتدابير الوقائية وتطبيق المعايير القياسية."
+                # توليد بيانات محضر التدريب تلقائياً من نموذج الاختبار ونطاقه الإداري.
+                tpl_dict_for_minutes = dict(tpl_rec) if tpl_rec else {}
+                minute_scope_parts = [str(tpl_dict_for_minutes.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility')]
+                minute_scope_parts = [x for x in minute_scope_parts if x]
+                default_facility_val = " - ".join(minute_scope_parts) if minute_scope_parts else "كل الهيكل الإداري"
+                default_min_text = (
+                    f"إيماءً إلى خطة التدريب والإشراف الفني بوحدات الأمراض المتوطنة، "
+                    f"وبناءً على نموذج الاختبار ({tpl_rec['name'] if tpl_rec else ''})، "
+                    f"تم عقد التدريب للعاملين ضمن النطاق الإداري: {default_facility_val}. "
+                    f"ويستهدف التدريب رفع الكفاءة الفنية وتحسين جودة الأداء وفق متطلبات النموذج."
+                )
+                default_items_text = (
+                    f"1. التعريف بأهداف ومتطلبات نموذج الاختبار ({tpl_rec['name'] if tpl_rec else ''}).\n"
+                    f"2. مراجعة المهارات والمعايير الفنية المرتبطة بالمهنة: {tpl_rec['profession'] if tpl_rec and tpl_rec['profession'] else 'جميع الوظائف المستهدفة'}.\n"
+                    "3. مناقشة إجراءات الفحص والتشخيص ومكافحة الأمراض المتوطنة.\n"
+                    "4. مراجعة السجلات والتقارير والتدابير الوقائية ومعايير الجودة."
+                )
+                default_goals_text = (
+                    f"1. رفع كفاءة العاملين في نطاق {default_facility_val}.\n"
+                    "2. تحسين جودة الفحوصات والإجراءات الفنية المرتبطة بنموذج الاختبار.\n"
+                    "3. توحيد تطبيق المعايير القياسية والتدابير الوقائية.\n"
+                    "4. تحديد احتياجات المتابعة وقياس التحسن بعد التدريب."
+                )
                 default_date_val = now_cairo().strftime('%Y-%m-%d')
-                default_facility_val = "الإدارة الصحية بأولاد صقر - وحدة الأمراض المتوطنة"
 
                 cur_min_text = existing_min["minutes_text"] if existing_min and existing_min["minutes_text"] else default_min_text
                 cur_items_text = existing_min["training_items"] if existing_min and existing_min["training_items"] else default_items_text
@@ -3751,8 +3785,34 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
                 print_sett_m = get_print_settings()
-                header_right_txt = print_sett_m.get('header_text', '')
+                # ترويسة المحضر تتبع الهيكل الإداري المرتبط بنموذج الاختبار المختار.
+                header_right_txt = hierarchy_header_html(tpl_dict_for_minutes)
                 line_sp_m = print_sett_m.get('line_spacing', 1.25)
+
+                # أسماء المتدربين تتعبأ تلقائياً وفق نطاق النموذج والمهنة والتخصيص الحالي.
+                with db() as c:
+                    all_minutes_trainees = [dict(r) for r in c.execute(
+                        "SELECT id, name, profession, facility, assigned_template_id FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE"
+                    ).fetchall()]
+                hierarchy_rows_minutes = get_hierarchical_data(include_hidden=False)
+                matching_minutes_trainees = []
+                minutes_has_scope = any(str(tpl_dict_for_minutes.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility'))
+                for trainee_row in all_minutes_trainees:
+                    if not template_matches_profession(tpl_dict_for_minutes, trainee_row.get('profession')):
+                        continue
+                    assigned_id = trainee_row.get('assigned_template_id')
+                    if assigned_id not in (None, 0, chosen_min_tpl_id):
+                        continue
+                    if not minutes_has_scope:
+                        # النموذج العام يشمل المتدربين غير المخصصين لنموذج آخر، حتى إن كانت قيمة جهة العمل قديمة.
+                        matching_minutes_trainees.append(trainee_row)
+                        continue
+                    matching_scope_rows = [hrow for hrow in hierarchy_rows_minutes
+                        if (not tpl_dict_for_minutes.get('scope_authority') or hrow.get('authority') == tpl_dict_for_minutes.get('scope_authority'))
+                        and (not tpl_dict_for_minutes.get('scope_administration') or hrow.get('administration') == tpl_dict_for_minutes.get('scope_administration'))
+                        and (not tpl_dict_for_minutes.get('scope_facility') or hrow.get('facility_name') == tpl_dict_for_minutes.get('scope_facility'))]
+                    if any(trainee_matches_hierarchy(trainee_row.get('facility'), hrow) for hrow in matching_scope_rows):
+                        matching_minutes_trainees.append(trainee_row)
 
                 final_min_t = edited_minutes_input if 'edited_minutes_input' in locals() else cur_min_text
                 final_items_t = edited_items_input if 'edited_items_input' in locals() else cur_items_text
@@ -3774,15 +3834,28 @@ def admin_dashboard():
                 
                 date_display_block = (f"<b>اليوم:</b> {day_name_str}<br>" if day_name_str else "") + f"<b>التاريخ:</b> {final_date_t}"
 
-                signatures_rows_html = ""
-                for i in range(1, 7):
-                    signatures_rows_html += f"""
-                    <tr>
-                        <td style="border: 1px solid #059669; padding: 4px; text-align: center; font-size: 10pt; width: 12%;">{i}</td>
-                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 50%;">&nbsp;</td>
-                        <td style="border: 1px solid #059669; padding: 4px; text-align: right; font-size: 10pt; width: 38%;">&nbsp;</td>
-                    </tr>
-                    """
+                def build_minutes_signature_rows(trainee_slice, start_index):
+                    rows_html = ""
+                    for offset in range(6):
+                        trainee_row = trainee_slice[offset] if offset < len(trainee_slice) else None
+                        row_num = start_index + offset
+                        trainee_name = esc(trainee_row.get('name') or '') if trainee_row else '&nbsp;'
+                        trainee_prof = esc(trainee_row.get('profession') or '') if trainee_row else '&nbsp;'
+                        rows_html += f"""
+                        <tr>
+                            <td style="border: 1px solid #059669; padding: 3px; text-align: center; font-size: 10pt; width: 12%;">{row_num}</td>
+                            <td style="border: 1px solid #059669; padding: 3px; text-align: right; font-size: 10pt; width: 50%;">{trainee_name}</td>
+                            <td style="border: 1px solid #059669; padding: 3px; text-align: right; font-size: 10pt; width: 38%;">{trainee_prof}</td>
+                        </tr>
+                        """
+                    return rows_html
+
+                signatures_rows_html = build_minutes_signature_rows(matching_minutes_trainees[:6], 1)
+                signatures_rows_b_html = build_minutes_signature_rows(matching_minutes_trainees[6:12], 7)
+                if matching_minutes_trainees:
+                    st.caption(f"تم العثور على {len(matching_minutes_trainees)} متدرب مطابق للهيكل الإداري والمهنة ونموذج الاختبار. سيظهر أول 12 اسمًا في كشف التوقيع.")
+                else:
+                    st.info("لا توجد أسماء متدربين مطابقة لنطاق هذا النموذج ومهنته؛ سيظل كشف التوقيع فارغًا ويمكن تعبئته يدويًا.")
 
                 side_by_side_tables_html = f"""
                 <div style="display: flex; flex-direction: row; gap: 4mm; width: 100%; margin-top: 3mm; margin-bottom: 3mm; page-break-inside: avoid; break-inside: avoid;">
@@ -3812,7 +3885,7 @@ def admin_dashboard():
                                 </tr>
                             </thead>
                             <tbody>
-                                {signatures_rows_html}
+                                {signatures_rows_b_html}
                             </tbody>
                         </table>
                     </div>
