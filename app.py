@@ -3285,7 +3285,21 @@ def admin_dashboard():
             manual_profession_list = get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
             manual_profession = st.selectbox("الوظيفة / التخصص:", manual_profession_list, key="manual_exam_profession_v1")
             hier_data = get_hierarchical_data(include_hidden=False)
-            default_fac_str = str(manual_scope.get("scope_facility") or (hier_data[0]["facility_name"] if hier_data else ""))
+            def _scope_matches_row(row, scope):
+                checks = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name")]
+                return all(not str(scope.get(sk) or "").strip() or str(row.get(hk) or "").strip() == str(scope.get(sk) or "").strip() for sk, hk in checks)
+            matching_hier = [h for h in hier_data if _scope_matches_row(h, manual_scope)]
+            facility_choices = sorted({str(h.get("facility_name") or "").strip() for h in matching_hier if str(h.get("facility_name") or "").strip()})
+            if facility_choices:
+                selected_manual_facility = st.selectbox("المنشأة:", facility_choices, key="manual_exam_facility_choice_v2")
+            else:
+                selected_manual_facility = str(manual_scope.get("scope_facility") or "")
+            with db() as c:
+                facility_trainees = [dict(r) for r in c.execute("SELECT id,name,facility,profession,status FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE").fetchall()]
+            eligible_manual_trainees = [t for t in facility_trainees if (not selected_manual_facility or str(t.get("facility") or "").strip() == selected_manual_facility) and (not manual_profession or str(t.get("profession") or "").strip() == manual_profession)]
+            manual_trainee_labels = {f"{t['name']} — {t['profession']} (#{t['id']})": t["id"] for t in eligible_manual_trainees}
+            manual_selected_labels = st.multiselect("اختيار متدرب واحد أو أكثر من المنشأة:", list(manual_trainee_labels.keys()), key="manual_exam_trainees_v2", help="اختر فردًا واحدًا أو عدة أفراد. إذا لم تختر أسماء، يمكنك إدخال اسم جديد يدويًا.")
+            default_fac_str = selected_manual_facility or str(manual_scope.get("scope_facility") or (hier_data[0]["facility_name"] if hier_data else ""))
             print_st_m = get_print_settings()
             prof_manual_list = print_st_m.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
             with db() as c:
@@ -3299,7 +3313,8 @@ def admin_dashboard():
             manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in scope_tpls} if scope_tpls else {}
             manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات متوافقة مع الوظيفة"]
             with st.form("manual_score_form_enhanced"):
-                m_trainee_name = st.text_input("اسم المتدرب:", value="")
+                selected_names_display = ", ".join(label.split(" — ")[0] for label in manual_selected_labels)
+                m_trainee_name = st.text_input("اسم المتدرب (يُملأ تلقائيًا عند الاختيار أعلاه):", value=selected_names_display)
                 m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
                 m_profession = st.selectbox("الوظيفة / التخصص:", prof_manual_list, index=prof_manual_list.index(manual_profession) if manual_profession in prof_manual_list else 0)
                 selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
@@ -3322,32 +3337,35 @@ def admin_dashboard():
                     selected_wrong_q_ids = [q_options_dict[lbl] for lbl in selected_wrong_labels]
                 if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
                     if not m_trainee_name.strip():
-                        st.warning("⚠ يرجى إدخال اسم المتدرب.")
+                        st.warning("⚠ يرجى اختيار متدرب من القائمة أو إدخال اسمه.")
                     elif not manual_tpl_choices:
                         st.warning("⚠ يرجى إنشاء نموذج اختبار متوافق مع الوظيفة أولاً.")
                     else:
                         with db() as c:
                             tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
-                            cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
-                                               (m_facility_name, normalize_text(m_trainee_name), "0000000000", m_profession, "completed", tpl_id_val, now(), now(), 0))
-                            new_tid = cur_tr.lastrowid
+                            selected_ids = [manual_trainee_labels[label] for label in manual_selected_labels if label in manual_trainee_labels]
+                            if not selected_ids:
+                                cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
+                                                   (m_facility_name, normalize_text(m_trainee_name), "0000000000", m_profession, "completed", tpl_id_val, now(), now(), 0))
+                                selected_ids = [cur_tr.lastrowid]
                             passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
-                            cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                                                 (new_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, calc_pct, passed_flag))
-                            new_sid = cur_sess.lastrowid
-                            cert_code = f"ELX-{new_sid:06d}"
-                            c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
-                            all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
-                            for pos, q_item in enumerate(all_bank_qs):
-                                q_id, correct_ans = q_item["id"], q_item["answer"]
-                                if q_id in selected_wrong_q_ids:
-                                    wrong_opt = (correct_ans + 1) % 4
+                            cert_codes = []
+                            for selected_tid in selected_ids:
+                                c.execute("UPDATE trainees SET status='completed', assigned_template_id=?, updated_at=? WHERE id=?", (tpl_id_val, now(), selected_tid))
+                                cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                                     (selected_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, calc_pct, passed_flag))
+                                new_sid = cur_sess.lastrowid
+                                cert_code = f"ELX-{new_sid:06d}"
+                                cert_codes.append(cert_code)
+                                c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
+                                all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
+                                for pos, q_item in enumerate(all_bank_qs):
+                                    q_id, correct_ans = q_item["id"], q_item["answer"]
+                                    is_wrong = q_id in selected_wrong_q_ids
+                                    selected_option = (correct_ans + 1) % 4 if is_wrong else correct_ans
                                     c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
-                                              (new_sid, q_id, pos, json.dumps([0,1,2,3]), wrong_opt, 0))
-                                else:
-                                    c.execute("INSERT INTO exam_questions(session_id, question_id, position, option_order_json, selected_option, is_correct) VALUES(?,?,?,?,?,?)",
-                                              (new_sid, q_id, pos, json.dumps([0,1,2,3]), correct_ans, 1))
-                        st.success(f"✅ تم تسجيل المتدرب والنتيجة وتحديد الأسئلة الخاطئة بنجاح برقم الشهادة: **{cert_code}**")
+                                              (new_sid, q_id, pos, json.dumps([0,1,2,3]), selected_option, 0 if is_wrong else 1))
+                        st.success(f"✅ تم تسجيل نتيجة {len(selected_ids)} متدرب/متدربين بنجاح. أرقام الشهادات: **{', '.join(cert_codes)}**")
 
         with facility_assessment_tab:
             st.markdown("#### 🏥 نموذج التقييم الواقعي للمنشآت")
@@ -3356,9 +3374,17 @@ def admin_dashboard():
             assessment_professions = get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
             assessment_profession = st.selectbox("الوظيفة / التخصص المسؤول عن التقييم:", assessment_professions, key="real_assessment_profession_v1")
             assessment_hier = get_hierarchical_data(include_hidden=False)
+            assessment_matching_hier = [h for h in assessment_hier if _scope_matches_row(h, assessment_scope)]
+            assessment_facility_choices = sorted({str(h.get("facility_name") or "").strip() for h in assessment_matching_hier if str(h.get("facility_name") or "").strip()})
             assessment_facility_default = str(assessment_scope.get("scope_facility") or "")
-            if not assessment_facility_default and assessment_hier:
+            if assessment_facility_choices:
+                assessment_facility_default = st.selectbox("المنشأة محل التقييم:", assessment_facility_choices, key="real_assessment_facility_choice_v2")
+            elif not assessment_facility_default and assessment_hier:
                 assessment_facility_default = assessment_hier[0].get("facility_name", "")
+            with db() as c:
+                assessment_trainees = [dict(r) for r in c.execute("SELECT id,name,profession,facility FROM trainees WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE").fetchall()]
+            facility_assessment_trainees = [t for t in assessment_trainees if (not assessment_facility_default or str(t.get("facility") or "").strip() == assessment_facility_default) and (not assessment_profession or str(t.get("profession") or "").strip() == assessment_profession)]
+            st.multiselect("المتدربون المسجلون بهذه المنشأة (اختياري):", [f"{t['name']} — {t['profession']}" for t in facility_assessment_trainees], key="real_assessment_trainees_v2", help="تظهر الأسماء المسجلة في المنشأة المختارة حسب الوظيفة.")
             assessment_items = [
                 "توافر أدوات ومستلزمات الفحص",
                 "الالتزام بإجراءات جمع العينات",
