@@ -299,8 +299,9 @@ def trainee_matches_hierarchy(facility_value, hierarchy_row):
     h = dict(hierarchy_row)
     if value == str(h.get("facility_name") or "").strip():
         return True
-    path = " - ".join(str(h.get(k) or "").strip() for k in ("governorate", "authority", "center", "administration", "facility_name"))
-    return bool(path.strip(" -")) and value.endswith(path)
+    new_path = " - ".join(str(h.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(h.get(k) or "").strip())
+    legacy_path = " - ".join(str(h.get(k) or "").strip() for k in ("governorate", "authority", "center", "administration", "facility_name") if str(h.get(k) or "").strip())
+    return any(path and value.endswith(path) for path in (new_path, legacy_path))
 
 def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     """SQL predicate for trainee records stored with a full administrative path."""
@@ -310,6 +311,7 @@ def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     scope_sql, args = hierarchy_scope_sql("h", scope)
     pred = (f"EXISTS (SELECT 1 FROM hierarchical_facilities h WHERE ({scope_sql}) AND "
             f"({trainee_alias}.facility=h.facility_name OR "
+            f"{trainee_alias}.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR "
             f"{trainee_alias}.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || "
             f"h.center || ' - ' || h.administration || ' - ' || h.facility_name))")
     return pred, args
@@ -622,6 +624,11 @@ def init_db():
         except:
             pass
 
+    # إلغاء مستويات المحافظة والمركز من نطاقات الصلاحيات المحفوظة، مع الإبقاء على المديرية والإدارة والمنشأة.
+    with db() as c:
+        c.execute("UPDATE exam_templates SET scope_governorate='', scope_center='' WHERE COALESCE(scope_governorate,'')<>'' OR COALESCE(scope_center,'')<>''")
+        c.execute("UPDATE action_plans SET scope_governorate='', scope_center='' WHERE COALESCE(scope_governorate,'')<>'' OR COALESCE(scope_center,'')<>''")
+
     # منع تكرار الممتحن على مستوى قاعدة البيانات: الهاتف هو المعرف الرئيسي، والرقم القومي معرف فريد أيضاً.
     # استخدمنا Triggers بالإضافة إلى فحوصات الواجهة حتى يتم منع التكرار حتى عند التعديل المباشر أو أي مسار آخر.
     with db() as c:
@@ -732,38 +739,33 @@ def get_hierarchical_data(include_hidden=False):
         return [dict(r) for r in rows] if rows else []
 
 def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:", key="hier_scope"):
-    """Return a hierarchical scope as five fields. Empty fields mean all values at that level."""
+    """Choose a scope from the current hierarchy: authority -> administration -> facility."""
     rows = get_hierarchical_data(include_hidden=False)
     levels = [
         ("كل الهيكل الإداري", ""),
-        ("المحافظة", "governorate"),
-        ("الهيئة", "authority"),
-        ("المركز", "center"),
+        ("المديرية / الجهة", "authority"),
         ("الإدارة", "administration"),
-        ("الوحدة / المنشأة", "facility_name"),
+        ("المنشأة", "facility_name"),
     ]
     level_label = st.selectbox(label, [x[0] for x in levels], key=f"{key}_level")
     level_field = dict(levels)[level_label]
-    if not level_field:
-        return {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
     scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
-    field_map = [
-        ("governorate", "scope_governorate", "المحافظة"),
-        ("authority", "scope_authority", "الهيئة"),
-        ("center", "scope_center", "المركز"),
-        ("administration", "scope_administration", "الإدارة"),
-        ("facility_name", "scope_facility", "الوحدة / المنشأة"),
-    ]
+    if not level_field:
+        return scope
     current = rows
+    field_map = [
+        ("authority", "scope_authority", "المديرية / الجهة"),
+        ("administration", "scope_administration", "الإدارة"),
+        ("facility_name", "scope_facility", "المنشأة / وحدة الأمراض المتوطنة"),
+    ]
     for src, dst, title in field_map:
-        if src == level_field or any(src == x[0] for x in field_map[:[x[0] for x in field_map].index(level_field)+1]):
-            vals = sorted({str(r.get(src) or "").strip() for r in current if str(r.get(src) or "").strip()})
-            if not vals:
-                st.warning(f"لا توجد بيانات متاحة لمستوى {title} في الهيكل الإداري.")
-                return scope
-            chosen = st.selectbox(title, vals, key=f"{key}_{src}")
-            scope[dst] = chosen
-            current = [r for r in current if str(r.get(src) or "").strip() == chosen]
+        vals = sorted({str(r.get(src) or "").strip() for r in current if str(r.get(src) or "").strip()})
+        if not vals:
+            st.warning(f"لا توجد بيانات متاحة لمستوى {title} في الهيكل الإداري.")
+            return scope
+        chosen = st.selectbox(title, vals, key=f"{key}_{src}")
+        scope[dst] = chosen
+        current = [r for r in current if str(r.get(src) or "").strip() == chosen]
         if src == level_field:
             break
     return scope
@@ -783,7 +785,7 @@ def hierarchy_scope_sql(alias, scope):
     return (" AND ".join(conditions) if conditions else "1=1"), args
 
 def template_scope_text(row):
-    parts = [row.get("scope_governorate"), row.get("scope_authority"), row.get("scope_center"), row.get("scope_administration"), row.get("scope_facility")]
+    parts = [row.get("scope_authority"), row.get("scope_administration"), row.get("scope_facility")]
     parts = [str(x).strip() for x in parts if str(x or "").strip()]
     return "كل الهيكل الإداري" if not parts else " ← ".join(parts)
 
@@ -791,9 +793,7 @@ def template_matches_facility(template_row, facility_name):
     """Check whether a template scope contains the trainee facility."""
     t = dict(template_row) if not isinstance(template_row, dict) else template_row
     vals = {
-        "governorate": t.get("scope_governorate") or "",
         "authority": t.get("scope_authority") or "",
-        "center": t.get("scope_center") or "",
         "administration": t.get("scope_administration") or "",
         "facility_name": t.get("scope_facility") or "",
     }
@@ -1850,6 +1850,20 @@ def verification_portal_view():
         st.session_state.show_verification_portal = False
         st.rerun()
 
+def _reset_reg_admin_and_facility():
+    st.session_state["reg_administration"] = "-- اختر الإدارة --"
+    st.session_state["reg_facility"] = "-- اختر المنشأة --"
+
+def _reset_reg_facility():
+    st.session_state["reg_facility"] = "-- اختر المنشأة --"
+
+def _reset_hier_admin_and_facility():
+    st.session_state["hier_manage_administration"] = "-- اختر الإدارة --"
+    st.session_state["hier_manage_facility"] = "-- اختر المنشأة --"
+
+def _reset_hier_facility():
+    st.session_state["hier_manage_facility"] = "-- اختر المنشأة --"
+
 def login_portal():
     header()
     col_v_btn1, col_v_btn2 = st.columns([3, 1])
@@ -1867,25 +1881,23 @@ def login_portal():
     with reg_tab:
         st.markdown("### 📝 تسجيل الممتحن لأول مرة")
         st.info("أدخل بياناتك مرة واحدة. بعد إرسال الطلب سيظهر للإدارة في قسم **قبول تسجيل الجدد**، ولا يمكن دخول الامتحان قبل اعتماد التسجيل.")
+        st.markdown("##### 📍 الجهة الإدارية التابع لها:")
+        st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="reg_country_fixed")
+        st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="reg_ministry_fixed")
+        if not hier_data:
+            st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
+            facility_final_str = ""
+        else:
+            auths_list = sorted({str(item.get("authority") or "").strip() for item in hier_data if str(item.get("authority") or "").strip()})
+            sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, key="reg_authority", on_change=_reset_reg_admin_and_facility)
+            rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
+            admins_list = sorted({str(item.get("administration") or "").strip() for item in rows_auth if str(item.get("administration") or "").strip()})
+            sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
+            rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
+            facilities_list = sorted({str(item.get("facility_name") or "").strip() for item in rows_admin if str(item.get("facility_name") or "").strip()})
+            sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, key="reg_facility", disabled=not bool(rows_admin))
+            facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
         with st.form("trainee_first_registration"):
-            st.markdown("##### 📍 الجهة الإدارية التابع لها:")
-            st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
-            st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True)
-            if not hier_data:
-                st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
-                facility_final_str = ""
-            else:
-                govs_list = sorted(set(item["governorate"] for item in hier_data))
-                sel_gov = st.selectbox("المحافظة:", ["-- اختر المحافظة --"] + govs_list)
-                filtered_auths = sorted(set(item["authority"] for item in hier_data if sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov))
-                sel_auth = st.selectbox("الهيئة:", ["-- اختر الهيئة --"] + filtered_auths)
-                filtered_centers = sorted(set(item["center"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth)))
-                sel_center = st.selectbox("المركز:", ["-- اختر المركز --"] + filtered_centers)
-                filtered_admins = sorted(set(item["administration"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center)))
-                sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + filtered_admins)
-                filtered_facs = sorted(set(item["facility_name"] for item in hier_data if (sel_gov == "-- اختر المحافظة --" or item["governorate"] == sel_gov) and (sel_auth == "-- اختر الهيئة --" or item["authority"] == sel_auth) and (sel_center == "-- اختر المركز --" or item["center"] == sel_center) and (sel_admin == "-- اختر الإدارة --" or item["administration"] == sel_admin)))
-                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + filtered_facs)
-                facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_gov} - {sel_auth} - {sel_center} - {sel_admin} - {sel_fac}" if all(x != y for x,y in [(sel_gov,"-- اختر المحافظة --"),(sel_auth,"-- اختر الهيئة --"),(sel_center,"-- اختر المركز --"),(sel_admin,"-- اختر الإدارة --"),(sel_fac,"-- اختر المنشأة --")]) else ""
             name = st.text_input("الاسم الرباعي:")
             national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
             phone = st.text_input("رقم الهاتف:", help="رقم الهاتف هو المعرف الرئيسي والفريد بعد اعتماد التسجيل.")
@@ -2353,14 +2365,14 @@ def admin_dashboard():
             cert_scope_sql, cert_scope_args = hierarchy_scope_sql("h", cert_scope)
             with db() as c:
                 all_facilities_list = [row[0] for row in c.execute(
-                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {cert_scope_sql} ORDER BY t.facility",
+                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {cert_scope_sql} ORDER BY t.facility",
                     tuple(cert_scope_args)
                 ).fetchall()]
                 sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession,
                     s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type
                     FROM exam_sessions s
                     JOIN trainees t ON t.id=s.trainee_id
-                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE s.status='submitted' AND t.hidden=0 AND {cert_scope_sql} ORDER BY s.id DESC""".format(cert_scope_sql=cert_scope_sql), tuple(cert_scope_args)).fetchall()
 
@@ -2406,28 +2418,31 @@ def admin_dashboard():
                             st.warning("⚠ لا توجد نتائج معتمدة لهذه المنشأة.")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (محافظة ⬅ هيئة ⬅ مركز ⬅ إدارة ⬅ وحدة)")
+        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (مديرية / جهة ⬅ إدارة ⬅ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
             with st.form("manual_hierarchical_form"):
                 st.markdown("##### 📌 الحقول الثابتة التابعة للجمهورية:")
-                st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True)
-                st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True)
-                m_gov = st.text_input("المحافظة:", value="")
-                m_auth = st.text_input("الهيئة:", value="")
-                m_center = st.text_input("المركز:", value="")
+                st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="hier_country_fixed")
+                st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="hier_ministry_fixed")
+                m_auth = st.text_input("المديرية / الجهة:", value="")
                 m_admin = st.text_input("الإدارة:", value="")
-                m_fac = st.text_input("وحدة الأمراض المتوطنة / المنشأة:", value="")
+                m_fac = st.text_input("المنشأة / وحدة الأمراض المتوطنة:", value="")
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
-                    if m_fac.strip():
+                    if m_auth.strip() and m_admin.strip() and m_fac.strip():
                         with db() as c:
-                            c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
-                                      (m_gov.strip(), m_auth.strip(), m_center.strip(), m_admin.strip(), m_fac.strip(), now(), 0))
-                        reindex_hierarchical_facilities()
-                        st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!")
-                        st.rerun()
+                            exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (m_auth.strip(), m_admin.strip(), m_fac.strip())).fetchone()
+                            if not exists:
+                                c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
+                                          ("", m_auth.strip(), "", m_admin.strip(), m_fac.strip(), now(), 0))
+                        if exists:
+                            st.warning("هذه المنشأة مسجلة بالفعل تحت الإدارة والمديرية المحددتين.")
+                        else:
+                            reindex_hierarchical_facilities()
+                            st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!")
+                            st.rerun()
                     else:
-                        st.warning("أدخل اسم وحدة الأمراض المتوطنة أو المنشأة.")
+                        st.warning("أدخل المديرية / الجهة والإدارة واسم المنشأة.")
         with tab_h2:
             up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
             if up_file is not None:
@@ -2437,15 +2452,15 @@ def admin_dashboard():
                         added_cnt = 0
                         with db() as c:
                             for _, r in df_up.iterrows():
-                                gov = str(r.get("governorate", r.get("المحافظة", "الشرقية"))).strip()
-                                auth = str(r.get("authority", r.get("الهيئة", "مديرية الشئون الصحية"))).strip()
-                                cent = str(r.get("center", r.get("المركز", "أولاد صقر"))).strip()
-                                adm = str(r.get("administration", r.get("الإدارة", "الإدارة الصحية"))).strip()
-                                fac = str(r.get("facility_name", r.get("وحدة الأمراض المتوطنة", r.get("المنشأة", "وحدة صحية")))).strip()
-                                if fac:
-                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
-                                              (gov, auth, cent, adm, fac, now(), 0))
-                                    added_cnt += 1
+                                auth = str(r.get("authority", r.get("المديرية / الجهة", r.get("الهيئة", "")))).strip()
+                                adm = str(r.get("administration", r.get("الإدارة", ""))).strip()
+                                fac = str(r.get("facility_name", r.get("المنشأة / وحدة الأمراض المتوطنة", r.get("المنشأة", r.get("وحدة الأمراض المتوطنة", ""))))).strip()
+                                if auth and adm and fac:
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (auth, adm, fac)).fetchone()
+                                    if not exists:
+                                        c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
+                                                  ("", auth, "", adm, fac, now(), 0))
+                                        added_cnt += 1
                         reindex_hierarchical_facilities()
                         st.success(f"🎉 تم إضافة ({added_cnt}) سجل وإعادة الترتيب بنجاح!")
                         st.balloons()
@@ -2456,7 +2471,8 @@ def admin_dashboard():
             hier_all_data = get_hierarchical_data(include_hidden=True)
             if hier_all_data:
                 df_hier_download = pd.DataFrame(hier_all_data)
-                df_hier_download.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                df_hier_download = df_hier_download[["id", "authority", "administration", "facility_name", "created_at", "hidden"]]
+                df_hier_download.columns = ["ID", "المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 output_hier = io.BytesIO()
                 with pd.ExcelWriter(output_hier, engine='openpyxl') as writer:
                     df_hier_download.to_excel(writer, index=False, sheet_name='HierarchicalFacilities')
@@ -2468,39 +2484,49 @@ def admin_dashboard():
             if not hier_rows_all:
                 st.info("لا توجد بيانات مسجلة.")
             else:
-                facility_map = {f"ID ({row['id']}) - {row['governorate']} / {row['authority']} / {row['center']} / {row['administration']} / {row['facility_name']} (حالة الإخفاء: {'مخفي 👁‍🗨' if row['hidden']==1 else 'ظاهر ✅'})": row['id'] for row in hier_rows_all}
-                with st.form("manage_single_hier_form"):
-                    selected_item_manage = st.selectbox("اختر وحدة الأمراض المتوطنة أو المنشأة لإدارتها:", list(facility_map.keys()))
-                    target_id = facility_map[selected_item_manage]
-                    with db() as c:
-                        curr_fac_rec = c.execute("SELECT hidden FROM hierarchical_facilities WHERE id=?", (target_id,)).fetchone()
-                    is_currently_hidden = curr_fac_rec["hidden"] == 1 if curr_fac_rec else False
-                    c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
-                    with c_hide_btn:
-                        hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء الوحدة", use_container_width=True)
-                    with c_show_btn:
-                        show_fac_submit = st.form_submit_button("✅ إظهار الوحدة", use_container_width=True)
-                    with c_del_btn:
-                        single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
-                    if hide_fac_submit:
-                        with db() as c:
-                            c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
-                        st.success("✅ تم إخفاء وحدة الأمراض المتوطنة من جميع التقارير بنجاح!")
-                        st.rerun()
-                    if show_fac_submit:
-                        with db() as c:
-                            c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
-                        st.success("✅ تم إظهار وحدة الأمراض المتوطنة في التقارير بنجاح!")
-                        st.rerun()
-                    if single_del:
-                        with db() as c:
-                            c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
-                        reindex_hierarchical_facilities()
-                        st.success("✅ تم الحذف وإعادة الترتيب التسلسلي للـ ID بنجاح!")
-                        st.rerun()
+                st.markdown("##### اختر المديرية ثم الإدارة ثم المنشأة التابعة لها:")
+                manage_auths = sorted({str(r.get("authority") or "").strip() for r in hier_rows_all if str(r.get("authority") or "").strip()})
+                sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
+                manage_auth_rows = [r for r in hier_rows_all if str(r.get("authority") or "").strip() == sel_manage_auth]
+                manage_admins = sorted({str(r.get("administration") or "").strip() for r in manage_auth_rows if str(r.get("administration") or "").strip()})
+                sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, key="hier_manage_administration", on_change=_reset_hier_facility)
+                manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
+                manage_facilities = sorted(manage_admin_rows, key=lambda r: str(r.get("facility_name") or ""))
+                manage_facility_map = {f"{r['facility_name']} (ID {r['id']}) — {'مخفي' if r['hidden'] else 'ظاهر'}": r['id'] for r in manage_facilities}
+                if not manage_facility_map:
+                    st.info("اختر الإدارة لعرض المنشآت التابعة لها فقط.")
+                else:
+                    selected_manage_facility = st.selectbox("المنشأة:", ["-- اختر المنشأة --"] + list(manage_facility_map.keys()), key="hier_manage_facility")
+                    if selected_manage_facility != "-- اختر المنشأة --":
+                        target_id = manage_facility_map[selected_manage_facility]
+                        with st.form("manage_single_hier_form"):
+                            c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
+                            with c_hide_btn:
+                                hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء المنشأة", use_container_width=True)
+                            with c_show_btn:
+                                show_fac_submit = st.form_submit_button("✅ إظهار المنشأة", use_container_width=True)
+                            with c_del_btn:
+                                single_del = st.form_submit_button("🗑 حذف نهائي", use_container_width=True)
+                        if hide_fac_submit:
+                            with db() as c:
+                                c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
+                            st.success("✅ تم إخفاء المنشأة من التقارير بنجاح!")
+                            st.rerun()
+                        if show_fac_submit:
+                            with db() as c:
+                                c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
+                            st.success("✅ تم إظهار المنشأة في التقارير بنجاح!")
+                            st.rerun()
+                        if single_del:
+                            with db() as c:
+                                c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
+                            reindex_hierarchical_facilities()
+                            st.success("✅ تم حذف المنشأة وإعادة الترتيب التسلسلي للـ ID بنجاح!")
+                            st.rerun()
                 df_hier = pd.DataFrame(hier_rows_all)
                 df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
-                df_hier.columns = ["ID", "المحافظة", "الهيئة", "المركز", "الإدارة", "وحدة الأمراض المتوطنة / المنشأة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                df_hier = df_hier[["id", "authority", "administration", "facility_name", "created_at", "hidden"]]
+                df_hier.columns = ["ID", "المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
                 st.dataframe(df_hier, use_container_width=True, hide_index=True)
 
     elif selected_menu == "⚙ إدارة الأسئلة":
@@ -3080,7 +3106,7 @@ def admin_dashboard():
             with db() as c:
                 tr_list_rep = c.execute(
                     f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t "
-                    f"LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) "
+                    f"LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) "
                     f"WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.id DESC",
                     tuple(rep_scope_args)
                 ).fetchall()
@@ -3199,7 +3225,7 @@ def admin_dashboard():
                 facs_list_rep = [
                     r[0] for r in c.execute(
                         f"SELECT DISTINCT t.facility FROM trainees t "
-                        f"LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) "
+                        f"LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) "
                         f"WHERE t.facility IS NOT NULL AND TRIM(t.facility)<>'' AND COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.facility",
                         tuple(rep_scope_args)
                     ).fetchall()
@@ -3225,7 +3251,7 @@ def admin_dashboard():
                                COALESCE(AVG(s.percent),0) AS avg_pct,
                                COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_cnt
                         FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id
-                        LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
+                        LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                         WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND t.facility=?
                           AND {rep_scope_sql}
                           AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?)
@@ -3270,7 +3296,7 @@ def admin_dashboard():
                            s.score,s.max_score,s.percent,s.passed,s.submitted_at,
                            e.exam_type,e.name AS template_name
                     FROM trainees t
-                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
@@ -3284,7 +3310,7 @@ def admin_dashboard():
                         SELECT t.id,t.name,t.profession,t.facility,s.score,s.max_score,s.percent,s.passed,
                                s.certificate_id,s.submitted_at,e.exam_type,e.name AS template_name
                         FROM trainees t
-                        LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
+                        LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                         LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                         LEFT JOIN exam_templates e ON e.id=s.template_id
                         WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.id DESC,s.id DESC
@@ -3326,7 +3352,7 @@ def admin_dashboard():
                            COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_count,
                            COALESCE(AVG(s.percent),0) AS avg_pct
                     FROM trainees t
-                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     WHERE COALESCE(t.hidden,0)=0 AND t.facility IS NOT NULL AND TRIM(t.facility)<>'' AND {rep_scope_sql}
                     GROUP BY t.facility ORDER BY avg_pct DESC,t.facility
@@ -3357,7 +3383,7 @@ def admin_dashboard():
                     SELECT s.id AS session_id,t.name AS trainee_name,t.facility,t.profession AS trainee_profession,
                            s.score,s.max_score,s.percent,s.passed,e.name AS template_name,e.exam_type,s.submitted_at
                     FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id
-                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
                     ORDER BY COALESCE(s.percent,0) DESC,s.id DESC
@@ -3415,11 +3441,11 @@ def admin_dashboard():
             plan_scope_sql, plan_scope_args = hierarchy_scope_sql("h", plan_scope)
             with db() as c:
                 all_tr_list = c.execute(
-                    f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.hidden=0 AND {plan_scope_sql} ORDER BY t.id ASC",
+                    f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.hidden=0 AND {plan_scope_sql} ORDER BY t.id ASC",
                     tuple(plan_scope_args)
                 ).fetchall()
                 all_fac_list = [row[0] for row in c.execute(
-                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {plan_scope_sql} ORDER BY t.facility",
+                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {plan_scope_sql} ORDER BY t.facility",
                     tuple(plan_scope_args)
                 ).fetchall()]
             with st.form("create_action_plan_form"):
