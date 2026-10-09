@@ -1452,10 +1452,75 @@ def generate_trainee_exam_sheet_html(sid):
     </html>
     """
 
+def generate_staff_signature_table_html(scope=None, title="كشف العاملين والتوقيع"):
+    """Build a printable staff roster matching the selected administrative hierarchy."""
+    scope = dict(scope or {})
+    selected_keys = (
+        ("scope_governorate", "governorate"),
+        ("scope_authority", "authority"),
+        ("scope_center", "center"),
+        ("scope_administration", "administration"),
+        ("scope_facility", "facility_name"),
+    )
+    with db() as c:
+        staff_rows = [dict(r) for r in c.execute(
+            "SELECT id, name, profession, facility FROM trainees "
+            "WHERE COALESCE(hidden,0)=0 ORDER BY name COLLATE NOCASE"
+        ).fetchall()]
+
+    active_hierarchy = get_hierarchical_data(include_hidden=False)
+    if any(str(scope.get(k) or "").strip() for k, _ in selected_keys):
+        scoped_hierarchy = [
+            h for h in active_hierarchy
+            if all(
+                not str(scope.get(scope_key) or "").strip()
+                or str(h.get(hierarchy_key) or "").strip() == str(scope.get(scope_key) or "").strip()
+                for scope_key, hierarchy_key in selected_keys
+            )
+        ]
+        staff_rows = [
+            person for person in staff_rows
+            if any(trainee_matches_hierarchy(person.get("facility"), h) for h in scoped_hierarchy)
+        ]
+
+    body_rows = []
+    for idx, person in enumerate(staff_rows, start=1):
+        body_rows.append(
+            "<tr>"
+            f"<td>{idx}</td>"
+            f"<td style='text-align:right'>{esc(person.get('name') or '')}</td>"
+            f"<td>{esc(person.get('profession') or '')}</td>"
+            "<td style='height:9mm'>&nbsp;</td>"
+            "</tr>"
+        )
+    if not body_rows:
+        body_rows.append(
+            "<tr><td>1</td><td style='text-align:right;height:9mm'>&nbsp;</td>"
+            "<td>&nbsp;</td><td style='height:9mm'>&nbsp;</td></tr>"
+        )
+
+    return f"""
+    <section class="staff-signature-roster" style="margin-top:7mm; page-break-inside:auto; break-inside:auto;">
+      <h3 style="text-align:center; margin:0 0 3mm; font-size:12pt; color:#047857;">{esc(title)}</h3>
+      <table style="width:100%; border-collapse:collapse; font-size:10pt;">
+        <thead><tr>
+          <th style="border:1px solid #64748b; padding:5px; width:8%;">م</th>
+          <th style="border:1px solid #64748b; padding:5px; width:38%;">اسم العامل</th>
+          <th style="border:1px solid #64748b; padding:5px; width:29%;">الوظيفة</th>
+          <th style="border:1px solid #64748b; padding:5px; width:25%;">التوقيع</th>
+        </tr></thead>
+        <tbody>{''.join(body_rows)}</tbody>
+      </table>
+    </section>
+    """
+
+
 def generate_general_report_html(title, content_html, target_pages=1, header_text=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
     header_right_text = header_text or current_hierarchy_header()
+    roster_html = generate_staff_signature_table_html(st.session_state.get("_last_hierarchy_scope", {}))
+    printable_content = content_html + roster_html
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -1482,16 +1547,18 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
         </div>
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
-        {content_html}
+        {printable_content}
     </div>
     </body>
     </html>
     """
 
-def generate_action_plan_report_html(title, content_html, target_pages=1, header_text=None):
+def generate_action_plan_report_html(title, content_html, target_pages=1, header_text=None, hierarchy_scope=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
     header_right_text = header_text or current_hierarchy_header()
+    roster_html = generate_staff_signature_table_html(hierarchy_scope or {})
+    printable_content = content_html + roster_html
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -1513,7 +1580,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1, header
         </div>
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
-        {content_html}
+        {printable_content}
     </div>
     </body>
     </html>
@@ -3712,7 +3779,7 @@ def admin_dashboard():
                 </div>
                 """
                 st.markdown(plan_detail_html, unsafe_allow_html=True)
-                full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html, header_text=hierarchy_header_html(p_data))
+                full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html, header_text=hierarchy_header_html(p_data), hierarchy_scope=p_data)
                 render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
                 if st.button("🗑 حذف خططة العمل المحددة", use_container_width=True):
                     with db() as c:
