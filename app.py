@@ -3789,12 +3789,15 @@ def admin_dashboard():
 
         with plan_tabs[2]:
             st.markdown("#### 📄 طباعة وتعديل محضر التدريب:")
+            # قائمة الهيكل الإداري داخل محاضر التدريب نفسها، وليست في تبويب آخر.
+            minutes_scope = hierarchy_scope_widget("الهيكل الإداري لمحضر التدريب:", "training_minutes_scope_v1")
             with db() as c:
-                all_tpls_for_minutes = c.execute("SELECT * FROM exam_templates ORDER BY name ASC").fetchall()
+                all_tpls_for_minutes = [dict(r) for r in c.execute("SELECT * FROM exam_templates ORDER BY name ASC").fetchall()]
+            all_tpls_for_minutes = [t for t in all_tpls_for_minutes if template_matches_scope(t, minutes_scope)]
             if not all_tpls_for_minutes:
-                st.info("لا توجد نماذج اختبارات مسجلة لإنشاء محضر التدريب لها.")
+                st.info("لا توجد نماذج اختبارات مسجلة تطابق الهيكل الإداري المحدد.")
             else:
-                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_for_minutes}
+                minutes_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}] | {template_scope_text(t)}": t['id'] for t in all_tpls_for_minutes}
                 sel_min_tpl_label = st.selectbox("اختر نموذج الاختبار لإنشاء أو تعديل محضر التدريب الخاص به:", list(minutes_tpl_map.keys()), key="sel_min_tpl")
                 chosen_min_tpl_id = minutes_tpl_map[sel_min_tpl_label]
 
@@ -3853,7 +3856,7 @@ def admin_dashboard():
                 st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
                 print_sett_m = get_print_settings()
                 # ترويسة المحضر تتبع الهيكل الإداري المرتبط بنموذج الاختبار المختار.
-                header_right_txt = hierarchy_header_html(tpl_dict_for_minutes)
+                header_right_txt = hierarchy_header_html(minutes_scope) if any(str(minutes_scope.get(k) or '').strip() for k in ('scope_authority','scope_administration','scope_facility')) else hierarchy_header_html(tpl_dict_for_minutes)
                 line_sp_m = print_sett_m.get('line_spacing', 1.25)
 
                 # أسماء المتدربين تتعبأ تلقائياً وفق نطاق النموذج والمهنة والتخصيص الحالي.
@@ -3863,19 +3866,25 @@ def admin_dashboard():
                     ).fetchall()]
                 hierarchy_rows_minutes = get_hierarchical_data(include_hidden=False)
                 matching_minutes_trainees = []
-                minutes_has_scope = any(str(tpl_dict_for_minutes.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility'))
+                minutes_has_scope = any(str(minutes_scope.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility'))
+                template_has_scope = any(str(tpl_dict_for_minutes.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility'))
                 for trainee_row in all_minutes_trainees:
                     if not template_matches_profession(tpl_dict_for_minutes, trainee_row.get('profession')):
                         continue
                     assigned_id = trainee_row.get('assigned_template_id')
                     if assigned_id not in (None, 0, chosen_min_tpl_id):
                         continue
-                    if not minutes_has_scope:
-                        # النموذج العام يشمل المتدربين غير المخصصين لنموذج آخر، حتى إن كانت قيمة جهة العمل قديمة.
+                    if trainee_row.get('assigned_template_id') not in (None, 0, chosen_min_tpl_id):
+                        continue
+                    if not minutes_has_scope and not template_has_scope:
+                        # النموذج العام يشمل المتدربين غير المخصصين لنموذج آخر.
                         matching_minutes_trainees.append(trainee_row)
                         continue
                     matching_scope_rows = [hrow for hrow in hierarchy_rows_minutes
-                        if (not tpl_dict_for_minutes.get('scope_authority') or hrow.get('authority') == tpl_dict_for_minutes.get('scope_authority'))
+                        if (not minutes_scope.get('scope_authority') or hrow.get('authority') == minutes_scope.get('scope_authority'))
+                        and (not minutes_scope.get('scope_administration') or hrow.get('administration') == minutes_scope.get('scope_administration'))
+                        and (not minutes_scope.get('scope_facility') or hrow.get('facility_name') == minutes_scope.get('scope_facility'))
+                        and (not tpl_dict_for_minutes.get('scope_authority') or hrow.get('authority') == tpl_dict_for_minutes.get('scope_authority'))
                         and (not tpl_dict_for_minutes.get('scope_administration') or hrow.get('administration') == tpl_dict_for_minutes.get('scope_administration'))
                         and (not tpl_dict_for_minutes.get('scope_facility') or hrow.get('facility_name') == tpl_dict_for_minutes.get('scope_facility'))]
                     if any(trainee_matches_hierarchy(trainee_row.get('facility'), hrow) for hrow in matching_scope_rows):
