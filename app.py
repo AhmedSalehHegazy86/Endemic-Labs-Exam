@@ -532,7 +532,8 @@ def init_db():
                 scope_authority TEXT NOT NULL DEFAULT '',
                 scope_center TEXT NOT NULL DEFAULT '',
                 scope_administration TEXT NOT NULL DEFAULT '',
-                scope_facility TEXT NOT NULL DEFAULT ''
+                scope_facility TEXT NOT NULL DEFAULT '',
+                template_id INTEGER
             );
             CREATE TABLE IF NOT EXISTS print_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -596,6 +597,7 @@ def init_db():
         ("action_plans", "scope_center", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_administration", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "template_id", "INTEGER"),
         ("action_plans", "start_date", "TEXT"),
         ("action_plans", "end_date", "TEXT"),
         ("print_settings", "line_spacing", "REAL NOT NULL DEFAULT 1.25"),
@@ -751,6 +753,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
     level_field = dict(levels)[level_label]
     scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
     if not level_field:
+        st.session_state["_last_hierarchy_scope"] = scope
         return scope
     current = rows
     field_map = [
@@ -768,6 +771,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
         current = [r for r in current if str(r.get(src) or "").strip() == chosen]
         if src == level_field:
             break
+    st.session_state["_last_hierarchy_scope"] = dict(scope)
     return scope
 
 def hierarchy_scope_sql(alias, scope):
@@ -788,6 +792,83 @@ def template_scope_text(row):
     parts = [row.get("scope_authority"), row.get("scope_administration"), row.get("scope_facility")]
     parts = [str(x).strip() for x in parts if str(x or "").strip()]
     return "كل الهيكل الإداري" if not parts else " ← ".join(parts)
+
+def hierarchy_header_html(scope=None, facility_value=None):
+    # Build a print header reflecting exactly the selected hierarchy level.
+    scope = dict(scope or {})
+    rows = get_hierarchical_data(include_hidden=True)
+    selected = None
+    if facility_value:
+        raw = str(facility_value or "").strip()
+        for item in rows:
+            paths = [
+                str(item.get("facility_name") or "").strip(),
+                " - ".join(str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()),
+                " - ".join(str(item.get(k) or "").strip() for k in ("governorate", "authority", "center", "administration", "facility_name") if str(item.get(k) or "").strip()),
+                "جمهورية مصر العربية - وزارة الصحة والسكان - " + " - ".join(str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()),
+            ]
+            if raw in paths or raw.endswith(" - " + str(item.get("facility_name") or "").strip()):
+                selected = item
+                break
+        parts = [selected.get("authority"), selected.get("administration"), selected.get("facility_name")] if selected else [raw]
+    else:
+        auth = str(scope.get("scope_authority") or scope.get("authority") or "").strip()
+        admin = str(scope.get("scope_administration") or scope.get("administration") or "").strip()
+        fac = str(scope.get("scope_facility") or scope.get("facility_name") or "").strip()
+        for item in rows:
+            if auth and str(item.get("authority") or "").strip() != auth:
+                continue
+            if admin and str(item.get("administration") or "").strip() != admin:
+                continue
+            if fac and str(item.get("facility_name") or "").strip() != fac:
+                continue
+            if auth or admin or fac:
+                selected = item
+                break
+        if selected:
+            parts = []
+            if auth or admin or fac:
+                parts.append(auth or str(selected.get("authority") or "").strip())
+            if admin or fac:
+                parts.append(admin or str(selected.get("administration") or "").strip())
+            if fac:
+                parts.append(fac)
+        else:
+            parts = [auth, admin, fac]
+    parts = [esc(str(x).strip()) for x in parts if str(x or "").strip()]
+    if not parts:
+        return "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>كل الهيكل الإداري"
+    return "<br>".join(parts)
+
+def current_hierarchy_header():
+    scope = st.session_state.get("_last_hierarchy_scope")
+    if isinstance(scope, dict):
+        return hierarchy_header_html(scope)
+    return get_print_settings().get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان")
+
+def template_matches_scope(template_row, scope):
+    """True when an exam template applies to at least one facility inside the chosen plan scope."""
+    t = dict(template_row) if not isinstance(template_row, dict) else template_row
+    t_scope = {"scope_authority": t.get("scope_authority") or "", "scope_administration": t.get("scope_administration") or "", "scope_facility": t.get("scope_facility") or ""}
+    if not any(str(v).strip() for v in t_scope.values()):
+        return True
+    scope = dict(scope or {})
+    rows = get_hierarchical_data(include_hidden=False)
+    for item in rows:
+        if scope.get("scope_authority") and item.get("authority") != scope.get("scope_authority"):
+            continue
+        if scope.get("scope_administration") and item.get("administration") != scope.get("scope_administration"):
+            continue
+        if scope.get("scope_facility") and item.get("facility_name") != scope.get("scope_facility"):
+            continue
+        if t_scope["scope_authority"] and item.get("authority") != t_scope["scope_authority"]:
+            continue
+        if t_scope["scope_administration"] and item.get("administration") != t_scope["scope_administration"]:
+            continue
+        if t_scope["scope_facility"] and item.get("facility_name") != t_scope["scope_facility"]:
+            continue
+        return True
+    return False
 
 def template_matches_facility(template_row, facility_name):
     """Check whether a template scope contains the trainee facility."""
@@ -1165,7 +1246,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
     inner = f"""
 <div class="cert-header">
-  <div class="header-right">{sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر")}</div>
+  <div class="header-right">{hierarchy_header_html(facility_value=facility)}</div>
   <div class="cert-logos">{render_logos_html()}</div>
 </div>
 <div class="cert-body">
@@ -1208,7 +1289,7 @@ def generate_facility_certificate_html(facility_name, session_ids, custom_title=
 
     inner = f"""
 <div class="cert-header">
-  <div class="header-right">{sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقيّة<br>الإدارة الصحية بأولاد صقر")}</div>
+  <div class="header-right">{hierarchy_header_html(facility_value=facility_name)}</div>
   <div class="cert-logos">{render_logos_html()}</div>
 </div>
 <div class="cert-body">
@@ -1248,12 +1329,13 @@ def generate_certificates_batch_html(session_ids, custom_title=None, custom_note
 def generate_trainee_exam_sheet_html(sid):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = sett.get('header_text', '')
+    header_right_text = ''
     with db() as c:
         s = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, e.exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?""", (sid,)).fetchone()
         if not s:
             return ""
         rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (sid,)).fetchall()
+    header_right_text = hierarchy_header_html(facility_value=s["facility"])
     q_html_content = ""
     for idx, r in enumerate(rows, start=1):
         try:
@@ -1349,10 +1431,10 @@ def generate_trainee_exam_sheet_html(sid):
     </html>
     """
 
-def generate_general_report_html(title, content_html, target_pages=1):
+def generate_general_report_html(title, content_html, target_pages=1, header_text=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = sett.get('header_text', '')
+    header_right_text = header_text or current_hierarchy_header()
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -1385,10 +1467,10 @@ def generate_general_report_html(title, content_html, target_pages=1):
     </html>
     """
 
-def generate_action_plan_report_html(title, content_html, target_pages=1):
+def generate_action_plan_report_html(title, content_html, target_pages=1, header_text=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = sett.get('header_text', '')
+    header_right_text = header_text or current_hierarchy_header()
     return f"""
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -1425,6 +1507,7 @@ def generate_exam_template_print_html(template_id):
         if not tpl:
             return ""
         t_dict = dict(tpl)
+    header_right_text = hierarchy_header_html(t_dict)
     questions_list = choose_questions(t_dict)
     q_html_content = ""
     for idx, q in enumerate(questions_list, start=1):
@@ -3509,6 +3592,14 @@ def admin_dashboard():
                     plan_start_date = st.date_input("من تاريخ البدء:", current_online_dt)
                 with col_d2:
                     plan_end_date = st.date_input("إلى تاريخ النهاية:", current_online_dt + timedelta(days=30))
+                with db() as c:
+                    all_plan_templates = [dict(r) for r in c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC").fetchall()]
+                applicable_plan_templates = [t for t in all_plan_templates if template_matches_scope(t, plan_scope)]
+                plan_template_options = {"بدون نموذج اختبار محدد": None}
+                for t in applicable_plan_templates:
+                    plan_template_options[f"{t['name']} ({t.get('exam_type') or 'اختبار'}) — {template_scope_text(t)} | رقم {t['id']}"] = int(t['id'])
+                selected_plan_template_label = st.selectbox("نموذج الاختبار المرتبط بخطة العمل:", list(plan_template_options.keys()), key="action_plan_template_choice")
+                selected_plan_template_id = plan_template_options[selected_plan_template_label]
                 if st.form_submit_button("💾 حفظ وإنشاء خطة العمل الذكية", use_container_width=True):
                     if not target_name.strip() or not weak_areas.strip():
                         st.warning("⚠ يرجى استكمال البيانات.")
@@ -3516,12 +3607,12 @@ def admin_dashboard():
                         with db() as c:
                             c.execute("""INSERT INTO action_plans(
                                 target_type, target_name, weakness_areas, action_steps, time_frame_type, start_date, end_date, created_at,
-                                scope_governorate, scope_authority, scope_center, scope_administration, scope_facility
-                            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, template_id
+                            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                       (target_category, target_name, weak_areas.strip(), action_steps.strip(), "من تاريخ إلى تاريخ",
                                        plan_start_date.isoformat(), plan_end_date.isoformat(), now(),
                                        plan_scope["scope_governorate"], plan_scope["scope_authority"], plan_scope["scope_center"],
-                                       plan_scope["scope_administration"], plan_scope["scope_facility"]))
+                                       plan_scope["scope_administration"], plan_scope["scope_facility"], selected_plan_template_id))
                         st.success("✅ تم حفظ خطة العمل بناءً على التحليل التلقائي بنجاح!")
                         st.rerun()
         with plan_tabs[1]:
@@ -3538,11 +3629,17 @@ def admin_dashboard():
                 chosen_plan_id = plan_map[sel_plan_label]
                 with db() as c:
                     p_data = dict(c.execute("SELECT * FROM action_plans WHERE id=?", (chosen_plan_id,)).fetchone())
+                plan_tpl_name = "بدون نموذج اختبار محدد"
+                if p_data.get("template_id"):
+                    with db() as c:
+                        plan_tpl_row = c.execute("SELECT name, exam_type FROM exam_templates WHERE id=?", (p_data["template_id"],)).fetchone()
+                    if plan_tpl_row:
+                        plan_tpl_name = f"{plan_tpl_row['name']} ({plan_tpl_row['exam_type'] or 'اختبار'})"
                 plan_detail_html = f"""
                 <div style="font-family: 'Cairo', sans-serif; direction: rtl; padding: 5px; page-break-inside: avoid; break-inside: avoid;">
                     <h3 style="color: #047857; text-align: center; font-size: 14pt; margin: 5px 0;">خطة عمل لعلاج نقاط الضعف وتحسين الأداء بوحدات الأمراض المتوطنة</h3>
                     <hr style="border: 1px solid #059669; margin: 8px 0;">
-                    <p style="font-size: 9.5pt; margin: 4px 0;"><b>نوع النطاق:</b> {esc(p_data['target_type'])} | <b>المستهدف:</b> {esc(p_data['target_name'])} | <b>الهيكل الإداري:</b> {esc(template_scope_text(p_data))} | <b>الفترة الزمنية:</b> من {esc(p_data['start_date'])} إلى {esc(p_data['end_date'])}</p>
+                    <p style="font-size: 9.5pt; margin: 4px 0;"><b>نوع النطاق:</b> {esc(p_data['target_type'])} | <b>المستهدف:</b> {esc(p_data['target_name'])} | <b>الهيكل الإداري:</b> {esc(template_scope_text(p_data))} | <b>نموذج الاختبار:</b> {esc(plan_tpl_name)} | <b>الفترة الزمنية:</b> من {esc(p_data['start_date'])} إلى {esc(p_data['end_date'])}</p>
                     <div style="background: #f0fdf4; border: 1px solid #059669; padding: 8px; border-radius: 6px; margin: 10px 0; page-break-inside: avoid; break-inside: avoid;">
                         <h4 style="color: #065f46; margin-top: 0; font-size: 10.5pt;">🎯 نقاط الضعف المرصودة (بناءً على التقييم الآلي):</h4>
                         <p style="white-space: pre-wrap; margin-bottom: 0; font-size: 9.5pt;">{esc(p_data['weakness_areas'])}</p>
@@ -3554,7 +3651,7 @@ def admin_dashboard():
                 </div>
                 """
                 st.markdown(plan_detail_html, unsafe_allow_html=True)
-                full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html)
+                full_plan_print_html = generate_action_plan_report_html(f"خطة عمل - {p_data['target_name']}", plan_detail_html, header_text=hierarchy_header_html(p_data))
                 render_print_button_only(full_plan_print_html, f"خطة عمل رقم {chosen_plan_id}")
                 if st.button("🗑 حذف خططة العمل المحددة", use_container_width=True):
                     with db() as c:
