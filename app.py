@@ -253,6 +253,67 @@ def normalize_text(x):
     x = "" if x is None else str(x)
     return re.sub(r"\s+", " ", x.strip()).lower()
 
+_DIGIT_TRANSLATION = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+_EGYPT_PHONE_RE = re.compile(r"^01[0125]\d{8}$")
+_VALID_NID_GOV_CODES = {"01", "02", "03", "04", "11", "12", "13", "14", "15", "16", "17", "18", "19", "21", "22", "23", "24", "25", "26", "27", "28", "29", "31", "32", "33", "34", "35", "88"}
+
+def normalize_digits(value):
+    """Translate Arabic/Persian digits to ASCII and keep digits only."""
+    return re.sub(r"\D", "", str(value or "").translate(_DIGIT_TRANSLATION))
+
+def normalize_national_id(value):
+    return normalize_digits(value)
+
+def normalize_egyptian_phone(value):
+    """Canonicalize common Egyptian mobile formats to 01xxxxxxxxx."""
+    raw = str(value or "").translate(_DIGIT_TRANSLATION).strip()
+    digits = re.sub(r"\D", "", raw)
+    if digits.startswith("0020"):
+        digits = digits[4:]
+    elif digits.startswith("20") and len(digits) in (12, 13):
+        digits = digits[2:]
+    if len(digits) == 10 and digits.startswith("1"):
+        digits = "0" + digits
+    return digits
+
+def is_valid_egyptian_mobile(value):
+    return bool(_EGYPT_PHONE_RE.fullmatch(normalize_egyptian_phone(value)))
+
+def is_valid_egyptian_national_id(value):
+    nid = normalize_national_id(value)
+    if len(nid) != 14 or nid[0] not in {"2", "3"}:
+        return False
+    try:
+        century = 1900 if nid[0] == "2" else 2000
+        year = century + int(nid[1:3])
+        month = int(nid[3:5])
+        day = int(nid[5:7])
+        datetime(year, month, day)
+    except (ValueError, OverflowError):
+        return False
+    return nid[7:9] in _VALID_NID_GOV_CODES and nid[9:].isdigit()
+
+def trainee_matches_hierarchy(facility_value, hierarchy_row):
+    """Match both legacy facility-only values and the full hierarchy string."""
+    value = str(facility_value or "").strip()
+    h = dict(hierarchy_row)
+    if value == str(h.get("facility_name") or "").strip():
+        return True
+    path = " - ".join(str(h.get(k) or "").strip() for k in ("governorate", "authority", "center", "administration", "facility_name"))
+    return bool(path.strip(" -")) and value.endswith(path)
+
+def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
+    """SQL predicate for trainee records stored with a full administrative path."""
+    keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+    if not any(str(scope.get(k) or "").strip() for k in keys):
+        return "1=1", []
+    scope_sql, args = hierarchy_scope_sql("h", scope)
+    pred = (f"EXISTS (SELECT 1 FROM hierarchical_facilities h WHERE ({scope_sql}) AND "
+            f"({trainee_alias}.facility=h.facility_name OR "
+            f"{trainee_alias}.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || "
+            f"h.center || ' - ' || h.administration || ' - ' || h.facility_name))")
+    return pred, args
+
 def reindex_hierarchical_facilities():
     with db() as c:
         rows = c.execute("SELECT governorate, authority, center, administration, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
@@ -265,14 +326,14 @@ def reindex_hierarchical_facilities():
 def reindex_trainees():
     with db() as c:
         c.execute("PRAGMA foreign_keys=OFF;")
-        rows = c.execute("SELECT id, facility, name, phone, national_id, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
+        rows = c.execute("SELECT id, facility, name, phone, national_id, profession, work_start_date, status, assigned_template_id, created_at, approved_at, updated_at, hidden FROM trainees ORDER BY id ASC").fetchall()
         c.execute("DELETE FROM trainees")
         c.execute("DELETE FROM sqlite_sequence WHERE name='trainees'")
         id_mapping = {}
         for new_id, r in enumerate(rows, start=1):
             old_id = r["id"]
-            c.execute("INSERT INTO trainees(id, facility, name, phone, national_id, profession, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["facility"], r["name"], r["phone"], r["national_id"] if r["national_id"] is not None else "", r["profession"] if r["profession"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
+            c.execute("INSERT INTO trainees(id, facility, name, phone, national_id, profession, work_start_date, status, assigned_template_id, created_at, approved_at, updated_at, hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (new_id, r["facility"], r["name"], r["phone"], r["national_id"] if r["national_id"] is not None else "", r["profession"] if r["profession"] is not None else "", r["work_start_date"] if r["work_start_date"] is not None else "", r["status"], r["assigned_template_id"], r["created_at"], r["approved_at"], r["updated_at"], r["hidden"] if r["hidden"] is not None else 0))
             id_mapping[old_id] = new_id
         for old_id, new_id in id_mapping.items():
             c.execute("UPDATE exam_sessions SET trainee_id=? WHERE trainee_id=?", (new_id, old_id))
@@ -346,6 +407,7 @@ ALL_MENU_MODULES = {
     "👥 إدارة المهن والوظائف": "تقسيم وإدارة المهن والوظائف بالأمراض المتوطنة",
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل للأمراض المتوطنة",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
+    "📚 قاعدة بيانات المتدربين": "عرض وتعديل وطباعة وتصدير جميع بيانات المتدربين",
     "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
     "✍ تسجيل نتيجة يدوي": "التسجيل اليدوي للنتائج",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
@@ -405,6 +467,7 @@ def init_db():
                 phone TEXT NOT NULL,
                 national_id TEXT NOT NULL DEFAULT '',
                 profession TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة',
+                work_start_date TEXT NOT NULL DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'pending',
                 assigned_template_id INTEGER,
                 created_at TEXT NOT NULL,
@@ -513,6 +576,7 @@ def init_db():
     for col_table, col_name, col_type in [
         ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
         ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة'"),
+        ("trainees", "work_start_date", "TEXT NOT NULL DEFAULT ''"),
         ("trainees", "phone", "TEXT NOT NULL DEFAULT ''"),
         ("trainees", "national_id", "TEXT NOT NULL DEFAULT ''"),
         ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
@@ -762,62 +826,83 @@ def login_user(u, p):
             return dict(user)
     return None
 
-def create_trainee(facility, name, phone, national_id, profession, assigned_template_id=None):
-    phone_norm = normalize_text(phone)
-    nid_norm = normalize_text(national_id)
+def _find_duplicate_trainee_value(c, field, normalized_value, exclude_id=None):
+    if field not in {"phone", "national_id"} or not normalized_value:
+        return False
+    rows = c.execute(f"SELECT id, {field} FROM trainees WHERE COALESCE({field},'')<>''").fetchall()
+    normalizer = normalize_egyptian_phone if field == "phone" else normalize_national_id
+    for row in rows:
+        if exclude_id is not None and int(row["id"]) == int(exclude_id):
+            continue
+        if normalizer(row[field]) == normalized_value:
+            return True
+    return False
+
+def create_trainee(facility, name, phone, national_id, profession, assigned_template_id=None, work_start_date=""):
+    phone_norm = normalize_egyptian_phone(phone)
+    nid_norm = normalize_national_id(national_id)
+    if not is_valid_egyptian_mobile(phone_norm):
+        raise ValueError("INVALID_TRAINEE_PHONE")
+    if not is_valid_egyptian_national_id(nid_norm):
+        raise ValueError("INVALID_TRAINEE_NATIONAL_ID")
     with db() as c:
-        if phone_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(phone)=TRIM(?) LIMIT 1", (phone_norm,)).fetchone():
+        if _find_duplicate_trainee_value(c, "phone", phone_norm):
             raise ValueError("DUPLICATE_TRAINEE_PHONE")
-        if nid_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(national_id)=TRIM(?) LIMIT 1", (nid_norm,)).fetchone():
+        if _find_duplicate_trainee_value(c, "national_id", nid_norm):
             raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
-        try:
-            cur = c.execute("INSERT INTO trainees(facility,name,phone,national_id,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                            (facility, normalize_text(name), phone_norm, nid_norm, profession, "pending", assigned_template_id, now(), now(), 0))
-        except sqlite3.IntegrityError as e:
-            if "DUPLICATE_TRAINEE_PHONE" in str(e):
-                raise ValueError("DUPLICATE_TRAINEE_PHONE")
-            if "DUPLICATE_TRAINEE_NATIONAL_ID" in str(e):
-                raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
-            raise
+        cur = c.execute("INSERT INTO trainees(facility,name,phone,national_id,profession,work_start_date,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        (facility.strip(), normalize_text(name), phone_norm, nid_norm, profession, str(work_start_date or ""), "pending", assigned_template_id, now(), now(), 0))
         return cur.lastrowid
 
-def update_trainee_data(tid, facility, name, phone, national_id, profession):
-    phone_norm = normalize_text(phone)
-    nid_norm = normalize_text(national_id)
+def update_trainee_data(tid, facility, name, phone, national_id, profession, work_start_date=None):
+    phone_norm = normalize_egyptian_phone(phone)
+    nid_norm = normalize_national_id(national_id)
+    if not is_valid_egyptian_mobile(phone_norm):
+        raise ValueError("INVALID_TRAINEE_PHONE")
+    if not is_valid_egyptian_national_id(nid_norm):
+        raise ValueError("INVALID_TRAINEE_NATIONAL_ID")
     with db() as c:
-        if phone_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(phone)=TRIM(?) AND id<>? LIMIT 1", (phone_norm, int(tid))).fetchone():
+        if _find_duplicate_trainee_value(c, "phone", phone_norm, exclude_id=tid):
             raise ValueError("DUPLICATE_TRAINEE_PHONE")
-        if nid_norm and c.execute("SELECT 1 FROM trainees WHERE TRIM(national_id)=TRIM(?) AND id<>? LIMIT 1", (nid_norm, int(tid))).fetchone():
+        if _find_duplicate_trainee_value(c, "national_id", nid_norm, exclude_id=tid):
             raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
-        try:
+        if work_start_date is None:
             c.execute("UPDATE trainees SET facility=?, name=?, phone=?, national_id=?, profession=?, updated_at=? WHERE id=?",
                       (facility.strip(), normalize_text(name), phone_norm, nid_norm, profession, now(), int(tid)))
-        except sqlite3.IntegrityError as e:
-            if "DUPLICATE_TRAINEE_PHONE" in str(e):
-                raise ValueError("DUPLICATE_TRAINEE_PHONE")
-            if "DUPLICATE_TRAINEE_NATIONAL_ID" in str(e):
-                raise ValueError("DUPLICATE_TRAINEE_NATIONAL_ID")
-            raise
+        else:
+            c.execute("UPDATE trainees SET facility=?, name=?, phone=?, national_id=?, profession=?, work_start_date=?, updated_at=? WHERE id=?",
+                      (facility.strip(), normalize_text(name), phone_norm, nid_norm, profession, str(work_start_date or ""), now(), int(tid)))
 
 def trainee_by_credentials(name, facility):
     with db() as c:
         r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active') AND hidden=0", (normalize_text(name), facility)).fetchone()
         return dict(r) if r else None
 
+def trainee_by_phone_and_national_id(phone, national_id):
+    phone_norm = normalize_egyptian_phone(phone)
+    nid_norm = normalize_national_id(national_id)
+    if not phone_norm or not nid_norm:
+        return None
+    with db() as c:
+        rows = c.execute("SELECT * FROM trainees WHERE status IN ('approved','active') AND hidden=0 ORDER BY id DESC").fetchall()
+        matches = [dict(r) for r in rows if normalize_egyptian_phone(r["phone"]) == phone_norm and normalize_national_id(r["national_id"]) == nid_norm]
+        return matches[0] if len(matches) == 1 else None
+
 def trainee_by_phone(phone):
-    phone_norm = normalize_text(phone)
+    phone_norm = normalize_egyptian_phone(phone)
     if not phone_norm:
         return None
     with db() as c:
-        r = c.execute("SELECT * FROM trainees WHERE phone=? AND status IN ('approved','active') AND hidden=0 LIMIT 1", (phone_norm,)).fetchone()
-        return dict(r) if r else None
+        rows = c.execute("SELECT * FROM trainees WHERE status IN ('approved','active') AND hidden=0 ORDER BY id DESC").fetchall()
+        matches = [dict(r) for r in rows if normalize_egyptian_phone(r["phone"]) == phone_norm]
+        return matches[0] if len(matches) == 1 else None
 
 def phone_exists(phone):
-    phone_norm = normalize_text(phone)
+    phone_norm = normalize_egyptian_phone(phone)
     if not phone_norm:
         return False
     with db() as c:
-        return c.execute("SELECT 1 FROM trainees WHERE phone=? LIMIT 1", (phone_norm,)).fetchone() is not None
+        return _find_duplicate_trainee_value(c, "phone", phone_norm)
 
 def set_trainee_status_and_template(tid, status, assigned_template_id):
     with db() as c:
@@ -1805,15 +1890,24 @@ def login_portal():
             national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
             phone = st.text_input("رقم الهاتف:", help="رقم الهاتف هو المعرف الرئيسي والفريد بعد اعتماد التسجيل.")
             selected_profession = st.selectbox("الوظيفة / التخصص:", professions_list)
+            work_start_date = st.date_input(
+                "📅 تاريخ استلام العمل:",
+                value=now_cairo().date(),
+                max_value=now_cairo().date(),
+                format="DD/MM/YYYY",
+                help="اختر تاريخ استلام العمل الفعلي."
+            )
             if st.form_submit_button("📨 إرسال طلب التسجيل", use_container_width=True):
-                digits_nid = re.sub(r"\D", "", national_id)
-                phone_norm = normalize_text(phone)
+                digits_nid = normalize_national_id(national_id)
+                phone_norm = normalize_egyptian_phone(phone)
                 if not facility_final_str:
                     st.warning("⚠ يرجى استكمال اختيار الهيكل الإداري بالكامل.")
                 elif not name.strip() or not phone_norm or not digits_nid:
                     st.warning("⚠ يرجى إدخال الاسم والرقم القومي ورقم الهاتف.")
-                elif len(digits_nid) != 14:
-                    st.warning("⚠ الرقم القومي يجب أن يتكون من 14 رقماً.")
+                elif not is_valid_egyptian_national_id(digits_nid):
+                    st.warning("⚠ الرقم القومي غير صحيح. تأكد من 14 رقماً وتاريخ الميلاد وكود المحافظة.")
+                elif not is_valid_egyptian_mobile(phone_norm):
+                    st.warning("⚠ أدخل رقم موبايل مصري صحيحاً مثل 01012345678 أو +201012345678.")
                 elif phone_exists(phone_norm):
                     st.error("❌ رقم الهاتف مستخدم بالفعل لممتحن مسجل. رقم الهاتف يجب أن يكون فريداً.")
                 else:
@@ -1822,24 +1916,32 @@ def login_portal():
                     if nid_exists:
                         st.error("❌ الرقم القومي مستخدم بالفعل في تسجيل سابق.")
                     else:
-                        tid = create_trainee(facility_final_str, name, phone_norm, digits_nid, selected_profession, None)
-                        st.success(f"✅ تم إرسال طلب التسجيل بنجاح. رقم الطلب: {tid}. انتظر اعتماد الإدارة.")
+                        try:
+                            tid = create_trainee(
+                                facility_final_str, name, phone_norm, digits_nid,
+                                selected_profession, None, work_start_date.isoformat()
+                            )
+                            st.success(f"✅ تم إرسال طلب التسجيل بنجاح. رقم الطلب: {tid}. انتظر اعتماد الإدارة.")
+                        except ValueError as e:
+                            msg = {"DUPLICATE_TRAINEE_PHONE": "رقم الهاتف مستخدم بالفعل.", "DUPLICATE_TRAINEE_NATIONAL_ID": "الرقم القومي مستخدم بالفعل.", "INVALID_TRAINEE_PHONE": "رقم الموبايل المصري غير صحيح.", "INVALID_TRAINEE_NATIONAL_ID": "الرقم القومي غير صحيح."}.get(str(e), str(e))
+                            st.error("❌ " + msg)
 
     with exam_tab:
         st.markdown("### 🔐 التسجيل ودخول الامتحان")
-        st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف فقط** لطلب دخول الامتحان.")
+        st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
         with st.form("trainee_phone_login"):
-            phone_login = st.text_input("رقم الهاتف:", placeholder="أدخل رقم الهاتف المسجل")
-            if st.form_submit_button("🚪 طلب دخول الامتحان", use_container_width=True):
-                tr = trainee_by_phone(phone_login)
+            phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
+            nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
+            if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
+                tr = trainee_by_phone_and_national_id(phone_login, nid_login)
                 if not tr:
-                    st.error("❌ لم يتم العثور على تسجيل معتمد بهذا الرقم. تأكد من الرقم أو انتظر اعتماد الإدارة.")
+                    st.error("❌ بيانات الدخول غير متطابقة مع تسجيل معتمد. راجع رقم الهاتف والرقم القومي.")
                 elif not tr.get("assigned_template_id"):
                     st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
                 else:
                     st.session_state.trainee_id = tr["id"]
                     st.session_state.trainee_name = tr["name"]
-                    st.success("✅ تم التحقق من رقم الهاتف بنجاح. جاري الانتقال إلى الامتحان...")
+                    st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
                     st.rerun()
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
@@ -2251,14 +2353,14 @@ def admin_dashboard():
             cert_scope_sql, cert_scope_args = hierarchy_scope_sql("h", cert_scope)
             with db() as c:
                 all_facilities_list = [row[0] for row in c.execute(
-                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {cert_scope_sql} ORDER BY t.facility",
+                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {cert_scope_sql} ORDER BY t.facility",
                     tuple(cert_scope_args)
                 ).fetchall()]
                 sessions_full_list = c.execute("""SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession,
                     s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type
                     FROM exam_sessions s
                     JOIN trainees t ON t.id=s.trainee_id
-                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE s.status='submitted' AND t.hidden=0 AND {cert_scope_sql} ORDER BY s.id DESC""".format(cert_scope_sql=cert_scope_sql), tuple(cert_scope_args)).fetchall()
 
@@ -2585,7 +2687,7 @@ def admin_dashboard():
             st.markdown("#### 🆕 قبول المسجلين الجدد وتعديل بياناتهم")
             st.caption("يمكن البحث بالرقم القومي، تعديل بيانات الطلب قبل الاعتماد، ثم اختيار نموذج الاختبار وفق الهيكل الإداري.")
             search_nid = st.text_input("🔎 بحث عن متدرب بالرقم القومي:", value="", max_chars=14, key="pending_nid_search")
-            search_digits = re.sub(r"\D", "", search_nid or "")
+            search_digits = normalize_national_id(search_nid)
             if search_digits:
                 with db() as c:
                     search_rows = c.execute("SELECT * FROM trainees WHERE national_id=? ORDER BY id DESC", (search_digits,)).fetchall()
@@ -2627,10 +2729,14 @@ def admin_dashboard():
                             with bc3:
                                 rej_btn = st.form_submit_button("❌ رفض", use_container_width=True)
                             if save_data_btn or app_btn:
-                                digits_nid = re.sub(r"\D", "", edit_nid or "")
-                                phone_norm = normalize_text(edit_phone)
-                                if not edit_name.strip() or not phone_norm or len(digits_nid) != 14 or not edit_facility.strip():
-                                    st.error("⚠ يجب استكمال الاسم والهاتف وجهة العمل، وأن يكون الرقم القومي 14 رقماً.")
+                                digits_nid = normalize_national_id(edit_nid)
+                                phone_norm = normalize_egyptian_phone(edit_phone)
+                                if not edit_name.strip() or not phone_norm or not edit_facility.strip():
+                                    st.error("⚠ يجب استكمال الاسم والهاتف وجهة العمل.")
+                                elif not is_valid_egyptian_national_id(digits_nid):
+                                    st.error("⚠ الرقم القومي غير صحيح؛ راجع 14 رقماً وتاريخ الميلاد وكود المحافظة.")
+                                elif not is_valid_egyptian_mobile(phone_norm):
+                                    st.error("⚠ رقم الموبايل المصري غير صحيح.")
                                 else:
                                     try:
                                         update_trainee_data(int(r['id']), edit_facility.strip(), edit_name.strip(), phone_norm, digits_nid, edit_prof.strip())
@@ -2649,6 +2755,10 @@ def admin_dashboard():
                                             st.error("❌ رقم الهاتف مستخدم بالفعل لمتدرب آخر، ولا يمكن تكراره.")
                                         elif str(e) == "DUPLICATE_TRAINEE_NATIONAL_ID":
                                             st.error("❌ الرقم القومي مستخدم بالفعل لمتدرب آخر، ولا يمكن تكراره.")
+                                        elif str(e) == "INVALID_TRAINEE_PHONE":
+                                            st.error("❌ رقم الموبايل المصري غير صحيح.")
+                                        elif str(e) == "INVALID_TRAINEE_NATIONAL_ID":
+                                            st.error("❌ الرقم القومي غير صحيح.")
                                         else:
                                             st.error(f"تعذر حفظ البيانات: {e}")
                             if rej_btn:
@@ -2656,7 +2766,14 @@ def admin_dashboard():
                                 st.warning("تم رفض طلب التسجيل.")
                                 st.rerun()
         with sub_tabs[1]:
+            st.markdown("#### 🏥 فلترة المتدربين حسب الهيكل الإداري")
+            tr_scope_manage = hierarchy_scope_widget("نطاق المتدربين:", "trainees_manage_scope_v1")
+            tr_scope_pred, tr_scope_args = hierarchy_filter_for_trainees(tr_scope_manage, "t")
+            with db() as c:
+                scoped_ids = [r[0] for r in c.execute(f"SELECT t.id FROM trainees t WHERE {tr_scope_pred}", tuple(tr_scope_args)).fetchall()]
             df_all_tr = trainees_df(include_hidden=True)
+            if not df_all_tr.empty and any(str(tr_scope_manage.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
+                df_all_tr = df_all_tr[df_all_tr["id"].isin(scoped_ids)]
             if df_all_tr.empty:
                 st.info("لا توجد بيانات متدربين مسجلة.")
             else:
@@ -2701,12 +2818,14 @@ def admin_dashboard():
                         st.rerun()
         with sub_tabs[2]:
             st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
+            exam_print_scope = hierarchy_scope_widget("نطاق طباعة نماذج الإجابة:", "exam_print_scope_v1")
+            exam_scope_pred, exam_scope_args = hierarchy_filter_for_trainees(exam_print_scope, "t")
             with db() as c:
-                completed_sessions = c.execute("""
+                completed_sessions = c.execute(f"""
                     SELECT s.id, t.name trainee_name, t.facility, t.profession trainee_profession, s.submitted_at, s.started_at, e.name template_name, e.exam_type
                     FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id
-                    WHERE s.status='submitted' AND t.hidden=0 ORDER BY s.id DESC
-                """).fetchall()
+                    WHERE s.status='submitted' AND t.hidden=0 AND {exam_scope_pred} ORDER BY s.id DESC
+                """, tuple(exam_scope_args)).fetchall()
             if not completed_sessions:
                 st.info("لا توجد اختبارات مكتملة مسجلة للممتحنين الظاهرين حتى الآن.")
             else:
@@ -2721,8 +2840,21 @@ def admin_dashboard():
         st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (مع إمكانية الحذف وإعادة الترتيب التلقائي للـ ID)")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد وتصنيف", "🗑 حذف نموذج"], horizontal=True)
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
+            st.markdown("#### 🏥 فلترة طباعة النماذج حسب الهيكل الإداري")
+            tpl_print_scope = hierarchy_scope_widget("نطاق طباعة نماذج الاختبار:", "template_print_scope_v1")
+            scope_keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+            scope_values = [str(tpl_print_scope.get(k) or "").strip() for k in scope_keys]
             with db() as c:
-                tpls = c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
+                all_tpl_rows = [dict(r) for r in c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()]
+            def _template_in_print_scope(template_row):
+                if not any(scope_values):
+                    return True
+                template_scope_values = [str(template_row.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")]
+                # A global template is available in every selected administrative scope.
+                if not any(template_scope_values):
+                    return True
+                return all(not template_scope_values[i] or template_scope_values[i] == scope_values[i] for i in range(len(scope_values))) and all(not scope_values[i] or not template_scope_values[i] or template_scope_values[i] == scope_values[i] for i in range(len(scope_values)))
+            tpls = [t for t in all_tpl_rows if _template_in_print_scope(t)]
             if not tpls:
                 st.info("لا توجد نماذج اختبارات مسجلة حتى الآن.")
             else:
@@ -2948,7 +3080,7 @@ def admin_dashboard():
             with db() as c:
                 tr_list_rep = c.execute(
                     f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t "
-                    f"LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility "
+                    f"LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) "
                     f"WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.id DESC",
                     tuple(rep_scope_args)
                 ).fetchall()
@@ -3067,7 +3199,7 @@ def admin_dashboard():
                 facs_list_rep = [
                     r[0] for r in c.execute(
                         f"SELECT DISTINCT t.facility FROM trainees t "
-                        f"LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility "
+                        f"LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) "
                         f"WHERE t.facility IS NOT NULL AND TRIM(t.facility)<>'' AND COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.facility",
                         tuple(rep_scope_args)
                     ).fetchall()
@@ -3093,7 +3225,7 @@ def admin_dashboard():
                                COALESCE(AVG(s.percent),0) AS avg_pct,
                                COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_cnt
                         FROM trainees t JOIN exam_sessions s ON s.trainee_id=t.id
-                        LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                        LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                         WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND t.facility=?
                           AND {rep_scope_sql}
                           AND date(s.submitted_at)>=date(?) AND date(s.submitted_at)<=date(?)
@@ -3138,7 +3270,7 @@ def admin_dashboard():
                            s.score,s.max_score,s.percent,s.passed,s.submitted_at,
                            e.exam_type,e.name AS template_name
                     FROM trainees t
-                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
@@ -3152,7 +3284,7 @@ def admin_dashboard():
                         SELECT t.id,t.name,t.profession,t.facility,s.score,s.max_score,s.percent,s.passed,
                                s.certificate_id,s.submitted_at,e.exam_type,e.name AS template_name
                         FROM trainees t
-                        LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                        LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                         LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                         LEFT JOIN exam_templates e ON e.id=s.template_id
                         WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql} ORDER BY t.id DESC,s.id DESC
@@ -3194,7 +3326,7 @@ def admin_dashboard():
                            COALESCE(SUM(CASE WHEN s.passed=1 THEN 1 ELSE 0 END),0) AS passed_count,
                            COALESCE(AVG(s.percent),0) AS avg_pct
                     FROM trainees t
-                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_sessions s ON s.trainee_id=t.id AND s.status='submitted'
                     WHERE COALESCE(t.hidden,0)=0 AND t.facility IS NOT NULL AND TRIM(t.facility)<>'' AND {rep_scope_sql}
                     GROUP BY t.facility ORDER BY avg_pct DESC,t.facility
@@ -3225,7 +3357,7 @@ def admin_dashboard():
                     SELECT s.id AS session_id,t.name AS trainee_name,t.facility,t.profession AS trainee_profession,
                            s.score,s.max_score,s.percent,s.passed,e.name AS template_name,e.exam_type,s.submitted_at
                     FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id
-                    LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility
+                    LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name)
                     LEFT JOIN exam_templates e ON e.id=s.template_id
                     WHERE s.status='submitted' AND COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
                     ORDER BY COALESCE(s.percent,0) DESC,s.id DESC
@@ -3283,11 +3415,11 @@ def admin_dashboard():
             plan_scope_sql, plan_scope_args = hierarchy_scope_sql("h", plan_scope)
             with db() as c:
                 all_tr_list = c.execute(
-                    f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility WHERE t.hidden=0 AND {plan_scope_sql} ORDER BY t.id ASC",
+                    f"SELECT DISTINCT t.id, t.name, t.facility, t.profession FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.hidden=0 AND {plan_scope_sql} ORDER BY t.id ASC",
                     tuple(plan_scope_args)
                 ).fetchall()
                 all_fac_list = [row[0] for row in c.execute(
-                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON h.facility_name=t.facility WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {plan_scope_sql} ORDER BY t.facility",
+                    f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {plan_scope_sql} ORDER BY t.facility",
                     tuple(plan_scope_args)
                 ).fetchall()]
             with st.form("create_action_plan_form"):
@@ -3561,6 +3693,116 @@ def admin_dashboard():
                 </html>
                 """
                 render_print_button_only(minutes_print_html, f"محضر تدريب نموذج رقم {chosen_min_tpl_id}")
+
+    elif selected_menu == "📚 قاعدة بيانات المتدربين":
+        st.subheader("📚 قاعدة بيانات المتدربين — عرض وتعديل وطباعة وتصدير")
+        st.warning("تحتوي هذه الصفحة على بيانات شخصية حساسة. استخدمها للمخولين فقط، وتأكد من مراجعة البيانات قبل تصديرها أو طباعتها.")
+        all_scope = hierarchy_scope_widget("فلترة البيانات حسب الهيكل الإداري:", "trainee_db_scope_v1")
+        all_scope_pred, all_scope_args = hierarchy_filter_for_trainees(all_scope, "t")
+        with db() as c:
+            rows = c.execute(f"SELECT t.* FROM trainees t WHERE {all_scope_pred} ORDER BY t.id DESC", tuple(all_scope_args)).fetchall()
+            templates_db = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name").fetchall()
+        df_db = pd.DataFrame([dict(r) for r in rows])
+        if df_db.empty:
+            st.info("لا توجد بيانات متدربين ضمن النطاق المحدد.")
+        else:
+            search_db = st.text_input("🔎 بحث بالاسم أو الرقم القومي أو الهاتف أو رقم السجل:", key="trainee_db_search_v1")
+            status_options = ["الكل"] + sorted({str(x) for x in df_db.get("status", pd.Series(dtype=str)).dropna().tolist()})
+            status_db = st.selectbox("حالة التسجيل:", status_options, key="trainee_db_status_v1")
+            if status_db != "الكل":
+                df_db = df_db[df_db["status"].astype(str) == status_db]
+            if search_db.strip():
+                q_norm = normalize_text(search_db)
+                q_digits = normalize_digits(search_db)
+                mask = df_db.apply(lambda row: (
+                    q_norm in normalize_text(row.get("name", ""))
+                    or (bool(q_digits) and q_digits in normalize_national_id(row.get("national_id", "")))
+                    or (bool(q_digits) and q_digits in normalize_egyptian_phone(row.get("phone", "")))
+                    or q_norm == str(row.get("id", ""))
+                ), axis=1)
+                df_db = df_db[mask]
+            status_labels = {"pending":"في انتظار اعتماد الإدارة", "approved":"معتمد ومصرح بالدخول", "active":"اختبار جارٍ", "completed":"مكتمل", "rejected":"مرفوض"}
+            display_columns = [
+                ("id", "رقم السجل"), ("name", "الاسم"), ("national_id", "الرقم القومي"), ("phone", "رقم الهاتف"),
+                ("profession", "الوظيفة / التخصص"), ("facility", "الجهة الإدارية / المنشأة"),
+                ("work_start_date", "تاريخ استلام العمل"), ("status", "حالة التسجيل"),
+                ("assigned_template_id", "رقم نموذج الاختبار"), ("created_at", "تاريخ التسجيل"),
+                ("approved_at", "تاريخ الاعتماد"), ("updated_at", "آخر تحديث"), ("hidden", "مخفي")
+            ]
+            export_df = df_db.copy()
+            for col, label in display_columns:
+                if col not in export_df.columns:
+                    export_df[col] = ""
+            export_df = export_df[[c for c, _ in display_columns]].rename(columns={c: label for c, label in display_columns})
+            if "حالة التسجيل" in export_df.columns:
+                export_df["حالة التسجيل"] = export_df["حالة التسجيل"].map(lambda x: status_labels.get(str(x), x))
+            st.caption(f"عدد السجلات المطابقة: {len(export_df)}")
+            st.dataframe(export_df, use_container_width=True, hide_index=True)
+            dl1, dl2 = st.columns(2)
+            with dl1:
+                csv_data = export_df.to_csv(index=False).encode("utf-8-sig")
+                st.download_button("📥 تصدير CSV", data=csv_data, file_name="trainees_database.csv", mime="text/csv", use_container_width=True, key="trainees_db_csv_v1")
+            with dl2:
+                xlsx_out = io.BytesIO()
+                with pd.ExcelWriter(xlsx_out, engine="openpyxl") as writer:
+                    export_df.to_excel(writer, index=False, sheet_name="Trainees")
+                st.download_button("📥 تصدير Excel", data=xlsx_out.getvalue(), file_name="trainees_database.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key="trainees_db_xlsx_v1")
+            printable_rows = "".join("<tr>" + "".join(f"<td style='border:1px solid #bbb;padding:5px'>{esc('' if pd.isna(v) else str(v))}</td>" for v in row) + "</tr>" for row in export_df.fillna("").itertuples(index=False, name=None))
+            printable_headers = "".join(f"<th style='border:1px solid #bbb;padding:6px;background:#e5e7eb'>{esc(str(col))}</th>" for col in export_df.columns)
+            printable_html = generate_general_report_html("قاعدة بيانات المتدربين", f"<table style='border-collapse:collapse;width:100%;font-size:8pt'><thead><tr>{printable_headers}</tr></thead><tbody>{printable_rows}</tbody></table>", target_pages=0)
+            render_print_button_only(printable_html, "طباعة قاعدة بيانات المتدربين")
+
+            st.markdown("---")
+            st.markdown("#### ✏️ تعديل بيانات متدرب")
+            row_choices = {f"سجل {int(r['id'])} — {r.get('name','')} — {r.get('phone','')}": int(r["id"]) for _, r in df_db.iterrows()}
+            if row_choices:
+                selected_record_label = st.selectbox("اختر المتدرب للتعديل:", list(row_choices.keys()), key="trainee_db_edit_pick_v1")
+                selected_record_id = row_choices[selected_record_label]
+                selected_record = df_db[df_db["id"].astype(int) == selected_record_id].iloc[0].to_dict()
+                try:
+                    current_work_date = date.fromisoformat(str(selected_record.get("work_start_date") or ""))
+                except Exception:
+                    current_work_date = now_cairo().date()
+                current_status = str(selected_record.get("status") or "pending")
+                current_template = selected_record.get("assigned_template_id")
+                template_labels = ["بدون نموذج"] + [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) — ID {t['id']}" for t in templates_db]
+                template_ids = [None] + [int(t["id"]) for t in templates_db]
+                current_template_index = template_ids.index(int(current_template)) if current_template is not None and int(current_template) in template_ids else 0
+                with st.form("trainee_db_edit_form_v1"):
+                    ed_name = st.text_input("الاسم:", value=str(selected_record.get("name") or ""))
+                    ed_nid = st.text_input("الرقم القومي:", value=str(selected_record.get("national_id") or ""), max_chars=14)
+                    ed_phone = st.text_input("رقم الهاتف:", value=str(selected_record.get("phone") or ""))
+                    ed_prof = st.text_input("الوظيفة / التخصص:", value=str(selected_record.get("profession") or ""))
+                    ed_facility = st.text_input("الجهة الإدارية / المنشأة:", value=str(selected_record.get("facility") or ""))
+                    ed_work_date = st.date_input("تاريخ استلام العمل:", value=current_work_date, max_value=now_cairo().date(), format="DD/MM/YYYY")
+                    status_values = ["pending", "approved", "active", "completed", "rejected"]
+                    status_labels_list = [status_labels[x] for x in status_values]
+                    status_index = status_values.index(current_status) if current_status in status_values else 0
+                    ed_status_label = st.selectbox("حالة التسجيل:", status_labels_list, index=status_index)
+                    ed_template_label = st.selectbox("نموذج الاختبار المخصص:", template_labels, index=current_template_index)
+                    ed_hidden = st.checkbox("إخفاء السجل من القوائم العامة", value=bool(selected_record.get("hidden", 0)))
+                    save_trainee_db = st.form_submit_button("💾 حفظ جميع التعديلات", use_container_width=True)
+                if save_trainee_db:
+                    ed_nid_norm = normalize_national_id(ed_nid)
+                    ed_phone_norm = normalize_egyptian_phone(ed_phone)
+                    if not ed_name.strip() or not ed_facility.strip():
+                        st.error("أدخل الاسم وجهة العمل.")
+                    elif not is_valid_egyptian_national_id(ed_nid_norm):
+                        st.error("الرقم القومي غير صحيح؛ راجع 14 رقماً وتاريخ الميلاد وكود المحافظة.")
+                    elif not is_valid_egyptian_mobile(ed_phone_norm):
+                        st.error("رقم الموبايل المصري غير صحيح.")
+                    else:
+                        try:
+                            update_trainee_data(selected_record_id, ed_facility, ed_name, ed_phone_norm, ed_nid_norm, ed_prof, ed_work_date.isoformat())
+                            chosen_status = status_values[status_labels_list.index(ed_status_label)]
+                            chosen_tpl_id = template_ids[template_labels.index(ed_template_label)]
+                            with db() as c:
+                                c.execute("UPDATE trainees SET status=?, assigned_template_id=?, hidden=?, updated_at=? WHERE id=?", (chosen_status, chosen_tpl_id, int(ed_hidden), now(), selected_record_id))
+                            st.success("تم حفظ بيانات المتدرب بنجاح.")
+                            st.rerun()
+                        except ValueError as e:
+                            errors = {"DUPLICATE_TRAINEE_PHONE":"رقم الهاتف مستخدم في سجل آخر.", "DUPLICATE_TRAINEE_NATIONAL_ID":"الرقم القومي مستخدم في سجل آخر.", "INVALID_TRAINEE_PHONE":"رقم الهاتف غير صحيح.", "INVALID_TRAINEE_NATIONAL_ID":"الرقم القومي غير صحيح."}
+                            st.error(errors.get(str(e), f"تعذر حفظ البيانات: {e}"))
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
