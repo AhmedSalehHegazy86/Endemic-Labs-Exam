@@ -2078,18 +2078,43 @@ def login_portal():
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"])
 
-    # الصفحة الرئيسية: أزرار واضحة بالترتيب المطلوب، مع إبقاء دخول الإدارة مخفياً داخل expander.
+    # كل زر يفتح محتواه تحته مباشرة، مع بقاء دخول الإدارة مخفياً كما كان.
     if "login_portal_section" not in st.session_state:
-        st.session_state.login_portal_section = "exam"
-    st.markdown("<style>div.stButton > button[kind='secondary'] {min-height: 3.2rem; font-weight: 600;} .portal-gap {height: 22px;}</style>", unsafe_allow_html=True)
-    if st.button("🔐 تسجيل دخول الامتحان", key="portal_exam_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "exam" else "secondary"):
-        st.session_state.login_portal_section = "exam"
-        st.rerun()
-    if st.button("📝 تسجيل أول مرة", key="portal_register_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "register" else "secondary"):
-        st.session_state.login_portal_section = "register"
-        st.rerun()
-    st.markdown('<div class="portal-gap"></div>', unsafe_allow_html=True)
+        st.session_state.login_portal_section = ""
+    st.markdown("<style>div.stButton > button {min-height: 3.2rem; font-weight: 600;} .portal-gap {height: 22px;}</style>", unsafe_allow_html=True)
 
+    if st.button("🔐 تسجيل دخول الامتحان", key="portal_exam_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "exam" else "secondary"):
+        st.session_state.login_portal_section = "" if st.session_state.login_portal_section == "exam" else "exam"
+        st.rerun()
+    if st.session_state.login_portal_section == "exam":
+            st.markdown("### 🔐 التسجيل ودخول الامتحان")
+            st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
+            with st.form("trainee_phone_login"):
+                phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
+                nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
+                if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
+                    tr = trainee_by_phone_and_national_id(phone_login, nid_login)
+                    if not tr:
+                        st.error("❌ بيانات الدخول غير متطابقة مع تسجيل معتمد. راجع رقم الهاتف والرقم القومي.")
+                    elif not tr.get("assigned_template_id"):
+                        st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
+                    else:
+                        with db() as c:
+                            login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
+                        if not login_tpl:
+                            st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
+                        elif not template_matches_profession(dict(login_tpl), tr.get("profession", "")):
+                            st.error(f"❌ نموذج الاختبار المحدد غير مخصص لمهنتك ({tr.get('profession') or 'غير محددة'}). يرجى مراجعة الإدارة لتخصيص النموذج الصحيح.")
+                        else:
+                            st.session_state.trainee_id = tr["id"]
+                            st.session_state.trainee_name = tr["name"]
+                            st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
+                            st.rerun()
+
+    st.markdown('<div class="portal-gap"></div>', unsafe_allow_html=True)
+    if st.button("📝 تسجيل أول مرة", key="portal_register_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "register" else "secondary"):
+        st.session_state.login_portal_section = "" if st.session_state.login_portal_section == "register" else "register"
+        st.rerun()
     if st.session_state.login_portal_section == "register":
             st.markdown("### 📝 تسجيل الممتحن لأول مرة")
             st.info("أدخل بياناتك مرة واحدة. بعد إرسال الطلب سيظهر للإدارة في قسم **قبول تسجيل الجدد**، ولا يمكن دخول الامتحان قبل اعتماد التسجيل.")
@@ -2149,31 +2174,6 @@ def login_portal():
                             except ValueError as e:
                                 msg = {"DUPLICATE_TRAINEE_PHONE": "رقم الهاتف مستخدم بالفعل.", "DUPLICATE_TRAINEE_NATIONAL_ID": "الرقم القومي مستخدم بالفعل.", "INVALID_TRAINEE_PHONE": "رقم الموبايل المصري غير صحيح.", "INVALID_TRAINEE_NATIONAL_ID": "الرقم القومي غير صحيح."}.get(str(e), str(e))
                                 st.error("❌ " + msg)
-
-    if st.session_state.login_portal_section == "exam":
-            st.markdown("### 🔐 التسجيل ودخول الامتحان")
-            st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
-            with st.form("trainee_phone_login"):
-                phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
-                nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
-                if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
-                    tr = trainee_by_phone_and_national_id(phone_login, nid_login)
-                    if not tr:
-                        st.error("❌ بيانات الدخول غير متطابقة مع تسجيل معتمد. راجع رقم الهاتف والرقم القومي.")
-                    elif not tr.get("assigned_template_id"):
-                        st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
-                    else:
-                        with db() as c:
-                            login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
-                        if not login_tpl:
-                            st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
-                        elif not template_matches_profession(dict(login_tpl), tr.get("profession", "")):
-                            st.error(f"❌ نموذج الاختبار المحدد غير مخصص لمهنتك ({tr.get('profession') or 'غير محددة'}). يرجى مراجعة الإدارة لتخصيص النموذج الصحيح.")
-                        else:
-                            st.session_state.trainee_id = tr["id"]
-                            st.session_state.trainee_name = tr["name"]
-                            st.success("✅ تم التحقق من رقم الهاتف والرقم القومي بنجاح. جاري الانتقال إلى الامتحان...")
-                            st.rerun()
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
         with st.form("admin_login_form_hidden"):
