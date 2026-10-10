@@ -454,6 +454,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 display_name TEXT NOT NULL DEFAULT '',
+                job_title TEXT NOT NULL DEFAULT '',
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
                 permissions_json TEXT NOT NULL DEFAULT '[]',
@@ -753,6 +754,8 @@ def init_db():
         user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
         if "display_name" not in user_columns:
             c.execute("ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''")
+        if "job_title" not in user_columns:
+            c.execute("ALTER TABLE users ADD COLUMN job_title TEXT NOT NULL DEFAULT ''")
         c.execute("UPDATE users SET display_name=username WHERE display_name IS NULL OR TRIM(display_name)=''")
 
         # Preserve legacy users' previous unrestricted access with an explicit marker.
@@ -2439,9 +2442,10 @@ def admin_dashboard():
     c_info, c_btn = st.columns([4, 1])
     with c_info:
         with db() as _c:
-            _display_row = _c.execute("SELECT display_name FROM users WHERE username=?", (st.session_state.username,)).fetchone()
+            _display_row = _c.execute("SELECT display_name, job_title FROM users WHERE username=?", (st.session_state.username,)).fetchone()
         _display_name = (_display_row["display_name"] if _display_row else "") or st.session_state.username
-        st.write(f"**المستخدم:** {_display_name} | **اسم الدخول:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
+        _job_title = (_display_row["job_title"] if _display_row else "") or ROLES.get(st.session_state.role, '')
+        st.write(f"**المستخدم:** {_display_name} | **اسم الدخول:** {st.session_state.username} | **الوظيفة:** {_job_title} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
     with c_btn:
         if st.button("تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
@@ -4709,8 +4713,9 @@ def admin_dashboard():
         with tab_u1:
             with st.form("add_user_form_v1_0", clear_on_submit=True):
                 new_u_name = st.text_input("اسم المستخدم:", value="")
-                new_u_pass = st.text_input("كلمة المرور:", type="password", value="")
-                new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
+                new_u_pass = st.text_input("كلمة المرور (8 أحرف/أرقام على الأقل):", type="password", value="")
+                new_u_role = st.selectbox("مستوى الصلاحية داخل النظام:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
+                new_u_job_title = st.text_input("الوظيفة / المسمى الوظيفي للمستخدم:", value="", placeholder="مثال: مدير إدارة، طبيب، فني معمل")
                 selected_modules_checkboxes = {}
                 for mod_key, mod_desc in ALL_MENU_MODULES.items():
                     selected_modules_checkboxes[mod_key] = st.checkbox(f"{mod_key} ({mod_desc})", value=True)
@@ -4734,19 +4739,21 @@ def admin_dashboard():
                         if src_field == stop_field:
                             break
                 if st.form_submit_button("💾 حفظ", use_container_width=True):
-                    if new_u_name.strip() and new_u_pass.strip():
+                    if new_u_name.strip() and new_u_pass.strip() and len(new_u_pass) >= 8:
                         assigned_perms = [k for k, v in selected_modules_checkboxes.items() if v]
                         with db() as c:
                             try:
                                 if not any(str(add_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
                                     add_user_scope["scope_all"] = True
-                                c.execute("INSERT INTO users(username, display_name, password_hash, role, permissions_json, hierarchy_scope_json, active, created_at) VALUES(?,?,?,?,?,?,?,?)",
-                                          (new_u_name.strip(), new_u_name.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), json.dumps(add_user_scope, ensure_ascii=False), 1, now()))
+                                c.execute("INSERT INTO users(username, display_name, job_title, password_hash, role, permissions_json, hierarchy_scope_json, active, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                                          (new_u_name.strip(), new_u_name.strip(), new_u_job_title.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), json.dumps(add_user_scope, ensure_ascii=False), 1, now()))
                                 st.success("✅ تم الإضافة!")
                             except sqlite3.IntegrityError:
                                 st.error("مستخدم مسبقاً.")
+                    elif new_u_pass.strip() and len(new_u_pass) < 8:
+                        st.warning("كلمة المرور يجب ألا تقل عن 8 أحرف أو أرقام.")
                     else:
-                        st.warning("أدخل البيانات.")
+                        st.warning("أدخل اسم المستخدم وكلمة المرور.")
         with tab_u2:
             with db() as c:
                 all_users = c.execute("SELECT id, username, role, permissions_json, hierarchy_scope_json FROM users WHERE role != 'admin'").fetchall()
@@ -4817,7 +4824,7 @@ def admin_dashboard():
             st.markdown("#### 🔐 تعديل بيانات المالك والمستخدمين")
             st.warning("تنبيه أمني: لا يتم قبول كلمة مرور الحساب المستهدف بدلًا من كلمة مرورك. يجب أن تكون مسجلًا بحساب المالك، وتأكيد كلمة مرور حساب المالك الحالي. لا توجد كلمة مرور افتراضية أو استثناء ثابت داخل شاشة التعديل.")
             with db() as c:
-                all_sys_users = c.execute("SELECT id, username, display_name, role FROM users ORDER BY CASE WHEN role='admin' THEN 0 ELSE 1 END, username").fetchall()
+                all_sys_users = c.execute("SELECT id, username, display_name, job_title, role FROM users ORDER BY CASE WHEN role='admin' THEN 0 ELSE 1 END, username").fetchall()
             if not all_sys_users:
                 st.info("لا توجد حسابات.")
             else:
@@ -4827,12 +4834,14 @@ def admin_dashboard():
                     chosen_target = sys_user_choices[sel_target_user_label]
                     new_display_name = st.text_input("الاسم الظاهر:", value=(chosen_target["display_name"] or chosen_target["username"]))
                     new_username_input = st.text_input("اسم الدخول الجديد:", value=chosen_target["username"])
-                    current_password_input = st.text_input("كلمة مرور المالك الحالية للتأكيد:", type="password", value="")
+                    new_job_title_input = st.text_input("الوظيفة / المسمى الوظيفي:", value=(chosen_target["job_title"] or ""), placeholder="مثال: مدير إدارة، طبيب، فني معمل")
+                    current_password_input = st.text_input("كلمة مرور حساب المالك المسجل دخوله حاليًا للتأكيد:", type="password", value="")
                     new_password_input = st.text_input("كلمة المرور الجديدة (اتركها فارغة للاحتفاظ بالحالية):", type="password", value="")
                     submit_credentials = st.form_submit_button("🔒 تحديث بيانات الحساب", use_container_width=True)
                 if submit_credentials:
                     new_display_clean = new_display_name.strip()
                     new_uname_clean = new_username_input.strip()
+                    new_job_title_clean = new_job_title_input.strip()
                     if not current_password_input:
                         st.warning("يرجى إدخال كلمة مرور المالك الحالية للتأكيد.")
                     elif not new_display_clean or not new_uname_clean:
@@ -4848,10 +4857,10 @@ def admin_dashboard():
                             else:
                                 try:
                                     if new_password_input:
-                                        c.execute("UPDATE users SET username=?, display_name=?, password_hash=? WHERE id=?", (new_uname_clean, new_display_clean, hash_password(new_password_input), chosen_target["id"]))
+                                        c.execute("UPDATE users SET username=?, display_name=?, job_title=?, password_hash=? WHERE id=?", (new_uname_clean, new_display_clean, new_job_title_clean, hash_password(new_password_input), chosen_target["id"]))
                                     else:
-                                        c.execute("UPDATE users SET username=?, display_name=? WHERE id=?", (new_uname_clean, new_display_clean, chosen_target["id"]))
-                                    st.success("تم تحديث الاسم الظاهر واسم الدخول وبيانات كلمة المرور حسب المدخلات. لأمان الجلسة، سيتم تسجيل خروجك الآن.")
+                                        c.execute("UPDATE users SET username=?, display_name=?, job_title=? WHERE id=?", (new_uname_clean, new_display_clean, new_job_title_clean, chosen_target["id"]))
+                                    st.success("تم حفظ الاسم الظاهر واسم الدخول والوظيفة وكلمة المرور (إن أُدخلت). سيتم تسجيل الخروج لإعادة الدخول بالبيانات الجديدة.")
                                     st.session_state.logged_in = False
                                     st.session_state.username = ""
                                     st.session_state.role = ""
