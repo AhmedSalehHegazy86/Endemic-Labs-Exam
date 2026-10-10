@@ -441,7 +441,7 @@ ALL_MENU_MODULES = {
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل للأمراض المتوطنة",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "📚 قاعدة بيانات المتدربين": "عرض وتعديل وطباعة وتصدير جميع بيانات المتدربين",
-    "🧩 مواعيد الاختبارات و طباعة النماذج": "نماذج التدريب والمواعيد",
+    "إنشاء و تعديل و حذف النماذج": "إنشاء وتعديل وحذف نماذج الاختبارات",
     "✍ التسجيل اليدوي للاختبارات و التقييم الواقعي": "التسجيل اليدوي للاختبارات و التقييم الواقعي للمنشآت",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
@@ -3238,7 +3238,79 @@ def admin_dashboard():
                         st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
-        sub_tabs = st.tabs(["🆕 قبول المسجلين الجدد", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
+        sub_tabs = st.tabs(["🆕 قبول المسجلين الجدد", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن", "📅 مواعيد الامتحانات والهيكل الإداري"])
+        with sub_tabs[3]:
+            st.markdown("#### 📅 تحديد مواعيد الامتحانات وربطها بالهيكل الإداري")
+            st.caption("يُحفظ الموعد لكل نموذج ولكل نطاق إداري بصورة مستقلة، ويمكنك تعديل الموعد أو حذفه من هنا.")
+            with db() as c:
+                schedule_templates = [dict(r) for r in c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC, id ASC").fetchall()]
+            if not schedule_templates:
+                st.info("أنشئ نموذج امتحان أولاً من تبويب «إنشاء و تعديل و حذف النماذج».")
+            else:
+                schedule_template_map = {f"{t['name']} [{t.get('exam_type') or 'قبل التدريب'}] — رقم {t['id']}": t for t in schedule_templates}
+                schedule_template_label = st.selectbox("نموذج الامتحان:", list(schedule_template_map.keys()), key="trainee_schedule_template_v1")
+                schedule_template = schedule_template_map[schedule_template_label]
+                schedule_scope = hierarchy_scope_widget("الهيكل الإداري المستهدف للامتحان:", f"trainee_schedule_scope_{schedule_template['id']}")
+                schedule_scope_keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+                schedule_scope_values = {k: str(schedule_scope.get(k) or "").strip() for k in schedule_scope_keys}
+                with db() as c:
+                    schedules_for_template = [dict(r) for r in c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (schedule_template['id'],)).fetchall()]
+                matched_schedule = next((r for r in schedules_for_template if all(str(r.get(k) or '').strip() == schedule_scope_values[k] for k in schedule_scope_keys)), None)
+                def _trainee_schedule_dt(value, fallback):
+                    try:
+                        dt = datetime.fromisoformat(str(value))
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=CAIRO_TZ)
+                        return dt.astimezone(CAIRO_TZ)
+                    except Exception:
+                        return fallback
+                schedule_now = now_cairo()
+                start_default = _trainee_schedule_dt(matched_schedule.get('start_time') if matched_schedule else None, schedule_now + timedelta(days=1))
+                end_default = _trainee_schedule_dt(matched_schedule.get('end_time') if matched_schedule else None, schedule_now + timedelta(days=1, hours=1))
+                with st.form(f"trainee_schedule_form_{schedule_template['id']}", clear_on_submit=False):
+                    st.markdown("##### بداية إتاحة الامتحان")
+                    sc1, sc2 = st.columns(2)
+                    with sc1:
+                        schedule_start_date = st.date_input("تاريخ البدء", value=start_default.date(), key=f"trainee_sched_sd_{schedule_template['id']}")
+                        schedule_start_time = st.time_input("وقت البدء", value=start_default.time().replace(tzinfo=None), key=f"trainee_sched_st_{schedule_template['id']}")
+                    with sc2:
+                        schedule_end_date = st.date_input("تاريخ الانتهاء", value=end_default.date(), key=f"trainee_sched_ed_{schedule_template['id']}")
+                        schedule_end_time = st.time_input("وقت الانتهاء", value=end_default.time().replace(tzinfo=None), key=f"trainee_sched_et_{schedule_template['id']}")
+                    schedule_profession_options = list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
+                    for _existing_prof in parse_professions(matched_schedule.get('profession') if matched_schedule else ""):
+                        if _existing_prof not in schedule_profession_options:
+                            schedule_profession_options.append(_existing_prof)
+                    selected_schedule_professions = st.multiselect("المهن المسموح لها بأداء الامتحان (اتركها فارغة لكل المهن):", schedule_profession_options, default=parse_professions(matched_schedule.get('profession') if matched_schedule else ""), key=f"trainee_sched_prof_{schedule_template['id']}")
+                    save_schedule = st.form_submit_button("💾 حفظ / تحديث موعد الامتحان", use_container_width=True)
+                if save_schedule:
+                    if not any(schedule_scope_values.values()):
+                        st.error("اختر هيكلاً إدارياً محدداً قبل حفظ الموعد.")
+                    else:
+                        start_iso = datetime.combine(schedule_start_date, schedule_start_time, tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
+                        end_iso = datetime.combine(schedule_end_date, schedule_end_time, tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
+                        if datetime.fromisoformat(end_iso) <= datetime.fromisoformat(start_iso):
+                            st.error("تاريخ ووقت الانتهاء يجب أن يكونا بعد تاريخ ووقت البدء.")
+                        else:
+                            profession_json = json.dumps(selected_schedule_professions, ensure_ascii=False) if selected_schedule_professions else ""
+                            with db() as c:
+                                current_match = c.execute("SELECT id FROM exam_schedules WHERE template_id=? AND active=1 AND scope_governorate=? AND scope_authority=? AND scope_center=? AND scope_administration=? AND scope_facility=? ORDER BY id DESC LIMIT 1", (schedule_template['id'], *(schedule_scope_values[k] for k in schedule_scope_keys))).fetchone()
+                                if current_match:
+                                    c.execute("UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, updated_at=? WHERE id=?", (start_iso, end_iso, profession_json, now(), current_match['id']))
+                                else:
+                                    c.execute("INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,1,?,?)", (schedule_template['id'], *(schedule_scope_values[k] for k in schedule_scope_keys), start_iso, end_iso, profession_json, now(), now()))
+                            st.success("تم حفظ موعد الامتحان وربطه بالنموذج والهيكل الإداري المحددين.")
+                            st.rerun()
+                if schedules_for_template:
+                    st.markdown("##### المواعيد المسجلة لهذا النموذج")
+                    for sched in schedules_for_template:
+                        scope_desc = " / ".join(str(sched.get(k) or "").strip() for k in schedule_scope_keys if str(sched.get(k) or "").strip()) or "غير محدد"
+                        st.write(f"**{scope_desc}** — من `{sched.get('start_time')}` إلى `{sched.get('end_time')}` — المهن: {professions_display(sched.get('profession')) if sched.get('profession') else 'كل المهن'}")
+                        if st.button("🗑 حذف هذا الموعد", key=f"delete_trainee_schedule_{sched['id']}"):
+                            with db() as c:
+                                c.execute("DELETE FROM exam_schedules WHERE id=?", (sched['id'],))
+                            st.success("تم حذف الموعد المحدد.")
+                            st.rerun()
+
         with sub_tabs[0]:
             if has_subtab_permission('🧑\u200d🔬 المتدربين والنماذج', '🆕 قبول المسجلين الجدد'):
                 st.markdown("#### 🆕 قبول المسجلين الجدد وتعديل بياناتهم")
@@ -3398,8 +3470,8 @@ def admin_dashboard():
                     st.markdown("<br>", unsafe_allow_html=True)
                     render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
 
-    elif selected_menu == "🧩 مواعيد الاختبارات و طباعة النماذج":
-        st.subheader("🧩 مواعيد الاختبارات ونماذج الأسئلة (مع إمكانية الحذف وإعادة الترتيب التلقائي للـ ID)")
+    elif selected_menu == "إنشاء و تعديل و حذف النماذج":
+        st.subheader("إنشاء و تعديل و حذف النماذج")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد وتصنيف", "🗑 حذف نموذج"], horizontal=True)
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
             st.markdown("#### 🏥 فلترة طباعة النماذج حسب الهيكل الإداري")
