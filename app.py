@@ -1083,12 +1083,29 @@ def template_matches_scope(template_row, scope):
         return True
     return False
 
+def parse_professions(value):
+    """Read legacy single-profession values or the newer JSON list of professions."""
+    raw = str(value or "").strip()
+    if not raw or normalize_text(raw) in {normalize_text("كل الوظائف"), normalize_text("جميع الوظائف")}:
+        return []
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(x).strip() for x in parsed if str(x).strip()]
+    except Exception:
+        pass
+    return [raw]
+
+def professions_display(value):
+    items = parse_professions(value)
+    return "، ".join(items) if items else "كل الوظائف"
+
 def template_matches_profession(template_row, trainee_profession):
-    """Legacy/blank profession means all professions; otherwise require an exact normalized match."""
+    """Blank profession means all professions; JSON lists and legacy single values are supported."""
     t = dict(template_row) if not isinstance(template_row, dict) else template_row
-    required = normalize_text(t.get("profession") or "")
+    required = {normalize_text(x) for x in parse_professions(t.get("profession") or "")}
     actual = normalize_text(trainee_profession or "")
-    return not required or required in {normalize_text("كل الوظائف"), normalize_text("جميع الوظائف")} or required == actual
+    return not required or actual in required
 
 def get_schedule_for_trainee(trainee_id, template_id):
     """Return the most-specific active schedule for a trainee/template pair."""
@@ -1104,7 +1121,8 @@ def get_schedule_for_trainee(trainee_id, template_id):
         matches = []
         for row in rows:
             d = dict(row)
-            if d.get("profession") and normalize_text(d["profession"]) not in {normalize_text("كل الوظائف"), normalize_text(trainee["profession"] or "")}:
+            required_professions = {normalize_text(x) for x in parse_professions(d.get("profession") or "")}
+            if required_professions and normalize_text(trainee["profession"] or "") not in required_professions:
                 continue
             if all(not (d.get(sk) or "").strip() or str(facility[hk] or "").strip() == str(d[sk]).strip() for sk, hk in keys):
                 specificity = sum(bool((d.get(sk) or "").strip()) for sk, _ in keys)
@@ -3197,8 +3215,8 @@ def admin_dashboard():
         with db() as c:
             all_tpls_records = c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC").fetchall()
         if all_tpls_records:
-            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | المهنة: {row['profession'] or 'كل الوظائف'} | {template_scope_text(dict(row))}" for row in all_tpls_records]
-            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | المهنة: {row['profession'] or 'كل الوظائف'} | {template_scope_text(dict(row))}": row["id"] for row in all_tpls_records}
+            tpl_names_list = [f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | المهنة: {professions_display(row['profession'])} | {template_scope_text(dict(row))}" for row in all_tpls_records]
+            tpl_map_dict = {f"{row['name']} ({row['exam_type'] or 'قبل التدريب'}) | المهنة: {professions_display(row['profession'])} | {template_scope_text(dict(row))}": row["id"] for row in all_tpls_records}
         else:
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
@@ -3416,7 +3434,7 @@ def admin_dashboard():
                     with st.container(border=True):
                         st.markdown(f"#### 🏷 نموذج ({t_dict.get('id')}): {t_dict.get('name')} &nbsp;|&nbsp; <span style='color: #059669; font-size: 14px;'>[{exam_type_badge}]</span>", unsafe_allow_html=True)
                         st.write(f"🔹 البدء: `{format_12h(s_t)}` | 🔸 النهاية: `{format_12h(e_t)}` | 📝 الأسئلة: {num_q_display}")
-                        st.info(f"👷 المهنة المخصصة: **{t_dict.get('profession') or 'كل الوظائف'}**  \n\n🏥 نطاق الهيكل الإداري للنموذج: **{template_scope_text(t_dict)}**")
+                        st.info(f"👷 المهنة المخصصة: **{professions_display(t_dict.get('profession'))}**  \n\n🏥 نطاق الهيكل الإداري للنموذج: **{template_scope_text(t_dict)}**")
                         exam_template_html_out = generate_exam_template_print_html(t_dict.get('id'))
                         render_print_button_only(exam_template_html_out, f"نموذج امتحان رقم {t_dict.get('id')}")
         elif sub_tpl_mode == "➕ إنشاء نموذج جديد":
@@ -3426,7 +3444,7 @@ def admin_dashboard():
             tpl_profession_options = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
             with st.form("create_template_schedule_form", clear_on_submit=True):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
-                new_tpl_profession = st.selectbox("المهنة المسموح لها بأداء هذا الاختبار:", tpl_profession_options, help="لن يتمكن من دخول هذا النموذج إلا المتدرب المسجل بنفس المهنة. اختر كل الوظائف لإتاحته للجميع.")
+                new_tpl_professions = st.multiselect("المهن المسموح لها بأداء هذا الاختبار:", tpl_profession_options, default=["كل الوظائف"], help="يمكن اختيار أكثر من مهنة. اختيار «كل الوظائف» يتيح النموذج لجميع المهن.")
                 st.markdown("#### 🎯 تحديد تصنيف نموذج الاختبار:")
                 new_exam_type = st.radio("نوع النموذج:", ["قبل التدريب", "بعد التدريب", "تقييم شامل"], horizontal=True)
                 is_open_questions = st.checkbox("عدد أسئلة مفتوح (كامل البنك)", value=True)
@@ -3455,7 +3473,7 @@ def admin_dashboard():
                                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                           (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass),
                                            json.dumps(new_tpl_cats, ensure_ascii=False), None, None, now(), "", "", "", "", "",
-                                           "" if new_tpl_profession == "كل الوظائف" else new_tpl_profession))
+                                           "" if not new_tpl_professions or "كل الوظائف" in new_tpl_professions else json.dumps(new_tpl_professions, ensure_ascii=False)))
                             st.success("✅ تم إنشاء نموذج الاختبار بنجاح. حدّد الهيكل الإداري وموعد الاختبار من قسم (تعديل موعد وتصنيف).")
                             st.rerun()
         elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
@@ -3486,10 +3504,11 @@ def admin_dashboard():
                 now_edit = now_cairo()
                 edit_start_dt = _schedule_dt(exact_existing.get("start_time") if exact_existing else None, now_edit + timedelta(days=1))
                 edit_end_dt = _schedule_dt(exact_existing.get("end_time") if exact_existing else None, now_edit + timedelta(days=1, hours=1))
-                edit_professions = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
-                current_prof = (exact_existing.get("profession") if exact_existing else "") or "كل الوظائف"
-                if current_prof not in edit_professions:
-                    edit_professions.append(current_prof)
+                edit_professions = list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
+                current_professions = parse_professions(exact_existing.get("profession") if exact_existing else "")
+                for _prof in current_professions:
+                    if _prof not in edit_professions:
+                        edit_professions.append(_prof)
                 with st.form(f"edit_template_schedule_form_v3_{selected_edit_tpl['id']}", clear_on_submit=True):
                     st.markdown("##### 3) موعد بدء الامتحان")
                     sd_col, st_col = st.columns(2)
@@ -3515,7 +3534,7 @@ def admin_dashboard():
                             edit_end_minute = st.number_input("الدقيقة", min_value=0, max_value=59, value=edit_end_dt.minute, key=f"edit_tpl_v3_em_{selected_edit_tpl['id']}")
                         with ee3:
                             edit_end_ampm = st.selectbox("الفترة", ["صباحاً", "مساءً"], index=0 if edit_end_dt.hour < 12 else 1, key=f"edit_tpl_v3_eap_{selected_edit_tpl['id']}")
-                    edit_tpl_profession = st.selectbox("المهنة المسموح لها بأداء الاختبار:", edit_professions, index=edit_professions.index(current_prof), key=f"edit_tpl_v3_prof_{selected_edit_tpl['id']}")
+                    edit_tpl_professions = st.multiselect("المهن المسموح لها بأداء الاختبار:", edit_professions, default=current_professions, key=f"edit_tpl_v3_prof_{selected_edit_tpl['id']}", help="اختر مهنة واحدة أو أكثر. اترك الاختيار فارغًا لإتاحة الاختبار لكل المهن.")
                     if st.form_submit_button("💾 حفظ موعد هذا الهيكل والنموذج", use_container_width=True):
                         def _to24(hour, ampm):
                             h = int(hour) % 12
@@ -3527,7 +3546,7 @@ def admin_dashboard():
                         elif not any(selected_scope.values()):
                             st.error("اختر هيكلاً إدارياً محدداً قبل حفظ الموعد؛ لا يمكن ربط الموعد بكل الجهات دون تحديد.")
                         else:
-                            profession_to_save = "" if edit_tpl_profession == "كل الوظائف" else edit_tpl_profession
+                            profession_to_save = json.dumps(edit_tpl_professions, ensure_ascii=False) if edit_tpl_professions else ""
                             with db() as c:
                                 if exact_existing:
                                     c.execute("""UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, updated_at=? WHERE id=?""", (saved_start, saved_end, profession_to_save, now(), exact_existing["id"]))
