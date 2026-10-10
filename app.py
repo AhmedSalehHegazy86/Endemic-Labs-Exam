@@ -453,6 +453,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
+                display_name TEXT NOT NULL DEFAULT '',
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
                 permissions_json TEXT NOT NULL DEFAULT '[]',
@@ -747,6 +748,12 @@ def init_db():
             ]
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                       (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False), "13mm"))
+
+        # Safe schema migration for existing databases: keep login name separate from display name.
+        user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
+        if "display_name" not in user_columns:
+            c.execute("ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''")
+        c.execute("UPDATE users SET display_name=username WHERE display_name IS NULL OR TRIM(display_name)=''")
 
         # Preserve legacy users' previous unrestricted access with an explicit marker.
         c.execute("UPDATE users SET hierarchy_scope_json=? WHERE hierarchy_scope_json IS NULL OR TRIM(hierarchy_scope_json)='' OR hierarchy_scope_json='{}'", (json.dumps({"scope_all": True}),))
@@ -2299,7 +2306,7 @@ def login_portal():
     if st.session_state.login_portal_section == "exam":
             st.markdown("### 🔐 التسجيل ودخول الامتحان")
             st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
-            with st.form("trainee_phone_login"):
+            with st.form("trainee_phone_login", clear_on_submit=True):
                 phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
                 nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
                 if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
@@ -2344,7 +2351,7 @@ def login_portal():
                 facilities_list = sorted({str(item.get("facility_name") or "").strip() for item in rows_admin if str(item.get("facility_name") or "").strip()})
                 sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, key="reg_facility", disabled=not bool(rows_admin))
                 facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
-            with st.form("trainee_first_registration"):
+            with st.form("trainee_first_registration", clear_on_submit=True):
                 name = st.text_input("الاسم الرباعي:")
                 national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
                 phone = st.text_input("رقم الهاتف:", help="رقم الهاتف هو المعرف الرئيسي والفريد بعد اعتماد التسجيل.")
@@ -2386,7 +2393,7 @@ def login_portal():
                                 st.error("❌ " + msg)
 
     with st.expander("🔐 تسجيل دخول الإدارة"):
-        with st.form("admin_login_form_hidden"):
+        with st.form("admin_login_form_hidden", clear_on_submit=True):
             u = st.text_input("اسم المستخدم", value="")
             p = st.text_input("كلمة المرور", type="password", value="")
             if st.form_submit_button("دخول لوحة التحكم", use_container_width=True):
@@ -2431,7 +2438,10 @@ def admin_dashboard():
     header()
     c_info, c_btn = st.columns([4, 1])
     with c_info:
-        st.write(f"**المستخدم:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
+        with db() as _c:
+            _display_row = _c.execute("SELECT display_name FROM users WHERE username=?", (st.session_state.username,)).fetchone()
+        _display_name = (_display_row["display_name"] if _display_row else "") or st.session_state.username
+        st.write(f"**المستخدم:** {_display_name} | **اسم الدخول:** {st.session_state.username} | **الصلاحية:** {ROLES.get(st.session_state.role, '')}")
     with c_btn:
         if st.button("تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
@@ -2578,7 +2588,7 @@ def admin_dashboard():
         current_prof_list = curr_p_set.get("professions_list", [])
         col_add_prof, col_list_prof = st.columns(2)
         with col_add_prof:
-            with st.form("add_new_profession_form"):
+            with st.form("add_new_profession_form", clear_on_submit=True):
                 st.markdown("#### ➕ إضافة وظيفة أو تخصص جديد:")
                 new_prof_input = st.text_input("اسم الوظيفة أو التخصص:", value="")
                 if st.form_submit_button("💾 حفظ وإضافة الوظيفة", use_container_width=True):
@@ -2601,7 +2611,7 @@ def admin_dashboard():
                     else:
                         st.warning("الرجاء إدخال اسم الوظيفة.")
         with col_list_prof:
-            with st.form("delete_profession_form"):
+            with st.form("delete_profession_form", clear_on_submit=True):
                 st.markdown("#### 🗑 حذف وظيفة من القائمة:")
                 sel_del_prof = st.selectbox("اختر الوظيفة للحذف:", ["-- اختر الوظيفة --"] + current_prof_list)
                 if st.form_submit_button("حذف الوظيفة المحددة", use_container_width=True):
@@ -2645,7 +2655,7 @@ def admin_dashboard():
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
         st.subheader("🖨 ضبط إعدادات الطباعة للتقارير العامة (الهوامش تلقائية)")
         current_set = get_print_settings()
-        with st.form("print_settings_form"):
+        with st.form("print_settings_form", clear_on_submit=True):
             header_text_val = st.text_area("نص ترويسة الجهة العامة (أعلى يمين التقارير):", value=current_set.get("header_text", "جمهورية مصر العربية"))
             st.info("📐 تم ضبط هوامش الطباعة تلقائياً حسب مقاس A4، ولا تحتاج إلى تعديل يدوي.")
             line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
@@ -2703,7 +2713,7 @@ def admin_dashboard():
             professions_options_list = current_set.get("professions_list", [
                 "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
             ])
-            with st.form("dedicated_certificate_settings_form"):
+            with st.form("dedicated_certificate_settings_form", clear_on_submit=True):
                 st.markdown("#### 🏷️ إعدادات الألقاب والوظيفة في الشهادة:")
                 col_p1, col_p2, col_p3 = st.columns(3)
                 with col_p1:
@@ -2859,7 +2869,7 @@ def admin_dashboard():
         st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (مديرية / جهة ⬅ إدارة ⬅ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
-            with st.form("manual_hierarchical_form"):
+            with st.form("manual_hierarchical_form", clear_on_submit=True):
                 st.markdown("##### 📌 الحقول الثابتة التابعة للجمهورية:")
                 st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="hier_country_fixed")
                 st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="hier_ministry_fixed")
@@ -2937,7 +2947,7 @@ def admin_dashboard():
                     selected_manage_facility = st.selectbox("المنشأة:", ["-- اختر المنشأة --"] + list(manage_facility_map.keys()), key="hier_manage_facility")
                     if selected_manage_facility != "-- اختر المنشأة --":
                         target_id = manage_facility_map[selected_manage_facility]
-                        with st.form("manage_single_hier_form"):
+                        with st.form("manage_single_hier_form", clear_on_submit=True):
                             c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                             with c_hide_btn:
                                 hide_fac_submit = st.form_submit_button("👁🗨️ إخفاء المنشأة", use_container_width=True)
@@ -2979,7 +2989,7 @@ def admin_dashboard():
                 if st.session_state.add_success_msg:
                     st.success(st.session_state.add_success_msg)
                     st.session_state.add_success_msg = ""
-                with st.form(key=f"add_q_form_{st.session_state.form_key}"):
+                with st.form(key=f"add_q_form_{st.session_state.form_key}", clear_on_submit=True):
                     selected_cat = st.selectbox("المجال / القسم:", categories_list_opts)
                     c_text = st.text_area("نص السؤال:", value="")
                     c_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"])
@@ -3015,7 +3025,7 @@ def admin_dashboard():
                         current_opts = json.loads(q_data["options_json"])
                         while len(current_opts) < 4:
                             current_opts.append("")
-                        with st.form(f"edit_q_{selected_q_id}"):
+                        with st.form(f"edit_q_{selected_q_id}", clear_on_submit=True):
                             e_cat = st.selectbox("المجال / القسم:", categories_list_opts, index=categories_list_opts.index(q_data["category"]) if q_data["category"] in categories_list_opts else 0)
                             e_diff = st.selectbox("الصعوبة:", ["سهل", "متوسط", "صعب"], index=["سهل", "متوسط", "صعب"].index(q_data["difficulty"]) if q_data["difficulty"] in ["سهل", "متوسط", "صعب"] else 0)
                             raw_q_db = q_data["question"]
@@ -3042,7 +3052,7 @@ def admin_dashboard():
                     all_questions_del = c.execute("SELECT id, question FROM questions ORDER BY id ASC").fetchall()
                 if all_questions_del:
                     q_del_map = {f"سؤال رقم {q['id']} - {q['question'][:40]}": q['id'] for q in all_questions_del}
-                    with st.form("delete_single_question_form"):
+                    with st.form("delete_single_question_form", clear_on_submit=True):
                         selected_del_label = st.selectbox("اختر السؤال للحذف:", list(q_del_map.keys()))
                         if st.form_submit_button("🗑 حذف السؤال المحدد وإعادة الترتيب", use_container_width=True):
                             with db() as c:
@@ -3111,7 +3121,7 @@ def admin_dashboard():
                     st.dataframe(df_bank, use_container_width=True, hide_index=True)
                 st.markdown("---")
                 st.markdown("##### ⚠ منطقة الخطر - إدارة البنك الشامل:")
-                with st.form("delete_entire_question_bank_form"):
+                with st.form("delete_entire_question_bank_form", clear_on_submit=True):
                     confirm_text_del = st.text_input("اكتب كلمة (حذف البنك) للتأكيد نهائياً:", value="")
                     if st.form_submit_button("🗑 تفريغ وحذف بنك الأسئلة بالكامل", use_container_width=True):
                         if confirm_text_del.strip() == "حذف البنك":
@@ -3135,7 +3145,7 @@ def admin_dashboard():
             tpl_map_dict = {}
         with st.container(border=True):
             st.markdown("##### 🚀 التعميم الجماعي لنموذج على كافة المتدربين:")
-            with st.form("bulk_assign_form_fixed"):
+            with st.form("bulk_assign_form_fixed", clear_on_submit=True):
                 global_tpl_labels = [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}" for t in all_tpls_records if not any((t[k] or "").strip() for k in ["scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility"])]
                 global_tpl_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_records if not any((t[k] or "").strip() for k in ["scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility"])}
                 bulk_tpl_sel = st.selectbox("اختر نموذج الاختبار لتعميمه على الجميع (النماذج العامة فقط):", global_tpl_labels or ["لا يوجد نموذج عام"] )
@@ -3170,7 +3180,7 @@ def admin_dashboard():
                 for _, r in df_pend.iterrows():
                     with st.container(border=True):
                         st.markdown(f"### 👤 طلب تسجيل رقم {int(r['id'])}")
-                        with st.form(f"approve_edit_form_{int(r['id'])}"):
+                        with st.form(f"approve_edit_form_{int(r['id'])}", clear_on_submit=True):
                             edit_name = st.text_input("اسم المتدرب:", value=str(r.get('name') or ''), key=f"pend_name_{int(r['id'])}")
                             ec1, ec2 = st.columns(2)
                             with ec1:
@@ -3243,7 +3253,7 @@ def admin_dashboard():
                 st.info("لا توجد بيانات متدربين مسجلة.")
             else:
                 st.dataframe(df_all_tr[['id', 'name', 'profession', 'facility', 'status']], use_container_width=True, hide_index=True)
-                with st.form("manage_trainee_action_form"):
+                with st.form("manage_trainee_action_form", clear_on_submit=True):
                     tr_map_options = {f"ID ({row['id']}) - {row['name']} [{row['status']}]": row['id'] for _, row in df_all_tr.iterrows()}
                     selected_tr_label = st.selectbox("اختر المتدرب للإدارة والتعديل:", list(tr_map_options.keys()))
                     target_tr_id = tr_map_options[selected_tr_label]
@@ -3352,7 +3362,7 @@ def admin_dashboard():
                 "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
             ]
             tpl_profession_options = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
-            with st.form("create_template_schedule_form"):
+            with st.form("create_template_schedule_form", clear_on_submit=True):
                 new_tpl_name = st.text_input("اسم النموذج:", value="")
                 new_tpl_profession = st.selectbox("المهنة المسموح لها بأداء هذا الاختبار:", tpl_profession_options, help="لن يتمكن من دخول هذا النموذج إلا المتدرب المسجل بنفس المهنة. اختر كل الوظائف لإتاحته للجميع.")
                 st.markdown("#### 🎯 تحديد تصنيف نموذج الاختبار:")
@@ -3418,7 +3428,7 @@ def admin_dashboard():
                 current_prof = (exact_existing.get("profession") if exact_existing else "") or "كل الوظائف"
                 if current_prof not in edit_professions:
                     edit_professions.append(current_prof)
-                with st.form(f"edit_template_schedule_form_v3_{selected_edit_tpl['id']}"):
+                with st.form(f"edit_template_schedule_form_v3_{selected_edit_tpl['id']}", clear_on_submit=True):
                     st.markdown("##### 3) موعد بدء الامتحان")
                     sd_col, st_col = st.columns(2)
                     with sd_col:
@@ -3474,7 +3484,7 @@ def admin_dashboard():
                 tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
             if tpls_del:
                 tpl_map = {f"نموذج رقم {t['id']} - {t['name']} [{t['exam_type']}] | {template_scope_text(dict(t))}": t['id'] for t in tpls_del}
-                with st.form("delete_template_form"):
+                with st.form("delete_template_form", clear_on_submit=True):
                     selected_tpl_label = st.selectbox("اختر النموذج للحذف:", list(tpl_map.keys()))
                     if st.form_submit_button("🗑 حذف نموذج الاختبار وإعادة الترتيب", use_container_width=True):
                         with db() as c:
@@ -3523,7 +3533,7 @@ def admin_dashboard():
                 scope_tpls.append(rowd)
             manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in scope_tpls} if scope_tpls else {}
             manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات متوافقة مع الوظيفة"]
-            with st.form("manual_score_form_enhanced"):
+            with st.form("manual_score_form_enhanced", clear_on_submit=True):
                 selected_names_display = ", ".join(label.split(" — ")[0] for label in manual_selected_labels)
                 m_trainee_name = st.text_input("اسم المتدرب (يُملأ تلقائيًا عند الاختيار أعلاه):", value=selected_names_display)
                 m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
@@ -3613,7 +3623,7 @@ def admin_dashboard():
                 "توافر العاملين المدربين",
                 "تنفيذ التوصيات السابقة",
             ]
-            with st.form("facility_real_assessment_form_v1"):
+            with st.form("facility_real_assessment_form_v1", clear_on_submit=True):
                 visit_date = st.date_input("تاريخ الزيارة:", value=date.today(), key="real_assessment_date_v1")
                 assessment_facility = st.text_input("اسم المنشأة:", value=assessment_facility_default, key="real_assessment_facility_v1")
                 assessment_responsible = st.text_input("اسم مسؤول المنشأة / التقييم:", key="real_assessment_responsible_v1")
@@ -4141,7 +4151,7 @@ def admin_dashboard():
                     f"SELECT DISTINCT t.facility FROM trainees t LEFT JOIN hierarchical_facilities h ON (t.facility=h.facility_name OR t.facility LIKE '%' || h.authority || ' - ' || h.administration || ' - ' || h.facility_name OR t.facility LIKE '%' || h.governorate || ' - ' || h.authority || ' - ' || h.center || ' - ' || h.administration || ' - ' || h.facility_name) WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {plan_scope_sql} ORDER BY t.facility",
                     tuple(plan_scope_args)
                 ).fetchall()]
-            with st.form("create_action_plan_form"):
+            with st.form("create_action_plan_form", clear_on_submit=True):
                 target_category = st.radio("نطاق الخطة:", ["فرد (متدرب محدد)", "جماعة (وحدة الأمراض المتوطنة بالكامل)"], horizontal=True)
                 auto_weakness_text = ""
                 auto_steps_text = ""
@@ -4334,7 +4344,7 @@ def admin_dashboard():
                 if cur_facility_val not in hierarchy_paths_for_minutes and cur_facility_val != "كل الهيكل الإداري":
                     hierarchy_paths_for_minutes.insert(0, cur_facility_val)
                 facility_default_index = hierarchy_paths_for_minutes.index(cur_facility_val) if cur_facility_val in hierarchy_paths_for_minutes else 0
-                with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}"):
+                with st.form(f"edit_training_minutes_form_{chosen_min_tpl_id}", clear_on_submit=True):
                     st.markdown("##### ✏ تعديل محضر التدريب والبنود والأهداف:")
                     edited_facility_input = st.selectbox("الهيكل الإداري / المنشأة:", hierarchy_paths_for_minutes, index=facility_default_index, key=f"minutes_facility_hierarchy_{chosen_min_tpl_id}")
                     edited_date_input = st.text_input("تاريخ محضر التدريب:", value=cur_date_val)
@@ -4584,7 +4594,7 @@ def admin_dashboard():
                 template_labels = ["بدون نموذج"] + [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) — ID {t['id']}" for t in templates_db]
                 template_ids = [None] + [int(t["id"]) for t in templates_db]
                 current_template_index = template_ids.index(int(current_template)) if current_template is not None and int(current_template) in template_ids else 0
-                with st.form("trainee_db_edit_form_v1"):
+                with st.form("trainee_db_edit_form_v1", clear_on_submit=True):
                     ed_name = st.text_input("الاسم:", value=str(selected_record.get("name") or ""))
                     ed_nid = st.text_input("الرقم القومي:", value=str(selected_record.get("national_id") or ""), max_chars=14)
                     ed_phone = st.text_input("رقم الهاتف:", value=str(selected_record.get("phone") or ""))
@@ -4697,7 +4707,7 @@ def admin_dashboard():
         st.subheader("👥 إدارة المستخدمين وصلاحياتهم وتعديل بيانات الاعتماد (مع إمكانية الحذف)")
         tab_u1, tab_u2, tab_u3 = st.tabs(["➕ إضافة مستخدم", "⚙ الصلاحيات والحذف", "🔑 تعديل اسم وكلمة المرور"])
         with tab_u1:
-            with st.form("add_user_form_v1_0"):
+            with st.form("add_user_form_v1_0", clear_on_submit=True):
                 new_u_name = st.text_input("اسم المستخدم:", value="")
                 new_u_pass = st.text_input("كلمة المرور:", type="password", value="")
                 new_u_role = st.selectbox("المسمى الوظيفي:", ["exam_manager", "viewer"], format_func=lambda x: ROLES[x])
@@ -4730,8 +4740,8 @@ def admin_dashboard():
                             try:
                                 if not any(str(add_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
                                     add_user_scope["scope_all"] = True
-                                c.execute("INSERT INTO users(username, password_hash, role, permissions_json, hierarchy_scope_json, active, created_at) VALUES(?,?,?,?,?,?,?)",
-                                          (new_u_name.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), json.dumps(add_user_scope, ensure_ascii=False), 1, now()))
+                                c.execute("INSERT INTO users(username, display_name, password_hash, role, permissions_json, hierarchy_scope_json, active, created_at) VALUES(?,?,?,?,?,?,?,?)",
+                                          (new_u_name.strip(), new_u_name.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), json.dumps(add_user_scope, ensure_ascii=False), 1, now()))
                                 st.success("✅ تم الإضافة!")
                             except sqlite3.IntegrityError:
                                 st.error("مستخدم مسبقاً.")
@@ -4780,7 +4790,7 @@ def admin_dashboard():
                         scope_current_rows = [rr for rr in scope_current_rows if str(rr.get(src_field) or "").strip() == chosen_scope_val]
                         if src_field == stop_field:
                             break
-                with st.form(f"edit_user_perms_{target_user['id']}"):
+                with st.form(f"edit_user_perms_{target_user['id']}", clear_on_submit=True):
                     edit_checkboxes = {}
                     for mod_key, mod_desc in ALL_MENU_MODULES.items():
                         is_checked = mod_key in curr_user_perms
@@ -4804,49 +4814,51 @@ def admin_dashboard():
                         st.success("✅ تم الحذف بنجاح!")
                         st.rerun()
         with tab_u3:
-            st.markdown("#### 🔑 تعديل اسم المستخدم وكلمة المرور للمالك أو المستخدمين")
-            st.info("📌 **شروط التعديل:** يجب إدخال كلمة المرور الحالية بشكل صحيح (وإلا كلمة مرور المالك الأساسية في حال تعديل حساب آخر) لضمان الأمان.")
+            st.markdown("#### 🔐 تعديل بيانات المالك والمستخدمين")
+            st.warning("تنبيه أمني: لا يتم قبول كلمة مرور الحساب المستهدف بدلًا من كلمة مرورك. يجب أن تكون مسجلًا بحساب المالك، وتأكيد كلمة مرور حساب المالك الحالي. لا توجد كلمة مرور افتراضية أو استثناء ثابت داخل شاشة التعديل.")
             with db() as c:
-                all_sys_users = c.execute("SELECT id, username, role FROM users").fetchall()
-            sys_user_choices = {f"{u['username']} ({ROLES.get(u['role'], u['role'])})": u for u in all_sys_users}
-            with st.form("edit_credentials_form"):
-                sel_target_user_label = st.selectbox("اختر الحساب المراد تعديله:", list(sys_user_choices.keys()))
-                chosen_target = sys_user_choices[sel_target_user_label]
-                new_username_input = st.text_input("اسم المستخدم الجديد:", value=chosen_target["username"])
-                current_password_input = st.text_input("كلمة المرور الحالية (للتأكيد):", type="password", value="")
-                new_password_input = st.text_input("كلمة المرور الجديدة (اتركها فارغة إن لم ترد تغييرها):", type="password", value="")
-                if st.form_submit_button("🔒 تحديث بيانات الدخول", use_container_width=True):
-                    if not current_password_input.strip():
-                        st.warning("⚠ يرجى إدخال كلمة المرور الحالية للتأكيد.")
+                all_sys_users = c.execute("SELECT id, username, display_name, role FROM users ORDER BY CASE WHEN role='admin' THEN 0 ELSE 1 END, username").fetchall()
+            if not all_sys_users:
+                st.info("لا توجد حسابات.")
+            else:
+                sys_user_choices = {f"{(u['display_name'] or u['username'])} — دخول: {u['username']} ({ROLES.get(u['role'], u['role'])})": u for u in all_sys_users}
+                with st.form("edit_credentials_form_v2", clear_on_submit=True):
+                    sel_target_user_label = st.selectbox("اختر الحساب المراد تعديله:", list(sys_user_choices.keys()))
+                    chosen_target = sys_user_choices[sel_target_user_label]
+                    new_display_name = st.text_input("الاسم الظاهر:", value=(chosen_target["display_name"] or chosen_target["username"]))
+                    new_username_input = st.text_input("اسم الدخول الجديد:", value=chosen_target["username"])
+                    current_password_input = st.text_input("كلمة مرور المالك الحالية للتأكيد:", type="password", value="")
+                    new_password_input = st.text_input("كلمة المرور الجديدة (اتركها فارغة للاحتفاظ بالحالية):", type="password", value="")
+                    submit_credentials = st.form_submit_button("🔒 تحديث بيانات الحساب", use_container_width=True)
+                if submit_credentials:
+                    new_display_clean = new_display_name.strip()
+                    new_uname_clean = new_username_input.strip()
+                    if not current_password_input:
+                        st.warning("يرجى إدخال كلمة مرور المالك الحالية للتأكيد.")
+                    elif not new_display_clean or not new_uname_clean:
+                        st.error("الاسم الظاهر واسم الدخول لا يمكن أن يكونا فارغين.")
+                    elif new_password_input and len(new_password_input) < 8:
+                        st.error("كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف أو أرقام.")
                     else:
                         with db() as c:
-                            actor_user = c.execute("SELECT * FROM users WHERE username=?", (st.session_state.username,)).fetchone()
-                            target_db_rec = c.execute("SELECT * FROM users WHERE id=?", (chosen_target["id"],)).fetchone()
-                        is_admin_actor = actor_user and actor_user["role"] == "admin"
-                        verified_actor = actor_user and verify_password(current_password_input, actor_user["password_hash"])
-                        verified_target = target_db_rec and verify_password(current_password_input, target_db_rec["password_hash"])
-                        if verified_actor or verified_target or (is_admin_actor and st.session_state.username == "admin" and current_password_input == "admin"):
-                            new_uname_clean = new_username_input.strip()
-                            if not new_uname_clean:
-                                st.error("❌ اسم المستخدم لا يمكن أن يكون فارغاً.")
+                            actor_user = c.execute("SELECT * FROM users WHERE username=? AND active=1", (st.session_state.username,)).fetchone()
+                            is_authorized_owner = bool(actor_user and actor_user["role"] == "admin" and verify_password(current_password_input, actor_user["password_hash"]))
+                            if not is_authorized_owner:
+                                st.error("تعذر التحقق: يجب استخدام كلمة المرور الحالية الصحيحة لحساب المالك المسجل دخوله.")
                             else:
-                                with db() as c:
-                                    try:
-                                        if new_password_input.strip():
-                                            new_hash = hash_password(new_password_input.strip())
-                                            c.execute("UPDATE users SET username=?, password_hash=? WHERE id=?", (new_uname_clean, new_hash, chosen_target["id"]))
-                                        else:
-                                            c.execute("UPDATE users SET username=? WHERE id=?", (new_uname_clean, chosen_target["id"]))
-                                        st.success("✅ تم تحديث بيانات الدخول بنجاح! يرجى إعادة تسجيل الدخول.")
-                                        time.sleep(1.5)
-                                        st.session_state.logged_in = False
-                                        st.session_state.username = ""
-                                        st.session_state.role = ""
-                                        st.rerun()
-                                    except sqlite3.IntegrityError:
-                                        st.error("❌ اسم المستخدم الجديد مستخدم مسبقاً، اختر اسمًا آخر.")
-                        else:
-                            st.error("❌ كلمة المرور الحالية غير صحيحة.")
+                                try:
+                                    if new_password_input:
+                                        c.execute("UPDATE users SET username=?, display_name=?, password_hash=? WHERE id=?", (new_uname_clean, new_display_clean, hash_password(new_password_input), chosen_target["id"]))
+                                    else:
+                                        c.execute("UPDATE users SET username=?, display_name=? WHERE id=?", (new_uname_clean, new_display_clean, chosen_target["id"]))
+                                    st.success("تم تحديث الاسم الظاهر واسم الدخول وبيانات كلمة المرور حسب المدخلات. لأمان الجلسة، سيتم تسجيل خروجك الآن.")
+                                    st.session_state.logged_in = False
+                                    st.session_state.username = ""
+                                    st.session_state.role = ""
+                                    st.session_state.permissions = []
+                                    st.rerun()
+                                except sqlite3.IntegrityError:
+                                    st.error("اسم الدخول الجديد مستخدم بالفعل؛ اختر اسمًا آخر.")
 
     elif selected_menu == "🧾 سجل التدقيق":
         st.subheader("🧾 سجل التدقيق")
