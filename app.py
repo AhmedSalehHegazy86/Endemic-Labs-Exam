@@ -357,9 +357,11 @@ def reindex_hierarchical_facilities():
             c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (-idx, row["rowid"]))
         for idx, row in enumerate(rows, start=1):
             c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["rowid"]))
+        # Reset AUTOINCREMENT safely so the next inserted row follows the new sequence.
         try:
-            c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
-            c.execute("INSERT INTO sqlite_sequence(name, seq) VALUES('hierarchical_facilities', ?)", (len(rows),))
+            cur = c.execute("UPDATE sqlite_sequence SET seq=? WHERE name='hierarchical_facilities'", (len(rows),))
+            if cur.rowcount == 0:
+                c.execute("INSERT INTO sqlite_sequence(name, seq) VALUES('hierarchical_facilities', ?)", (len(rows),))
         except sqlite3.OperationalError:
             pass
 
@@ -816,6 +818,9 @@ def init_db():
                       ("النموذج التقييمي العام للاستجابة والتدريب للأمراض المتوطنة", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
 
 init_db()
+# Reindex on startup too, so the deployed database is repaired even if a prior
+# add/delete operation skipped reindexing or Streamlit restarted mid-operation.
+reindex_hierarchical_facilities()
 
 def get_print_settings():
     with db() as c:
