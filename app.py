@@ -2357,10 +2357,10 @@ def _reset_reg_facility():
 
 def _reset_hier_admin_and_facility():
     st.session_state["hier_manage_administration"] = "-- اختر الإدارة --"
-    st.session_state["hier_manage_facility"] = "-- اختر المنشأة --"
+    st.session_state["hier_manage_facility_id"] = None
 
 def _reset_hier_facility():
-    st.session_state["hier_manage_facility"] = "-- اختر المنشأة --"
+    st.session_state["hier_manage_facility_id"] = None
 
 def login_portal():
     header()
@@ -3061,14 +3061,21 @@ def admin_dashboard():
                     sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, key="hier_manage_administration", on_change=_reset_hier_facility)
                     manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
                     manage_facilities = sorted(manage_admin_rows, key=lambda r: str(r.get("facility_name") or ""))
-                    manage_facility_map = {f"{r['facility_name']} (ID {r['id']}) — {'مخفي' if r['hidden'] else 'ظاهر'}": r['id'] for r in manage_facilities}
-                    if not manage_facility_map:
+                    manage_facility_labels = {int(r["id"]): f"{r['facility_name']} (ID {r['id']}) — {'مخفي' if r['hidden'] else 'ظاهر'}" for r in manage_facilities}
+                    if not manage_facility_labels:
                         st.info("اختر الإدارة لعرض المنشآت التابعة لها فقط.")
                     else:
-                        selected_manage_facility = st.selectbox("المنشأة:", ["-- اختر المنشأة --"] + list(manage_facility_map.keys()), key="hier_manage_facility")
-                        if selected_manage_facility != "-- اختر المنشأة --":
-                            target_id = manage_facility_map[selected_manage_facility]
-                            target_row = next((r for r in manage_facilities if int(r["id"]) == int(target_id)), None)
+                        # Store the stable database ID as the widget value, not its display label.
+                        # This prevents selection loss during reruns or when labels/IDs are refreshed.
+                        facility_options = [None] + list(manage_facility_labels.keys())
+                        selected_manage_facility_id = st.selectbox(
+                            "المنشأة:", facility_options,
+                            format_func=lambda value: "-- اختر المنشأة --" if value is None else manage_facility_labels.get(int(value), "-- اختر المنشأة --"),
+                            key="hier_manage_facility_id"
+                        )
+                        if selected_manage_facility_id is not None:
+                            target_id = int(selected_manage_facility_id)
+                            target_row = next((r for r in manage_facilities if int(r["id"]) == target_id), None)
                             if target_row:
                                 st.markdown("##### ✏️ تعديل بيانات الهيكل الإداري")
                                 st.caption("تعديل المديرية يطبق على كل الإدارات والمنشآت التابعة لها، وتعديل الإدارة يطبق على كل منشآتها، وتعديل اسم المنشأة يخص المنشأة المحددة فقط.")
