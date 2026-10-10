@@ -335,17 +335,13 @@ def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     return pred, args
 
 def reindex_hierarchical_facilities():
-    """Rebuild hierarchy IDs safely, including databases created by older app versions."""
+    """Ensure legacy schema compatibility and make visible hierarchy IDs sequential from 1."""
     with db() as c:
-        # Older deployed databases may not have every column added by newer releases.
         existing = {row["name"] for row in c.execute("PRAGMA table_info(hierarchical_facilities)").fetchall()}
         migrations = {
-            "governorate": "TEXT NOT NULL DEFAULT ''",
-            "authority": "TEXT NOT NULL DEFAULT ''",
-            "center": "TEXT NOT NULL DEFAULT ''",
-            "administration": "TEXT NOT NULL DEFAULT ''",
-            "facility_name": "TEXT NOT NULL DEFAULT ''",
-            "created_at": "TEXT NOT NULL DEFAULT ''",
+            "governorate": "TEXT NOT NULL DEFAULT ''", "authority": "TEXT NOT NULL DEFAULT ''",
+            "center": "TEXT NOT NULL DEFAULT ''", "administration": "TEXT NOT NULL DEFAULT ''",
+            "facility_name": "TEXT NOT NULL DEFAULT ''", "created_at": "TEXT NOT NULL DEFAULT ''",
             "hidden": "INTEGER NOT NULL DEFAULT 0",
         }
         for column, definition in migrations.items():
@@ -355,7 +351,17 @@ def reindex_hierarchical_facilities():
         if "id" not in existing:
             c.execute("ALTER TABLE hierarchical_facilities ADD COLUMN id INTEGER")
             c.execute("UPDATE hierarchical_facilities SET id=rowid WHERE id IS NULL")
-        # Keep existing row IDs and references intact; schema compatibility is the required repair.
+        # Reassign through unique temporary negative IDs to avoid collisions.
+        rows = c.execute("SELECT rowid, id FROM hierarchical_facilities ORDER BY id, rowid").fetchall()
+        for idx, row in enumerate(rows, start=1):
+            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (-idx, row["rowid"]))
+        for idx, row in enumerate(rows, start=1):
+            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["rowid"]))
+        try:
+            c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
+            c.execute("INSERT INTO sqlite_sequence(name, seq) VALUES('hierarchical_facilities', ?)", (len(rows),))
+        except sqlite3.OperationalError:
+            pass
 
 def reindex_trainees():
     with db() as c:
@@ -2986,6 +2992,21 @@ def admin_dashboard():
                             st.warning("أدخل المديرية / الجهة والإدارة واسم المنشأة.")
         with tab_h2:
             if has_subtab_permission('🏥 الهيكل الإداري', '📥 رفع الملفات'):
+                st.markdown("##### 📄 تنزيل نموذج هيكل إداري فارغ للتعبئة وإعادة الرفع")
+                st.caption("املأ الأعمدة الثلاثة فقط: المديرية / الجهة، الإدارة، والمنشأة / وحدة الأمراض المتوطنة. اترك صف العناوين كما هو، ثم ارفع الملف من نفس القسم لدمج البيانات.")
+                hierarchy_template = pd.DataFrame(columns=["المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة"])
+                hierarchy_template_bytes = io.BytesIO()
+                with pd.ExcelWriter(hierarchy_template_bytes, engine="openpyxl") as writer:
+                    hierarchy_template.to_excel(writer, index=False, sheet_name="HierarchicalFacilities")
+                st.download_button(
+                    "📥 تحميل نموذج الهيكل الإداري الفارغ (.xlsx)",
+                    data=hierarchy_template_bytes.getvalue(),
+                    file_name="hierarchical_facilities_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="download_empty_hierarchy_template",
+                )
+                st.markdown("---")
                 up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
                 if up_file is not None:
                     try:
@@ -4785,18 +4806,39 @@ def admin_dashboard():
 
     elif selected_menu == "💾 النسخ الاحتياطي":
         st.subheader("💾 النسخ الاحتياطي واستعادة قاعدة البيانات والدمج")
-        if st.button("🗑 تفرغ جميع بيانات النظام (تصفير قاعدة البيانات)", use_container_width=True):
-            with db() as c:
-                c.execute("DELETE FROM exam_questions")
-                c.execute("DELETE FROM exam_sessions")
-                c.execute("DELETE FROM trainees")
-                c.execute("DELETE FROM questions")
-                c.execute("DELETE FROM exam_templates")
-                c.execute("DELETE FROM action_plans")
-                c.execute("DELETE FROM hierarchical_facilities")
-                c.execute("DELETE FROM audit_logs")
-            st.success("✨ تمت تصفية قاعدة البيانات بالكامل وأصبحت نظيفة وخالية من أي بيانات!")
-            st.rerun()
+        st.warning("⚠️ التصفير يحذف المتدربين والأسئلة والنماذج والمواعيد والهيكل الإداري ونتائج الامتحانات والخطط والتقارير. سيظل حساب المالك وإعدادات الطباعة محفوظين.")
+        with st.form("owner_confirm_full_database_reset_v2", clear_on_submit=False):
+            reset_owner_username = st.text_input("اسم دخول المالك للتأكيد:", value="", key="reset_owner_username_v2")
+            reset_owner_password = st.text_input("كلمة مرور المالك الحالية:", type="password", value="", key="reset_owner_password_v2")
+            reset_phrase = st.text_input("اكتب العبارة التالية كما هي: تصفير قاعدة البيانات", value="", key="reset_phrase_v2")
+            reset_submit = st.form_submit_button("🗑️ تأكيد تصفير قاعدة البيانات بالكامل", use_container_width=True)
+        if reset_submit:
+            if not is_owner():
+                st.error("هذه العملية متاحة لحساب المالك فقط.")
+            elif reset_phrase.strip() != "تصفير قاعدة البيانات":
+                st.error("اكتب عبارة التأكيد المطلوبة بشكل صحيح.")
+            elif normalize_text(reset_owner_username) != normalize_text(st.session_state.get("username", "")):
+                st.error("اسم الدخول يجب أن يطابق حساب المالك المسجل دخوله حاليًا.")
+            else:
+                with db() as c:
+                    owner_row = c.execute("SELECT * FROM users WHERE username=? AND role='admin' AND active=1", (st.session_state.get("username", ""),)).fetchone()
+                    if not owner_row or not verify_password(reset_owner_password, owner_row["password_hash"]):
+                        st.error("كلمة مرور المالك غير صحيحة؛ لم يتم حذف أي بيانات.")
+                    else:
+                        # Delete operational data in dependency order; preserve owner, role labels and print settings.
+                        for table in ("exam_questions", "exam_sessions", "exam_schedules", "training_minutes", "facility_real_assessments", "action_plans", "trainees", "questions", "exam_templates", "hierarchical_facilities", "audit_logs"):
+                            if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+                                c.execute(f'DELETE FROM "{table}"')
+                        # Remove non-owner accounts, reset generated IDs, retain owner account/settings.
+                        c.execute("DELETE FROM users WHERE role<>'admin'")
+                        seq_tables = ("hierarchical_facilities", "exam_templates", "exam_schedules", "trainees", "questions", "exam_sessions", "exam_questions", "action_plans", "facility_real_assessments", "audit_logs", "training_minutes")
+                        for table in seq_tables:
+                            try:
+                                c.execute("DELETE FROM sqlite_sequence WHERE name=?", (table,))
+                            except sqlite3.OperationalError:
+                                pass
+                        st.success("تم تصفير بيانات التشغيل بنجاح. حُفظ حساب المالك وإعدادات الطباعة، وأصبحت قاعدة البيانات جاهزة للبدء من جديد.")
+                        st.rerun()
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
             with open(DB_PATH, "rb") as f:
