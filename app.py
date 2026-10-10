@@ -2374,12 +2374,18 @@ def login_portal():
                             login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
                         if not login_tpl:
                             st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
-                        elif not get_schedule_for_trainee(tr["id"], tr["assigned_template_id"]):
-                            st.warning("⏳ لم يتم تحديد موعد امتحان لهذا النموذج على الهيكل الإداري التابع لك بعد.")
                         else:
+                            # Existing approved examiners enter the portal immediately after login.
+                            # The actual exam remains gated by the schedule, hierarchy, and profession
+                            # checks inside trainee_portal() and exam_interface(). New registrations
+                            # remain pending because trainee_by_phone_and_national_id only returns
+                            # approved/active records.
                             st.session_state.trainee_id = tr["id"]
                             st.session_state.trainee_name = tr["name"]
-                            st.success("✅ تم التحقق من بياناتك وموعد الامتحان. جاري الانتقال...")
+                            if get_schedule_for_trainee(tr["id"], tr["assigned_template_id"]):
+                                st.success("✅ تم التحقق من بياناتك. سيتم إتاحة الامتحان وفق الموعد المحدد للنموذج.")
+                            else:
+                                st.info("✅ تم تسجيل الدخول. لا يزال دخول الامتحان مرتبطًا بتحديد موعد مناسب لنموذجك وهيكلك الإداري.")
                             st.rerun()
 
     st.markdown('<div class="portal-gap"></div>', unsafe_allow_html=True)
@@ -3022,6 +3028,53 @@ def admin_dashboard():
                         selected_manage_facility = st.selectbox("المنشأة:", ["-- اختر المنشأة --"] + list(manage_facility_map.keys()), key="hier_manage_facility")
                         if selected_manage_facility != "-- اختر المنشأة --":
                             target_id = manage_facility_map[selected_manage_facility]
+                            target_row = next((r for r in manage_facilities if int(r["id"]) == int(target_id)), None)
+                            if target_row:
+                                st.markdown("##### ✏️ تعديل بيانات الهيكل الإداري")
+                                st.caption("تعديل المديرية يطبق على كل الإدارات والمنشآت التابعة لها، وتعديل الإدارة يطبق على كل منشآتها، وتعديل اسم المنشأة يخص المنشأة المحددة فقط.")
+                                with st.form(f"edit_hierarchy_node_{target_id}"):
+                                    edit_auth = st.text_input("المديرية / الجهة:", value=str(target_row.get("authority") or ""))
+                                    edit_admin = st.text_input("الإدارة:", value=str(target_row.get("administration") or ""))
+                                    edit_fac = st.text_input("المنشأة / وحدة الأمراض المتوطنة:", value=str(target_row.get("facility_name") or ""))
+                                    edit_hierarchy_submit = st.form_submit_button("💾 حفظ تعديلات الهيكل الإداري", use_container_width=True)
+                                if edit_hierarchy_submit:
+                                    edit_auth, edit_admin, edit_fac = edit_auth.strip(), edit_admin.strip(), edit_fac.strip()
+                                    if not (edit_auth and edit_admin and edit_fac):
+                                        st.warning("يجب إدخال المديرية والإدارة واسم المنشأة.")
+                                    else:
+                                        with db() as c:
+                                            old = c.execute("SELECT * FROM hierarchical_facilities WHERE id=?", (target_id,)).fetchone()
+                                            if not old:
+                                                st.error("تعذر العثور على السجل المطلوب.")
+                                            else:
+                                                duplicate = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? AND id<>? LIMIT 1", (edit_auth, edit_admin, edit_fac, target_id)).fetchone()
+                                                if duplicate:
+                                                    st.warning("يوجد سجل بنفس المديرية والإدارة واسم المنشأة بالفعل.")
+                                                else:
+                                                    old_auth, old_admin = str(old["authority"] or ""), str(old["administration"] or "")
+                                                    if edit_auth != old_auth:
+                                                        c.execute("UPDATE hierarchical_facilities SET authority=? WHERE authority=?", (edit_auth, old_auth))
+                                                    if edit_admin != old_admin:
+                                                        c.execute("UPDATE hierarchical_facilities SET administration=? WHERE authority=? AND administration=?", (edit_admin, edit_auth, old_admin))
+                                                    c.execute("UPDATE hierarchical_facilities SET facility_name=? WHERE id=?", (edit_fac, target_id))
+                                                    reindex_hierarchical_facilities()
+                                                    st.success("تم تعديل بيانات الهيكل الإداري بنجاح.")
+                                                    st.rerun()
+                                st.markdown("##### 🗑️ حذف جزء من الهيكل الإداري")
+                                delete_level = st.selectbox("مستوى الحذف:", ["المنشأة المحددة فقط", "الإدارة بكل منشآتها", "المديرية بكل إداراتها ومنشآتها"], key=f"hier_delete_level_{target_id}")
+                                delete_phrase = {"المنشأة المحددة فقط": str(target_row.get("facility_name") or ""), "الإدارة بكل منشآتها": str(target_row.get("administration") or ""), "المديرية بكل إداراتها ومنشآتها": str(target_row.get("authority") or "")}[delete_level]
+                                confirm_delete = st.checkbox(f"أؤكد حذف «{delete_phrase}» وكل السجلات التابعة للمستوى المحدد", key=f"confirm_hier_delete_{target_id}")
+                                if st.button("🗑️ تأكيد حذف المستوى المحدد", key=f"delete_hier_level_{target_id}", disabled=not confirm_delete, use_container_width=True):
+                                    with db() as c:
+                                        if delete_level == "المنشأة المحددة فقط":
+                                            c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
+                                        elif delete_level == "الإدارة بكل منشآتها":
+                                            c.execute("DELETE FROM hierarchical_facilities WHERE authority=? AND administration=?", (target_row.get("authority"), target_row.get("administration")))
+                                        else:
+                                            c.execute("DELETE FROM hierarchical_facilities WHERE authority=?", (target_row.get("authority"),))
+                                    reindex_hierarchical_facilities()
+                                    st.success("تم حذف المستوى الإداري المحدد والسجلات التابعة له.")
+                                    st.rerun()
                             with st.form("manage_single_hier_form", clear_on_submit=True):
                                 c_hide_btn, c_show_btn, c_del_btn = st.columns(3)
                                 with c_hide_btn:
