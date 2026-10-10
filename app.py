@@ -352,11 +352,11 @@ def reindex_hierarchical_facilities():
             c.execute("ALTER TABLE hierarchical_facilities ADD COLUMN id INTEGER")
             c.execute("UPDATE hierarchical_facilities SET id=rowid WHERE id IS NULL")
         # Reassign through unique temporary negative IDs to avoid collisions.
-        rows = c.execute("SELECT rowid, id FROM hierarchical_facilities ORDER BY id, rowid").fetchall()
+        rows = c.execute("SELECT rowid AS _rowid, id AS old_id FROM hierarchical_facilities ORDER BY id, rowid").fetchall()
         for idx, row in enumerate(rows, start=1):
-            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (-idx, row["rowid"]))
+            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (-idx, row["_rowid"]))
         for idx, row in enumerate(rows, start=1):
-            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["rowid"]))
+            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["_rowid"]))
         # Reset AUTOINCREMENT safely so the next inserted row follows the new sequence.
         try:
             cur = c.execute("UPDATE sqlite_sequence SET seq=? WHERE name='hierarchical_facilities'", (len(rows),))
