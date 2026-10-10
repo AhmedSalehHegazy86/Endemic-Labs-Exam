@@ -335,13 +335,27 @@ def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     return pred, args
 
 def reindex_hierarchical_facilities():
+    """Rebuild hierarchy IDs safely, including databases created by older app versions."""
     with db() as c:
-        rows = c.execute("SELECT governorate, authority, center, administration, facility_name, created_at, hidden FROM hierarchical_facilities ORDER BY id ASC").fetchall()
-        c.execute("DELETE FROM hierarchical_facilities")
-        c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
-        for r in rows:
-            c.execute("INSERT INTO hierarchical_facilities(governorate, authority, center, administration, facility_name, created_at, hidden) VALUES(?,?,?,?,?,?,?)",
-                      (r["governorate"], r["authority"], r["center"], r["administration"], r["facility_name"], r["created_at"], r["hidden"] if r["hidden"] is not None else 0))
+        # Older deployed databases may not have every column added by newer releases.
+        existing = {row["name"] for row in c.execute("PRAGMA table_info(hierarchical_facilities)").fetchall()}
+        migrations = {
+            "governorate": "TEXT NOT NULL DEFAULT ''",
+            "authority": "TEXT NOT NULL DEFAULT ''",
+            "center": "TEXT NOT NULL DEFAULT ''",
+            "administration": "TEXT NOT NULL DEFAULT ''",
+            "facility_name": "TEXT NOT NULL DEFAULT ''",
+            "created_at": "TEXT NOT NULL DEFAULT ''",
+            "hidden": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for column, definition in migrations.items():
+            if column not in existing:
+                c.execute(f"ALTER TABLE hierarchical_facilities ADD COLUMN {column} {definition}")
+        existing = {row["name"] for row in c.execute("PRAGMA table_info(hierarchical_facilities)").fetchall()}
+        if "id" not in existing:
+            c.execute("ALTER TABLE hierarchical_facilities ADD COLUMN id INTEGER")
+            c.execute("UPDATE hierarchical_facilities SET id=rowid WHERE id IS NULL")
+        # Keep existing row IDs and references intact; schema compatibility is the required repair.
 
 def reindex_trainees():
     with db() as c:
