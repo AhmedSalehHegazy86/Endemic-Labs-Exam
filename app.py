@@ -3238,10 +3238,10 @@ def admin_dashboard():
                         st.rerun()
                     else:
                         st.warning("⚠ يرجى اختيار نموذج صالح.")
-        sub_tabs = st.tabs(["🆕 قبول المسجلين الجدد", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن", "📅 مواعيد الامتحانات والهيكل الإداري"])
-        with sub_tabs[3]:
+        sub_tabs = st.tabs(["📅 مواعيد الامتحانات والهيكل الإداري", "🆕 قبول المسجلين الجدد", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
+        with sub_tabs[0]:
             st.markdown("#### 📅 تحديد مواعيد الامتحانات وربطها بالهيكل الإداري")
-            st.caption("يُحفظ الموعد لكل نموذج ولكل نطاق إداري بصورة مستقلة، ويمكنك تعديل الموعد أو حذفه من هنا.")
+            st.caption("يُحفظ الموعد لكل نموذج ولكل نطاق إداري بصورة مستقلة. واجهة الممتحن تعتمد هذه المواعيد تلقائياً؛ لن يظهر الاختبار قبل وقت البدء أو بعد وقت الانتهاء، ويُراعى الهيكل الإداري ومهنة المتدرب.")
             with db() as c:
                 schedule_templates = [dict(r) for r in c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC, id ASC").fetchall()]
             if not schedule_templates:
@@ -3311,7 +3311,7 @@ def admin_dashboard():
                             st.success("تم حذف الموعد المحدد.")
                             st.rerun()
 
-        with sub_tabs[0]:
+        with sub_tabs[1]:
             if has_subtab_permission('🧑\u200d🔬 المتدربين والنماذج', '🆕 قبول المسجلين الجدد'):
                 st.markdown("#### 🆕 قبول المسجلين الجدد وتعديل بياناتهم")
                 st.caption("يمكن البحث بالرقم القومي، تعديل بيانات الطلب قبل الاعتماد، ثم اختيار نموذج الاختبار وفق الهيكل الإداري.")
@@ -3395,7 +3395,7 @@ def admin_dashboard():
                                     set_trainee_status_and_template(int(r['id']), "rejected", r.get('assigned_template_id'))
                                     st.warning("تم رفض طلب التسجيل.")
                                     st.rerun()
-        with sub_tabs[1]:
+        with sub_tabs[2]:
             if has_subtab_permission('🧑\u200d🔬 المتدربين والنماذج', 'جميع المتدربين (إدارة وإخفاء/إظهار/حذف)'):
                 st.markdown("#### 🏥 فلترة المتدربين حسب الهيكل الإداري")
                 tr_scope_manage = hierarchy_scope_widget("نطاق المتدربين:", "trainees_manage_scope_v1")
@@ -3449,7 +3449,7 @@ def admin_dashboard():
                             reindex_trainees()
                             st.success("✅ تم الحذف وإعادة الترتيب بنجاح!")
                             st.rerun()
-        with sub_tabs[2]:
+        with sub_tabs[3]:
             if has_subtab_permission('🧑\u200d🔬 المتدربين والنماذج', '📝 طباعة نموذج امتحان الممتحن'):
                 st.markdown("#### 📝 طباعة نموذج امتحان الإجابة والأسئلة لممتحن أدى الامتحان على البرنامج:")
                 exam_print_scope = hierarchy_scope_widget("نطاق طباعة نماذج الإجابة:", "exam_print_scope_v1")
@@ -3472,7 +3472,7 @@ def admin_dashboard():
 
     elif selected_menu == "إنشاء و تعديل و حذف النماذج":
         st.subheader("إنشاء و تعديل و حذف النماذج")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "⚙ تعديل موعد وتصنيف", "🗑 حذف نموذج"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "🗑 حذف نموذج"], horizontal=True)
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
             st.markdown("#### 🏥 فلترة طباعة النماذج حسب الهيكل الإداري")
             tpl_print_scope = hierarchy_scope_widget("نطاق طباعة نماذج الاختبار:", "template_print_scope_v1")
@@ -3551,92 +3551,8 @@ def admin_dashboard():
                                           (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass),
                                            json.dumps(new_tpl_cats, ensure_ascii=False), None, None, now(), "", "", "", "", "",
                                            "" if not new_tpl_professions or "كل الوظائف" in new_tpl_professions else json.dumps(new_tpl_professions, ensure_ascii=False)))
-                            st.success("✅ تم إنشاء نموذج الاختبار بنجاح. حدّد الهيكل الإداري وموعد الاختبار من قسم (تعديل موعد وتصنيف).")
+                            st.success("✅ تم إنشاء نموذج الاختبار بنجاح. حدّد موعد إتاحته والهيكل الإداري من أول قسم في تبويب (المتدربين والنماذج).")
                             st.rerun()
-        elif sub_tpl_mode == "⚙ تعديل موعد وتصنيف":
-            st.markdown("#### 🏥 تحديد موعد مستقل لكل هيكل إداري ونموذج امتحان")
-            with db() as c:
-                editable_tpls = [dict(r) for r in c.execute("SELECT * FROM exam_templates WHERE active=1 ORDER BY name ASC, id ASC").fetchall()]
-            if not editable_tpls:
-                st.info("لا توجد نماذج اختبارات لتحديد مواعيدها.")
-            else:
-                editable_map = {f"نموذج ({t['id']}) — {t['name']} [{t['exam_type'] or 'قبل التدريب'}]": t for t in editable_tpls}
-                edit_tpl_label = st.selectbox("1) اختر نموذج الامتحان:", list(editable_map.keys()), key="edit_template_schedule_select_v3")
-                selected_edit_tpl = editable_map[edit_tpl_label]
-                st.markdown("##### 2) اختر الهيكل الإداري المستهدف")
-                edit_tpl_scope = hierarchy_scope_widget("الهيكل الإداري الذي سيُتاح له هذا النموذج:", f"edit_tpl_scope_v3_{selected_edit_tpl['id']}")
-                scope_keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
-                selected_scope = {k: str(edit_tpl_scope.get(k) or "").strip() for k in scope_keys}
-                with db() as c:
-                    existing_schedules = [dict(r) for r in c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (selected_edit_tpl["id"],)).fetchall()]
-                exact_existing = next((r for r in existing_schedules if all(str(r.get(k) or "").strip() == selected_scope[k] for k in scope_keys)), None)
-                def _schedule_dt(value, fallback):
-                    try:
-                        parsed = datetime.fromisoformat(str(value))
-                        if parsed.tzinfo is None:
-                            parsed = parsed.replace(tzinfo=CAIRO_TZ)
-                        return parsed.astimezone(CAIRO_TZ)
-                    except Exception:
-                        return fallback
-                now_edit = now_cairo()
-                edit_start_dt = _schedule_dt(exact_existing.get("start_time") if exact_existing else None, now_edit + timedelta(days=1))
-                edit_end_dt = _schedule_dt(exact_existing.get("end_time") if exact_existing else None, now_edit + timedelta(days=1, hours=1))
-                edit_professions = list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
-                current_professions = parse_professions(exact_existing.get("profession") if exact_existing else "")
-                for _prof in current_professions:
-                    if _prof not in edit_professions:
-                        edit_professions.append(_prof)
-                with st.form(f"edit_template_schedule_form_v3_{selected_edit_tpl['id']}", clear_on_submit=True):
-                    st.markdown("##### 3) موعد بدء الامتحان")
-                    sd_col, st_col = st.columns(2)
-                    with sd_col:
-                        edit_start_date = st.date_input("تاريخ البدء", value=edit_start_dt.date(), key=f"edit_tpl_v3_sd_{selected_edit_tpl['id']}")
-                    with st_col:
-                        es1, es2, es3 = st.columns(3)
-                        with es1:
-                            edit_start_hour = st.number_input("الساعة", min_value=1, max_value=12, value=edit_start_dt.hour % 12 or 12, key=f"edit_tpl_v3_sh_{selected_edit_tpl['id']}")
-                        with es2:
-                            edit_start_minute = st.number_input("الدقيقة", min_value=0, max_value=59, value=edit_start_dt.minute, key=f"edit_tpl_v3_sm_{selected_edit_tpl['id']}")
-                        with es3:
-                            edit_start_ampm = st.selectbox("الفترة", ["صباحاً", "مساءً"], index=0 if edit_start_dt.hour < 12 else 1, key=f"edit_tpl_v3_sap_{selected_edit_tpl['id']}")
-                    st.markdown("##### 4) موعد انتهاء الامتحان")
-                    ed_col, et_col = st.columns(2)
-                    with ed_col:
-                        edit_end_date = st.date_input("تاريخ النهاية", value=edit_end_dt.date(), key=f"edit_tpl_v3_ed_{selected_edit_tpl['id']}")
-                    with et_col:
-                        ee1, ee2, ee3 = st.columns(3)
-                        with ee1:
-                            edit_end_hour = st.number_input("الساعة", min_value=1, max_value=12, value=edit_end_dt.hour % 12 or 12, key=f"edit_tpl_v3_eh_{selected_edit_tpl['id']}")
-                        with ee2:
-                            edit_end_minute = st.number_input("الدقيقة", min_value=0, max_value=59, value=edit_end_dt.minute, key=f"edit_tpl_v3_em_{selected_edit_tpl['id']}")
-                        with ee3:
-                            edit_end_ampm = st.selectbox("الفترة", ["صباحاً", "مساءً"], index=0 if edit_end_dt.hour < 12 else 1, key=f"edit_tpl_v3_eap_{selected_edit_tpl['id']}")
-                    edit_tpl_professions = st.multiselect("المهن المسموح لها بأداء الاختبار:", edit_professions, default=current_professions, key=f"edit_tpl_v3_prof_{selected_edit_tpl['id']}", help="اختر مهنة واحدة أو أكثر. اترك الاختيار فارغًا لإتاحة الاختبار لكل المهن.")
-                    if st.form_submit_button("💾 حفظ موعد هذا الهيكل والنموذج", use_container_width=True):
-                        def _to24(hour, ampm):
-                            h = int(hour) % 12
-                            return h + (12 if "مساءً" in ampm else 0)
-                        saved_start = datetime.combine(edit_start_date, datetime.min.time().replace(hour=_to24(edit_start_hour, edit_start_ampm), minute=int(edit_start_minute)), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
-                        saved_end = datetime.combine(edit_end_date, datetime.min.time().replace(hour=_to24(edit_end_hour, edit_end_ampm), minute=int(edit_end_minute)), tzinfo=CAIRO_TZ).isoformat(timespec="seconds")
-                        if datetime.fromisoformat(saved_end) <= datetime.fromisoformat(saved_start):
-                            st.error("تاريخ ووقت النهاية يجب أن يكونا بعد تاريخ ووقت البدء.")
-                        elif not any(selected_scope.values()):
-                            st.error("اختر هيكلاً إدارياً محدداً قبل حفظ الموعد؛ لا يمكن ربط الموعد بكل الجهات دون تحديد.")
-                        else:
-                            profession_to_save = json.dumps(edit_tpl_professions, ensure_ascii=False) if edit_tpl_professions else ""
-                            with db() as c:
-                                if exact_existing:
-                                    c.execute("""UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, updated_at=? WHERE id=?""", (saved_start, saved_end, profession_to_save, now(), exact_existing["id"]))
-                                else:
-                                    c.execute("""INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at)
-                                        VALUES(?,?,?,?,?,?,?,?,?,1,?,?)""", (selected_edit_tpl["id"], selected_scope["scope_governorate"], selected_scope["scope_authority"], selected_scope["scope_center"], selected_scope["scope_administration"], selected_scope["scope_facility"], saved_start, saved_end, profession_to_save, now(), now()))
-                            st.success("تم حفظ الموعد بصورة مستقلة لهذا الهيكل والنموذج. لن يؤثر ذلك على مواعيد الهياكل الأخرى.")
-                            st.rerun()
-                if existing_schedules:
-                    st.markdown("##### المواعيد المسجلة لهذا النموذج")
-                    for sched in existing_schedules:
-                        scope_desc = " / ".join(sched.get(k) or "" for k in scope_keys if sched.get(k)) or "غير محدد"
-                        st.write(f"• {scope_desc} — {sched['start_time']} إلى {sched['end_time']}")
         else:
             with db() as c:
                 tpls_del = c.execute("SELECT id, name, exam_type FROM exam_templates ORDER BY name ASC, id ASC").fetchall()
