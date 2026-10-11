@@ -90,13 +90,12 @@ html, body, [class*="css"] {
     isolation: isolate !important;
     min-height: 100vh !important;
     /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #72b6c3 !important;
-    background-image:
-        radial-gradient(ellipse at 8% 12%, rgba(10, 91, 128, .13) 0%, rgba(10, 91, 128, 0) 44%),
-        radial-gradient(ellipse at 92% 15%, rgba(11, 126, 157, .12) 0%, rgba(11, 126, 157, 0) 43%),
-        radial-gradient(ellipse at 82% 88%, rgba(16, 153, 169, .12) 0%, rgba(16, 153, 169, 0) 46%),
-        radial-gradient(ellipse at 12% 86%, rgba(10, 91, 128, .11) 0%, rgba(10, 91, 128, 0) 40%),
-        linear-gradient(125deg, #72b6c3 0%, #79bdc7 32%, #80c6c8 67%, #78b7ca 100%) !important;
+    background-color: #8bd4f5 !important;
+        background-image:
+            radial-gradient(ellipse at 14% 12%, rgba(255,255,255,.54) 0%, rgba(255,255,255,0) 34%),
+            radial-gradient(ellipse at 82% 20%, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 31%),
+            radial-gradient(ellipse at 26% 74%, rgba(245,253,255,.25) 0%, rgba(245,253,255,0) 35%),
+            linear-gradient(180deg, #65bdf0 0%, #8bd4f5 48%, #b0e7fb 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -277,6 +276,41 @@ body::after {
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     border-top: 2px solid #8ad7dc;
 }
+
+    /* Soft daytime clouds: subtle movement, low contrast, no interaction with controls */
+    .stApp {
+        background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
+        position: relative;
+        isolation: isolate;
+    }
+    .stApp::before {
+        content: "";
+        position: fixed;
+        inset: -8%;
+        z-index: -1;
+        pointer-events: none;
+        background:
+            radial-gradient(ellipse 19% 8% at 12% 25%, rgba(255,255,255,.42) 0%, rgba(255,255,255,.24) 38%, transparent 72%),
+            radial-gradient(ellipse 16% 7% at 21% 23%, rgba(255,255,255,.38) 0%, transparent 72%),
+            radial-gradient(ellipse 23% 9% at 78% 38%, rgba(255,255,255,.32) 0%, rgba(255,255,255,.18) 40%, transparent 74%),
+            radial-gradient(ellipse 17% 7% at 88% 36%, rgba(255,255,255,.28) 0%, transparent 72%),
+            radial-gradient(ellipse 20% 8% at 35% 68%, rgba(255,255,255,.24) 0%, transparent 74%),
+            radial-gradient(ellipse 18% 7% at 66% 82%, rgba(255,255,255,.26) 0%, transparent 72%);
+        background-repeat: no-repeat;
+        filter: blur(7px);
+        opacity: .72;
+        animation: skyCloudDrift 48s ease-in-out infinite alternate;
+        will-change: transform;
+    }
+    @keyframes skyCloudDrift {
+        0%   { transform: translate3d(-1.4%, -0.4%, 0) scale(1); }
+        50%  { transform: translate3d(1.1%, 0.6%, 0) scale(1.025); }
+        100% { transform: translate3d(-0.3%, 1.1%, 0) scale(1.01); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .stApp::before { animation: none !important; }
+    }
+    
 </style>
 <script>
 document.addEventListener("contextmenu", function(e) {
