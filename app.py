@@ -188,6 +188,13 @@ html, body, [class*="css"] {
     border: 1px solid #cbd5e1 !important;
     border-radius: 6px !important;
 }
+/* جعل جميع خطوط واجهة البرنامج عريضة مع الحفاظ على الألوان والتصميم */
+.stApp,
+.stApp *,
+[data-testid="stModal"] *,
+[data-testid="stPopover"] * {
+    font-weight: 700 !important;
+}
 .ownership-watermark {
     position: fixed;
     bottom: 0;
