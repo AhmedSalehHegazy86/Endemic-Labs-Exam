@@ -2978,28 +2978,55 @@ def admin_dashboard():
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
             if has_subtab_permission('🏥 الهيكل الإداري', '✍ إضافة يدوية'):
+                st.markdown("##### 📌 إضافة مستوى جديد تحت الجهة الأعلى")
+                current_hier = get_hierarchical_data(include_hidden=True)
+                add_level = st.selectbox("المستوى المراد إضافته:", ["مديرية / جهة", "إدارة", "منشأة / وحدة الأمراض المتوطنة"], key="hier_add_level")
+                auth_values = sorted({str(r.get("authority") or "").strip() for r in current_hier if str(r.get("authority") or "").strip()})
+                if add_level == "مديرية / جهة":
+                    parent_auth = ""
+                    parent_admin = ""
+                else:
+                    if not auth_values:
+                        st.info("أضف المديرية / الجهة أولًا حتى يمكنك إضافة إدارة أو منشأة تابعة لها.")
+                    parent_auth = st.selectbox("اختر المديرية / الجهة الأعلى:", auth_values, key="hier_add_parent_authority") if auth_values else ""
+                    admin_values = sorted({str(r.get("administration") or "").strip() for r in current_hier if str(r.get("authority") or "").strip() == parent_auth and str(r.get("administration") or "").strip()})
+                    if add_level == "منشأة / وحدة الأمراض المتوطنة":
+                        parent_admin = st.selectbox("اختر الإدارة التابعة لها المنشأة:", admin_values, key="hier_add_parent_admin") if admin_values else ""
+                        if not admin_values:
+                            st.info("أضف إدارة تحت المديرية المختارة أولًا.")
+                    else:
+                        parent_admin = ""
                 with st.form("manual_hierarchical_form", clear_on_submit=True):
-                    st.markdown("##### 📌 الحقول الثابتة التابعة للجمهورية:")
                     st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="hier_country_fixed")
                     st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="hier_ministry_fixed")
-                    m_auth = st.text_input("المديرية / الجهة:", value="")
-                    m_admin = st.text_input("الإدارة:", value="")
-                    m_fac = st.text_input("المنشأة / وحدة الأمراض المتوطنة:", value="")
-                    if st.form_submit_button("💾 حفظ", use_container_width=True):
-                        if m_auth.strip() and m_admin.strip() and m_fac.strip():
+                    new_node_name = st.text_input({"مديرية / جهة":"اسم المديرية / الجهة الجديدة:", "إدارة":"اسم الإدارة الجديدة:", "منشأة / وحدة الأمراض المتوطنة":"اسم المنشأة / وحدة الأمراض المتوطنة الجديدة:"}[add_level])
+                    if st.form_submit_button("💾 إضافة المستوى التابع", use_container_width=True):
+                        node = new_node_name.strip()
+                        if not node:
+                            st.warning("اكتب اسم المستوى الجديد أولًا.")
+                        elif add_level != "مديرية / جهة" and not parent_auth:
+                            st.warning("اختر المديرية / الجهة الأعلى أولًا.")
+                        elif add_level == "منشأة / وحدة الأمراض المتوطنة" and not parent_admin:
+                            st.warning("اختر الإدارة الأعلى أولًا.")
+                        else:
+                            auth_value = node if add_level == "مديرية / جهة" else parent_auth
+                            admin_value = node if add_level == "إدارة" else (parent_admin if add_level == "منشأة / وحدة الأمراض المتوطنة" else "")
+                            facility_value = node if add_level == "منشأة / وحدة الأمراض المتوطنة" else ""
                             with db() as c:
-                                exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (m_auth.strip(), m_admin.strip(), m_fac.strip())).fetchone()
+                                if add_level == "مديرية / جهة":
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND COALESCE(administration,'')='' AND COALESCE(facility_name,'')='' LIMIT 1", (auth_value,)).fetchone()
+                                elif add_level == "إدارة":
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND COALESCE(facility_name,'')='' LIMIT 1", (auth_value, admin_value)).fetchone()
+                                else:
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (auth_value, admin_value, facility_value)).fetchone()
                                 if not exists:
-                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
-                                              ("", m_auth.strip(), "", m_admin.strip(), m_fac.strip(), now(), 0))
+                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", auth_value, "", admin_value, facility_value, now(), 0))
                             if exists:
-                                st.warning("هذه المنشأة مسجلة بالفعل تحت الإدارة والمديرية المحددتين.")
+                                st.warning("هذا المستوى مسجل بالفعل تحت الجهة الأعلى المحددة.")
                             else:
                                 reindex_hierarchical_facilities()
-                                st.success("✅ تمت الإضافة بنجاح وإعادة الترتيب!")
+                                st.success("تمت إضافة المستوى الإداري تحت الجهة الأعلى بنجاح.")
                                 st.rerun()
-                        else:
-                            st.warning("أدخل المديرية / الجهة والإدارة واسم المنشأة.")
         with tab_h2:
             if has_subtab_permission('🏥 الهيكل الإداري', '📥 رفع الملفات'):
                 st.markdown("##### 📄 تنزيل نموذج هيكل إداري فارغ للتعبئة وإعادة الرفع")
