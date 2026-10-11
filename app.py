@@ -335,7 +335,12 @@ def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     return pred, args
 
 def reindex_hierarchical_facilities():
-    """Ensure legacy schema compatibility and make visible hierarchy IDs sequential from 1."""
+    """Compact hierarchy IDs safely without losing row identity during the two-phase update.
+
+    In SQLite, an INTEGER PRIMARY KEY is an alias for rowid. Updating id therefore
+    changes rowid too; the second phase must target the temporary ID, not the old rowid.
+    Hierarchy references elsewhere in this app are stored as names/paths, not this ID.
+    """
     with db() as c:
         existing = {row["name"] for row in c.execute("PRAGMA table_info(hierarchical_facilities)").fetchall()}
         migrations = {
@@ -351,18 +356,27 @@ def reindex_hierarchical_facilities():
         if "id" not in existing:
             c.execute("ALTER TABLE hierarchical_facilities ADD COLUMN id INTEGER")
             c.execute("UPDATE hierarchical_facilities SET id=rowid WHERE id IS NULL")
-        # Move every ID to a unique temporary range ABOVE the current maximum first.
-        # This avoids UNIQUE/PRIMARY KEY collisions even if legacy data already contains
-        # negative IDs or gaps. Then assign the final sequential IDs starting at 1.
-        rows = c.execute("SELECT rowid AS _rowid, id AS old_id FROM hierarchical_facilities ORDER BY id, rowid").fetchall()
-        if rows:
-            current_ids = [int(r["old_id"]) for r in rows if r["old_id"] is not None]
-            temp_base = max([0] + [abs(v) for v in current_ids]) + len(rows) + 10000
-            for idx, row in enumerate(rows, start=1):
-                c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (temp_base + idx, row["_rowid"]))
-            for idx, row in enumerate(rows, start=1):
-                c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["_rowid"]))
-        # Reset AUTOINCREMENT safely so the next inserted row follows the new sequence.
+        rows = c.execute("SELECT id AS old_id, rowid AS old_rowid FROM hierarchical_facilities ORDER BY id, rowid").fetchall()
+        if not rows:
+            try:
+                c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
+            except sqlite3.OperationalError:
+                pass
+            return
+        current_ids = [int(r["old_id"]) for r in rows if r["old_id"] is not None]
+        temp_base = max([0] + [abs(v) for v in current_ids]) + len(rows) + 10000
+        # Keep explicit temporary IDs so phase two never queries the changed rowid.
+        temporary_ids = []
+        for idx, row in enumerate(rows, start=1):
+            old_id = row["old_id"]
+            temp_id = temp_base + idx
+            if old_id is None:
+                c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (temp_id, row["old_rowid"]))
+            else:
+                c.execute("UPDATE hierarchical_facilities SET id=? WHERE id=?", (temp_id, old_id))
+            temporary_ids.append(temp_id)
+        for new_id, temp_id in enumerate(temporary_ids, start=1):
+            c.execute("UPDATE hierarchical_facilities SET id=? WHERE id=?", (new_id, temp_id))
         try:
             cur = c.execute("UPDATE sqlite_sequence SET seq=? WHERE name='hierarchical_facilities'", (len(rows),))
             if cur.rowcount == 0:
@@ -555,6 +569,7 @@ def init_db():
                 start_time TEXT NOT NULL,
                 end_time TEXT NOT NULL,
                 profession TEXT NOT NULL DEFAULT '',
+                stage TEXT NOT NULL DEFAULT '',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -618,6 +633,14 @@ def init_db():
                 is_correct INTEGER,
                 FOREIGN KEY(session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
                 FOREIGN KEY(question_id) REFERENCES questions(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS facility_certificates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                certificate_code TEXT NOT NULL UNIQUE,
+                facility_name TEXT NOT NULL,
+                session_ids_json TEXT NOT NULL DEFAULT '[]',
+                average_percent REAL NOT NULL DEFAULT 0,
+                issued_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS action_plans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -690,6 +713,17 @@ def init_db():
             );
         """)
 
+        # ترحيل آمن لقاعدة بيانات الشهادات: إضافة حالة التحقق وتسجيل إصدار المخطط،
+        # مع الاحتفاظ بأكواد الشهادات القديمة حتى لا تتعطل الشهادات المطبوعة سابقاً.
+        facility_cert_cols = {row[1] for row in c.execute("PRAGMA table_info(facility_certificates)").fetchall()}
+        if "verification_status" not in facility_cert_cols:
+            c.execute("ALTER TABLE facility_certificates ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'valid'")
+        if "verification_notes" not in facility_cert_cols:
+            c.execute("ALTER TABLE facility_certificates ADD COLUMN verification_notes TEXT NOT NULL DEFAULT ''")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_facility_certificates_code ON facility_certificates(certificate_code)")
+        c.execute("CREATE TABLE IF NOT EXISTS app_schema_migrations (migration_key TEXT PRIMARY KEY, applied_at TEXT NOT NULL)")
+        c.execute("INSERT OR IGNORE INTO app_schema_migrations(migration_key, applied_at) VALUES(?,?)", ("secure_certificate_verification_v2", now()))
+
     for col_table, col_name, col_type in [
         ("trainees", "hidden", "INTEGER NOT NULL DEFAULT 0"),
         ("trainees", "profession", "TEXT NOT NULL DEFAULT 'أخصائي الأمراض المتوطنة'"),
@@ -709,6 +743,7 @@ def init_db():
         ("exam_templates", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
         ("exam_templates", "profession", "TEXT NOT NULL DEFAULT ''"),
         ("exam_sessions", "exam_stage", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_schedules", "stage", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_governorate", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_authority", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_center", "TEXT NOT NULL DEFAULT ''"),
@@ -1144,8 +1179,8 @@ def template_matches_profession(template_row, trainee_profession):
     actual = normalize_text(trainee_profession or "")
     return not required or actual in required
 
-def get_schedule_for_trainee(trainee_id, template_id):
-    """Return the most-specific active schedule for a trainee/template pair."""
+def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
+    """Return the most-specific active schedule for a trainee/template/stage pair."""
     with db() as c:
         trainee = c.execute("SELECT facility, profession FROM trainees WHERE id=? AND hidden=0", (int(trainee_id),)).fetchone()
         if not trainee:
@@ -1156,8 +1191,14 @@ def get_schedule_for_trainee(trainee_id, template_id):
         rows = c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (int(template_id),)).fetchall()
         keys = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name")]
         matches = []
+        wanted_stage = str(exam_stage or "").strip()
         for row in rows:
             d = dict(row)
+            row_stage = str(d.get("stage") or "").strip()
+            if wanted_stage and row_stage and row_stage != wanted_stage:
+                continue
+            if wanted_stage and not row_stage and wanted_stage in ("قبل التدريب", "بعد التدريب") and str(d.get("stage") or "").strip() != wanted_stage:
+                continue
             required_professions = {normalize_text(x) for x in parse_professions(d.get("profession") or "")}
             if required_professions and normalize_text(trainee["profession"] or "") not in required_professions:
                 continue
@@ -1367,7 +1408,10 @@ def start_session(trainee_id, template_id, exam_stage=None):
             h_row = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 LIMIT 1", (trainee_row["facility"],)).fetchone()
             if not h_row or not all((not v) or str(h_row[k] or "").strip() == str(v).strip() for k, v in scope_values.items()):
                 raise ValueError("هذا النموذج غير مخصص للجهة الإدارية التابعة لك.")
-        schedule = get_schedule_for_trainee(trainee_id, template_id)
+        stage_value = str(exam_stage or t_dict.get("exam_type") or "").strip()
+        if stage_value == "قبل وبعد التدريب (نفس النموذج)":
+            raise ValueError("اختر مرحلة الامتحان: قبل التدريب أو بعد التدريب.")
+        schedule = get_schedule_for_trainee(trainee_id, template_id, stage_value)
         start_t_str = schedule.get("start_time") if schedule else None
         end_t_str = schedule.get("end_time") if schedule else None
         if start_t_str and end_t_str:
@@ -1382,9 +1426,6 @@ def start_session(trainee_id, template_id, exam_stage=None):
             raise ValueError("عذراً، لم تقم الإدارة بتحديد موعد ساري لبدء ونهاية هذا الاختبار بعد.")
 
         today_start = today_date() + "T00:00:00"
-        stage_value = str(exam_stage or t_dict.get("exam_type") or "").strip()
-        if stage_value == "قبل وبعد التدريب (نفس النموذج)":
-            stage_value = ""
         completed_today = c.execute("SELECT 1 FROM exam_sessions WHERE trainee_id=? AND template_id=? AND status='submitted' AND started_at>=? AND COALESCE(exam_stage,'')=?", (trainee_id, template_id, today_start, stage_value)).fetchone()
         if completed_today:
             raise ValueError("عذراً، لا يمكنك أداء هذه المرحلة من الاختبار أكثر من مرة في نفس اليوم.")
@@ -1396,6 +1437,18 @@ def start_session(trainee_id, template_id, exam_stage=None):
         qs = choose_questions(t)
         started = now_cairo()
         expires = started + timedelta(minutes=int(t_dict.get("duration_minutes", 60)))
+        # Exam duration is bounded by both the template duration and the schedule closing time.
+        if schedule and schedule.get("end_time"):
+            try:
+                schedule_end_dt = datetime.fromisoformat(str(schedule["end_time"]))
+                if schedule_end_dt.tzinfo is None:
+                    schedule_end_dt = schedule_end_dt.replace(tzinfo=CAIRO_TZ)
+                if schedule_end_dt < expires:
+                    expires = schedule_end_dt
+            except Exception:
+                pass
+        if expires <= started:
+            raise ValueError("انتهت نافذة إتاحة الامتحان؛ لا يمكن بدء اختبار الآن.")
         with db() as c:
             cur = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,status,exam_stage) VALUES(?,?,?,?,?,?)",
                             (trainee_id, template_id, started.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds"), "active", stage_value))
@@ -1411,6 +1464,13 @@ def start_session(trainee_id, template_id, exam_stage=None):
                           (sid, q["id"], pos, json.dumps(order)))
             c.execute("UPDATE trainees SET status='active', updated_at=? WHERE id=?", (now(), trainee_id))
             return sid
+
+
+def generate_individual_certificate_code(session_id, trainee_id=None, template_id=None):
+    """Create a stable, non-sequential verification code for an individual certificate."""
+    payload = f"individual-certificate|{int(session_id)}|{int(trainee_id or 0)}|{int(template_id or 0)}"
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12].upper()
+    return "CERT-" + digest
 
 def submit_session(sid):
     with db() as c:
@@ -1429,7 +1489,7 @@ def submit_session(sid):
         t_dict = dict(t) if t else {}
         pass_pct = float(t_dict.get("pass_percent", 60.0))
         passed = 1 if percent >= pass_pct else 0
-        cert = f"ELX-{sid:06d}"
+        cert = generate_individual_certificate_code(sid, s["trainee_id"], s["template_id"])
         submitted_dt = now_cairo()
         try:
             started_dt = datetime.fromisoformat(s["started_at"])
@@ -1574,7 +1634,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     max_score = r["max_score"] or 0
     percent = float(r["percent"] or 0)
     status_text = "اجتاز الاختبار بنجاح" if r["passed"] else "لم يجتز الاختبار"
-    cert_no = str(r["certificate_id"] or f"ELX-{sid:06d}")
+    cert_no = str(r["certificate_id"] or generate_individual_certificate_code(sid, r["trainee_id"], r["template_id"]))
     qr = generate_qr_code_base64(cert_no)
 
     # Prefix is a dedicated line; title + name are a separate line.
@@ -1625,8 +1685,26 @@ def generate_facility_certificate_html(facility_name, session_ids, custom_title=
         return ""
 
     avg = sum(rows) / len(rows)
-    facility_digest = hashlib.sha256(str(facility_name).encode("utf-8")).hexdigest()[:6].upper()
-    facility_code = "FAC-" + facility_digest
+    # إنشاء رقم عشوائي غير متسلسل وفريد، وحفظ الشهادة حتى يمكن التحقق منها لاحقًا.
+    issued_at = now()
+    valid_session_ids = []
+    with db() as c:
+        for sid in session_ids:
+            row = c.execute("SELECT s.id, t.facility FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.id=? AND s.status='submitted' AND t.hidden=0", (sid,)).fetchone()
+            if row and str(row["facility"] or "").strip() == str(facility_name or "").strip():
+                valid_session_ids.append(int(row["id"]))
+        facility_code = None
+        for _attempt in range(5):
+            candidate = "FAC-" + secrets.token_hex(12).upper()
+            try:
+                c.execute("INSERT INTO facility_certificates(certificate_code, facility_name, session_ids_json, average_percent, issued_at) VALUES(?,?,?,?,?)",
+                          (candidate, str(facility_name), json.dumps(valid_session_ids), float(avg), issued_at))
+                facility_code = candidate
+                break
+            except sqlite3.IntegrityError:
+                continue
+        if not facility_code:
+            raise RuntimeError("تعذر إنشاء رقم شهادة منشأة فريد. حاول مرة أخرى.")
     qr = generate_qr_code_base64(facility_code)
     prefix_html = f"<div class='cert-prefix-line'>{esc(prefix_val)}</div>" if prefix_val else ""
 
@@ -2278,26 +2356,87 @@ def header():
     """
     components.html(header_html, height=155, scrolling=False)
 
+def decode_qr_from_camera_image(uploaded_image):
+    """Decode a QR code from a photo captured with Streamlit's camera widget."""
+    if uploaded_image is None:
+        return None, ""
+    try:
+        from PIL import Image as PILImage
+        pil_image = PILImage.open(uploaded_image).convert("RGB")
+        # OpenCV is preferred because it avoids external zbar system dependencies.
+        try:
+            import cv2
+            import numpy as np
+            detector = cv2.QRCodeDetector()
+            decoded, points, _ = detector.detectAndDecode(np.array(pil_image))
+            if decoded and decoded.strip():
+                return decoded.strip(), ""
+        except Exception:
+            pass
+        try:
+            from pyzbar.pyzbar import decode
+            found = decode(pil_image)
+            if found:
+                return found[0].data.decode("utf-8", errors="replace").strip(), ""
+        except Exception:
+            pass
+        return None, "لم يتم التعرف على QR في الصورة. تأكد من وضوح الرمز وحاول مرة أخرى، أو أدخل الكود يدوياً."
+    except Exception as exc:
+        return None, f"تعذر قراءة الصورة: {exc}"
+
+
 def verification_portal_view():
     header()
     st.markdown("### 🔍 صفحة التحقق الرقمي من صحة الشهادات والبيانات الواردة")
-    st.info("يمكنك إدخال رقم الشهادة أو كود التحقق يدوياً، أو رفع صورة QR Code للشهادة للتحقق الفوري منها.")
-    uploaded_qr_img = st.file_uploader("📥 رفع صورة QR Code للشهادة:", type=["png", "jpg", "jpeg"])
-    if uploaded_qr_img is not None:
+    st.info("وجّه كاميرا الجهاز إلى QR الخاص بالشهادة والتقط صورة واضحة، أو ارفع صورة محفوظة. سيتم استخراج الكود ثم التحقق منه في قاعدة البيانات.")
+    camera_photo = st.camera_input("📷 مسح QR بالكاميرا")
+    uploaded_qr_img = st.file_uploader("📥 أو ارفع صورة QR للشهادة:", type=["png", "jpg", "jpeg"], key="certificate_qr_upload")
+    qr_image = camera_photo if camera_photo is not None else uploaded_qr_img
+    if qr_image is not None:
         try:
             from PIL import Image as PILImage
-            img_pil = PILImage.open(uploaded_qr_img)
-            st.image(img_pil, caption="صورة QR Code المرفوعة", width=200)
-            st.success("✅ تم استلام صورة الرمز بنجاح. إذا لم يتم التعرف عليه تلقائياً، يرجى كتابة كود الشهادة في الحقل أدناه.")
+            img_pil = PILImage.open(qr_image)
+            st.image(img_pil, caption="الصورة الملتقطة / المرفوعة", width=200)
+            decoded_code, decode_error = decode_qr_from_camera_image(qr_image)
+            if decoded_code:
+                # QR الحالي يحمل كود الشهادة مباشرة. اقبل أيضاً روابط تحتوي الكود كآخر جزء.
+                parsed_code = decoded_code.strip()
+                if parsed_code.lower().startswith(("http://", "https://")):
+                    parsed_code = parsed_code.rstrip("/").split("/")[-1].split("?")[0]
+                st.session_state["scanned_cert_code"] = parsed_code
+                st.success("✅ تم مسح QR واستخراج كود الشهادة. جارٍ التحقق من قاعدة البيانات.")
+            elif decode_error:
+                st.warning(decode_error)
         except Exception as e:
-            st.error(f"عذراً، لم نتمكن من قراءة صورة الرمز: {e}")
-    search_cert_code = st.text_input("أدخل رقم الشهادة أو كود التحقق (مثل: ELX-000001):", value=st.session_state.get("scanned_cert_code", ""))
+            st.error(f"عذراً، تعذر فتح الصورة: {e}")
+    search_cert_code = st.text_input("رقم الشهادة أو كود التحقق:", value=st.session_state.get("scanned_cert_code", ""), key="certificate_verification_code")
     cert_to_verify = None
     if search_cert_code.strip():
         cert_code_clean = search_cert_code.strip().upper()
+        facility_cert_to_verify = None
         with db() as c:
-            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, COALESCE(NULLIF(s.exam_stage,''), e.exam_type) AS exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE (s.certificate_id LIKE ? OR s.id=?) AND t.hidden=0""", (f"%{cert_code_clean}%", cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
-        if cert_to_verify:
+            cert_to_verify = c.execute("""SELECT s.*, t.name trainee_name, t.facility, t.profession trainee_profession, e.name template_name, COALESCE(NULLIF(s.exam_stage,''), e.exam_type) AS exam_type FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE (UPPER(s.certificate_id)=? OR s.id=?) AND t.hidden=0""", (cert_code_clean, cert_code_clean.replace("ELX-", "").lstrip("0") or "0")).fetchone()
+            if not cert_to_verify and cert_code_clean.startswith("FAC-"):
+                facility_cert_to_verify = c.execute("SELECT * FROM facility_certificates WHERE certificate_code=? AND COALESCE(verification_status,'valid')='valid'", (cert_code_clean,)).fetchone()
+        if facility_cert_to_verify:
+            fr = facility_cert_to_verify
+            try:
+                session_ids_for_cert = json.loads(fr["session_ids_json"] or "[]")
+            except Exception:
+                session_ids_for_cert = []
+            st.markdown(f"""
+            <div style="background:#f0fdf4;border:2px solid #059669;padding:20px;border-radius:12px;margin-top:15px;">
+              <h3 style="color:#065f46;margin-top:0;">✅ شهادة منشأة مسجلة وصحيحة</h3>
+              <p style="font-size:11pt;color:#111827;line-height:1.8;">
+                🏥 <b>اسم المنشأة:</b> {esc(fr['facility_name'])}<br>
+                📊 <b>نتيجة تقييم المنشأة وقت الإصدار:</b> {float(fr['average_percent'] or 0):.1f}%<br>
+                👥 <b>عدد نتائج التقييم المسجلة بالشهادة:</b> {len(session_ids_for_cert)}<br>
+                🔖 <b>رقم الشهادة الرسمي:</b> {esc(fr['certificate_code'])}<br>
+                ⏰ <b>تاريخ الإصدار:</b> {esc(fr['issued_at'])}
+              </p>
+            </div>
+            """, unsafe_allow_html=True)
+        elif cert_to_verify:
             r = cert_to_verify
             status_str = "معتمدة وصحيحة بنسبة 100%" if r["passed"] else "غير اجتياز / غير معتمدة"
             score_val, max_score_val, percent_val = r["score"] or 0, r["max_score"] or 0, r["percent"] or 0.0
@@ -3387,12 +3526,17 @@ def admin_dashboard():
                 schedule_template_map = {f"{t['name']} [{t.get('exam_type') or 'قبل التدريب'}] — رقم {t['id']}": t for t in schedule_templates}
                 schedule_template_label = st.selectbox("نموذج الامتحان:", list(schedule_template_map.keys()), key="trainee_schedule_template_v1")
                 schedule_template = schedule_template_map[schedule_template_label]
+                if str(schedule_template.get("exam_type") or "") == "قبل وبعد التدريب (نفس النموذج)":
+                    schedule_stage = st.selectbox("مرحلة هذا الموعد:", ["قبل التدريب", "بعد التدريب"], key=f"trainee_sched_stage_{schedule_template['id']}")
+                else:
+                    schedule_stage = str(schedule_template.get("exam_type") or "قبل التدريب")
+                    st.caption(f"مرحلة النموذج: {schedule_stage}")
                 schedule_scope = hierarchy_scope_widget("الهيكل الإداري المستهدف للامتحان:", f"trainee_schedule_scope_{schedule_template['id']}")
                 schedule_scope_keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
                 schedule_scope_values = {k: str(schedule_scope.get(k) or "").strip() for k in schedule_scope_keys}
                 with db() as c:
                     schedules_for_template = [dict(r) for r in c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (schedule_template['id'],)).fetchall()]
-                matched_schedule = next((r for r in schedules_for_template if all(str(r.get(k) or '').strip() == schedule_scope_values[k] for k in schedule_scope_keys)), None)
+                matched_schedule = next((r for r in schedules_for_template if str(r.get('stage') or '') == schedule_stage and all(str(r.get(k) or '').strip() == schedule_scope_values[k] for k in schedule_scope_keys)), None)
                 def _trainee_schedule_dt(value, fallback):
                     try:
                         dt = datetime.fromisoformat(str(value))
@@ -3407,12 +3551,26 @@ def admin_dashboard():
                 with st.form(f"trainee_schedule_form_{schedule_template['id']}", clear_on_submit=False):
                     st.markdown("##### بداية إتاحة الامتحان")
                     sc1, sc2 = st.columns(2)
+                    def _time12_controls(label, dt_value, key_prefix):
+                        st.markdown(f"**{label} (نظام 12 ساعة)**")
+                        hour24 = dt_value.hour
+                        hour12_default = hour24 % 12 or 12
+                        ampm_default = "مساءً" if hour24 >= 12 else "صباحًا"
+                        tc1, tc2, tc3 = st.columns([1, 1, 1])
+                        with tc1:
+                            h12 = st.selectbox("الساعة", list(range(1, 13)), index=hour12_default-1, key=f"{key_prefix}_h")
+                        with tc2:
+                            minute = st.selectbox("الدقيقة", list(range(0, 60)), index=dt_value.minute, format_func=lambda x: f"{x:02d}", key=f"{key_prefix}_m")
+                        with tc3:
+                            ampm = st.selectbox("الفترة", ["صباحًا", "مساءً"], index=["صباحًا", "مساءً"].index(ampm_default), key=f"{key_prefix}_ampm")
+                        h24 = (h12 % 12) + (12 if ampm == "مساءً" else 0)
+                        return time(hour=h24, minute=minute)
                     with sc1:
                         schedule_start_date = st.date_input("تاريخ البدء", value=start_default.date(), key=f"trainee_sched_sd_{schedule_template['id']}")
-                        schedule_start_time = st.time_input("وقت البدء", value=start_default.time().replace(tzinfo=None), key=f"trainee_sched_st_{schedule_template['id']}")
+                        schedule_start_time = _time12_controls("وقت البدء", start_default, f"trainee_sched_st_{schedule_template['id']}")
                     with sc2:
                         schedule_end_date = st.date_input("تاريخ الانتهاء", value=end_default.date(), key=f"trainee_sched_ed_{schedule_template['id']}")
-                        schedule_end_time = st.time_input("وقت الانتهاء", value=end_default.time().replace(tzinfo=None), key=f"trainee_sched_et_{schedule_template['id']}")
+                        schedule_end_time = _time12_controls("وقت الانتهاء", end_default, f"trainee_sched_et_{schedule_template['id']}")
                     schedule_profession_options = list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
                     for _existing_prof in parse_professions(matched_schedule.get('profession') if matched_schedule else ""):
                         if _existing_prof not in schedule_profession_options:
@@ -3430,18 +3588,18 @@ def admin_dashboard():
                         else:
                             profession_json = json.dumps(selected_schedule_professions, ensure_ascii=False) if selected_schedule_professions else ""
                             with db() as c:
-                                current_match = c.execute("SELECT id FROM exam_schedules WHERE template_id=? AND active=1 AND scope_governorate=? AND scope_authority=? AND scope_center=? AND scope_administration=? AND scope_facility=? ORDER BY id DESC LIMIT 1", (schedule_template['id'], *(schedule_scope_values[k] for k in schedule_scope_keys))).fetchone()
+                                current_match = c.execute("SELECT id FROM exam_schedules WHERE template_id=? AND active=1 AND stage=? AND scope_governorate=? AND scope_authority=? AND scope_center=? AND scope_administration=? AND scope_facility=? ORDER BY id DESC LIMIT 1", (schedule_template['id'], schedule_stage, *(schedule_scope_values[k] for k in schedule_scope_keys))).fetchone()
                                 if current_match:
-                                    c.execute("UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, updated_at=? WHERE id=?", (start_iso, end_iso, profession_json, now(), current_match['id']))
+                                    c.execute("UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, stage=?, updated_at=? WHERE id=?", (start_iso, end_iso, profession_json, schedule_stage, now(), current_match['id']))
                                 else:
-                                    c.execute("INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,1,?,?)", (schedule_template['id'], *(schedule_scope_values[k] for k in schedule_scope_keys), start_iso, end_iso, profession_json, now(), now()))
+                                    c.execute("INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,stage,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)", (schedule_template['id'], *(schedule_scope_values[k] for k in schedule_scope_keys), start_iso, end_iso, profession_json, schedule_stage, now(), now()))
                             st.success("تم حفظ موعد الامتحان وربطه بالنموذج والهيكل الإداري المحددين.")
                             st.rerun()
                 if schedules_for_template:
                     st.markdown("##### المواعيد المسجلة لهذا النموذج")
                     for sched in schedules_for_template:
                         scope_desc = " / ".join(str(sched.get(k) or "").strip() for k in schedule_scope_keys if str(sched.get(k) or "").strip()) or "غير محدد"
-                        st.write(f"**{scope_desc}** — من `{sched.get('start_time')}` إلى `{sched.get('end_time')}` — المهن: {professions_display(sched.get('profession')) if sched.get('profession') else 'كل المهن'}")
+                        st.write(f"**{scope_desc}** — من `{sched.get('start_time')}` إلى `{sched.get('end_time')}` — المرحلة: {sched.get('stage') or 'غير محددة'} — المهن: {professions_display(sched.get('profession')) if sched.get('profession') else 'كل المهن'}")
                         if st.button("🗑 حذف هذا الموعد", key=f"delete_trainee_schedule_{sched['id']}"):
                             with db() as c:
                                 c.execute("DELETE FROM exam_schedules WHERE id=?", (sched['id'],))
@@ -3787,7 +3945,7 @@ def admin_dashboard():
                                 cur_sess = c.execute("INSERT INTO exam_sessions(trainee_id,template_id,started_at,expires_at,submitted_at,status,score,max_score,percent,passed) VALUES(?,?,?,?,?,?,?,?,?,?)",
                                                      (selected_tid, tpl_id_val, now(), now(), now(), "submitted", manual_score, manual_max, calc_pct, passed_flag))
                                 new_sid = cur_sess.lastrowid
-                                cert_code = f"ELX-{new_sid:06d}"
+                                cert_code = generate_individual_certificate_code(new_sid, selected_tid, tpl_id_val)
                                 cert_codes.append(cert_code)
                                 c.execute("UPDATE exam_sessions SET certificate_id=? WHERE id=?", (cert_code, new_sid))
                                 all_bank_qs = c.execute("SELECT id, answer FROM questions WHERE active=1").fetchall()
