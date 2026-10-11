@@ -1,5 +1,5 @@
 import os, io, re, ast, json, sqlite3, hashlib, secrets, random, time, html, urllib.request, socket
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time as datetime_time
 from zoneinfo import ZoneInfo
 from contextlib import contextmanager
 import pandas as pd
@@ -3564,7 +3564,7 @@ def admin_dashboard():
                         with tc3:
                             ampm = st.selectbox("الفترة", ["صباحًا", "مساءً"], index=["صباحًا", "مساءً"].index(ampm_default), key=f"{key_prefix}_ampm")
                         h24 = (h12 % 12) + (12 if ampm == "مساءً" else 0)
-                        return time(hour=h24, minute=minute)
+                        return datetime_time(hour=h24, minute=minute)
                     with sc1:
                         schedule_start_date = st.date_input("تاريخ البدء", value=start_default.date(), key=f"trainee_sched_sd_{schedule_template['id']}")
                         schedule_start_time = _time12_controls("وقت البدء", start_default, f"trainee_sched_st_{schedule_template['id']}")
