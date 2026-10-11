@@ -417,29 +417,62 @@ def reindex_questions():
         c.execute("PRAGMA foreign_keys=ON;")
 
 def reindex_templates():
+    """Compact exam-template IDs from 1 while preserving every dependent reference.
+
+    References are moved to temporary negative IDs first. This avoids collisions
+    when an old ID becomes another template's new ID (for example 2 -> 1 and 5 -> 2).
+    """
     with db() as c:
-        c.execute("PRAGMA foreign_keys=OFF;")
+        c.execute("PRAGMA foreign_keys=OFF")
         rows = c.execute("SELECT id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, profession FROM exam_templates ORDER BY id ASC").fetchall()
-        schedule_rows = [dict(r) for r in c.execute("SELECT * FROM exam_schedules ORDER BY id ASC").fetchall()]
+        schedule_rows = [dict(r) for r in c.execute("SELECT * FROM exam_schedules ORDER BY id ASC").fetchall()] if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='exam_schedules'").fetchone() else []
+        old_ids = [int(r['id']) for r in rows]
+        t_mapping = {old_id: new_id for new_id, old_id in enumerate(old_ids, start=1)}
+
+        # Move child references out of the real ID range before replacing parent rows.
+        for old_id in old_ids:
+            temp_id = -old_id
+            c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (temp_id, old_id))
+            c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (temp_id, old_id))
+            try:
+                c.execute("UPDATE action_plans SET template_id=? WHERE template_id=?", (temp_id, old_id))
+            except sqlite3.OperationalError:
+                pass
+
         c.execute("DELETE FROM exam_templates")
         c.execute("DELETE FROM sqlite_sequence WHERE name='exam_templates'")
-        t_mapping = {}
         for new_id, r in enumerate(rows, start=1):
-            old_id = r["id"]
-            c.execute("INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, profession) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"], r["scope_governorate"] or "", r["scope_authority"] or "", r["scope_center"] or "", r["scope_administration"] or "", r["scope_facility"] or "", r["profession"] or ""))
-            t_mapping[old_id] = new_id
+            c.execute("""INSERT INTO exam_templates(id, name, exam_type, num_questions, duration_minutes, pass_percent, categories_json, start_time, end_time, active, created_at, scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, profession)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (new_id, r["name"], r["exam_type"], r["num_questions"], r["duration_minutes"], r["pass_percent"], r["categories_json"], r["start_time"], r["end_time"], r["active"], r["created_at"], r["scope_governorate"] or "", r["scope_authority"] or "", r["scope_center"] or "", r["scope_administration"] or "", r["scope_facility"] or "", r["profession"] or ""))
+
         for old_id, new_id in t_mapping.items():
-            c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, old_id))
-            c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (new_id, old_id))
-        # Rebuild schedule references after template IDs are compacted.
-        c.execute("DELETE FROM exam_schedules")
-        for sched in schedule_rows:
-            mapped_template_id = t_mapping.get(sched["template_id"])
-            if mapped_template_id:
-                c.execute("""INSERT INTO exam_schedules(id,template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (sched["id"], mapped_template_id, sched["scope_governorate"], sched["scope_authority"], sched["scope_center"], sched["scope_administration"], sched["scope_facility"], sched["start_time"], sched["end_time"], sched["profession"], sched["active"], sched["created_at"], sched["updated_at"]))
-        c.execute("PRAGMA foreign_keys=ON;")
+            temp_id = -old_id
+            c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (new_id, temp_id))
+            c.execute("UPDATE trainees SET assigned_template_id=? WHERE assigned_template_id=?", (new_id, temp_id))
+            try:
+                c.execute("UPDATE action_plans SET template_id=? WHERE template_id=?", (new_id, temp_id))
+            except sqlite3.OperationalError:
+                pass
+
+        # Rebuild schedule references against the new template IDs, retaining stage.
+        if schedule_rows:
+            c.execute("DELETE FROM exam_schedules")
+            for sched in schedule_rows:
+                mapped_template_id = t_mapping.get(int(sched["template_id"]))
+                if mapped_template_id:
+                    cols = {r[1] for r in c.execute("PRAGMA table_info(exam_schedules)").fetchall()}
+                    if "stage" in cols:
+                        c.execute("""INSERT INTO exam_schedules(id,template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,stage,active,created_at,updated_at)
+                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (sched["id"], mapped_template_id, sched["scope_governorate"], sched["scope_authority"], sched["scope_center"], sched["scope_administration"], sched["scope_facility"], sched["start_time"], sched["end_time"], sched["profession"], sched.get("stage", ""), sched["active"], sched["created_at"], sched["updated_at"]))
+                    else:
+                        c.execute("""INSERT INTO exam_schedules(id,template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at)
+                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (sched["id"], mapped_template_id, sched["scope_governorate"], sched["scope_authority"], sched["scope_center"], sched["scope_administration"], sched["scope_facility"], sched["start_time"], sched["end_time"], sched["profession"], sched["active"], sched["created_at"], sched["updated_at"]))
+        # Empty template table means the next inserted model starts at ID 1.
+        c.execute("UPDATE sqlite_sequence SET seq=? WHERE name='exam_templates'", (len(rows),))
+        if rows and c.execute("SELECT changes()").fetchone()[0] == 0:
+            c.execute("INSERT INTO sqlite_sequence(name,seq) VALUES('exam_templates',?)", (len(rows),))
+        c.execute("PRAGMA foreign_keys=ON")
 
 def hash_password(password, salt=None):
     salt = salt or secrets.token_bytes(16)
@@ -692,7 +725,8 @@ def init_db():
                 trainee_profession TEXT NOT NULL DEFAULT '',
                 professions_list_json TEXT NOT NULL DEFAULT '[]',
                 cert_box_inset TEXT NOT NULL DEFAULT '13mm',
-                cert_hierarchy_json TEXT NOT NULL DEFAULT '{}'
+                cert_hierarchy_json TEXT NOT NULL DEFAULT '{}',
+                report_hierarchy_json TEXT NOT NULL DEFAULT '{}'
             );
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -717,6 +751,8 @@ def init_db():
         print_cols = {row[1] for row in c.execute("PRAGMA table_info(print_settings)").fetchall()}
         if "cert_hierarchy_json" not in print_cols:
             c.execute("ALTER TABLE print_settings ADD COLUMN cert_hierarchy_json TEXT NOT NULL DEFAULT '{}'")
+        if "report_hierarchy_json" not in print_cols:
+            c.execute("ALTER TABLE print_settings ADD COLUMN report_hierarchy_json TEXT NOT NULL DEFAULT '{}'")
 
         # ترحيل آمن لقاعدة بيانات الشهادات: إضافة حالة التحقق وتسجيل إصدار المخطط،
         # مع الاحتفاظ بأكواد الشهادات القديمة حتى لا تتعطل الشهادات المطبوعة سابقاً.
@@ -899,7 +935,7 @@ def get_print_settings():
         "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
     }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None, cert_facility_section=None, cert_hierarchy=None):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None, cert_facility_section=None, cert_hierarchy=None, report_hierarchy=None):
     with db() as c:
         old_cert = c.execute("SELECT cert_trainee_extra, cert_facility_extra, cert_facility_section FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
         if cert_trainee_extra is None:
@@ -913,9 +949,14 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
             cert_hierarchy = old_hierarchy["cert_hierarchy_json"] if old_hierarchy and "cert_hierarchy_json" in old_hierarchy.keys() else "{}"
         elif not isinstance(cert_hierarchy, str):
             cert_hierarchy = json.dumps(cert_hierarchy, ensure_ascii=False)
+        if report_hierarchy is None:
+            old_report_hierarchy = c.execute("SELECT report_hierarchy_json FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
+            report_hierarchy = old_report_hierarchy["report_hierarchy_json"] if old_report_hierarchy and "report_hierarchy_json" in old_report_hierarchy.keys() else "{}"
+        elif not isinstance(report_hierarchy, str):
+            report_hierarchy = json.dumps(report_hierarchy, ensure_ascii=False)
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset, cert_hierarchy_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}"))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset, cert_hierarchy_json, report_hierarchy_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}", report_hierarchy or "{}"))
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
 def get_hierarchical_data(include_hidden=False):
@@ -2915,8 +2956,23 @@ def admin_dashboard():
     elif selected_menu == "🖨 ضبط اعدادات الطباعة و الهوامش":
         st.subheader("🖨 ضبط إعدادات الطباعة للتقارير العامة (الهوامش تلقائية)")
         current_set = get_print_settings()
-        with st.form("print_settings_form", clear_on_submit=True):
-            header_text_val = st.text_area("نص ترويسة الجهة العامة (أعلى يمين التقارير):", value=current_set.get("header_text", "جمهورية مصر العربية"))
+        hierarchy_rows_for_reports = get_hierarchical_data()
+        def _report_hierarchy_label(item):
+            parts = [str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()]
+            return " — ".join(parts) if parts else "هيكل إداري غير محدد"
+        hierarchy_options_for_reports = {"استخدام نص الترويسة اليدوي (بدون تحديد)": {}}
+        for _hrow in hierarchy_rows_for_reports:
+            hierarchy_options_for_reports[_report_hierarchy_label(_hrow)] = {k: _hrow.get(k, "") or "" for k in ("governorate", "authority", "center", "administration", "facility_name")}
+        try:
+            saved_report_hierarchy = json.loads(current_set.get("report_hierarchy_json", "{}") or "{}")
+        except Exception:
+            saved_report_hierarchy = {}
+        saved_report_label = next((lab for lab, val in hierarchy_options_for_reports.items() if val == saved_report_hierarchy), "استخدام نص الترويسة اليدوي (بدون تحديد)")
+        with st.form("print_settings_form", clear_on_submit=False):
+            st.markdown("#### 🏢 اختيار الهيكل الإداري للترويسة:")
+            report_hierarchy_label = st.selectbox("اختر الجهة / الإدارة / المنشأة لتظهر تلقائيًا في ترويسة التقارير:", list(hierarchy_options_for_reports.keys()), index=list(hierarchy_options_for_reports.keys()).index(saved_report_label), help="عند اختيار مستوى إداري سيتم إنشاء الترويسة تلقائيًا وإظهار المنشأة المستهدفة إذا كانت محددة.")
+            report_hierarchy_val = hierarchy_options_for_reports[report_hierarchy_label]
+            header_text_val = st.text_area("نص الترويسة اليدوي (يُستخدم عند اختيار بدون تحديد فقط):", value=current_set.get("header_text", "جمهورية مصر العربية"), help="إذا اخترت جهة من القائمة أعلاه، فسيتم إنشاء الترويسة تلقائيًا بدلًا من هذا النص.")
             st.info("📐 تم ضبط هوامش الطباعة تلقائياً حسب مقاس A4، ولا تحتاج إلى تعديل يدوي.")
             line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
             st.markdown("#### 🖼 رفع الصور والشعارات لترويسة التقارير:")
@@ -2950,15 +3006,17 @@ def admin_dashboard():
                 current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
             
             if st.form_submit_button("💾 حفظ ضبط اعدادات الطباعة و الهوامش", use_container_width=True):
+                # حفظ الهيكل المختار مع إعدادات الطباعة، وتوليد ترويسة التقارير منه تلقائيًا.
+                effective_header_text = hierarchy_header_html(scope=report_hierarchy_val) if any(str(v or "").strip() for v in report_hierarchy_val.values()) else header_text_val
                 save_print_settings(
-                    header_text_val, "12mm", "auto", "8mm", "8mm", line_spacing_val,
+                    effective_header_text, "12mm", "auto", "8mm", "8mm", line_spacing_val,
                     current_logo1_val, current_logo2_val, current_logo3_val,
                     current_set.get("bg_base64", ""), current_set.get("frame_base64", ""),
                     current_set["default_cert_title"], current_set["default_cert_notes"],
                     current_set["trainee_prefix"], current_set["trainee_title"], current_set["trainee_profession"],
-                    current_set.get("professions_list", [])
+                    current_set.get("professions_list", []), cert_hierarchy=current_set.get("cert_hierarchy_json", "{}"), report_hierarchy=report_hierarchy_val
                 )
-                st.success("✅ تم حفظ ضبط اعدادات الطباعة و الهوامش بنجاح!")
+                st.success("✅ تم حفظ إعدادات الطباعة والترويسة الإدارية بنجاح!")
                 st.rerun()
 
     elif selected_menu == "🎨 إعدادات الشهادات المخصصة":
