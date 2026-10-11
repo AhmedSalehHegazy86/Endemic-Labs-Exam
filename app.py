@@ -691,7 +691,8 @@ def init_db():
                 trainee_title TEXT NOT NULL DEFAULT '',
                 trainee_profession TEXT NOT NULL DEFAULT '',
                 professions_list_json TEXT NOT NULL DEFAULT '[]',
-                cert_box_inset TEXT NOT NULL DEFAULT '13mm'
+                cert_box_inset TEXT NOT NULL DEFAULT '13mm',
+                cert_hierarchy_json TEXT NOT NULL DEFAULT '{}'
             );
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -712,6 +713,10 @@ def init_db():
                 updated_at TEXT NOT NULL
             );
         """)
+
+        print_cols = {row[1] for row in c.execute("PRAGMA table_info(print_settings)").fetchall()}
+        if "cert_hierarchy_json" not in print_cols:
+            c.execute("ALTER TABLE print_settings ADD COLUMN cert_hierarchy_json TEXT NOT NULL DEFAULT '{}'")
 
         # ترحيل آمن لقاعدة بيانات الشهادات: إضافة حالة التحقق وتسجيل إصدار المخطط،
         # مع الاحتفاظ بأكواد الشهادات القديمة حتى لا تتعطل الشهادات المطبوعة سابقاً.
@@ -894,7 +899,7 @@ def get_print_settings():
         "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
     }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None, cert_facility_section=None):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None, cert_facility_section=None, cert_hierarchy=None):
     with db() as c:
         old_cert = c.execute("SELECT cert_trainee_extra, cert_facility_extra, cert_facility_section FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
         if cert_trainee_extra is None:
@@ -903,9 +908,14 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
             cert_facility_extra = old_cert["cert_facility_extra"] if old_cert and "cert_facility_extra" in old_cert.keys() else ""
         if cert_facility_section is None:
             cert_facility_section = old_cert["cert_facility_section"] if old_cert and "cert_facility_section" in old_cert.keys() else ""
+        if cert_hierarchy is None:
+            old_hierarchy = c.execute("SELECT cert_hierarchy_json FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
+            cert_hierarchy = old_hierarchy["cert_hierarchy_json"] if old_hierarchy and "cert_hierarchy_json" in old_hierarchy.keys() else "{}"
+        elif not isinstance(cert_hierarchy, str):
+            cert_hierarchy = json.dumps(cert_hierarchy, ensure_ascii=False)
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset, cert_hierarchy_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}"))
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
 def get_hierarchical_data(include_hidden=False):
@@ -1643,7 +1653,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
 
     inner = f"""
 <div class="cert-header">
-  <div class="header-right">{hierarchy_header_html(facility_value=facility)}</div>
+  <div class="header-right">{hierarchy_header_html(scope=(json.loads(sett.get("cert_hierarchy_json", "{}") or "{}") if isinstance(sett.get("cert_hierarchy_json", "{}"), str) else (sett.get("cert_hierarchy_json") or {})), facility_value=facility)}</div>
   <div class="cert-logos">{render_logos_html()}</div>
 </div>
 <div class="cert-body">
@@ -1710,7 +1720,7 @@ def generate_facility_certificate_html(facility_name, session_ids, custom_title=
 
     inner = f"""
 <div class="cert-header">
-  <div class="header-right">{hierarchy_header_html(facility_value=facility_name)}</div>
+  <div class="header-right">{hierarchy_header_html(scope=(json.loads(sett.get("cert_hierarchy_json", "{}") or "{}") if isinstance(sett.get("cert_hierarchy_json", "{}"), str) else (sett.get("cert_hierarchy_json") or {})), facility_value=facility_name)}</div>
   <div class="cert-logos">{render_logos_html()}</div>
 </div>
 <div class="cert-body">
@@ -2964,7 +2974,22 @@ def admin_dashboard():
                 professions_options_list = current_set.get("professions_list", [
                     "أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"
                 ])
-                with st.form("dedicated_certificate_settings_form", clear_on_submit=True):
+                hierarchy_rows_for_cert = get_hierarchical_data()
+                def _cert_hierarchy_label(item):
+                    parts = [str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()]
+                    return " — ".join(parts) if parts else "هيكل إداري غير محدد"
+                hierarchy_options_for_cert = {"كل الهيكل الإداري (بدون تحديد)": {}}
+                for _hrow in hierarchy_rows_for_cert:
+                    hierarchy_options_for_cert[_cert_hierarchy_label(_hrow)] = {k: _hrow.get(k, "") or "" for k in ("governorate", "authority", "center", "administration", "facility_name")}
+                try:
+                    saved_cert_hierarchy = json.loads(current_set.get("cert_hierarchy_json", "{}") or "{}")
+                except Exception:
+                    saved_cert_hierarchy = {}
+                saved_cert_label = next((lab for lab, val in hierarchy_options_for_cert.items() if val == saved_cert_hierarchy), "كل الهيكل الإداري (بدون تحديد)")
+                with st.form("dedicated_certificate_settings_form", clear_on_submit=False):
+                    st.markdown("#### 🏢 الهيكل الإداري الذي يظهر في ترويسة الشهادة:")
+                    cert_hierarchy_label = st.selectbox("اختيار الجهة/الإدارة/المنشأة للترويسة:", list(hierarchy_options_for_cert.keys()), index=list(hierarchy_options_for_cert.keys()).index(saved_cert_label), help="اختر المستوى الإداري؛ سيظهر تلقائيًا في ترويسة الشهادات عند الطباعة.")
+                    cert_hierarchy_val = hierarchy_options_for_cert[cert_hierarchy_label]
                     st.markdown("#### 🏷️ إعدادات الألقاب والوظيفة في الشهادة:")
                     col_p1, col_p2, col_p3 = st.columns(3)
                     with col_p1:
@@ -3051,7 +3076,8 @@ def admin_dashboard():
                             current_bg_val, current_frame_val,
                             current_set["default_cert_title"], current_set["default_cert_notes"],
                             trainee_prefix_val, trainee_title_val, trainee_profession_val, professions_options_list,
-                            cert_box_inset_css, cert_trainee_extra_val, cert_facility_extra_val, cert_facility_section_val
+                            cert_box_inset_css, cert_trainee_extra_val, cert_facility_extra_val, cert_facility_section_val,
+                            cert_hierarchy_val
                         )
                         st.success("✅ تم تحديث وحفظ ضبط الشهادات المخصصة بنجاح!")
                         st.rerun()
