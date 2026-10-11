@@ -89,17 +89,17 @@ html, body, [class*="css"] {
     position: relative !important;
     isolation: isolate !important;
     min-height: 100vh !important;
-    /* لوحة موحدة: عاجي هادئ + أخضر زمردي متوافق مع الأيقونات */
-    background-color: #f4f8f3 !important;
+    /* لوحة زمردية حيوية: تدرج واضح ومتوازن مع الأيقونات الخضراء */
+    background-color: #e7f1e9 !important;
     background-image:
-        radial-gradient(ellipse at 12% 16%, rgba(255, 244, 205, .62) 0%, rgba(255, 244, 205, 0) 42%),
-        radial-gradient(ellipse at 88% 18%, rgba(196, 232, 218, .58) 0%, rgba(196, 232, 218, 0) 40%),
-        radial-gradient(ellipse at 78% 84%, rgba(169, 218, 196, .48) 0%, rgba(169, 218, 196, 0) 44%),
-        radial-gradient(ellipse at 16% 86%, rgba(238, 226, 192, .38) 0%, rgba(238, 226, 192, 0) 40%),
-        linear-gradient(125deg, #fffdf6 0%, #f3f7ef 32%, #e5f2e9 66%, #d8eee3 100%) !important;
+        radial-gradient(ellipse at 8% 12%, rgba(20, 132, 91, .20) 0%, rgba(20, 132, 91, 0) 43%),
+        radial-gradient(ellipse at 92% 15%, rgba(13, 148, 136, .19) 0%, rgba(13, 148, 136, 0) 42%),
+        radial-gradient(ellipse at 82% 88%, rgba(52, 168, 116, .23) 0%, rgba(52, 168, 116, 0) 45%),
+        radial-gradient(ellipse at 12% 86%, rgba(213, 170, 72, .15) 0%, rgba(213, 170, 72, 0) 38%),
+        linear-gradient(125deg, #f8fbf7 0%, #e3f0e6 28%, #cde7d8 62%, #b8dfd0 100%) !important;
     background-attachment: fixed !important;
-    background-size: 160% 160% !important;
-    animation: livelyGradientFlow 30s ease-in-out infinite alternate !important;
+    background-size: 180% 180% !important;
+    animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
 }
 /* موجات لونية متدرجة موحدة لكل المستخدمين والأجهزة */
 .stApp::before {
@@ -109,11 +109,11 @@ html, body, [class*="css"] {
     z-index: -1;
     pointer-events: none;
     background:
-        radial-gradient(ellipse at 30% 38%, rgba(232, 218, 169, .18) 0%, transparent 36%),
-        radial-gradient(ellipse at 70% 58%, rgba(110, 177, 148, .16) 0%, transparent 36%),
-        radial-gradient(ellipse at 48% 76%, rgba(42, 142, 104, .12) 0%, transparent 42%);
-    background-size: 180% 180%;
-    filter: blur(30px) saturate(1.02);
+        radial-gradient(ellipse at 28% 34%, rgba(16, 132, 91, .18) 0%, transparent 38%),
+        radial-gradient(ellipse at 76% 52%, rgba(13, 148, 136, .16) 0%, transparent 38%),
+        radial-gradient(ellipse at 48% 78%, rgba(52, 168, 116, .17) 0%, transparent 43%);
+    background-size: 190% 190%;
+    filter: blur(24px) saturate(1.18);
     animation: livelyWaveFlow 36s ease-in-out infinite alternate;
 }
 @keyframes livelyGradientFlow {
