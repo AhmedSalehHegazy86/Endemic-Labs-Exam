@@ -13,7 +13,6 @@ from PIL import Image
 # ============================================================
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بالأمراض المتوطنة 🪱🔬🐌💊 - System V1.0",
-    page_icon="🪱",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -41,7 +40,7 @@ STATUS_AR = {
 os.makedirs(BACKUP_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 
-DEFAULT_LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
+DEFAULT_LOGO = ""  # لا يوجد شعار افتراضي
 
 # ============================================================
 # 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone - Live Sync)
@@ -87,8 +86,44 @@ html, body, [class*="css"] {
     -webkit-touch-callout: none !important;
 }
 .stApp {
-    background: linear-gradient(135deg, #f0fdf4 0%, #ccfbcc 40%, #a7f3d0 70%, #d1fae5 100%) !important;
+    position: relative !important;
+    isolation: isolate !important;
+    min-height: 100vh !important;
+    background-color: #f4ffd8 !important;
+    background-image:
+        radial-gradient(ellipse at 12% 18%, rgba(255, 229, 92, .76) 0%, rgba(255, 229, 92, 0) 39%),
+        radial-gradient(ellipse at 88% 16%, rgba(255, 151, 48, .60) 0%, rgba(255, 151, 48, 0) 36%),
+        radial-gradient(ellipse at 78% 82%, rgba(64, 210, 105, .66) 0%, rgba(64, 210, 105, 0) 42%),
+        radial-gradient(ellipse at 18% 88%, rgba(255, 177, 56, .42) 0%, rgba(255, 177, 56, 0) 38%),
+        linear-gradient(125deg, #fff8b8 0%, #ffe0a3 27%, #d9f7a4 54%, #9de9a9 76%, #c9f4b6 100%) !important;
     background-attachment: fixed !important;
+    background-size: 160% 160% !important;
+    animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
+}
+/* موجات لونية متدرجة موحدة لكل المستخدمين والأجهزة */
+.stApp::before {
+    content: "";
+    position: fixed;
+    inset: -12%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 30% 38%, rgba(255, 196, 62, .22) 0%, transparent 36%),
+        radial-gradient(ellipse at 70% 58%, rgba(255, 132, 36, .20) 0%, transparent 34%),
+        radial-gradient(ellipse at 48% 76%, rgba(35, 190, 92, .23) 0%, transparent 40%);
+    background-size: 180% 180%;
+    filter: blur(28px) saturate(1.18);
+    animation: livelyWaveFlow 32s ease-in-out infinite alternate;
+}
+@keyframes livelyGradientFlow {
+    0% { background-position: 0% 20%; }
+    50% { background-position: 100% 70%; }
+    100% { background-position: 20% 100%; }
+}
+@keyframes livelyWaveFlow {
+    0% { transform: translate3d(-2%, -1%, 0) scale(1); }
+    50% { transform: translate3d(2%, 1%, 0) scale(1.06); }
+    100% { transform: translate3d(-1%, 2%, 0) scale(1.02); }
 }
 body::after {
     content: "";
@@ -99,7 +134,14 @@ body::after {
     height: 100%;
     pointer-events: none;
     z-index: 999998;
-    background: radial-gradient(circle, rgba(255,255,255,0) 70%, rgba(5,150,105,0.03) 100%);
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0) 56%, rgba(80,80,20,0.045) 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+    .stApp, .stApp::before { animation: none !important; }
+}
+@media (max-width: 768px) {
+    .stApp { background-attachment: scroll !important; background-size: 190% 190% !important; }
+    .stApp::before { filter: blur(18px) saturate(1.1); }
 }
 .stApp, .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] {
     font-size: 16px;
