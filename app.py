@@ -90,13 +90,13 @@ html, body, [class*="css"] {
     isolation: isolate !important;
     min-height: 100vh !important;
     /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #087e9b !important;
+    background-color: #138fa5 !important;
     background-image:
-        radial-gradient(ellipse at 8% 12%, rgba(0, 210, 220, .48) 0%, rgba(0, 210, 220, 0) 44%),
-        radial-gradient(ellipse at 92% 15%, rgba(0, 166, 190, .46) 0%, rgba(0, 166, 190, 0) 43%),
-        radial-gradient(ellipse at 82% 88%, rgba(20, 184, 166, .42) 0%, rgba(20, 184, 166, 0) 46%),
-        radial-gradient(ellipse at 12% 86%, rgba(56, 189, 248, .42) 0%, rgba(56, 189, 248, 0) 40%),
-        linear-gradient(125deg, #087e9b 0%, #0798ad 32%, #0bb6b2 67%, #168fb2 100%) !important;
+        radial-gradient(ellipse at 8% 12%, rgba(0, 210, 220, .30) 0%, rgba(0, 210, 220, 0) 44%),
+        radial-gradient(ellipse at 92% 15%, rgba(0, 166, 190, .28) 0%, rgba(0, 166, 190, 0) 43%),
+        radial-gradient(ellipse at 82% 88%, rgba(20, 184, 166, .26) 0%, rgba(20, 184, 166, 0) 46%),
+        radial-gradient(ellipse at 12% 86%, rgba(56, 189, 248, .28) 0%, rgba(56, 189, 248, 0) 40%),
+        linear-gradient(125deg, #138fa5 0%, #159eb0 32%, #22b7b5 67%, #279bb8 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -123,6 +123,30 @@ html, body, [class*="css"] {
     filter: blur(16px) saturate(1.52);
     opacity: .96;
     animation: livelyWaveFlow 27s ease-in-out infinite alternate;
+}
+/* انعكاسات سطح البحر: خطوط موجية واضحة وناعمة تتحرك باستمرار */
+.stApp::after {
+    content: "";
+    position: fixed;
+    inset: -25% -15%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        repeating-radial-gradient(ellipse at 30% 45%,
+            transparent 0%, transparent 5.5%,
+            rgba(235,255,255,.15) 5.8%, rgba(235,255,255,.045) 6.2%,
+            transparent 7.1%, transparent 12%),
+        linear-gradient(112deg, transparent 35%, rgba(226,255,255,.13) 43%, rgba(255,255,255,.035) 48%, transparent 56%);
+    background-size: 135% 125%, 190% 100%;
+    mix-blend-mode: screen;
+    opacity: .58;
+    filter: blur(2px);
+    animation: seaSurfaceShimmer 16s ease-in-out infinite alternate;
+}
+@keyframes seaSurfaceShimmer {
+    0% { transform: translate3d(-3%, -1%, 0) rotate(-2deg); background-position: 0% 20%, 0% 50%; }
+    50% { transform: translate3d(2%, 1%, 0) rotate(1deg); background-position: 45% 60%, 70% 50%; }
+    100% { transform: translate3d(-1%, 2%, 0) rotate(-1deg); background-position: 100% 35%, 100% 50%; }
 }
 @keyframes livelyGradientFlow {
     0% { background-position: 0% 20%; }
@@ -2439,7 +2463,7 @@ def header():
     header_html = f"""
     <style>
     @keyframes electricMultiGlow {{
-        0% {{ box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2); border-color: #34d399; }}
+        0% {{ box-shadow: 0 0 18px rgba(56, 189, 248, 0.42), 0 0 34px rgba(14, 165, 233, 0.25), inset 0 0 18px rgba(255, 255, 255, 0.20); border-color: #7dd3fc; }}
         14.28% {{ box-shadow: 0 0 20px rgba(20, 184, 166, 0.5), 0 0 35px rgba(13, 148, 136, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #2dd4bf; }}
         28.56% {{ box-shadow: 0 0 20px rgba(14, 165, 233, 0.5), 0 0 35px rgba(2, 132, 199, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #38bdf8; }}
         42.84% {{ box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 35px rgba(109, 40, 217, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #a78bfa; }}
@@ -2449,8 +2473,10 @@ def header():
         100% {{ box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2); border-color: #34d399; }}
     }}
     .electric-box {{
-        background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
+        background: linear-gradient(135deg, rgba(10, 91, 128, .96) 0%, rgba(11, 126, 157, .94) 48%, rgba(16, 153, 169, .94) 100%);
         color: #ffffff;
+        backdrop-filter: blur(12px) saturate(1.25);
+        -webkit-backdrop-filter: blur(12px) saturate(1.25);
         width: 100%;
         max-width: 100%;
         padding: 14px 40px;
