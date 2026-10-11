@@ -311,6 +311,144 @@ body::after {
         .stApp::before { animation: none !important; }
     }
     
+
+/* === Portal visual match: daytime sky, light drifting clouds, glossy aqua controls === */
+.stApp {
+    background-color: #8bd4f5 !important;
+    background-image:
+        linear-gradient(180deg, rgba(93,190,244,.82) 0%, rgba(139,212,245,.90) 48%, rgba(181,235,252,.96) 100%) !important;
+    background-attachment: fixed !important;
+    background-size: 100% 100% !important;
+    animation: none !important;
+}
+.stApp::before {
+    content: "";
+    position: fixed;
+    inset: -7%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 18% 7% at 12% 24%, rgba(255,255,255,.58) 0%, rgba(255,255,255,.30) 42%, transparent 75%),
+        radial-gradient(ellipse 14% 6% at 20% 22%, rgba(255,255,255,.48) 0%, transparent 74%),
+        radial-gradient(ellipse 21% 8% at 78% 36%, rgba(255,255,255,.42) 0%, rgba(255,255,255,.20) 42%, transparent 76%),
+        radial-gradient(ellipse 15% 6% at 88% 34%, rgba(255,255,255,.36) 0%, transparent 74%),
+        radial-gradient(ellipse 18% 7% at 35% 68%, rgba(255,255,255,.27) 0%, transparent 75%),
+        radial-gradient(ellipse 19% 7% at 66% 82%, rgba(255,255,255,.30) 0%, transparent 74%);
+    background-repeat: no-repeat;
+    filter: blur(8px);
+    opacity: .58;
+    animation: skyCloudDrift 52s ease-in-out infinite alternate;
+    will-change: transform;
+}
+.stApp::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(255,255,255,.10) 100%);
+    opacity: .55;
+}
+@keyframes skyCloudDrift {
+    0%   { transform: translate3d(-1.2%, -.3%, 0) scale(1); }
+    50%  { transform: translate3d(1.0%, .5%, 0) scale(1.015); }
+    100% { transform: translate3d(-.2%, .8%, 0) scale(1.01); }
+}
+/* Glossy cyan buttons, matching the welcome panel; emoji/icon colors are not filtered */
+.stApp div.stButton > button,
+.stApp div[data-testid="stFormSubmitButton"] > button {
+    background-color: #087f9d !important;
+    background-image:
+        linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,.05) 24%, transparent 42%),
+        linear-gradient(112deg, #087f9d 0%, #0799b7 52%, #087fa6 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(115,239,255,.88) !important;
+    border-radius: 15px !important;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.45), inset 0 -3px 7px rgba(0,55,100,.20), 0 4px 12px rgba(0,95,140,.16) !important;
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+.stApp div.stButton > button:hover,
+.stApp div[data-testid="stFormSubmitButton"] > button:hover {
+    filter: brightness(1.04) !important;
+    box-shadow: inset 0 1px 3px rgba(255,255,255,.52), inset 0 -3px 7px rgba(0,55,100,.18), 0 6px 16px rgba(0,95,140,.22) !important;
+    border-color: rgba(180,250,255,.98) !important;
+}
+.stApp div.stButton > button:active,
+.stApp div[data-testid="stFormSubmitButton"] > button:active {
+    transform: translateY(1px);
+}
+/* Keep the administration-entry control lighter/outlined, as in the agreed preview */
+.stApp div.stButton > button[kind="secondary"] {
+    background-image: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06)) !important;
+    background-color: rgba(180,235,250,.55) !important;
+    color: #173b50 !important;
+    border: 1px solid rgba(60,155,190,.45) !important;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.55) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .stApp::before { animation: none !important; }
+}
+@media (max-width: 768px) {
+    .stApp::before { filter: blur(6px); opacity: .54; }
+}
+
+
+/* Global daytime sky theme for every app page, tab, form and dashboard */
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stHeader"] {
+    background-color: #8bd4f5 !important;
+}
+[data-testid="stAppViewContainer"] {
+    background-image: linear-gradient(180deg, #70c4f2 0%, #91d9f7 52%, #b5eafb 100%) !important;
+    background-attachment: fixed !important;
+}
+[data-testid="stMain"] > div, [data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"] {
+    background-color: transparent;
+}
+[data-testid="stAppViewContainer"]::before {
+    content: "";
+    position: fixed;
+    inset: -7%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 18% 7% at 12% 24%, rgba(255,255,255,.52) 0%, rgba(255,255,255,.25) 42%, transparent 75%),
+      radial-gradient(ellipse 14% 6% at 20% 22%, rgba(255,255,255,.44) 0%, transparent 74%),
+      radial-gradient(ellipse 21% 8% at 78% 36%, rgba(255,255,255,.38) 0%, rgba(255,255,255,.18) 42%, transparent 76%),
+      radial-gradient(ellipse 15% 6% at 88% 34%, rgba(255,255,255,.32) 0%, transparent 74%),
+      radial-gradient(ellipse 18% 7% at 35% 68%, rgba(255,255,255,.24) 0%, transparent 75%),
+      radial-gradient(ellipse 19% 7% at 66% 82%, rgba(255,255,255,.26) 0%, transparent 74%);
+    background-repeat: no-repeat;
+    filter: blur(8px);
+    opacity: .55;
+    animation: skyCloudDriftAllPages 52s ease-in-out infinite alternate;
+    will-change: transform;
+}
+@keyframes skyCloudDriftAllPages {
+    0% { transform: translate3d(-1.1%, -.3%, 0) scale(1); }
+    50% { transform: translate3d(1%, .5%, 0) scale(1.015); }
+    100% { transform: translate3d(-.2%, .8%, 0) scale(1.01); }
+}
+.stApp div.stButton > button, .stApp div[data-testid="stFormSubmitButton"] > button {
+    background-color: #087f9d !important;
+    background-image: linear-gradient(180deg, rgba(255,255,255,.24) 0%, rgba(255,255,255,.04) 26%, transparent 44%), linear-gradient(112deg, #087f9d 0%, #0799b7 52%, #087fa6 100%) !important;
+    color: #fff !important;
+    border: 1px solid rgba(115,239,255,.82) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.4), inset 0 -3px 7px rgba(0,55,100,.16), 0 4px 12px rgba(0,95,140,.12) !important;
+}
+.stApp div.stButton > button:hover, .stApp div[data-testid="stFormSubmitButton"] > button:hover {
+    filter: brightness(1.04) !important;
+}
+/* Preserve original colors of emoji and image/SVG icons */
+.stApp [data-testid="stMarkdownContainer"] img, .stApp [data-testid="stMarkdownContainer"] svg,
+.stApp button img, .stApp button svg { filter: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    [data-testid="stAppViewContainer"]::before { animation: none !important; }
+}
+@media (max-width: 768px) {
+    [data-testid="stAppViewContainer"]::before { filter: blur(6px); opacity: .5; }
+}
+
 </style>
 <script>
 document.addEventListener("contextmenu", function(e) {
