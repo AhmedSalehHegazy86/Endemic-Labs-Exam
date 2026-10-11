@@ -90,13 +90,13 @@ html, body, [class*="css"] {
     isolation: isolate !important;
     min-height: 100vh !important;
     /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #138fa5 !important;
+    background-color: #3b9ead !important;
     background-image:
-        radial-gradient(ellipse at 8% 12%, rgba(0, 210, 220, .30) 0%, rgba(0, 210, 220, 0) 44%),
-        radial-gradient(ellipse at 92% 15%, rgba(0, 166, 190, .28) 0%, rgba(0, 166, 190, 0) 43%),
-        radial-gradient(ellipse at 82% 88%, rgba(20, 184, 166, .26) 0%, rgba(20, 184, 166, 0) 46%),
-        radial-gradient(ellipse at 12% 86%, rgba(56, 189, 248, .28) 0%, rgba(56, 189, 248, 0) 40%),
-        linear-gradient(125deg, #138fa5 0%, #159eb0 32%, #22b7b5 67%, #279bb8 100%) !important;
+        radial-gradient(ellipse at 8% 12%, rgba(45, 190, 205, .22) 0%, rgba(0, 210, 220, 0) 44%),
+        radial-gradient(ellipse at 92% 15%, rgba(30, 150, 180, .20) 0%, rgba(0, 166, 190, 0) 43%),
+        radial-gradient(ellipse at 82% 88%, rgba(40, 170, 165, .19) 0%, rgba(20, 184, 166, 0) 46%),
+        radial-gradient(ellipse at 12% 86%, rgba(65, 165, 215, .20) 0%, rgba(56, 189, 248, 0) 40%),
+        linear-gradient(125deg, #3b9ead 0%, #43a9b5 32%, #49b9b3 67%, #4b9fba 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -110,18 +110,18 @@ html, body, [class*="css"] {
     pointer-events: none;
     background:
         /* تداخلات واسعة مثل حركة البحر */
-        radial-gradient(ellipse 72% 30% at 12% 24%, rgba(72, 244, 238, .34) 0%, rgba(72, 244, 238, .12) 38%, transparent 72%),
-        radial-gradient(ellipse 68% 34% at 88% 38%, rgba(0, 75, 145, .30) 0%, rgba(0, 75, 145, .10) 42%, transparent 74%),
-        radial-gradient(ellipse 80% 32% at 45% 72%, rgba(36, 230, 204, .30) 0%, rgba(36, 230, 204, .09) 44%, transparent 76%),
-        radial-gradient(ellipse at 28% 34%, rgba(0, 210, 220, .30) 0%, transparent 38%),
-        radial-gradient(ellipse at 76% 52%, rgba(20, 184, 166, .30) 0%, transparent 38%),
-        radial-gradient(ellipse at 48% 78%, rgba(56, 189, 248, .27) 0%, transparent 43%),
+        radial-gradient(ellipse 72% 30% at 12% 24%, rgba(90, 220, 220, .24) 0%, rgba(90, 220, 220, .08) 38%, transparent 72%),
+        radial-gradient(ellipse 68% 34% at 88% 38%, rgba(25, 95, 150, .20) 0%, rgba(25, 95, 150, .07) 42%, transparent 74%),
+        radial-gradient(ellipse 80% 32% at 45% 72%, rgba(60, 205, 190, .22) 0%, rgba(60, 205, 190, .07) 44%, transparent 76%),
+        radial-gradient(ellipse at 28% 34%, rgba(45, 190, 205, .22) 0%, transparent 38%),
+        radial-gradient(ellipse at 76% 52%, rgba(40, 170, 165, .20) 0%, transparent 38%),
+        radial-gradient(ellipse at 48% 78%, rgba(65, 165, 215, .19) 0%, transparent 43%),
         /* خطوط انعكاس لامعة رفيعة فوق الموج */
         repeating-linear-gradient(166deg, transparent 0%, transparent 7.5%, rgba(225, 255, 255, .075) 8%, rgba(225, 255, 255, .02) 8.25%, transparent 9.2%, transparent 17%);
     background-size: 165% 165%, 180% 180%, 175% 175%, 190% 190%, 190% 190%, 190% 190%, 220% 220%;
     background-position: 0% 15%, 100% 35%, 45% 100%, center, center, center, 0% 0%;
-    filter: blur(16px) saturate(1.52);
-    opacity: .96;
+    filter: blur(18px) saturate(1.22);
+    opacity: .82;
     animation: livelyWaveFlow 27s ease-in-out infinite alternate;
 }
 /* انعكاسات سطح البحر: خطوط موجية واضحة وناعمة تتحرك باستمرار */
@@ -134,12 +134,12 @@ html, body, [class*="css"] {
     background:
         repeating-radial-gradient(ellipse at 30% 45%,
             transparent 0%, transparent 5.5%,
-            rgba(235,255,255,.15) 5.8%, rgba(235,255,255,.045) 6.2%,
+            rgba(235,255,255,.22) 5.8%, rgba(235,255,255,.07) 6.2%,
             transparent 7.1%, transparent 12%),
-        linear-gradient(112deg, transparent 35%, rgba(226,255,255,.13) 43%, rgba(255,255,255,.035) 48%, transparent 56%);
+        linear-gradient(112deg, transparent 35%, rgba(226,255,255,.19) 43%, rgba(255,255,255,.06) 48%, transparent 56%);
     background-size: 135% 125%, 190% 100%;
     mix-blend-mode: screen;
-    opacity: .58;
+    opacity: .68;
     filter: blur(2px);
     animation: seaSurfaceShimmer 16s ease-in-out infinite alternate;
 }
@@ -175,7 +175,7 @@ body::after {
 }
 @media (max-width: 768px) {
     .stApp { background-attachment: scroll !important; background-size: 190% 190% !important; }
-    .stApp::before { filter: blur(13px) saturate(1.42); opacity: .92; }
+    .stApp::before { filter: blur(15px) saturate(1.18); opacity: .84; }
 }
 .stApp, .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] {
     font-size: 16px;
@@ -204,7 +204,7 @@ body::after {
     border-radius: 10px;
     margin-bottom: 18px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    border-right: 6px solid #0798ad !important;
+    border-right: 6px solid #3d9eaf !important;
     width: 100% !important;
 }
 .metric {
@@ -212,13 +212,13 @@ body::after {
     padding: 16px;
     border-radius: 10px;
     text-align: center;
-    border-top: 4px solid #0798ad !important;
+    border-top: 4px solid #3d9eaf !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .metric .v {
     font-size: 24px;
     font-weight: 800;
-    color: #087e9b !important;
+    color: #347f91 !important;
 }
 .metric .l {
     color: #4b5563 !important;
@@ -229,7 +229,7 @@ body::after {
     display: none !important;
 }
 .stButton>button {
-    background-color: #087e9b !important;
+    background-color: #347f91 !important;
     color: #ffffff !important;
     border-radius: 8px !important;
     font-weight: 800 !important;
@@ -240,17 +240,17 @@ body::after {
     transition: all 0.2s ease;
 }
 .stButton>button:hover {
-    background-color: #087e9b !important;
+    background-color: #347f91 !important;
     color: #ffffff !important;
 }
 /* توحيد الأيقونات والتركيز مع لوحة الأزرق والنيلي */
     .stApp [data-testid="stMarkdownContainer"] svg,
-    .stApp [data-testid="stWidgetLabel"] svg { color: #087e9b; }
+    .stApp [data-testid="stWidgetLabel"] svg { color: #397f91 !important; opacity: .88; }
     .stApp button:focus-visible, .stApp input:focus, .stApp textarea:focus, .stApp select:focus {
-        outline: 2px solid #0bb6b2 !important;
+        outline: 2px solid #54b9bd !important;
         outline-offset: 2px !important;
-        border-color: #0bb6b2 !important;
-        box-shadow: 0 0 0 3px rgba(11,182,178,.28) !important;
+        border-color: #54b9bd !important;
+        box-shadow: 0 0 0 3px rgba(84,185,189,.24) !important;
     }
     input, select, textarea {
     background-color: #ffffff !important;
@@ -263,7 +263,7 @@ body::after {
     bottom: 0;
     right: 0;
     left: 0;
-    background: linear-gradient(110deg, #087e9b 0%, #0798ad 52%, #0bb6b2 100%);
+    background: linear-gradient(110deg, #347f91 0%, #3d9eaf 52%, #49b4b1 100%);
     color: #ffffff;
     text-align: center;
     padding: 8px;
@@ -272,7 +272,7 @@ body::after {
     letter-spacing: 0.5px;
     z-index: 99999;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    border-top: 2px solid #67e8f9;
+    border-top: 2px solid #8ad7dc;
 }
 </style>
 <script>
@@ -2302,7 +2302,7 @@ def render_print_button_only(html_content, label_prefix=""):
                 right: 0 !important;
                 width: 100% !important;
                 background: #ffffff !important;
-                border-top: 2px solid #67e8f9;
+                border-top: 2px solid #8ad7dc;
                 padding: 4px 4px !important;
                 font-family: 'Cairo', Tahoma, sans-serif;
                 font-size: 10pt;
@@ -2360,7 +2360,7 @@ def render_print_button_only(html_content, label_prefix=""):
         .print-footer-dynamic {{
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 2px solid #67e8f9;
+            border-top: 2px solid #8ad7dc;
             margin-top: 6mm;
             padding: 6px 4px;
             font-family: 'Cairo', Tahoma, sans-serif;
