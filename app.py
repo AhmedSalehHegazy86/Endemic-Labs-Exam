@@ -393,114 +393,99 @@ body::after {
 }
 
 
-/* Global daytime sky theme for every app page, tab, form and dashboard */
-.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stHeader"] {
-    background-color: #8bd4f5 !important;
+
+/* FINAL AGREED DESIGN: photographic daytime sky + glossy aqua waves */
+html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    background: #8bd4f5 !important;
 }
-[data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(180deg, #70c4f2 0%, #91d9f7 52%, #b5eafb 100%) !important;
+.stApp, [data-testid="stAppViewContainer"] {
+    background-image:
+      linear-gradient(180deg, rgba(83,178,238,.20) 0%, rgba(139,212,245,.10) 50%, rgba(190,239,252,.25) 100%),
+      url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1920&q=85") !important;
+    background-size: cover !important;
+    background-position: center center !important;
     background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
 }
-[data-testid="stMain"] > div, [data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"] {
-    background-color: transparent;
+/* Keep content above the background layer */
+[data-testid="stAppViewContainer"] > .main,
+[data-testid="stMain"],
+[data-testid="stMain"] > div {
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
 }
+/* Gentle moving cloud haze over the sky photo */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
-    inset: -7%;
+    inset: -5%;
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 18% 7% at 12% 24%, rgba(255,255,255,.52) 0%, rgba(255,255,255,.25) 42%, transparent 75%),
-      radial-gradient(ellipse 14% 6% at 20% 22%, rgba(255,255,255,.44) 0%, transparent 74%),
-      radial-gradient(ellipse 21% 8% at 78% 36%, rgba(255,255,255,.38) 0%, rgba(255,255,255,.18) 42%, transparent 76%),
-      radial-gradient(ellipse 15% 6% at 88% 34%, rgba(255,255,255,.32) 0%, transparent 74%),
-      radial-gradient(ellipse 18% 7% at 35% 68%, rgba(255,255,255,.24) 0%, transparent 75%),
-      radial-gradient(ellipse 19% 7% at 66% 82%, rgba(255,255,255,.26) 0%, transparent 74%);
-    background-repeat: no-repeat;
-    filter: blur(8px);
-    opacity: .55;
-    animation: skyCloudDriftAllPages 52s ease-in-out infinite alternate;
-    will-change: transform;
+      radial-gradient(ellipse 24% 11% at 12% 20%, rgba(255,255,255,.24) 0%, rgba(255,255,255,.12) 42%, transparent 76%),
+      radial-gradient(ellipse 20% 9% at 25% 18%, rgba(255,255,255,.19) 0%, transparent 74%),
+      radial-gradient(ellipse 27% 12% at 78% 33%, rgba(255,255,255,.22) 0%, transparent 76%),
+      radial-gradient(ellipse 22% 10% at 88% 31%, rgba(255,255,255,.16) 0%, transparent 74%),
+      radial-gradient(ellipse 24% 11% at 36% 68%, rgba(255,255,255,.14) 0%, transparent 75%);
+    filter: blur(9px);
+    opacity: .52;
+    animation: agreedCloudDrift 55s ease-in-out infinite alternate;
 }
-@keyframes skyCloudDriftAllPages {
-    0% { transform: translate3d(-1.1%, -.3%, 0) scale(1); }
-    50% { transform: translate3d(1%, .5%, 0) scale(1.015); }
-    100% { transform: translate3d(-.2%, .8%, 0) scale(1.01); }
+@keyframes agreedCloudDrift {
+    0% { transform: translate3d(-1.2%, -.2%, 0); }
+    50% { transform: translate3d(.7%, .4%, 0); }
+    100% { transform: translate3d(1.1%, -.3%, 0); }
 }
-.stApp div.stButton > button, .stApp div[data-testid="stFormSubmitButton"] > button {
-    background-color: #087f9d !important;
-    background-image: linear-gradient(180deg, rgba(255,255,255,.24) 0%, rgba(255,255,255,.04) 26%, transparent 44%), linear-gradient(112deg, #087f9d 0%, #0799b7 52%, #087fa6 100%) !important;
-    color: #fff !important;
-    border: 1px solid rgba(115,239,255,.82) !important;
-    border-radius: 14px !important;
-    box-shadow: inset 0 1px 2px rgba(255,255,255,.4), inset 0 -3px 7px rgba(0,55,100,.16), 0 4px 12px rgba(0,95,140,.12) !important;
+/* Glossy liquid-blue welcome panel; leave emoji/icon colors alone */
+div[data-testid="stVerticalBlock"] .sky-welcome-panel,
+.sky-welcome-panel {
+    background:
+      radial-gradient(ellipse at 8% 8%, rgba(255,255,255,.62) 0%, transparent 27%),
+      linear-gradient(112deg, #08a9d1 0%, #087ca9 34%, #069ec2 68%, #0876a2 100%) !important;
+    border: 2px solid #72f2ff !important;
+    border-radius: 26px !important;
+    box-shadow: inset 0 2px 5px rgba(255,255,255,.78), inset 0 -8px 16px rgba(0,58,100,.22), 0 0 0 3px rgba(157,246,255,.62), 0 10px 28px rgba(0,85,130,.20) !important;
 }
-.stApp div.stButton > button:hover, .stApp div[data-testid="stFormSubmitButton"] > button:hover {
-    filter: brightness(1.04) !important;
-}
-/* Preserve original colors of emoji and image/SVG icons */
-.stApp [data-testid="stMarkdownContainer"] img, .stApp [data-testid="stMarkdownContainer"] svg,
-.stApp button img, .stApp button svg { filter: none !important; }
-@media (prefers-reduced-motion: reduce) {
-    [data-testid="stAppViewContainer"]::before { animation: none !important; }
-}
-@media (max-width: 768px) {
-    [data-testid="stAppViewContainer"]::before { filter: blur(6px); opacity: .5; }
-}
-
-
-
-/* FINAL OVERRIDE: apply the agreed sky-and-glossy-blue theme app-wide */
-.stApp,
-[data-testid="stAppViewContainer"] {
-    background-color: #83d0f4 !important;
-    background-image:
-      radial-gradient(ellipse 42% 24% at 8% 5%, rgba(255,255,255,.34) 0%, transparent 76%),
-      radial-gradient(ellipse 36% 21% at 92% 18%, rgba(255,255,255,.27) 0%, transparent 76%),
-      radial-gradient(ellipse 38% 20% at 18% 62%, rgba(255,255,255,.23) 0%, transparent 76%),
-      radial-gradient(ellipse 40% 22% at 85% 76%, rgba(255,255,255,.25) 0%, transparent 76%),
-      linear-gradient(180deg, #65baf0 0%, #8bd4f5 50%, #b4e8fa 100%) !important;
-    background-size: 150% 150%, 145% 145%, 160% 160%, 150% 150%, 100% 100% !important;
-    background-attachment: fixed !important;
-    animation: agreedSkyClouds 46s ease-in-out infinite alternate !important;
-}
-/* Subtle moving white cloud wisps on every page */
-@keyframes agreedSkyClouds {
-    0% {
-      background-position: 0% 0%, 100% 12%, 5% 62%, 92% 78%, center;
-    }
-    50% {
-      background-position: 5% 4%, 94% 8%, 11% 58%, 86% 73%, center;
-    }
-    100% {
-      background-position: 10% 1%, 88% 14%, 16% 65%, 80% 80%, center;
-    }
-}
-/* Glossy blue-water buttons everywhere; don't recolor emoji/icons */
+/* Glossy blue buttons throughout all pages */
 .stApp div.stButton > button,
 .stApp div[data-testid="stFormSubmitButton"] > button,
 .stApp button[kind="primary"] {
     background-color: #0789ad !important;
     background-image:
-      linear-gradient(180deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,.08) 20%, transparent 43%),
+      radial-gradient(ellipse at 8% 0%, rgba(255,255,255,.50) 0%, transparent 32%),
+      linear-gradient(180deg, rgba(255,255,255,.24) 0%, rgba(255,255,255,.04) 26%, transparent 44%),
       linear-gradient(112deg, #087fa6 0%, #08a8c8 48%, #087ca4 100%) !important;
     color: #fff !important;
-    border: 1px solid rgba(135,247,255,.95) !important;
+    border: 1px solid rgba(135,247,255,.96) !important;
     border-radius: 15px !important;
-    box-shadow:
-      inset 0 1px 3px rgba(255,255,255,.62),
-      inset 0 -4px 9px rgba(0,55,105,.24),
-      0 4px 13px rgba(0,95,150,.18) !important;
+    box-shadow: inset 0 1px 3px rgba(255,255,255,.65), inset 0 -4px 9px rgba(0,55,105,.25), 0 4px 13px rgba(0,95,150,.18) !important;
+    transition: filter .2s ease, box-shadow .2s ease !important;
 }
-/* Preserve emoji colors and all icon artwork */
+.stApp div.stButton > button:hover,
+.stApp div[data-testid="stFormSubmitButton"] > button:hover {
+    filter: brightness(1.05) !important;
+    box-shadow: inset 0 1px 3px rgba(255,255,255,.72), inset 0 -4px 9px rgba(0,55,105,.25), 0 6px 17px rgba(0,95,150,.24) !important;
+}
+/* Preserve natural emoji and icon colors */
 .stApp button img, .stApp button svg,
 .stApp [data-testid="stMarkdownContainer"] img,
 .stApp [data-testid="stMarkdownContainer"] svg {
     filter: none !important;
 }
+/* Footer / copyright bar in matching glossy aqua */
+.sky-footer, [data-testid="stBottom"] .sky-footer {
+    background: linear-gradient(112deg, #087fa6 0%, #08a8c8 48%, #087ca4 100%) !important;
+    border: 1px solid rgba(135,247,255,.92) !important;
+    border-radius: 15px 15px 0 0 !important;
+    box-shadow: inset 0 1px 3px rgba(255,255,255,.55), 0 -3px 15px rgba(0,95,150,.12) !important;
+    color: white !important;
+}
 @media (prefers-reduced-motion: reduce) {
-    .stApp, [data-testid="stAppViewContainer"] { animation: none !important; }
+    [data-testid="stAppViewContainer"]::before { animation: none !important; }
+}
+@media (max-width: 768px) {
+    [data-testid="stAppViewContainer"]::before { filter: blur(7px); opacity: .45; }
 }
 
 </style>
