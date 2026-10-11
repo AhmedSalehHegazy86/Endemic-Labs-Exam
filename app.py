@@ -351,12 +351,17 @@ def reindex_hierarchical_facilities():
         if "id" not in existing:
             c.execute("ALTER TABLE hierarchical_facilities ADD COLUMN id INTEGER")
             c.execute("UPDATE hierarchical_facilities SET id=rowid WHERE id IS NULL")
-        # Reassign through unique temporary negative IDs to avoid collisions.
+        # Move every ID to a unique temporary range ABOVE the current maximum first.
+        # This avoids UNIQUE/PRIMARY KEY collisions even if legacy data already contains
+        # negative IDs or gaps. Then assign the final sequential IDs starting at 1.
         rows = c.execute("SELECT rowid AS _rowid, id AS old_id FROM hierarchical_facilities ORDER BY id, rowid").fetchall()
-        for idx, row in enumerate(rows, start=1):
-            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (-idx, row["_rowid"]))
-        for idx, row in enumerate(rows, start=1):
-            c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["_rowid"]))
+        if rows:
+            current_ids = [int(r["old_id"]) for r in rows if r["old_id"] is not None]
+            temp_base = max([0] + [abs(v) for v in current_ids]) + len(rows) + 10000
+            for idx, row in enumerate(rows, start=1):
+                c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (temp_base + idx, row["_rowid"]))
+            for idx, row in enumerate(rows, start=1):
+                c.execute("UPDATE hierarchical_facilities SET id=? WHERE rowid=?", (idx, row["_rowid"]))
         # Reset AUTOINCREMENT safely so the next inserted row follows the new sequence.
         try:
             cur = c.execute("UPDATE sqlite_sequence SET seq=? WHERE name='hierarchical_facilities'", (len(rows),))
