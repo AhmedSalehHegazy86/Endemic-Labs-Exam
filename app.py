@@ -90,12 +90,13 @@ html, body, [class*="css"] {
     isolation: isolate !important;
     min-height: 100vh !important;
     /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #8bd4f5 !important;
-        background-image:
-            radial-gradient(ellipse at 14% 12%, rgba(255,255,255,.54) 0%, rgba(255,255,255,0) 34%),
-            radial-gradient(ellipse at 82% 20%, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 31%),
-            radial-gradient(ellipse at 26% 74%, rgba(245,253,255,.25) 0%, rgba(245,253,255,0) 35%),
-            linear-gradient(180deg, #65bdf0 0%, #8bd4f5 48%, #b0e7fb 100%) !important;
+    background-color: #72b6c3 !important;
+    background-image:
+        radial-gradient(ellipse at 8% 12%, rgba(10, 91, 128, .13) 0%, rgba(10, 91, 128, 0) 44%),
+        radial-gradient(ellipse at 92% 15%, rgba(11, 126, 157, .12) 0%, rgba(11, 126, 157, 0) 43%),
+        radial-gradient(ellipse at 82% 88%, rgba(16, 153, 169, .12) 0%, rgba(16, 153, 169, 0) 46%),
+        radial-gradient(ellipse at 12% 86%, rgba(10, 91, 128, .11) 0%, rgba(10, 91, 128, 0) 40%),
+        linear-gradient(125deg, #72b6c3 0%, #79bdc7 32%, #80c6c8 67%, #78b7ca 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -277,215 +278,99 @@ body::after {
     border-top: 2px solid #8ad7dc;
 }
 
-    /* Soft daytime clouds: subtle movement, low contrast, no interaction with controls */
-    .stApp {
-        background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
-        position: relative;
-        isolation: isolate;
-    }
-    .stApp::before {
-        content: "";
-        position: fixed;
-        inset: -8%;
-        z-index: -1;
-        pointer-events: none;
-        background:
-            radial-gradient(ellipse 19% 8% at 12% 25%, rgba(255,255,255,.42) 0%, rgba(255,255,255,.24) 38%, transparent 72%),
-            radial-gradient(ellipse 16% 7% at 21% 23%, rgba(255,255,255,.38) 0%, transparent 72%),
-            radial-gradient(ellipse 23% 9% at 78% 38%, rgba(255,255,255,.32) 0%, rgba(255,255,255,.18) 40%, transparent 74%),
-            radial-gradient(ellipse 17% 7% at 88% 36%, rgba(255,255,255,.28) 0%, transparent 72%),
-            radial-gradient(ellipse 20% 8% at 35% 68%, rgba(255,255,255,.24) 0%, transparent 74%),
-            radial-gradient(ellipse 18% 7% at 66% 82%, rgba(255,255,255,.26) 0%, transparent 72%);
-        background-repeat: no-repeat;
-        filter: blur(7px);
-        opacity: .72;
-        animation: skyCloudDrift 48s ease-in-out infinite alternate;
-        will-change: transform;
-    }
-    @keyframes skyCloudDrift {
-        0%   { transform: translate3d(-1.4%, -0.4%, 0) scale(1); }
-        50%  { transform: translate3d(1.1%, 0.6%, 0) scale(1.025); }
-        100% { transform: translate3d(-0.3%, 1.1%, 0) scale(1.01); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        .stApp::before { animation: none !important; }
-    }
-    
 
-/* === Portal visual match: daytime sky, light drifting clouds, glossy aqua controls === */
-.stApp {
-    background-color: #8bd4f5 !important;
-    background-image:
-        linear-gradient(180deg, rgba(93,190,244,.82) 0%, rgba(139,212,245,.90) 48%, rgba(181,235,252,.96) 100%) !important;
-    background-attachment: fixed !important;
-    background-size: 100% 100% !important;
-    animation: none !important;
+/* === FINAL AQUA SKY / SEA-WAVE THEME — ALL STREAMLIT PAGES === */
+:root {
+  --sea-deep: #087ca5;
+  --sea-mid: #079fc2;
+  --sea-bright: #12c4df;
+  --sea-edge: #8af5ff;
 }
-.stApp::before {
-    content: "";
-    position: fixed;
-    inset: -7%;
-    z-index: -1;
-    pointer-events: none;
-    background:
-        radial-gradient(ellipse 18% 7% at 12% 24%, rgba(255,255,255,.58) 0%, rgba(255,255,255,.30) 42%, transparent 75%),
-        radial-gradient(ellipse 14% 6% at 20% 22%, rgba(255,255,255,.48) 0%, transparent 74%),
-        radial-gradient(ellipse 21% 8% at 78% 36%, rgba(255,255,255,.42) 0%, rgba(255,255,255,.20) 42%, transparent 76%),
-        radial-gradient(ellipse 15% 6% at 88% 34%, rgba(255,255,255,.36) 0%, transparent 74%),
-        radial-gradient(ellipse 18% 7% at 35% 68%, rgba(255,255,255,.27) 0%, transparent 75%),
-        radial-gradient(ellipse 19% 7% at 66% 82%, rgba(255,255,255,.30) 0%, transparent 74%);
-    background-repeat: no-repeat;
-    filter: blur(8px);
-    opacity: .58;
-    animation: skyCloudDrift 52s ease-in-out infinite alternate;
-    will-change: transform;
-}
-.stApp::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(255,255,255,.10) 100%);
-    opacity: .55;
-}
-@keyframes skyCloudDrift {
-    0%   { transform: translate3d(-1.2%, -.3%, 0) scale(1); }
-    50%  { transform: translate3d(1.0%, .5%, 0) scale(1.015); }
-    100% { transform: translate3d(-.2%, .8%, 0) scale(1.01); }
-}
-/* Glossy cyan buttons, matching the welcome panel; emoji/icon colors are not filtered */
-.stApp div.stButton > button,
-.stApp div[data-testid="stFormSubmitButton"] > button {
-    background-color: #087f9d !important;
-    background-image:
-        linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,.05) 24%, transparent 42%),
-        linear-gradient(112deg, #087f9d 0%, #0799b7 52%, #087fa6 100%) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(115,239,255,.88) !important;
-    border-radius: 15px !important;
-    box-shadow: inset 0 1px 2px rgba(255,255,255,.45), inset 0 -3px 7px rgba(0,55,100,.20), 0 4px 12px rgba(0,95,140,.16) !important;
-    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
-}
-.stApp div.stButton > button:hover,
-.stApp div[data-testid="stFormSubmitButton"] > button:hover {
-    filter: brightness(1.04) !important;
-    box-shadow: inset 0 1px 3px rgba(255,255,255,.52), inset 0 -3px 7px rgba(0,55,100,.18), 0 6px 16px rgba(0,95,140,.22) !important;
-    border-color: rgba(180,250,255,.98) !important;
-}
-.stApp div.stButton > button:active,
-.stApp div[data-testid="stFormSubmitButton"] > button:active {
-    transform: translateY(1px);
-}
-/* Keep the administration-entry control lighter/outlined, as in the agreed preview */
-.stApp div.stButton > button[kind="secondary"] {
-    background-image: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06)) !important;
-    background-color: rgba(180,235,250,.55) !important;
-    color: #173b50 !important;
-    border: 1px solid rgba(60,155,190,.45) !important;
-    box-shadow: inset 0 1px 2px rgba(255,255,255,.55) !important;
-}
-@media (prefers-reduced-motion: reduce) {
-    .stApp::before { animation: none !important; }
-}
-@media (max-width: 768px) {
-    .stApp::before { filter: blur(6px); opacity: .54; }
-}
-
-
-
-/* FINAL AGREED DESIGN: photographic daytime sky + glossy aqua waves */
-html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    background: #8bd4f5 !important;
+html, body, .stApp, [data-testid="stAppViewContainer"] {
+  background-color: #82cff3 !important;
 }
 .stApp, [data-testid="stAppViewContainer"] {
-    background-image:
-      linear-gradient(180deg, rgba(83,178,238,.20) 0%, rgba(139,212,245,.10) 50%, rgba(190,239,252,.25) 100%),
-      url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1920&q=85") !important;
-    background-size: cover !important;
-    background-position: center center !important;
-    background-attachment: fixed !important;
-    background-repeat: no-repeat !important;
+  background-image:
+    radial-gradient(ellipse at 7% 7%, rgba(255,255,255,.25) 0%, transparent 32%),
+    radial-gradient(ellipse at 91% 24%, rgba(255,255,255,.20) 0%, transparent 35%),
+    radial-gradient(ellipse at 25% 75%, rgba(255,255,255,.18) 0%, transparent 38%),
+    linear-gradient(180deg, #69bdf0 0%, #8bd4f5 52%, #b7eafa 100%) !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
 }
-/* Keep content above the background layer */
-[data-testid="stAppViewContainer"] > .main,
-[data-testid="stMain"],
-[data-testid="stMain"] > div {
-    position: relative;
-    z-index: 1;
-    background: transparent !important;
-}
-/* Gentle moving cloud haze over the sky photo */
+/* Animated, soft cloud shapes; CSS-rendered so no external background image is required. */
 [data-testid="stAppViewContainer"]::before {
-    content: "";
-    position: fixed;
-    inset: -5%;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(ellipse 24% 11% at 12% 20%, rgba(255,255,255,.24) 0%, rgba(255,255,255,.12) 42%, transparent 76%),
-      radial-gradient(ellipse 20% 9% at 25% 18%, rgba(255,255,255,.19) 0%, transparent 74%),
-      radial-gradient(ellipse 27% 12% at 78% 33%, rgba(255,255,255,.22) 0%, transparent 76%),
-      radial-gradient(ellipse 22% 10% at 88% 31%, rgba(255,255,255,.16) 0%, transparent 74%),
-      radial-gradient(ellipse 24% 11% at 36% 68%, rgba(255,255,255,.14) 0%, transparent 75%);
-    filter: blur(9px);
-    opacity: .52;
-    animation: agreedCloudDrift 55s ease-in-out infinite alternate;
+  content: "";
+  position: fixed;
+  inset: -9%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 18% 7% at 9% 18%, rgba(255,255,255,.54) 0%, rgba(255,255,255,.24) 48%, transparent 76%),
+    radial-gradient(ellipse 14% 6% at 18% 16%, rgba(255,255,255,.43) 0%, transparent 75%),
+    radial-gradient(ellipse 20% 8% at 72% 29%, rgba(255,255,255,.36) 0%, rgba(255,255,255,.14) 48%, transparent 76%),
+    radial-gradient(ellipse 14% 6% at 83% 27%, rgba(255,255,255,.32) 0%, transparent 74%),
+    radial-gradient(ellipse 22% 8% at 42% 69%, rgba(255,255,255,.25) 0%, transparent 75%),
+    radial-gradient(ellipse 19% 7% at 78% 82%, rgba(255,255,255,.25) 0%, transparent 75%);
+  filter: blur(7px);
+  opacity: .62;
+  animation: seaSkyCloudsDrift 48s ease-in-out infinite alternate;
 }
-@keyframes agreedCloudDrift {
-    0% { transform: translate3d(-1.2%, -.2%, 0); }
-    50% { transform: translate3d(.7%, .4%, 0); }
-    100% { transform: translate3d(1.1%, -.3%, 0); }
+@keyframes seaSkyCloudsDrift {
+  0% { transform: translate3d(-1.4%, -.4%, 0) scale(1); }
+  50% { transform: translate3d(.4%, .5%, 0) scale(1.015); }
+  100% { transform: translate3d(1.3%, -.2%, 0) scale(1.005); }
 }
-/* Glossy liquid-blue welcome panel; leave emoji/icon colors alone */
-div[data-testid="stVerticalBlock"] .sky-welcome-panel,
-.sky-welcome-panel {
-    background:
-      radial-gradient(ellipse at 8% 8%, rgba(255,255,255,.62) 0%, transparent 27%),
-      linear-gradient(112deg, #08a9d1 0%, #087ca9 34%, #069ec2 68%, #0876a2 100%) !important;
-    border: 2px solid #72f2ff !important;
-    border-radius: 26px !important;
-    box-shadow: inset 0 2px 5px rgba(255,255,255,.78), inset 0 -8px 16px rgba(0,58,100,.22), 0 0 0 3px rgba(157,246,255,.62), 0 10px 28px rgba(0,85,130,.20) !important;
+/* Keep Streamlit content above the decorative cloud layer. */
+[data-testid="stMain"], [data-testid="stMain"] > div,
+[data-testid="stAppViewContainer"] > .main {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
 }
-/* Glossy blue buttons throughout all pages */
+/* Glossy blue-water buttons with layered wave highlights on every page. */
 .stApp div.stButton > button,
 .stApp div[data-testid="stFormSubmitButton"] > button,
 .stApp button[kind="primary"] {
-    background-color: #0789ad !important;
-    background-image:
-      radial-gradient(ellipse at 8% 0%, rgba(255,255,255,.50) 0%, transparent 32%),
-      linear-gradient(180deg, rgba(255,255,255,.24) 0%, rgba(255,255,255,.04) 26%, transparent 44%),
-      linear-gradient(112deg, #087fa6 0%, #08a8c8 48%, #087ca4 100%) !important;
-    color: #fff !important;
-    border: 1px solid rgba(135,247,255,.96) !important;
-    border-radius: 15px !important;
-    box-shadow: inset 0 1px 3px rgba(255,255,255,.65), inset 0 -4px 9px rgba(0,55,105,.25), 0 4px 13px rgba(0,95,150,.18) !important;
-    transition: filter .2s ease, box-shadow .2s ease !important;
+  position: relative;
+  overflow: hidden;
+  color: #fff !important;
+  background-color: var(--sea-mid) !important;
+  background-image:
+    radial-gradient(ellipse 70% 52% at 12% -10%, rgba(255,255,255,.56) 0%, transparent 58%),
+    radial-gradient(ellipse 65% 34% at 94% 115%, rgba(0,54,105,.24) 0%, transparent 67%),
+    linear-gradient(180deg, rgba(255,255,255,.25) 0%, transparent 37%),
+    linear-gradient(112deg, var(--sea-deep) 0%, var(--sea-mid) 48%, #087ba5 100%) !important;
+  border: 1.5px solid var(--sea-edge) !important;
+  border-radius: 15px !important;
+  box-shadow:
+    inset 0 1px 3px rgba(255,255,255,.72),
+    inset 0 -5px 10px rgba(0,53,100,.22),
+    0 4px 12px rgba(0,91,145,.18) !important;
+  transition: filter .2s ease, box-shadow .2s ease !important;
 }
 .stApp div.stButton > button:hover,
 .stApp div[data-testid="stFormSubmitButton"] > button:hover {
-    filter: brightness(1.05) !important;
-    box-shadow: inset 0 1px 3px rgba(255,255,255,.72), inset 0 -4px 9px rgba(0,55,105,.25), 0 6px 17px rgba(0,95,150,.24) !important;
+  filter: brightness(1.06) saturate(1.04) !important;
+  box-shadow: inset 0 1px 4px rgba(255,255,255,.8),
+              inset 0 -5px 10px rgba(0,53,100,.22),
+              0 6px 16px rgba(0,91,145,.24) !important;
 }
-/* Preserve natural emoji and icon colors */
+/* Restore normal native emoji/icon colors; never apply color filters to icons. */
 .stApp button img, .stApp button svg,
 .stApp [data-testid="stMarkdownContainer"] img,
 .stApp [data-testid="stMarkdownContainer"] svg {
-    filter: none !important;
+  filter: none !important;
 }
-/* Footer / copyright bar in matching glossy aqua */
-.sky-footer, [data-testid="stBottom"] .sky-footer {
-    background: linear-gradient(112deg, #087fa6 0%, #08a8c8 48%, #087ca4 100%) !important;
-    border: 1px solid rgba(135,247,255,.92) !important;
-    border-radius: 15px 15px 0 0 !important;
-    box-shadow: inset 0 1px 3px rgba(255,255,255,.55), 0 -3px 15px rgba(0,95,150,.12) !important;
-    color: white !important;
+/* Match common footer/copyright containers to the glossy buttons. */
+.stApp [data-testid="stBottom"] {
+  background: linear-gradient(112deg, #087ca5 0%, #079fc2 52%, #087ca5 100%) !important;
 }
 @media (prefers-reduced-motion: reduce) {
-    [data-testid="stAppViewContainer"]::before { animation: none !important; }
+  [data-testid="stAppViewContainer"]::before { animation: none !important; }
 }
 @media (max-width: 768px) {
-    [data-testid="stAppViewContainer"]::before { filter: blur(7px); opacity: .45; }
+  [data-testid="stAppViewContainer"]::before { filter: blur(6px); opacity: .53; }
 }
 
 </style>
