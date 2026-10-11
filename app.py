@@ -1034,51 +1034,56 @@ def template_scope_text(row):
     return label
 
 def hierarchy_header_html(scope=None, facility_value=None):
-    # Build a print header reflecting exactly the selected hierarchy level.
+    """Print the parent administrative hierarchy in the header and show the leaf facility as a target."""
     scope = dict(scope or {})
     rows = get_hierarchical_data(include_hidden=True)
     selected = None
-    if facility_value:
-        raw = str(facility_value or "").strip()
+    raw = str(facility_value or "").strip()
+
+    # Resolve a supplied facility/full path to its hierarchy record.
+    if raw:
         for item in rows:
+            facility = str(item.get("facility_name") or "").strip()
             paths = [
-                str(item.get("facility_name") or "").strip(),
+                facility,
                 " - ".join(str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()),
                 " - ".join(str(item.get(k) or "").strip() for k in ("governorate", "authority", "center", "administration", "facility_name") if str(item.get(k) or "").strip()),
                 "جمهورية مصر العربية - وزارة الصحة والسكان - " + " - ".join(str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()),
             ]
-            if raw in paths or raw.endswith(" - " + str(item.get("facility_name") or "").strip()):
+            if raw in paths or (facility and raw.endswith(" - " + facility)):
                 selected = item
                 break
-        parts = [selected.get("authority"), selected.get("administration"), selected.get("facility_name")] if selected else [raw]
+
+    auth = str(scope.get("scope_authority") or scope.get("authority") or "").strip()
+    admin = str(scope.get("scope_administration") or scope.get("administration") or "").strip()
+    target = ""
+    if selected:
+        auth = auth or str(selected.get("authority") or "").strip()
+        admin = admin or str(selected.get("administration") or "").strip()
+        target = str(selected.get("facility_name") or "").strip()
     else:
-        auth = str(scope.get("scope_authority") or scope.get("authority") or "").strip()
-        admin = str(scope.get("scope_administration") or scope.get("administration") or "").strip()
-        fac = str(scope.get("scope_facility") or scope.get("facility_name") or "").strip()
-        for item in rows:
-            if auth and str(item.get("authority") or "").strip() != auth:
-                continue
-            if admin and str(item.get("administration") or "").strip() != admin:
-                continue
-            if fac and str(item.get("facility_name") or "").strip() != fac:
-                continue
-            if auth or admin or fac:
-                selected = item
-                break
-        if selected:
-            parts = []
-            if auth or admin or fac:
-                parts.append(auth or str(selected.get("authority") or "").strip())
-            if admin or fac:
-                parts.append(admin or str(selected.get("administration") or "").strip())
-            if fac:
-                parts.append(fac)
-        else:
-            parts = [auth, admin, fac]
-    parts = [esc(str(x).strip()) for x in parts if str(x or "").strip()]
-    if not parts:
-        return "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>كل الهيكل الإداري"
-    return "<br>".join(parts)
+        target = str(scope.get("scope_facility") or scope.get("facility_name") or "").strip()
+        # If only a facility scope is supplied, resolve its parent levels from the hierarchy.
+        if target and not (auth or admin):
+            for item in rows:
+                if str(item.get("facility_name") or "").strip() == target:
+                    selected = item
+                    auth = str(item.get("authority") or "").strip()
+                    admin = str(item.get("administration") or "").strip()
+                    break
+
+    parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان"]
+    if auth:
+        parts.append(auth)
+    if admin:
+        parts.append(admin)
+    # Do not include the last hierarchy node as part of the administrative header.
+    header = "<br>".join(esc(x) for x in parts if x)
+    if target:
+        header += "<br><span style=\"font-weight:700;\">المنشأة المستهدفة: " + esc(target) + "</span>"
+    elif not auth and not admin:
+        header += "<br>كل الهيكل الإداري"
+    return header
 
 def current_hierarchy_header():
     scope = st.session_state.get("_last_hierarchy_scope")
