@@ -90,13 +90,13 @@ html, body, [class*="css"] {
     isolation: isolate !important;
     min-height: 100vh !important;
     /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #3b9ead !important;
+    background-color: #6ab8c2 !important;
     background-image:
         radial-gradient(ellipse at 8% 12%, rgba(45, 190, 205, .22) 0%, rgba(0, 210, 220, 0) 44%),
         radial-gradient(ellipse at 92% 15%, rgba(30, 150, 180, .20) 0%, rgba(0, 166, 190, 0) 43%),
         radial-gradient(ellipse at 82% 88%, rgba(40, 170, 165, .19) 0%, rgba(20, 184, 166, 0) 46%),
         radial-gradient(ellipse at 12% 86%, rgba(65, 165, 215, .20) 0%, rgba(56, 189, 248, 0) 40%),
-        linear-gradient(125deg, #3b9ead 0%, #43a9b5 32%, #49b9b3 67%, #4b9fba 100%) !important;
+        linear-gradient(125deg, #6ab8c2 0%, #72bdc6 32%, #78c8c2 67%, #75b7ca 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -120,7 +120,7 @@ html, body, [class*="css"] {
         repeating-linear-gradient(166deg, transparent 0%, transparent 7.5%, rgba(225, 255, 255, .075) 8%, rgba(225, 255, 255, .02) 8.25%, transparent 9.2%, transparent 17%);
     background-size: 165% 165%, 180% 180%, 175% 175%, 190% 190%, 190% 190%, 190% 190%, 220% 220%;
     background-position: 0% 15%, 100% 35%, 45% 100%, center, center, center, 0% 0%;
-    filter: blur(18px) saturate(1.22);
+    filter: blur(20px) saturate(1.08);
     opacity: .82;
     animation: livelyWaveFlow 27s ease-in-out infinite alternate;
 }
