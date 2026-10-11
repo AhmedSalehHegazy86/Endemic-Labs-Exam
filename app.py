@@ -85,98 +85,29 @@ html, body, [class*="css"] {
     user-select: none !important;
     -webkit-touch-callout: none !important;
 }
+/* خلفية سماوية صافية وسحب بيضاء ناعمة قريبة من التصميم المرجعي */
 .stApp {
-    position: relative !important;
-    isolation: isolate !important;
-    min-height: 100vh !important;
-    /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #72b6c3 !important;
+    position: relative !important; isolation: isolate !important; min-height: 100vh !important;
+    background-color: #72c9f4 !important;
     background-image:
-        radial-gradient(ellipse at 8% 12%, rgba(10, 91, 128, .13) 0%, rgba(10, 91, 128, 0) 44%),
-        radial-gradient(ellipse at 92% 15%, rgba(11, 126, 157, .12) 0%, rgba(11, 126, 157, 0) 43%),
-        radial-gradient(ellipse at 82% 88%, rgba(16, 153, 169, .12) 0%, rgba(16, 153, 169, 0) 46%),
-        radial-gradient(ellipse at 12% 86%, rgba(10, 91, 128, .11) 0%, rgba(10, 91, 128, 0) 40%),
-        linear-gradient(125deg, #72b6c3 0%, #79bdc7 32%, #80c6c8 67%, #78b7ca 100%) !important;
-    background-attachment: fixed !important;
-    background-size: 180% 180% !important;
-    animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
+      radial-gradient(ellipse 22% 12% at 4% 9%, rgba(255,255,255,.98) 0%, rgba(255,255,255,.70) 35%, transparent 72%),
+      radial-gradient(ellipse 28% 13% at 95% 15%, rgba(255,255,255,.95) 0%, rgba(255,255,255,.56) 38%, transparent 74%),
+      radial-gradient(ellipse 30% 15% at 6% 50%, rgba(255,255,255,.78) 0%, rgba(255,255,255,.32) 38%, transparent 74%),
+      radial-gradient(ellipse 26% 13% at 100% 68%, rgba(255,255,255,.84) 0%, rgba(255,255,255,.35) 40%, transparent 74%),
+      radial-gradient(ellipse 35% 17% at 50% 100%, rgba(255,255,255,.78) 0%, rgba(255,255,255,.25) 45%, transparent 75%),
+      linear-gradient(180deg, #48b5ef 0%, #8ed8fa 47%, #b7e9ff 100%) !important;
+    background-attachment: fixed !important; background-size: cover !important;
 }
-/* موجات لونية متدرجة موحدة لكل المستخدمين والأجهزة */
 .stApp::before {
-    content: "";
-    position: fixed;
-    inset: -12%;
-    z-index: -1;
-    pointer-events: none;
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background:
-        /* تداخلات واسعة مثل حركة البحر */
-        radial-gradient(ellipse 72% 30% at 12% 24%, rgba(90, 220, 220, .24) 0%, rgba(90, 220, 220, .08) 38%, transparent 72%),
-        radial-gradient(ellipse 68% 34% at 88% 38%, rgba(25, 95, 150, .20) 0%, rgba(25, 95, 150, .07) 42%, transparent 74%),
-        radial-gradient(ellipse 80% 32% at 45% 72%, rgba(60, 205, 190, .22) 0%, rgba(60, 205, 190, .07) 44%, transparent 76%),
-        radial-gradient(ellipse at 28% 34%, rgba(45, 190, 205, .22) 0%, transparent 38%),
-        radial-gradient(ellipse at 76% 52%, rgba(40, 170, 165, .20) 0%, transparent 38%),
-        radial-gradient(ellipse at 48% 78%, rgba(65, 165, 215, .19) 0%, transparent 43%),
-        /* خطوط انعكاس لامعة رفيعة فوق الموج */
-        repeating-linear-gradient(166deg, transparent 0%, transparent 7.5%, rgba(225, 255, 255, .075) 8%, rgba(225, 255, 255, .02) 8.25%, transparent 9.2%, transparent 17%);
-    background-size: 165% 165%, 180% 180%, 175% 175%, 190% 190%, 190% 190%, 190% 190%, 220% 220%;
-    background-position: 0% 15%, 100% 35%, 45% 100%, center, center, center, 0% 0%;
-    filter: blur(23px) saturate(.92);
-    opacity: .52;
-    animation: livelyWaveFlow 27s ease-in-out infinite alternate;
+      radial-gradient(ellipse 18% 5% at 0% 22%, rgba(255,255,255,.85) 0%, transparent 75%),
+      radial-gradient(ellipse 24% 7% at 100% 37%, rgba(255,255,255,.7) 0%, transparent 75%),
+      radial-gradient(ellipse 23% 7% at 0% 79%, rgba(255,255,255,.7) 0%, transparent 75%);
+    filter: blur(12px); opacity: .9;
 }
-/* انعكاسات سطح البحر: خطوط موجية واضحة وناعمة تتحرك باستمرار */
-.stApp::after {
-    content: "";
-    position: fixed;
-    inset: -25% -15%;
-    z-index: -1;
-    pointer-events: none;
-    background:
-        repeating-radial-gradient(ellipse at 30% 45%,
-            transparent 0%, transparent 5.5%,
-            rgba(235,255,255,.14) 5.8%, rgba(235,255,255,.045) 6.2%,
-            transparent 7.1%, transparent 12%),
-        linear-gradient(112deg, transparent 35%, rgba(226,255,255,.12) 43%, rgba(255,255,255,.035) 48%, transparent 56%);
-    background-size: 135% 125%, 190% 100%;
-    mix-blend-mode: screen;
-    opacity: .42;
-    filter: blur(2.5px);
-    animation: seaSurfaceShimmer 16s ease-in-out infinite alternate;
-}
-@keyframes seaSurfaceShimmer {
-    0% { transform: translate3d(-3%, -1%, 0) rotate(-2deg); background-position: 0% 20%, 0% 50%; }
-    50% { transform: translate3d(2%, 1%, 0) rotate(1deg); background-position: 45% 60%, 70% 50%; }
-    100% { transform: translate3d(-1%, 2%, 0) rotate(-1deg); background-position: 100% 35%, 100% 50%; }
-}
-@keyframes livelyGradientFlow {
-    0% { background-position: 0% 20%; }
-    50% { background-position: 100% 70%; }
-    100% { background-position: 20% 100%; }
-}
-@keyframes livelyWaveFlow {
-    0% { transform: translate3d(-3%, -1.5%, 0) scale(1) rotate(-1deg); }
-    35% { transform: translate3d(1.5%, 1%, 0) scale(1.045) rotate(.5deg); }
-    70% { transform: translate3d(3%, -1%, 0) scale(1.07) rotate(1deg); }
-    100% { transform: translate3d(-1%, 2.5%, 0) scale(1.025) rotate(-.4deg); }
-}
-body::after {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 999998;
-    background: radial-gradient(ellipse at center, rgba(255,255,255,0) 56%, rgba(20,70,48,0.035) 100%);
-}
-@media (prefers-reduced-motion: reduce) {
-    .stApp, .stApp::before { animation: none !important; }
-}
-@media (max-width: 768px) {
-    .stApp { background-attachment: scroll !important; background-size: 190% 190% !important; }
-    .stApp::before { filter: blur(15px) saturate(1.18); opacity: .84; }
-}
+.stApp::after { content: none !important; }
+@media (max-width: 768px) { .stApp { background-attachment: scroll !important; } }
 .stApp, .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] {
     font-size: 16px;
 }
@@ -187,11 +118,11 @@ body::after {
     font-size: 15px !important;
 }
 .block-container {
-    max-width: 1150px !important;
+    max-width: 1000px !important;
     margin: auto !important;
     padding-left: 2rem !important;
     padding-right: 2rem !important;
-    padding-top: 3.5rem !important;
+    padding-top: 1.6rem !important;
     padding-bottom: 7rem !important;
 }
 .card, .question, [data-testid="stForm"], [data-testid="stVerticalBlock"] > div {
@@ -229,20 +160,16 @@ body::after {
     display: none !important;
 }
 .stButton>button {
-    background-color: #0b7e9d !important;
-    color: #ffffff !important;
-    border-radius: 8px !important;
-    font-weight: 800 !important;
-    min-height: 42px !important;
-    padding: 6px 14px;
-    border: none !important;
-    width: 100% !important;
-    transition: all 0.2s ease;
+    background: linear-gradient(112deg, #087eae 0%, #079fd0 46%, #087fb2 100%) !important;
+    color: #ffffff !important; border-radius: 22px !important;
+    font-weight: 800 !important; min-height: 58px !important; padding: 10px 18px !important;
+    border: 1.5px solid rgba(190,250,255,.98) !important; width: 100% !important;
+    box-shadow: inset 0 2px 5px rgba(255,255,255,.62), inset 0 -5px 12px rgba(0,48,112,.22), 0 3px 8px rgba(0,96,150,.18) !important;
+    transition: transform .18s ease, filter .18s ease;
 }
-.stButton>button:hover {
-    background-color: #0b7e9d !important;
-    color: #ffffff !important;
-}
+.stButton>button:hover { filter: brightness(1.08) saturate(1.05); transform: translateY(-1px); color:#fff !important; }
+.stButton>button:active { transform: translateY(1px); }
+
 /* توحيد الأيقونات والتركيز مع لوحة الأزرق والنيلي */
     .stApp [data-testid="stMarkdownContainer"] svg,
     .stApp [data-testid="stWidgetLabel"] svg,
@@ -266,7 +193,7 @@ body::after {
     bottom: 0;
     right: 0;
     left: 0;
-    background: linear-gradient(110deg, #0a5b80 0%, #0b7e9d 52%, #1099a9 100%);
+    background: linear-gradient(112deg, #087eae 0%, #079fd0 46%, #087fb2 100%);
     color: #ffffff;
     text-align: center;
     padding: 8px;
@@ -275,104 +202,8 @@ body::after {
     letter-spacing: 0.5px;
     z-index: 99999;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    border-top: 2px solid #8ad7dc;
+    border: 1px solid #a9f4ff; border-top: 2px solid #bdfaff; border-radius: 16px 16px 0 0;
 }
-
-
-/* === FINAL AQUA SKY / SEA-WAVE THEME — ALL STREAMLIT PAGES === */
-:root {
-  --sea-deep: #087ca5;
-  --sea-mid: #079fc2;
-  --sea-bright: #12c4df;
-  --sea-edge: #8af5ff;
-}
-html, body, .stApp, [data-testid="stAppViewContainer"] {
-  background-color: #82cff3 !important;
-}
-.stApp, [data-testid="stAppViewContainer"] {
-  background-image:
-    radial-gradient(ellipse at 7% 7%, rgba(255,255,255,.25) 0%, transparent 32%),
-    radial-gradient(ellipse at 91% 24%, rgba(255,255,255,.20) 0%, transparent 35%),
-    radial-gradient(ellipse at 25% 75%, rgba(255,255,255,.18) 0%, transparent 38%),
-    linear-gradient(180deg, #69bdf0 0%, #8bd4f5 52%, #b7eafa 100%) !important;
-  background-attachment: fixed !important;
-  background-size: cover !important;
-}
-/* Animated, soft cloud shapes; CSS-rendered so no external background image is required. */
-[data-testid="stAppViewContainer"]::before {
-  content: "";
-  position: fixed;
-  inset: -9%;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 18% 7% at 9% 18%, rgba(255,255,255,.54) 0%, rgba(255,255,255,.24) 48%, transparent 76%),
-    radial-gradient(ellipse 14% 6% at 18% 16%, rgba(255,255,255,.43) 0%, transparent 75%),
-    radial-gradient(ellipse 20% 8% at 72% 29%, rgba(255,255,255,.36) 0%, rgba(255,255,255,.14) 48%, transparent 76%),
-    radial-gradient(ellipse 14% 6% at 83% 27%, rgba(255,255,255,.32) 0%, transparent 74%),
-    radial-gradient(ellipse 22% 8% at 42% 69%, rgba(255,255,255,.25) 0%, transparent 75%),
-    radial-gradient(ellipse 19% 7% at 78% 82%, rgba(255,255,255,.25) 0%, transparent 75%);
-  filter: blur(7px);
-  opacity: .62;
-  animation: seaSkyCloudsDrift 48s ease-in-out infinite alternate;
-}
-@keyframes seaSkyCloudsDrift {
-  0% { transform: translate3d(-1.4%, -.4%, 0) scale(1); }
-  50% { transform: translate3d(.4%, .5%, 0) scale(1.015); }
-  100% { transform: translate3d(1.3%, -.2%, 0) scale(1.005); }
-}
-/* Keep Streamlit content above the decorative cloud layer. */
-[data-testid="stMain"], [data-testid="stMain"] > div,
-[data-testid="stAppViewContainer"] > .main {
-  position: relative;
-  z-index: 1;
-  background: transparent !important;
-}
-/* Glossy blue-water buttons with layered wave highlights on every page. */
-.stApp div.stButton > button,
-.stApp div[data-testid="stFormSubmitButton"] > button,
-.stApp button[kind="primary"] {
-  position: relative;
-  overflow: hidden;
-  color: #fff !important;
-  background-color: var(--sea-mid) !important;
-  background-image:
-    radial-gradient(ellipse 70% 52% at 12% -10%, rgba(255,255,255,.56) 0%, transparent 58%),
-    radial-gradient(ellipse 65% 34% at 94% 115%, rgba(0,54,105,.24) 0%, transparent 67%),
-    linear-gradient(180deg, rgba(255,255,255,.25) 0%, transparent 37%),
-    linear-gradient(112deg, var(--sea-deep) 0%, var(--sea-mid) 48%, #087ba5 100%) !important;
-  border: 1.5px solid var(--sea-edge) !important;
-  border-radius: 15px !important;
-  box-shadow:
-    inset 0 1px 3px rgba(255,255,255,.72),
-    inset 0 -5px 10px rgba(0,53,100,.22),
-    0 4px 12px rgba(0,91,145,.18) !important;
-  transition: filter .2s ease, box-shadow .2s ease !important;
-}
-.stApp div.stButton > button:hover,
-.stApp div[data-testid="stFormSubmitButton"] > button:hover {
-  filter: brightness(1.06) saturate(1.04) !important;
-  box-shadow: inset 0 1px 4px rgba(255,255,255,.8),
-              inset 0 -5px 10px rgba(0,53,100,.22),
-              0 6px 16px rgba(0,91,145,.24) !important;
-}
-/* Restore normal native emoji/icon colors; never apply color filters to icons. */
-.stApp button img, .stApp button svg,
-.stApp [data-testid="stMarkdownContainer"] img,
-.stApp [data-testid="stMarkdownContainer"] svg {
-  filter: none !important;
-}
-/* Match common footer/copyright containers to the glossy buttons. */
-.stApp [data-testid="stBottom"] {
-  background: linear-gradient(112deg, #087ca5 0%, #079fc2 52%, #087ca5 100%) !important;
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-testid="stAppViewContainer"]::before { animation: none !important; }
-}
-@media (max-width: 768px) {
-  [data-testid="stAppViewContainer"]::before { filter: blur(6px); opacity: .53; }
-}
-
 </style>
 <script>
 document.addEventListener("contextmenu", function(e) {
@@ -2401,7 +2232,7 @@ def render_print_button_only(html_content, label_prefix=""):
                 right: 0 !important;
                 width: 100% !important;
                 background: #ffffff !important;
-                border-top: 2px solid #8ad7dc;
+                border: 1px solid #a9f4ff; border-top: 2px solid #bdfaff; border-radius: 16px 16px 0 0;
                 padding: 4px 4px !important;
                 font-family: 'Cairo', Tahoma, sans-serif;
                 font-size: 10pt;
@@ -2459,7 +2290,7 @@ def render_print_button_only(html_content, label_prefix=""):
         .print-footer-dynamic {{
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 2px solid #8ad7dc;
+            border: 1px solid #a9f4ff; border-top: 2px solid #bdfaff; border-radius: 16px 16px 0 0;
             margin-top: 6mm;
             padding: 6px 4px;
             font-family: 'Cairo', Tahoma, sans-serif;
@@ -2561,32 +2392,14 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 def header():
     header_html = f"""
     <style>
-    @keyframes electricMultiGlow {{
-        0% {{ box-shadow: 0 0 18px rgba(56, 189, 248, 0.42), 0 0 34px rgba(14, 165, 233, 0.25), inset 0 0 18px rgba(255, 255, 255, 0.20); border-color: #7dd3fc; }}
-        14.28% {{ box-shadow: 0 0 20px rgba(20, 184, 166, 0.5), 0 0 35px rgba(13, 148, 136, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #2dd4bf; }}
-        28.56% {{ box-shadow: 0 0 20px rgba(14, 165, 233, 0.5), 0 0 35px rgba(2, 132, 199, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #38bdf8; }}
-        42.84% {{ box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 35px rgba(109, 40, 217, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #a78bfa; }}
-        57.12% {{ box-shadow: 0 0 20px rgba(245, 158, 11, 0.5), 0 0 35px rgba(217, 119, 6, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #fbbf24; }}
-        71.40% {{ box-shadow: 0 0 20px rgba(251, 146, 60, 0.5), 0 0 35px rgba(234, 88, 12, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #fb923c; }}
-        85.68% {{ box-shadow: 0 0 20px rgba(248, 113, 113, 0.5), 0 0 35px rgba(239, 68, 68, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.3); border-color: #f87171; }}
-        100% {{ box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(5, 150, 105, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.2); border-color: #34d399; }}
-    }}
-    .electric-box {{
-        background: linear-gradient(135deg, rgba(10, 91, 128, .96) 0%, rgba(11, 126, 157, .94) 48%, rgba(16, 153, 169, .94) 100%);
-        color: #ffffff;
-        backdrop-filter: blur(12px) saturate(1.25);
-        -webkit-backdrop-filter: blur(12px) saturate(1.25);
-        width: 100%;
-        max-width: 100%;
-        padding: 14px 40px;
-        border-radius: 12px;
-        text-align: center;
-        margin-bottom: 20px;
-        font-family: 'Cairo', sans-serif;
-        box-sizing: border-box;
-        border: 2px solid #34d399;
-        animation: electricMultiGlow 8s infinite ease-in-out;
-    }}
+    .electric-box {
+        background: linear-gradient(145deg, rgba(0,188,231,.96) 0%, rgba(0,137,202,.97) 48%, rgba(0,103,177,.96) 100%);
+        color: #ffffff; backdrop-filter: blur(12px) saturate(1.25); -webkit-backdrop-filter: blur(12px) saturate(1.25);
+        width: 100%; max-width: 100%; padding: 20px 28px; border-radius: 28px; text-align: center;
+        margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box;
+        border: 2px solid #b8faff;
+        box-shadow: inset 0 3px 10px rgba(255,255,255,.68), inset 0 -10px 18px rgba(0,54,120,.2), 0 0 0 3px rgba(50,226,255,.32), 0 5px 16px rgba(0,92,150,.22);
+    }
     </style>
     <div class="electric-box">
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 2px;">
@@ -2612,7 +2425,7 @@ def header():
     setInterval(updateLiveClock, 1000);
     </script>
     """
-    components.html(header_html, height=155, scrolling=False)
+    components.html(header_html, height=190, scrolling=False)
 
 def decode_qr_from_camera_image(uploaded_image):
     """Decode a QR code from a photo captured with Streamlit's camera widget."""
@@ -2964,7 +2777,7 @@ def admin_dashboard():
         st.warning("⚠ لا توجد صلاحيات مصرحة.")
         return
     st.markdown("### 📌 لوحة المؤشرات وأقسام الإدارة:")
-    cols_per_row = 3
+    cols_per_row = 1
     menu_keys = available_menus
     for i in range(0, len(menu_keys), cols_per_row):
         row_cols = st.columns(cols_per_row)
