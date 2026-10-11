@@ -90,13 +90,13 @@ html, body, [class*="css"] {
     isolation: isolate !important;
     min-height: 100vh !important;
     /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
-    background-color: #6ab8c2 !important;
+    background-color: #72b6c3 !important;
     background-image:
-        radial-gradient(ellipse at 8% 12%, rgba(45, 190, 205, .22) 0%, rgba(0, 210, 220, 0) 44%),
-        radial-gradient(ellipse at 92% 15%, rgba(30, 150, 180, .20) 0%, rgba(0, 166, 190, 0) 43%),
-        radial-gradient(ellipse at 82% 88%, rgba(40, 170, 165, .19) 0%, rgba(20, 184, 166, 0) 46%),
-        radial-gradient(ellipse at 12% 86%, rgba(65, 165, 215, .20) 0%, rgba(56, 189, 248, 0) 40%),
-        linear-gradient(125deg, #6ab8c2 0%, #72bdc6 32%, #78c8c2 67%, #75b7ca 100%) !important;
+        radial-gradient(ellipse at 8% 12%, rgba(10, 91, 128, .13) 0%, rgba(10, 91, 128, 0) 44%),
+        radial-gradient(ellipse at 92% 15%, rgba(11, 126, 157, .12) 0%, rgba(11, 126, 157, 0) 43%),
+        radial-gradient(ellipse at 82% 88%, rgba(16, 153, 169, .12) 0%, rgba(16, 153, 169, 0) 46%),
+        radial-gradient(ellipse at 12% 86%, rgba(10, 91, 128, .11) 0%, rgba(10, 91, 128, 0) 40%),
+        linear-gradient(125deg, #72b6c3 0%, #79bdc7 32%, #80c6c8 67%, #78b7ca 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -120,8 +120,8 @@ html, body, [class*="css"] {
         repeating-linear-gradient(166deg, transparent 0%, transparent 7.5%, rgba(225, 255, 255, .075) 8%, rgba(225, 255, 255, .02) 8.25%, transparent 9.2%, transparent 17%);
     background-size: 165% 165%, 180% 180%, 175% 175%, 190% 190%, 190% 190%, 190% 190%, 220% 220%;
     background-position: 0% 15%, 100% 35%, 45% 100%, center, center, center, 0% 0%;
-    filter: blur(20px) saturate(1.08);
-    opacity: .82;
+    filter: blur(23px) saturate(.92);
+    opacity: .52;
     animation: livelyWaveFlow 27s ease-in-out infinite alternate;
 }
 /* انعكاسات سطح البحر: خطوط موجية واضحة وناعمة تتحرك باستمرار */
@@ -134,13 +134,13 @@ html, body, [class*="css"] {
     background:
         repeating-radial-gradient(ellipse at 30% 45%,
             transparent 0%, transparent 5.5%,
-            rgba(235,255,255,.22) 5.8%, rgba(235,255,255,.07) 6.2%,
+            rgba(235,255,255,.14) 5.8%, rgba(235,255,255,.045) 6.2%,
             transparent 7.1%, transparent 12%),
-        linear-gradient(112deg, transparent 35%, rgba(226,255,255,.19) 43%, rgba(255,255,255,.06) 48%, transparent 56%);
+        linear-gradient(112deg, transparent 35%, rgba(226,255,255,.12) 43%, rgba(255,255,255,.035) 48%, transparent 56%);
     background-size: 135% 125%, 190% 100%;
     mix-blend-mode: screen;
-    opacity: .68;
-    filter: blur(2px);
+    opacity: .42;
+    filter: blur(2.5px);
     animation: seaSurfaceShimmer 16s ease-in-out infinite alternate;
 }
 @keyframes seaSurfaceShimmer {
@@ -229,7 +229,7 @@ body::after {
     display: none !important;
 }
 .stButton>button {
-    background-color: #347f91 !important;
+    background-color: #0b7e9d !important;
     color: #ffffff !important;
     border-radius: 8px !important;
     font-weight: 800 !important;
@@ -240,12 +240,15 @@ body::after {
     transition: all 0.2s ease;
 }
 .stButton>button:hover {
-    background-color: #347f91 !important;
+    background-color: #0b7e9d !important;
     color: #ffffff !important;
 }
 /* توحيد الأيقونات والتركيز مع لوحة الأزرق والنيلي */
     .stApp [data-testid="stMarkdownContainer"] svg,
-    .stApp [data-testid="stWidgetLabel"] svg { color: #397f91 !important; opacity: .88; }
+    .stApp [data-testid="stWidgetLabel"] svg,
+    .stApp [data-testid="stExpander"] svg,
+    .stApp [data-testid="stSelectbox"] svg,
+    .stApp [data-testid="stMultiSelect"] svg { color: #0a5b80 !important; fill: #0a5b80 !important; opacity: .82; }
     .stApp button:focus-visible, .stApp input:focus, .stApp textarea:focus, .stApp select:focus {
         outline: 2px solid #54b9bd !important;
         outline-offset: 2px !important;
@@ -263,7 +266,7 @@ body::after {
     bottom: 0;
     right: 0;
     left: 0;
-    background: linear-gradient(110deg, #347f91 0%, #3d9eaf 52%, #49b4b1 100%);
+    background: linear-gradient(110deg, #0a5b80 0%, #0b7e9d 52%, #1099a9 100%);
     color: #ffffff;
     text-align: center;
     padding: 8px;
