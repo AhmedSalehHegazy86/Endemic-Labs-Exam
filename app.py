@@ -89,16 +89,17 @@ html, body, [class*="css"] {
     position: relative !important;
     isolation: isolate !important;
     min-height: 100vh !important;
-    background-color: #f4ffd8 !important;
+    /* لوحة موحدة: عاجي هادئ + أخضر زمردي متوافق مع الأيقونات */
+    background-color: #f4f8f3 !important;
     background-image:
-        radial-gradient(ellipse at 12% 18%, rgba(255, 229, 92, .76) 0%, rgba(255, 229, 92, 0) 39%),
-        radial-gradient(ellipse at 88% 16%, rgba(255, 151, 48, .60) 0%, rgba(255, 151, 48, 0) 36%),
-        radial-gradient(ellipse at 78% 82%, rgba(64, 210, 105, .66) 0%, rgba(64, 210, 105, 0) 42%),
-        radial-gradient(ellipse at 18% 88%, rgba(255, 177, 56, .42) 0%, rgba(255, 177, 56, 0) 38%),
-        linear-gradient(125deg, #fff8b8 0%, #ffe0a3 27%, #d9f7a4 54%, #9de9a9 76%, #c9f4b6 100%) !important;
+        radial-gradient(ellipse at 12% 16%, rgba(255, 244, 205, .62) 0%, rgba(255, 244, 205, 0) 42%),
+        radial-gradient(ellipse at 88% 18%, rgba(196, 232, 218, .58) 0%, rgba(196, 232, 218, 0) 40%),
+        radial-gradient(ellipse at 78% 84%, rgba(169, 218, 196, .48) 0%, rgba(169, 218, 196, 0) 44%),
+        radial-gradient(ellipse at 16% 86%, rgba(238, 226, 192, .38) 0%, rgba(238, 226, 192, 0) 40%),
+        linear-gradient(125deg, #fffdf6 0%, #f3f7ef 32%, #e5f2e9 66%, #d8eee3 100%) !important;
     background-attachment: fixed !important;
     background-size: 160% 160% !important;
-    animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
+    animation: livelyGradientFlow 30s ease-in-out infinite alternate !important;
 }
 /* موجات لونية متدرجة موحدة لكل المستخدمين والأجهزة */
 .stApp::before {
@@ -108,12 +109,12 @@ html, body, [class*="css"] {
     z-index: -1;
     pointer-events: none;
     background:
-        radial-gradient(ellipse at 30% 38%, rgba(255, 196, 62, .22) 0%, transparent 36%),
-        radial-gradient(ellipse at 70% 58%, rgba(255, 132, 36, .20) 0%, transparent 34%),
-        radial-gradient(ellipse at 48% 76%, rgba(35, 190, 92, .23) 0%, transparent 40%);
+        radial-gradient(ellipse at 30% 38%, rgba(232, 218, 169, .18) 0%, transparent 36%),
+        radial-gradient(ellipse at 70% 58%, rgba(110, 177, 148, .16) 0%, transparent 36%),
+        radial-gradient(ellipse at 48% 76%, rgba(42, 142, 104, .12) 0%, transparent 42%);
     background-size: 180% 180%;
-    filter: blur(28px) saturate(1.18);
-    animation: livelyWaveFlow 32s ease-in-out infinite alternate;
+    filter: blur(30px) saturate(1.02);
+    animation: livelyWaveFlow 36s ease-in-out infinite alternate;
 }
 @keyframes livelyGradientFlow {
     0% { background-position: 0% 20%; }
@@ -134,7 +135,7 @@ body::after {
     height: 100%;
     pointer-events: none;
     z-index: 999998;
-    background: radial-gradient(ellipse at center, rgba(255,255,255,0) 56%, rgba(80,80,20,0.045) 100%);
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0) 56%, rgba(20,70,48,0.035) 100%);
 }
 @media (prefers-reduced-motion: reduce) {
     .stApp, .stApp::before { animation: none !important; }
@@ -170,7 +171,7 @@ body::after {
     border-radius: 10px;
     margin-bottom: 18px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    border-right: 6px solid #059669 !important;
+    border-right: 6px solid #16845b !important;
     width: 100% !important;
 }
 .metric {
@@ -178,13 +179,13 @@ body::after {
     padding: 16px;
     border-radius: 10px;
     text-align: center;
-    border-top: 4px solid #059669 !important;
+    border-top: 4px solid #16845b !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .metric .v {
     font-size: 24px;
     font-weight: 800;
-    color: #065f46 !important;
+    color: #116149 !important;
 }
 .metric .l {
     color: #4b5563 !important;
@@ -195,7 +196,7 @@ body::after {
     display: none !important;
 }
 .stButton>button {
-    background-color: #059669 !important;
+    background-color: #16845b !important;
     color: #ffffff !important;
     border-radius: 8px !important;
     font-weight: 800 !important;
@@ -206,7 +207,7 @@ body::after {
     transition: all 0.2s ease;
 }
 .stButton>button:hover {
-    background-color: #047857 !important;
+    background-color: #106b49 !important;
     color: #ffffff !important;
 }
 input, select, textarea {
@@ -220,7 +221,7 @@ input, select, textarea {
     bottom: 0;
     right: 0;
     left: 0;
-    background: rgba(6, 78, 59, 0.95);
+    background: rgba(17, 75, 56, 0.96);
     color: #ffffff;
     text-align: center;
     padding: 8px;
@@ -229,7 +230,7 @@ input, select, textarea {
     letter-spacing: 0.5px;
     z-index: 99999;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    border-top: 2px solid #059669;
+    border-top: 2px solid #55b58b;
 }
 </style>
 <script>
@@ -2238,7 +2239,7 @@ def render_print_button_only(html_content, label_prefix=""):
                 right: 0 !important;
                 width: 100% !important;
                 background: #ffffff !important;
-                border-top: 2px solid #059669;
+                border-top: 2px solid #55b58b;
                 padding: 4px 4px !important;
                 font-family: 'Cairo', Tahoma, sans-serif;
                 font-size: 10pt;
@@ -2296,7 +2297,7 @@ def render_print_button_only(html_content, label_prefix=""):
         .print-footer-dynamic {{
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 2px solid #059669;
+            border-top: 2px solid #55b58b;
             margin-top: 6mm;
             padding: 6px 4px;
             font-family: 'Cairo', Tahoma, sans-serif;
