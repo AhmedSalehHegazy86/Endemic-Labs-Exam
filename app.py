@@ -449,6 +449,60 @@ body::after {
     [data-testid="stAppViewContainer"]::before { filter: blur(6px); opacity: .5; }
 }
 
+
+
+/* FINAL OVERRIDE: apply the agreed sky-and-glossy-blue theme app-wide */
+.stApp,
+[data-testid="stAppViewContainer"] {
+    background-color: #83d0f4 !important;
+    background-image:
+      radial-gradient(ellipse 42% 24% at 8% 5%, rgba(255,255,255,.34) 0%, transparent 76%),
+      radial-gradient(ellipse 36% 21% at 92% 18%, rgba(255,255,255,.27) 0%, transparent 76%),
+      radial-gradient(ellipse 38% 20% at 18% 62%, rgba(255,255,255,.23) 0%, transparent 76%),
+      radial-gradient(ellipse 40% 22% at 85% 76%, rgba(255,255,255,.25) 0%, transparent 76%),
+      linear-gradient(180deg, #65baf0 0%, #8bd4f5 50%, #b4e8fa 100%) !important;
+    background-size: 150% 150%, 145% 145%, 160% 160%, 150% 150%, 100% 100% !important;
+    background-attachment: fixed !important;
+    animation: agreedSkyClouds 46s ease-in-out infinite alternate !important;
+}
+/* Subtle moving white cloud wisps on every page */
+@keyframes agreedSkyClouds {
+    0% {
+      background-position: 0% 0%, 100% 12%, 5% 62%, 92% 78%, center;
+    }
+    50% {
+      background-position: 5% 4%, 94% 8%, 11% 58%, 86% 73%, center;
+    }
+    100% {
+      background-position: 10% 1%, 88% 14%, 16% 65%, 80% 80%, center;
+    }
+}
+/* Glossy blue-water buttons everywhere; don't recolor emoji/icons */
+.stApp div.stButton > button,
+.stApp div[data-testid="stFormSubmitButton"] > button,
+.stApp button[kind="primary"] {
+    background-color: #0789ad !important;
+    background-image:
+      linear-gradient(180deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,.08) 20%, transparent 43%),
+      linear-gradient(112deg, #087fa6 0%, #08a8c8 48%, #087ca4 100%) !important;
+    color: #fff !important;
+    border: 1px solid rgba(135,247,255,.95) !important;
+    border-radius: 15px !important;
+    box-shadow:
+      inset 0 1px 3px rgba(255,255,255,.62),
+      inset 0 -4px 9px rgba(0,55,105,.24),
+      0 4px 13px rgba(0,95,150,.18) !important;
+}
+/* Preserve emoji colors and all icon artwork */
+.stApp button img, .stApp button svg,
+.stApp [data-testid="stMarkdownContainer"] img,
+.stApp [data-testid="stMarkdownContainer"] svg {
+    filter: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .stApp, [data-testid="stAppViewContainer"] { animation: none !important; }
+}
+
 </style>
 <script>
 document.addEventListener("contextmenu", function(e) {
