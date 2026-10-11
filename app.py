@@ -2392,14 +2392,14 @@ for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], 
 def header():
     header_html = f"""
     <style>
-    .electric-box {
+    .electric-box {{
         background: linear-gradient(145deg, rgba(0,188,231,.96) 0%, rgba(0,137,202,.97) 48%, rgba(0,103,177,.96) 100%);
         color: #ffffff; backdrop-filter: blur(12px) saturate(1.25); -webkit-backdrop-filter: blur(12px) saturate(1.25);
         width: 100%; max-width: 100%; padding: 20px 28px; border-radius: 28px; text-align: center;
         margin-bottom: 20px; font-family: 'Cairo', sans-serif; box-sizing: border-box;
         border: 2px solid #b8faff;
         box-shadow: inset 0 3px 10px rgba(255,255,255,.68), inset 0 -10px 18px rgba(0,54,120,.2), 0 0 0 3px rgba(50,226,255,.32), 0 5px 16px rgba(0,92,150,.22);
-    }
+    }}
     </style>
     <div class="electric-box">
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 2px;">
