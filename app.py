@@ -89,14 +89,14 @@ html, body, [class*="css"] {
     position: relative !important;
     isolation: isolate !important;
     min-height: 100vh !important;
-    /* لوحة زمردية حيوية: تدرج واضح ومتوازن مع الأيقونات الخضراء */
-    background-color: #e7f1e9 !important;
+    /* هوية طبية مائية لامعة: أزرق محيطي + تركواز + سماوي مشبع */
+    background-color: #087e9b !important;
     background-image:
-        radial-gradient(ellipse at 8% 12%, rgba(20, 132, 91, .20) 0%, rgba(20, 132, 91, 0) 43%),
-        radial-gradient(ellipse at 92% 15%, rgba(13, 148, 136, .19) 0%, rgba(13, 148, 136, 0) 42%),
-        radial-gradient(ellipse at 82% 88%, rgba(52, 168, 116, .23) 0%, rgba(52, 168, 116, 0) 45%),
-        radial-gradient(ellipse at 12% 86%, rgba(213, 170, 72, .15) 0%, rgba(213, 170, 72, 0) 38%),
-        linear-gradient(125deg, #f8fbf7 0%, #e3f0e6 28%, #cde7d8 62%, #b8dfd0 100%) !important;
+        radial-gradient(ellipse at 8% 12%, rgba(0, 210, 220, .48) 0%, rgba(0, 210, 220, 0) 44%),
+        radial-gradient(ellipse at 92% 15%, rgba(0, 166, 190, .46) 0%, rgba(0, 166, 190, 0) 43%),
+        radial-gradient(ellipse at 82% 88%, rgba(20, 184, 166, .42) 0%, rgba(20, 184, 166, 0) 46%),
+        radial-gradient(ellipse at 12% 86%, rgba(56, 189, 248, .42) 0%, rgba(56, 189, 248, 0) 40%),
+        linear-gradient(125deg, #087e9b 0%, #0798ad 32%, #0bb6b2 67%, #168fb2 100%) !important;
     background-attachment: fixed !important;
     background-size: 180% 180% !important;
     animation: livelyGradientFlow 24s ease-in-out infinite alternate !important;
@@ -109,12 +109,20 @@ html, body, [class*="css"] {
     z-index: -1;
     pointer-events: none;
     background:
-        radial-gradient(ellipse at 28% 34%, rgba(16, 132, 91, .18) 0%, transparent 38%),
-        radial-gradient(ellipse at 76% 52%, rgba(13, 148, 136, .16) 0%, transparent 38%),
-        radial-gradient(ellipse at 48% 78%, rgba(52, 168, 116, .17) 0%, transparent 43%);
-    background-size: 190% 190%;
-    filter: blur(24px) saturate(1.18);
-    animation: livelyWaveFlow 36s ease-in-out infinite alternate;
+        /* تداخلات واسعة مثل حركة البحر */
+        radial-gradient(ellipse 72% 30% at 12% 24%, rgba(72, 244, 238, .34) 0%, rgba(72, 244, 238, .12) 38%, transparent 72%),
+        radial-gradient(ellipse 68% 34% at 88% 38%, rgba(0, 75, 145, .30) 0%, rgba(0, 75, 145, .10) 42%, transparent 74%),
+        radial-gradient(ellipse 80% 32% at 45% 72%, rgba(36, 230, 204, .30) 0%, rgba(36, 230, 204, .09) 44%, transparent 76%),
+        radial-gradient(ellipse at 28% 34%, rgba(0, 210, 220, .30) 0%, transparent 38%),
+        radial-gradient(ellipse at 76% 52%, rgba(20, 184, 166, .30) 0%, transparent 38%),
+        radial-gradient(ellipse at 48% 78%, rgba(56, 189, 248, .27) 0%, transparent 43%),
+        /* خطوط انعكاس لامعة رفيعة فوق الموج */
+        repeating-linear-gradient(166deg, transparent 0%, transparent 7.5%, rgba(225, 255, 255, .075) 8%, rgba(225, 255, 255, .02) 8.25%, transparent 9.2%, transparent 17%);
+    background-size: 165% 165%, 180% 180%, 175% 175%, 190% 190%, 190% 190%, 190% 190%, 220% 220%;
+    background-position: 0% 15%, 100% 35%, 45% 100%, center, center, center, 0% 0%;
+    filter: blur(16px) saturate(1.52);
+    opacity: .96;
+    animation: livelyWaveFlow 27s ease-in-out infinite alternate;
 }
 @keyframes livelyGradientFlow {
     0% { background-position: 0% 20%; }
@@ -122,9 +130,10 @@ html, body, [class*="css"] {
     100% { background-position: 20% 100%; }
 }
 @keyframes livelyWaveFlow {
-    0% { transform: translate3d(-2%, -1%, 0) scale(1); }
-    50% { transform: translate3d(2%, 1%, 0) scale(1.06); }
-    100% { transform: translate3d(-1%, 2%, 0) scale(1.02); }
+    0% { transform: translate3d(-3%, -1.5%, 0) scale(1) rotate(-1deg); }
+    35% { transform: translate3d(1.5%, 1%, 0) scale(1.045) rotate(.5deg); }
+    70% { transform: translate3d(3%, -1%, 0) scale(1.07) rotate(1deg); }
+    100% { transform: translate3d(-1%, 2.5%, 0) scale(1.025) rotate(-.4deg); }
 }
 body::after {
     content: "";
@@ -142,7 +151,7 @@ body::after {
 }
 @media (max-width: 768px) {
     .stApp { background-attachment: scroll !important; background-size: 190% 190% !important; }
-    .stApp::before { filter: blur(18px) saturate(1.1); }
+    .stApp::before { filter: blur(13px) saturate(1.42); opacity: .92; }
 }
 .stApp, .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] {
     font-size: 16px;
@@ -171,7 +180,7 @@ body::after {
     border-radius: 10px;
     margin-bottom: 18px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    border-right: 6px solid #16845b !important;
+    border-right: 6px solid #0798ad !important;
     width: 100% !important;
 }
 .metric {
@@ -179,13 +188,13 @@ body::after {
     padding: 16px;
     border-radius: 10px;
     text-align: center;
-    border-top: 4px solid #16845b !important;
+    border-top: 4px solid #0798ad !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .metric .v {
     font-size: 24px;
     font-weight: 800;
-    color: #116149 !important;
+    color: #087e9b !important;
 }
 .metric .l {
     color: #4b5563 !important;
@@ -196,7 +205,7 @@ body::after {
     display: none !important;
 }
 .stButton>button {
-    background-color: #16845b !important;
+    background-color: #087e9b !important;
     color: #ffffff !important;
     border-radius: 8px !important;
     font-weight: 800 !important;
@@ -207,10 +216,19 @@ body::after {
     transition: all 0.2s ease;
 }
 .stButton>button:hover {
-    background-color: #106b49 !important;
+    background-color: #087e9b !important;
     color: #ffffff !important;
 }
-input, select, textarea {
+/* توحيد الأيقونات والتركيز مع لوحة الأزرق والنيلي */
+    .stApp [data-testid="stMarkdownContainer"] svg,
+    .stApp [data-testid="stWidgetLabel"] svg { color: #087e9b; }
+    .stApp button:focus-visible, .stApp input:focus, .stApp textarea:focus, .stApp select:focus {
+        outline: 2px solid #0bb6b2 !important;
+        outline-offset: 2px !important;
+        border-color: #0bb6b2 !important;
+        box-shadow: 0 0 0 3px rgba(11,182,178,.28) !important;
+    }
+    input, select, textarea {
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1px solid #cbd5e1 !important;
@@ -221,7 +239,7 @@ input, select, textarea {
     bottom: 0;
     right: 0;
     left: 0;
-    background: rgba(17, 75, 56, 0.96);
+    background: linear-gradient(110deg, #087e9b 0%, #0798ad 52%, #0bb6b2 100%);
     color: #ffffff;
     text-align: center;
     padding: 8px;
@@ -230,7 +248,7 @@ input, select, textarea {
     letter-spacing: 0.5px;
     z-index: 99999;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    border-top: 2px solid #55b58b;
+    border-top: 2px solid #67e8f9;
 }
 </style>
 <script>
@@ -1332,15 +1350,36 @@ def ensure_admin():
 ensure_admin()
 
 def login_user(u, p):
+    """Authenticate admin users without changing passwords or touching trainee data.
+
+    Username matching is case-insensitive and ignores accidental spaces around the
+    username; passwords remain exact and case-sensitive.
+    """
+    username = str(u or "").strip()
+    password = str(p or "")
+    st.session_state["admin_login_error"] = ""
+    if not username or not password:
+        st.session_state["admin_login_error"] = "أدخل اسم المستخدم وكلمة المرور أولاً."
+        return None
     with db() as c:
-        user = c.execute("SELECT * FROM users WHERE username=? AND active=1", (u.strip(),)).fetchone()
-        if user and verify_password(p, user["password_hash"]):
-            # Upgrade any legacy password representation immediately after successful login.
-            if "$" not in str(user["password_hash"]):
-                c.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(p), user["id"]))
-            c.execute("UPDATE users SET last_login=? WHERE id=?", (now(), user["id"]))
-            return dict(user)
-    return None
+        user = c.execute(
+            "SELECT * FROM users WHERE lower(trim(username))=lower(?) LIMIT 1",
+            (username,),
+        ).fetchone()
+        if not user:
+            st.session_state["admin_login_error"] = "اسم المستخدم غير موجود في قاعدة البيانات الحالية. تأكد أنك تستخدم نسخة البرنامج وقاعدة البيانات الصحيحتين."
+            return None
+        if not int(user["active"] or 0):
+            st.session_state["admin_login_error"] = "هذا الحساب موقوف. اطلب من مالك النظام تفعيله."
+            return None
+        if not verify_password(password, user["password_hash"]):
+            st.session_state["admin_login_error"] = "اسم المستخدم موجود، لكن كلمة المرور لا تطابق كلمة المرور المحفوظة لهذا الحساب. لم يتم تغيير أي بيانات."
+            return None
+        # Upgrade a legacy plaintext password only after successful verification.
+        if "$" not in str(user["password_hash"]):
+            c.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(password), user["id"]))
+        c.execute("UPDATE users SET last_login=? WHERE id=?", (now(), user["id"]))
+        return dict(user)
 
 def _find_duplicate_trainee_value(c, field, normalized_value, exclude_id=None):
     if field not in {"phone", "national_id"} or not normalized_value:
@@ -2239,7 +2278,7 @@ def render_print_button_only(html_content, label_prefix=""):
                 right: 0 !important;
                 width: 100% !important;
                 background: #ffffff !important;
-                border-top: 2px solid #55b58b;
+                border-top: 2px solid #67e8f9;
                 padding: 4px 4px !important;
                 font-family: 'Cairo', Tahoma, sans-serif;
                 font-size: 10pt;
@@ -2297,7 +2336,7 @@ def render_print_button_only(html_content, label_prefix=""):
         .print-footer-dynamic {{
             width: 100% !important;
             background: #ffffff !important;
-            border-top: 2px solid #55b58b;
+            border-top: 2px solid #67e8f9;
             margin-top: 6mm;
             padding: 6px 4px;
             font-family: 'Cairo', Tahoma, sans-serif;
@@ -2742,7 +2781,7 @@ def login_portal():
                         st.session_state.user_hierarchy_scope = {}
                     st.rerun()
                 else:
-                    st.error("بيانات الدخول غير صحيحة.")
+                    st.error(st.session_state.get("admin_login_error") or "تعذر تسجيل الدخول. راجع بيانات الحساب.")
 
 def is_owner():
     """المالك/مدير النظام يمتلك صلاحية عليا على جميع أجزاء البرنامج."""
