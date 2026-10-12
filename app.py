@@ -5810,11 +5810,44 @@ def trainee_portal():
                 pass
 
     if not is_exam_open:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
-            <div style="font-size: 34px; font-weight: 900; letter-spacing: 1px;">🚫 لا يوجد امتحانات متوفرة الان</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Keep the examinee portal polling so a scheduled exam becomes available without manual refresh.
+        upcoming_schedule = None
+        upcoming_start = None
+        upcoming_end = None
+        if matching_template:
+            try:
+                upcoming_schedule = get_schedule_for_trainee(tr["id"], matching_template["id"])
+                if upcoming_schedule and upcoming_schedule.get("start_time") and upcoming_schedule.get("end_time"):
+                    upcoming_start = datetime.fromisoformat(str(upcoming_schedule["start_time"]))
+                    upcoming_end = datetime.fromisoformat(str(upcoming_schedule["end_time"]))
+                    if upcoming_start.tzinfo is None:
+                        upcoming_start = upcoming_start.replace(tzinfo=CAIRO_TZ)
+                    if upcoming_end.tzinfo is None:
+                        upcoming_end = upcoming_end.replace(tzinfo=CAIRO_TZ)
+            except Exception:
+                upcoming_schedule = None
+        if upcoming_start and upcoming_end and now_cairo() < upcoming_start:
+            start_label = upcoming_start.astimezone(CAIRO_TZ).strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);color:white;padding:32px;border-radius:16px;text-align:center;margin:35px auto;max-width:900px;font-family:'Cairo',sans-serif">
+              <div style="font-size:28px;font-weight:900">⏳ الامتحان لم يبدأ بعد</div>
+              <div style="font-size:18px;margin-top:12px">سيُفتح الامتحان تلقائياً في الموعد المحدد</div>
+              <div style="font-size:17px;margin-top:8px">موعد البدء: <b>{esc(start_label)}</b> — بتوقيت مصر</div>
+              <div style="margin-top:10px;font-size:14px">سيتم تحديث الشاشة تلقائياً دون الحاجة إلى تسجيل الخروج.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            components.html("<script>setTimeout(function(){window.parent.location.reload();}, 3000);</script>", height=0)
+        elif upcoming_end and now_cairo() > upcoming_end:
+            st.warning("انتهت فترة إتاحة الامتحان المحددة لهذا النموذج. يرجى مراجعة الإدارة.")
+            components.html("<script>setTimeout(function(){window.parent.location.reload();}, 15000);</script>", height=0)
+        else:
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
+                <div style="font-size: 34px; font-weight: 900; letter-spacing: 1px;">🚫 لا يوجد امتحانات متوفرة الان</div>
+                <div style="font-size:16px;margin-top:12px">ستُحدّث الشاشة تلقائياً للتحقق من الموعد.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            components.html("<script>setTimeout(function(){window.parent.location.reload();}, 10000);</script>", height=0)
     else:
         t_dict = dict(matching_template)
         tpl_name_str = t_dict.get("name", "اختبار معتمد")
@@ -5986,6 +6019,11 @@ def exam_interface(session_id):
         f"<div style='position:sticky;top:0;z-index:9999;background:rgba(255,255,255,.96);border:1px solid #b91c1c;color:#991b1b;padding:8px;text-align:center;font-weight:800;pointer-events:none;'>نسخة مخصصة للمتدرب: {esc(session['scoped_trainee_name'])} | رقم الجلسة: {int(session_id)} | يمنع تداول محتوى الاختبار</div>",
         unsafe_allow_html=True,
     )
+    remaining_seconds = max(0, int((exam_expiry - now_cairo()).total_seconds()))
+    st.markdown(f"""<div style="position:sticky;top:42px;z-index:9998;background:#fff7ed;border:2px solid #ea580c;color:#9a3412;border-radius:10px;padding:10px;text-align:center;font-weight:900;margin:10px 0">
+    ⏱ الوقت المتبقي: <span id="exam-countdown">{remaining_seconds // 60:02d}:{remaining_seconds % 60:02d}</span>
+    </div>""", unsafe_allow_html=True)
+    components.html(f"""<script>(function(){{let s={remaining_seconds};function tick(){{const d=window.parent.document.getElementById('exam-countdown');if(s<=0){{if(d)d.textContent='00:00';window.parent.location.reload();return;}}if(d)d.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');s--;setTimeout(tick,1000);}}tick();}})();</script>""", height=0)
     if exam_is_expired:
         st.warning("انتهى الوقت المحدد للاختبار. يتم الآن اعتماد الإجابات المحفوظة تلقائياً.")
         auto_result = submit_session(session_id)
