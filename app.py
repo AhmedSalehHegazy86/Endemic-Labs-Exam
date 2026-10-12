@@ -111,6 +111,35 @@ html, body, [class*="css"] {
 .stApp, .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] {
     font-size: 16px;
 }
+/* توحيد الخط العريض في جميع عناصر واجهة البرنامج مع الحفاظ على التصميم الأزرق */
+.stApp,
+.stApp p,
+.stApp span,
+.stApp label,
+.stApp div,
+.stApp li,
+.stApp td,
+.stApp th,
+.stApp summary,
+.stApp [data-testid="stMarkdownContainer"],
+.stApp [data-testid="stWidgetLabel"],
+.stApp [data-testid="stCaptionContainer"],
+.stApp [data-testid="stAlert"],
+.stApp input,
+.stApp textarea,
+.stApp select,
+.stApp [role="combobox"],
+.stApp button,
+.stApp [data-baseweb="tag"],
+.stApp [data-testid="stDataFrame"] {
+    font-weight: 700 !important;
+}
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+.stApp strong, .stApp b,
+.stApp .stButton > button,
+.stApp [data-testid="stFormSubmitButton"] > button {
+    font-weight: 800 !important;
+}
 .stApp h1 { font-size: 1.8rem !important; }
 .stApp h2 { font-size: 1.55rem !important; }
 .stApp h3 { font-size: 1.3rem !important; }
@@ -2597,7 +2626,7 @@ def login_portal():
     # كل زر يفتح محتواه تحته مباشرة، مع بقاء دخول الإدارة مخفياً كما كان.
     if "login_portal_section" not in st.session_state:
         st.session_state.login_portal_section = ""
-    st.markdown("<style>div.stButton > button {min-height: 3.2rem; font-weight: 600;} .portal-gap {height: 22px;}</style>", unsafe_allow_html=True)
+    st.markdown("<style>div.stButton > button {min-height: 3.2rem; font-weight: 800 !important;} .portal-gap {height: 22px;}</style>", unsafe_allow_html=True)
 
     if st.button("🔐 تسجيل دخول الامتحان", key="portal_exam_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "exam" else "secondary"):
         st.session_state.login_portal_section = "" if st.session_state.login_portal_section == "exam" else "exam"
