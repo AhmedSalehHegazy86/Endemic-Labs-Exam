@@ -1531,6 +1531,15 @@ def trainee_by_credentials(name, facility):
         r = c.execute("SELECT * FROM trainees WHERE name=? AND facility=? AND status IN ('approved','active') AND hidden=0", (normalize_text(name), facility)).fetchone()
         return dict(r) if r else None
 
+def trainee_by_national_id(national_id):
+    nid_norm = normalize_national_id(national_id)
+    if not nid_norm:
+        return None
+    with db() as c:
+        rows = c.execute("SELECT * FROM trainees WHERE status IN ('approved','active') AND hidden=0 ORDER BY id DESC").fetchall()
+        matches = [dict(r) for r in rows if normalize_national_id(r["national_id"]) == nid_norm]
+        return matches[0] if len(matches) == 1 else None
+
 def trainee_by_phone_and_national_id(phone, national_id):
     phone_norm = normalize_egyptian_phone(phone)
     nid_norm = normalize_national_id(national_id)
@@ -2756,34 +2765,29 @@ def login_portal():
         st.rerun()
     if st.session_state.login_portal_section == "exam":
             st.markdown("### 🔐 التسجيل ودخول الامتحان")
-            st.info("بعد اعتماد تسجيلك من الإدارة، أدخل **رقم الهاتف والرقم القومي** المسجلين لطلب دخول الامتحان.")
-            with st.form("trainee_phone_login", clear_on_submit=True):
-                phone_login = st.text_input("رقم الهاتف:", placeholder="مثال: 01012345678 أو +201012345678")
+            st.info("بعد اعتماد تسجيلك من الإدارة، أدخل الرقم القومي المسجل فقط.")
+            with st.form("trainee_national_id_login", clear_on_submit=True):
                 nid_login = st.text_input("الرقم القومي:", max_chars=14, placeholder="أدخل الرقم القومي المسجل")
-                if st.form_submit_button("🚪 التحقق وطلب دخول الامتحان", use_container_width=True):
-                    tr = trainee_by_phone_and_national_id(phone_login, nid_login)
-                    if not tr:
-                        st.error("❌ بيانات الدخول غير متطابقة مع تسجيل معتمد. راجع رقم الهاتف والرقم القومي.")
-                    elif not tr.get("assigned_template_id"):
-                        st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
+                if st.form_submit_button("🚪 دخول الامتحان", use_container_width=True):
+                    digits_nid = normalize_national_id(nid_login)
+                    if not is_valid_egyptian_national_id(digits_nid):
+                        st.error("❌ الرقم القومي غير صحيح. أدخل 14 رقماً صحيحة.")
                     else:
-                        with db() as c:
-                            login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
-                        if not login_tpl:
-                            st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
+                        tr = trainee_by_national_id(digits_nid)
+                        if not tr:
+                            st.error("❌ لم يتم العثور على تسجيل معتمد بهذا الرقم القومي.")
+                        elif not tr.get("assigned_template_id"):
+                            st.warning("⏳ تم اعتماد التسجيل، لكن لم يتم تخصيص نموذج امتحان لك بعد.")
                         else:
-                            # Existing approved examiners enter the portal immediately after login.
-                            # The actual exam remains gated by the schedule, hierarchy, and profession
-                            # checks inside trainee_portal() and exam_interface(). New registrations
-                            # remain pending because trainee_by_phone_and_national_id only returns
-                            # approved/active records.
-                            st.session_state.trainee_id = tr["id"]
-                            st.session_state.trainee_name = tr["name"]
-                            if get_schedule_for_trainee(tr["id"], tr["assigned_template_id"]):
-                                st.success("✅ تم التحقق من بياناتك. سيتم إتاحة الامتحان وفق الموعد المحدد للنموذج.")
+                            with db() as c:
+                                login_tpl = c.execute("SELECT * FROM exam_templates WHERE id=? AND active=1", (tr["assigned_template_id"],)).fetchone()
+                            if not login_tpl:
+                                st.warning("⏳ نموذج الاختبار المخصص لك غير متاح حالياً. يرجى مراجعة الإدارة.")
                             else:
-                                st.info("✅ تم تسجيل الدخول. لا يزال دخول الامتحان مرتبطًا بتحديد موعد مناسب لنموذجك وهيكلك الإداري.")
-                            st.rerun()
+                                st.session_state.trainee_id = tr["id"]
+                                st.session_state.trainee_name = tr["name"]
+                                st.rerun()
+
 
     st.markdown('<div class="portal-gap"></div>', unsafe_allow_html=True)
     if st.button("📝 تسجيل أول مرة", key="portal_register_button", use_container_width=True, type="primary" if st.session_state.login_portal_section == "register" else "secondary"):
@@ -4335,7 +4339,7 @@ def admin_dashboard():
                 facility_trainees = [dict(r) for r in c.execute(f"SELECT t.id,t.name,t.facility,t.profession,t.status FROM trainees t WHERE COALESCE(t.hidden,0)=0 AND {user_scope_pred} ORDER BY t.name COLLATE NOCASE", tuple(user_scope_args)).fetchall()]
             eligible_manual_trainees = [t for t in facility_trainees if (not selected_manual_facility or str(t.get("facility") or "").strip() == selected_manual_facility) and (not manual_profession or str(t.get("profession") or "").strip() == manual_profession)]
             manual_trainee_labels = {f"{t['name']} — {t['profession']} (#{t['id']})": t["id"] for t in eligible_manual_trainees}
-            manual_selected_labels = st.multiselect("اختيار متدرب واحد أو أكثر من المنشأة:", list(manual_trainee_labels.keys()), key="manual_exam_trainees_v2", help="اختر فردًا واحدًا أو عدة أفراد. إذا لم تختر أسماء، يمكنك إدخال اسم جديد يدويًا.")
+            manual_selected_label = st.selectbox("اسم المتدرب (إجباري من قاعدة البيانات):", ["-- اختر متدربًا --"] + list(manual_trainee_labels.keys()), key="manual_exam_trainee_required_v3", help="يتم اختيار الاسم من المتدربين المسجلين المطابقين للهيكل الإداري والمنشأة والمهنة فقط.")
             default_fac_str = selected_manual_facility or str(manual_scope.get("scope_facility") or (hier_data[0]["facility_name"] if hier_data else ""))
             print_st_m = get_print_settings()
             prof_manual_list = print_st_m.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري"])
@@ -4350,10 +4354,9 @@ def admin_dashboard():
             manual_tpl_choices = {f"{row['name']} ({row['exam_type']})": row["id"] for row in scope_tpls} if scope_tpls else {}
             manual_tpl_keys = list(manual_tpl_choices.keys()) if manual_tpl_choices else ["لا توجد نماذج اختبارات متوافقة مع الوظيفة"]
             with st.form("manual_score_form_enhanced", clear_on_submit=True):
-                selected_names_display = ", ".join(label.split(" — ")[0] for label in manual_selected_labels)
-                m_trainee_name = st.text_input("اسم المتدرب (يُملأ تلقائيًا عند الاختيار أعلاه):", value=selected_names_display)
-                m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str)
-                m_profession = st.selectbox("الوظيفة / التخصص:", prof_manual_list, index=prof_manual_list.index(manual_profession) if manual_profession in prof_manual_list else 0)
+                m_trainee_name = st.text_input("اسم المتدرب:", value=(manual_selected_label.split(" — ")[0] if manual_selected_label != "-- اختر متدربًا --" else ""), disabled=True)
+                m_facility_name = st.text_input("وحدة الأمراض المتوطنة / جهة العمل:", value=default_fac_str, disabled=True)
+                m_profession = st.text_input("الوظيفة / التخصص:", value=manual_profession, disabled=True)
                 selected_manual_tpl_name = st.selectbox("اختر قالب/نموذج الاختبار:", manual_tpl_keys)
                 c1, c2 = st.columns(2)
                 with c1:
@@ -4373,18 +4376,19 @@ def admin_dashboard():
                     selected_wrong_labels = st.multiselect("اختر الأسئلة الخاطئة من القائمة:", list(q_options_dict.keys()))
                     selected_wrong_q_ids = [q_options_dict[lbl] for lbl in selected_wrong_labels]
                 if st.form_submit_button("💾 حفظ النتيجة وتسجيل تفاصيل الأخطاء بدقة", use_container_width=True):
-                    if not m_trainee_name.strip():
-                        st.warning("⚠ يرجى اختيار متدرب من القائمة أو إدخال اسمه.")
+                    if manual_selected_label == "-- اختر متدربًا --" or manual_selected_label not in manual_trainee_labels:
+                        st.warning("⚠ يجب اختيار متدرب موجود من القائمة المرتبطة بالهيكل الإداري.")
                     elif not manual_tpl_choices:
                         st.warning("⚠ يرجى إنشاء نموذج اختبار متوافق مع الوظيفة أولاً.")
                     else:
                         with db() as c:
                             tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
-                            selected_ids = [manual_trainee_labels[label] for label in manual_selected_labels if label in manual_trainee_labels]
-                            if not selected_ids:
-                                cur_tr = c.execute("INSERT INTO trainees(facility,name,phone,profession,status,assigned_template_id,created_at,updated_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)",
-                                                   (m_facility_name, normalize_text(m_trainee_name), "0000000000", m_profession, "completed", tpl_id_val, now(), now(), 0))
-                                selected_ids = [cur_tr.lastrowid]
+                            selected_ids = [manual_trainee_labels[manual_selected_label]]
+                            # Revalidate selected trainee against current hierarchy/facility/profession before writing.
+                            selected_row = c.execute("SELECT id,name,facility,profession,hidden FROM trainees WHERE id=?", (selected_ids[0],)).fetchone()
+                            if not selected_row or selected_row["hidden"] or selected_row["facility"] != (selected_manual_facility or str(manual_scope.get("scope_facility") or "")) or selected_row["profession"] != manual_profession:
+                                st.error("❌ المتدرب المختار لا يطابق الهيكل الإداري أو المنشأة أو المهنة المحددة.")
+                                st.stop()
                             passed_flag = 1 if manual_passed == "اجتزت بنجاح" else 0
                             cert_codes = []
                             for selected_tid in selected_ids:
