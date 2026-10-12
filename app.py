@@ -1003,6 +1003,16 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
                   (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}", report_hierarchy or "{}"))
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
+def hierarchy_level_codes(rows):
+    """Independent sequential display codes for authorities, administrations, and facilities."""
+    authorities = sorted({str(r.get("authority") or "").strip() for r in rows if str(r.get("authority") or "").strip()})
+    auth_codes = {name: i for i, name in enumerate(authorities, 1)}
+    admin_pairs = sorted({(str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip()) for r in rows if str(r.get("authority") or "").strip() and str(r.get("administration") or "").strip()})
+    admin_codes = {pair: i for i, pair in enumerate(admin_pairs, 1)}
+    facility_pairs = sorted({(str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip(), str(r.get("facility_name") or "").strip()) for r in rows if str(r.get("authority") or "").strip() and str(r.get("administration") or "").strip() and str(r.get("facility_name") or "").strip()})
+    facility_codes = {pair: i for i, pair in enumerate(facility_pairs, 1)}
+    return auth_codes, admin_codes, facility_codes
+
 def get_hierarchical_data(include_hidden=False):
     """Return only hierarchy nodes within the logged-in user's assigned scope."""
     with db() as c:
@@ -2676,14 +2686,18 @@ def login_portal():
                 st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
                 facility_final_str = ""
             else:
+                auth_codes, admin_codes, facility_codes = hierarchy_level_codes(hier_data)
                 auths_list = sorted({str(item.get("authority") or "").strip() for item in hier_data if str(item.get("authority") or "").strip()})
-                sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, key="reg_authority", on_change=_reset_reg_admin_and_facility)
+                auth_labels = {name: f"{name} (كود المديرية: {auth_codes[name]})" for name in auths_list}
+                sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
                 rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
                 admins_list = sorted({str(item.get("administration") or "").strip() for item in rows_auth if str(item.get("administration") or "").strip()})
-                sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
+                admin_labels = {name: f"{name} (كود الإدارة: {admin_codes[(sel_auth, name)]})" for name in admins_list}
+                sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, format_func=lambda value: value if value == "-- اختر الإدارة --" else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
                 rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
                 facilities_list = sorted({str(item.get("facility_name") or "").strip() for item in rows_admin if str(item.get("facility_name") or "").strip()})
-                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, key="reg_facility", disabled=not bool(rows_admin))
+                facility_labels = {name: f"{name} (كود المنشأة: {facility_codes[(sel_auth, sel_admin, name)]})" for name in facilities_list}
+                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, format_func=lambda value: value if value == "-- اختر المنشأة --" else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
                 facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
             with st.form("trainee_first_registration", clear_on_submit=True):
                 name = st.text_input("الاسم الرباعي:")
@@ -3363,11 +3377,12 @@ def admin_dashboard():
                     st.info("لا توجد بيانات مسجلة.")
                 else:
                     st.markdown("##### اختر المديرية ثم الإدارة ثم المنشأة التابعة لها:")
+                    manage_auth_codes, manage_admin_codes, manage_facility_codes = hierarchy_level_codes(hier_rows_all)
                     manage_auths = sorted({str(r.get("authority") or "").strip() for r in hier_rows_all if str(r.get("authority") or "").strip()})
-                    sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
+                    sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, format_func=lambda value: f"{value} (كود المديرية: {manage_auth_codes[value]})", key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
                     manage_auth_rows = [r for r in hier_rows_all if str(r.get("authority") or "").strip() == sel_manage_auth]
                     manage_admins = sorted({str(r.get("administration") or "").strip() for r in manage_auth_rows if str(r.get("administration") or "").strip()})
-                    sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, key="hier_manage_administration", on_change=_reset_hier_facility)
+                    sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, format_func=lambda value: value if value == "-- اختر الإدارة --" else f"{value} (كود الإدارة: {manage_admin_codes[(sel_manage_auth, value)]})", key="hier_manage_administration", on_change=_reset_hier_facility)
                     manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
 
                     # حذف أي مستوى إداري حتى لو لم تكن له منشآت مسجلة.
@@ -3419,7 +3434,7 @@ def admin_dashboard():
                             st.rerun()
 
                     manage_facilities = sorted(manage_admin_rows, key=lambda r: str(r.get("facility_name") or ""))
-                    manage_facility_labels = {int(r["id"]): f"{r['facility_name']} (ID {r['id']}) — {'مخفي' if r['hidden'] else 'ظاهر'}" for r in manage_facilities}
+                    manage_facility_labels = {int(r["id"]): f"{r['facility_name']} (كود المنشأة: {manage_facility_codes[(sel_manage_auth, sel_manage_admin, str(r.get('facility_name') or '').strip())]}) — {'مخفي' if r['hidden'] else 'ظاهر'}" for r in manage_facilities}
                     if not manage_facility_labels:
                         st.info("اختر الإدارة لعرض المنشآت التابعة لها فقط.")
                     else:
