@@ -2076,9 +2076,9 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
@@ -2178,9 +2178,9 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8pt; }}
@@ -2216,9 +2216,9 @@ def generate_action_plan_report_html(title, content_html, target_pages=1, header
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
-    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
+    .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     </style>
@@ -2368,7 +2368,7 @@ def render_print_button_only(html_content, label_prefix=""):
         table {{ font-size: 9.5pt; }}
         th, td {{ line-height: 1.25; }}
         @page {{
-            size: A4 portrait;
+            size: A4 landscape;
             margin: {m_top} {m_right} 16mm {m_left} !important;
         }}
         @media print {{
@@ -2693,7 +2693,7 @@ def verification_portal_view():
             <head>
             <meta charset="UTF-8">
             <style>
-            @page {{ size: A4 auto; margin: 15mm; }}
+            @page {{ size: A4 landscape; margin: 15mm; }}
             body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 10mm; direction: rtl; -webkit-print-color-adjust: exact; }}
             .doc-wrapper {{ max-width: 200mm; margin: auto; border: 3px double #059669; padding: 15mm; border-radius: 10mm; position: relative; }}
             h2 {{ text-align: center; color: #047857; margin-bottom: 5px; }}
@@ -5368,9 +5368,9 @@ def admin_dashboard():
                     <head>
                     <meta charset="UTF-8">
                     <style>
-                    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+                    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
                     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
-                    .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
+                    .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
                     .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
                     h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 0 0 2mm 0 !important; }}
                     .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
