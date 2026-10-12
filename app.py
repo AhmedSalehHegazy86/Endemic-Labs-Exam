@@ -5774,13 +5774,8 @@ def trainee_portal():
             <p style="font-size: 15px; color: #d1fae5;">جاري تحديث الصفحة تلقائياً حتى يتم اعتمادك وتفعيل الاختبار...</p>
         </div>
         """, unsafe_allow_html=True)
-        components.html("""
-        <script>
-        setTimeout(function(){
-            window.location.reload();
-        }, 5000);
-        </script>
-        """, height=0)
+        # لا تستخدم إعادة تحميل المتصفح كاملة؛ لأنها قد تفقد حالة جلسة الممتحَن.
+        # التحديث اليدوي أدناه يستخدم st.rerun ويحافظ على جلسة Streamlit.
         if st.button("🔄 تحديث الصفحة يدوياً", use_container_width=True):
             st.rerun()
         st.markdown("<br>", unsafe_allow_html=True)
@@ -5836,10 +5831,10 @@ def trainee_portal():
               <div style="margin-top:10px;font-size:14px">سيتم تحديث الشاشة تلقائياً دون الحاجة إلى تسجيل الخروج.</div>
             </div>
             """, unsafe_allow_html=True)
-            components.html("<script>setTimeout(function(){window.parent.location.reload();}, 3000);</script>", height=0)
+            # نتجنب إعادة تحميل نافذة المتصفح؛ زر التحديث يعيد تشغيل سكربت Streamlit داخل الجلسة.
         elif upcoming_end and now_cairo() > upcoming_end:
             st.warning("انتهت فترة إتاحة الامتحان المحددة لهذا النموذج. يرجى مراجعة الإدارة.")
-            components.html("<script>setTimeout(function(){window.parent.location.reload();}, 15000);</script>", height=0)
+            # لا حاجة لإعادة تحميل المتصفح بالكامل عند انتهاء نافذة الامتحان.
         else:
             st.markdown("""
             <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
@@ -5848,7 +5843,7 @@ def trainee_portal():
             </div>
             """, unsafe_allow_html=True)
             # تحديث تلقائي هادئ مع توفير أزرار واضحة للممتحَن دون إجباره على تسجيل الخروج.
-            components.html("<script>setTimeout(function(){window.parent.location.reload();}, 10000);</script>", height=0)
+            # تحديث داخلي عبر زر التحديث لتفادي فقد جلسة الممتحَن.
             refresh_col, home_col = st.columns(2)
             with refresh_col:
                 if st.button("🔄 تحديث الصفحة الآن", key="trainee_refresh_no_exam", use_container_width=True):
