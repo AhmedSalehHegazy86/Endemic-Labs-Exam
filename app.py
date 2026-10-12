@@ -616,6 +616,33 @@ def init_db():
                 created_at TEXT NOT NULL,
                 hidden INTEGER NOT NULL DEFAULT 0
             );
+            -- Normalized hierarchy tables: each level owns an independent ID sequence.
+            CREATE TABLE IF NOT EXISTS directorates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                hidden INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS departments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                directorate_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT '',
+                UNIQUE(directorate_id, name),
+                FOREIGN KEY(directorate_id) REFERENCES directorates(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS facilities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                department_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT '',
+                UNIQUE(department_id, name),
+                FOREIGN KEY(department_id) REFERENCES departments(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_departments_directorate_id ON departments(directorate_id);
+            CREATE INDEX IF NOT EXISTS idx_facilities_department_id ON facilities(department_id);
             CREATE TABLE IF NOT EXISTS exam_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -946,6 +973,43 @@ init_db()
 # Reindex on startup too, so the deployed database is repaired even if a prior
 # add/delete operation skipped reindexing or Streamlit restarted mid-operation.
 reindex_hierarchical_facilities()
+
+def sync_normalized_hierarchy():
+    """Maintain normalized hierarchy tables from the legacy table used by existing app modules.
+
+    Legacy records are kept for compatibility with reports, trainee scope checks and saved paths.
+    IDs in the three normalized tables are independent and are not reused as legacy row IDs.
+    """
+    with db() as c:
+        c.execute("PRAGMA foreign_keys=ON")
+        rows = c.execute("SELECT authority, administration, facility_name, hidden, created_at FROM hierarchical_facilities ORDER BY id").fetchall()
+        # Rebuild the normalized projection atomically so edits/imports/deletes in older
+        # app flows cannot leave parent links stale. Parent-child IDs are independently assigned.
+        c.execute("DELETE FROM facilities")
+        c.execute("DELETE FROM departments")
+        c.execute("DELETE FROM directorates")
+        # These normalized tables are a compatibility projection rebuilt from the
+        # legacy hierarchy so every existing report and permission check continues
+        # to work. Reset each independent sequence too, so each level starts at 1.
+        for table_name in ("facilities", "departments", "directorates"):
+            c.execute("DELETE FROM sqlite_sequence WHERE name=?", (table_name,))
+        for r in rows:
+            directorate = str(r["authority"] or "").strip()
+            department = str(r["administration"] or "").strip()
+            facility = str(r["facility_name"] or "").strip()
+            hidden, created_at = int(r["hidden"] or 0), str(r["created_at"] or "")
+            if not directorate:
+                continue
+            c.execute("INSERT OR IGNORE INTO directorates(name, hidden, created_at) VALUES(?,?,?)", (directorate, hidden, created_at))
+            if department:
+                c.execute("SELECT id FROM directorates WHERE name=?", (directorate,))
+                did = c.execute("SELECT id FROM directorates WHERE name=?", (directorate,)).fetchone()[0]
+                c.execute("INSERT OR IGNORE INTO departments(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, department, hidden, created_at))
+                if facility:
+                    depid = c.execute("SELECT id FROM departments WHERE directorate_id=? AND name=?", (did, department)).fetchone()[0]
+                    c.execute("INSERT OR IGNORE INTO facilities(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, facility, hidden, created_at))
+
+sync_normalized_hierarchy()
 
 def get_print_settings():
     with db() as c:
@@ -3428,10 +3492,10 @@ def admin_dashboard():
                     st.markdown("##### اختر المديرية ثم الإدارة ثم المنشأة التابعة لها:")
                     manage_auth_codes, manage_admin_codes, manage_facility_codes = hierarchy_level_codes(hier_rows_all)
                     manage_auths = sorted({str(r.get("authority") or "").strip() for r in hier_rows_all if str(r.get("authority") or "").strip()})
-                    sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, format_func=lambda value: f"{value} (كود المديرية: {manage_auth_codes[value]})", key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
+                    sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, format_func=lambda value: value, key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
                     manage_auth_rows = [r for r in hier_rows_all if str(r.get("authority") or "").strip() == sel_manage_auth]
                     manage_admins = sorted({str(r.get("administration") or "").strip() for r in manage_auth_rows if str(r.get("administration") or "").strip()})
-                    sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, format_func=lambda value: value if value == "-- اختر الإدارة --" else f"{value} (كود الإدارة: {manage_admin_codes[(sel_manage_auth, value)]})", key="hier_manage_administration", on_change=_reset_hier_facility)
+                    sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, format_func=lambda value: value, key="hier_manage_administration", on_change=_reset_hier_facility)
                     manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
 
                     # حذف أي مستوى إداري حتى لو لم تكن له منشآت مسجلة.
@@ -3491,7 +3555,6 @@ def admin_dashboard():
                     manage_facility_labels = {
                         int(r["id"]): (
                             f"{str(r.get('facility_name') or '').strip()} "
-                            f"(كود المنشأة: {manage_facility_codes.get((sel_manage_auth, sel_manage_admin, str(r.get('facility_name') or '').strip()), '—')}) "
                             f"— {'مخفي' if int(r.get('hidden') or 0) else 'ظاهر'}"
                         )
                         for r in manage_facilities
