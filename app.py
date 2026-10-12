@@ -1067,6 +1067,21 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
                   (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}", report_hierarchy or "{}"))
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
+def hierarchy_ordered_unique(values):
+    """Return unique non-empty hierarchy names in the same order as their source rows.
+
+    get_hierarchical_data() reads rows by their stable insertion ID, so this preserves
+    the upload order across every dropdown instead of alphabetically sorting names.
+    """
+    result = []
+    seen = set()
+    for value in values:
+        name = str(value or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            result.append(name)
+    return result
+
 def hierarchy_level_codes(rows):
     """Return display-only codes: authorities globally, administrations within each authority,
     and facilities within each authority+administration. Database IDs remain internal row keys.
@@ -1078,20 +1093,19 @@ def hierarchy_level_codes(rows):
             "administration": str(row.get("administration") or "").strip(),
             "facility_name": str(row.get("facility_name") or "").strip(),
         })
-    authorities = sorted({r["authority"] for r in clean if r["authority"]})
+    authorities = hierarchy_ordered_unique(r["authority"] for r in clean)
     auth_codes = {name: i for i, name in enumerate(authorities, 1)}
     admin_codes = {}
     for authority in authorities:
-        admins = sorted({r["administration"] for r in clean
-                         if r["authority"] == authority and r["administration"]})
+        admins = hierarchy_ordered_unique(r["administration"] for r in clean
+                                          if r["authority"] == authority)
         for code, administration in enumerate(admins, 1):
             admin_codes[(authority, administration)] = code
     facility_codes = {}
-    for authority, administration in sorted(admin_codes):
-        facilities = sorted({r["facility_name"] for r in clean
-                             if r["authority"] == authority
-                             and r["administration"] == administration
-                             and r["facility_name"]})
+    for authority, administration in admin_codes:
+        facilities = hierarchy_ordered_unique(r["facility_name"] for r in clean
+                                              if r["authority"] == authority
+                                              and r["administration"] == administration)
         for code, facility in enumerate(facilities, 1):
             facility_codes[(authority, administration, facility)] = code
     return auth_codes, admin_codes, facility_codes
@@ -2770,15 +2784,15 @@ def login_portal():
                 facility_final_str = ""
             else:
                 auth_codes, admin_codes, facility_codes = hierarchy_level_codes(hier_data)
-                auths_list = sorted({str(item.get("authority") or "").strip() for item in hier_data if str(item.get("authority") or "").strip()})
+                auths_list = hierarchy_ordered_unique(item.get("authority") for item in hier_data)
                 auth_labels = {name: f"{name} (كود المديرية: {auth_codes[name]})" for name in auths_list}
                 sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
                 rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
-                admins_list = sorted({str(item.get("administration") or "").strip() for item in rows_auth if str(item.get("administration") or "").strip()})
+                admins_list = hierarchy_ordered_unique(item.get("administration") for item in rows_auth)
                 admin_labels = {name: f"{name} (كود الإدارة: {admin_codes[(sel_auth, name)]})" for name in admins_list}
                 sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, format_func=lambda value: value if value == "-- اختر الإدارة --" else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
                 rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
-                facilities_list = sorted({str(item.get("facility_name") or "").strip() for item in rows_admin if str(item.get("facility_name") or "").strip()})
+                facilities_list = hierarchy_ordered_unique(item.get("facility_name") for item in rows_admin)
                 facility_labels = {name: f"{name} (كود المنشأة: {facility_codes[(sel_auth, sel_admin, name)]})" for name in facilities_list}
                 sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, format_func=lambda value: value if value == "-- اختر المنشأة --" else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
                 facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
@@ -3355,7 +3369,7 @@ def admin_dashboard():
                 st.markdown("##### 📌 إضافة مستوى جديد تحت الجهة الأعلى")
                 current_hier = get_hierarchical_data(include_hidden=True)
                 add_level = st.selectbox("المستوى المراد إضافته:", ["مديرية / جهة", "إدارة", "منشأة / وحدة الأمراض المتوطنة"], key="hier_add_level")
-                auth_values = sorted({str(r.get("authority") or "").strip() for r in current_hier if str(r.get("authority") or "").strip()})
+                auth_values = hierarchy_ordered_unique(r.get("authority") for r in current_hier)
                 if add_level == "مديرية / جهة":
                     parent_auth = ""
                     parent_admin = ""
@@ -3363,7 +3377,7 @@ def admin_dashboard():
                     if not auth_values:
                         st.info("أضف المديرية / الجهة أولًا حتى يمكنك إضافة إدارة أو منشأة تابعة لها.")
                     parent_auth = st.selectbox("اختر المديرية / الجهة الأعلى:", auth_values, key="hier_add_parent_authority") if auth_values else ""
-                    admin_values = sorted({str(r.get("administration") or "").strip() for r in current_hier if str(r.get("authority") or "").strip() == parent_auth and str(r.get("administration") or "").strip()})
+                    admin_values = hierarchy_ordered_unique(r.get("administration") for r in current_hier if str(r.get("authority") or "").strip() == parent_auth)
                     if add_level == "منشأة / وحدة الأمراض المتوطنة":
                         parent_admin = st.selectbox("اختر الإدارة التابعة لها المنشأة:", admin_values, key="hier_add_parent_admin") if admin_values else ""
                         if not admin_values:
@@ -3403,7 +3417,8 @@ def admin_dashboard():
                                 st.rerun()
         with tab_h2:
             if has_subtab_permission('🏥 الهيكل الإداري', '📥 رفع الملفات'):
-                st.markdown("##### 📂 رفع ملفات الهيكل الإداري حسب المستوى")
+                st.markdown("## 📥 رفع ملفات الهيكل الإداري")
+                st.markdown("**٣ أدوات منفصلة:** مديريات / جهات ← إدارات حسب المديرية المختارة ← منشآت حسب الإدارة المختارة.")
                 st.caption("ارفع كل مستوى على حدة: المديريات أولاً، ثم اختر المديرية لرفع إداراتها، ثم اختر الإدارة لرفع المنشآت التابعة لها. يقبل ملفات Excel وCSV، وكل صف يمثل اسماً واحداً.")
 
                 def _hierarchy_names_from_upload(uploaded_file, accepted_columns):
@@ -3432,7 +3447,7 @@ def admin_dashboard():
                     return list(dict.fromkeys(names))
 
                 current_upload_hierarchy = get_hierarchical_data(include_hidden=True)
-                upload_authorities = sorted({str(r.get("authority") or "").strip() for r in current_upload_hierarchy if str(r.get("authority") or "").strip()})
+                upload_authorities = hierarchy_ordered_unique(r.get("authority") for r in current_upload_hierarchy)
                 upload_admin_rows = [r for r in current_upload_hierarchy if str(r.get("administration") or "").strip()]
 
                 with st.expander("1️⃣ رفع المديريات / الجهات", expanded=True):
@@ -3454,7 +3469,7 @@ def admin_dashboard():
                         except Exception as e:
                             st.error(f"تعذر استيراد المديريات / الجهات: {e}")
 
-                with st.expander("2️⃣ رفع الإدارات التابعة لمديرية محددة", expanded=False):
+                with st.expander("2️⃣ رفع الإدارات التابعة لمديرية محددة", expanded=True):
                     upload_parent_authority = st.selectbox("اختر المديرية / الجهة التي ستتبعها الإدارات:", upload_authorities, key="hier_upload_admin_parent", placeholder="اختر المديرية / الجهة") if upload_authorities else None
                     st.caption("عنوان العمود المقترح: الإدارة — أو ارفع ملفاً بعمود واحد لأسماء الإدارات.")
                     upload_admins_file = st.file_uploader("ملف الإدارات (.xlsx أو .xls أو .csv)", type=["xlsx", "xls", "csv"], key="hier_upload_admins_file")
@@ -3476,9 +3491,9 @@ def admin_dashboard():
                         except Exception as e:
                             st.error(f"تعذر استيراد الإدارات: {e}")
 
-                with st.expander("3️⃣ رفع المنشآت التابعة لإدارة محددة", expanded=False):
+                with st.expander("3️⃣ رفع المنشآت التابعة لإدارة محددة", expanded=True):
                     upload_facility_authority = st.selectbox("اختر المديرية / الجهة:", upload_authorities, key="hier_upload_facility_authority", placeholder="اختر المديرية / الجهة") if upload_authorities else None
-                    upload_facility_admins = sorted({str(r.get("administration") or "").strip() for r in upload_admin_rows if str(r.get("authority") or "").strip() == str(upload_facility_authority or "") and str(r.get("administration") or "").strip()})
+                    upload_facility_admins = hierarchy_ordered_unique(r.get("administration") for r in upload_admin_rows if str(r.get("authority") or "").strip() == str(upload_facility_authority or ""))
                     upload_facility_admin = st.selectbox("اختر الإدارة التي ستتبعها المنشآت:", upload_facility_admins, key="hier_upload_facility_admin", placeholder="اختر الإدارة") if upload_facility_admins else None
                     st.caption("عنوان العمود المقترح: المنشأة / وحدة الأمراض المتوطنة — أو ارفع ملفاً بعمود واحد لأسماء المنشآت.")
                     upload_facilities_file = st.file_uploader("ملف المنشآت (.xlsx أو .xls أو .csv)", type=["xlsx", "xls", "csv"], key="hier_upload_facilities_file")
@@ -3516,28 +3531,7 @@ def admin_dashboard():
                     key="download_empty_hierarchy_template",
                 )
                 st.markdown("---")
-                up_file = st.file_uploader("اختر ملف إكسيل أو CSV:", type=["xlsx", "xls", "csv"], key="hier_file_upload_v1_0")
-                if up_file is not None:
-                    try:
-                        df_up = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
-                        if st.button("🚀 دمج وتحديث البيانات", use_container_width=True):
-                            added_cnt = 0
-                            with db() as c:
-                                for _, r in df_up.iterrows():
-                                    auth = str(r.get("authority", r.get("المديرية / الجهة", r.get("الهيئة", "")))).strip()
-                                    adm = str(r.get("administration", r.get("الإدارة", ""))).strip()
-                                    fac = str(r.get("facility_name", r.get("المنشأة / وحدة الأمراض المتوطنة", r.get("المنشأة", r.get("وحدة الأمراض المتوطنة", ""))))).strip()
-                                    if auth and adm and fac:
-                                        exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (auth, adm, fac)).fetchone()
-                                        if not exists:
-                                            c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)",
-                                                      ("", auth, "", adm, fac, now(), 0))
-                                            added_cnt += 1
-                            reindex_hierarchical_facilities()
-                            st.success(f"🎉 تم إضافة ({added_cnt}) سجل وإعادة الترتيب بنجاح!")
-                            st.balloons()
-                    except Exception as e:
-                        st.error(f"خطأ: {e}")
+                st.info("استخدم أدوات الرفع الثلاثة أعلاه حسب المستوى المطلوب. تم إخفاء أداة الرفع العامة القديمة لتجنب رفع البيانات في المستوى الخطأ.")
                 st.markdown("---")
                 st.markdown("##### 📥 تحميل شيت إكسيل الهيكل الإداري الحالي:")
                 hier_all_data = get_hierarchical_data(include_hidden=True)
@@ -3589,10 +3583,10 @@ def admin_dashboard():
                 else:
                     st.markdown("##### اختر المديرية ثم الإدارة ثم المنشأة التابعة لها:")
                     manage_auth_codes, manage_admin_codes, manage_facility_codes = hierarchy_level_codes(hier_rows_all)
-                    manage_auths = sorted({str(r.get("authority") or "").strip() for r in hier_rows_all if str(r.get("authority") or "").strip()})
+                    manage_auths = hierarchy_ordered_unique(r.get("authority") for r in hier_rows_all)
                     sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, format_func=lambda value: value, key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
                     manage_auth_rows = [r for r in hier_rows_all if str(r.get("authority") or "").strip() == sel_manage_auth]
-                    manage_admins = sorted({str(r.get("administration") or "").strip() for r in manage_auth_rows if str(r.get("administration") or "").strip()})
+                    manage_admins = hierarchy_ordered_unique(r.get("administration") for r in manage_auth_rows)
                     sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, format_func=lambda value: value, key="hier_manage_administration", on_change=_reset_hier_facility)
                     manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
 
@@ -3646,10 +3640,7 @@ def admin_dashboard():
 
                     # Only facility nodes belong in the facility selector; authority/admin-only
                     # rows have blank facility_name and therefore intentionally have no facility code.
-                    manage_facilities = sorted(
-                        [r for r in manage_admin_rows if str(r.get("facility_name") or "").strip()],
-                        key=lambda r: str(r.get("facility_name") or "").strip()
-                    )
+                    manage_facilities = [r for r in manage_admin_rows if str(r.get("facility_name") or "").strip()]
                     manage_facility_labels = {
                         int(r["id"]): (
                             f"{str(r.get('facility_name') or '').strip()} "
@@ -4308,7 +4299,7 @@ def admin_dashboard():
                 checks = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name")]
                 return all(not str(scope.get(sk) or "").strip() or str(row.get(hk) or "").strip() == str(scope.get(sk) or "").strip() for sk, hk in checks)
             matching_hier = [h for h in hier_data if _scope_matches_row(h, manual_scope)]
-            facility_choices = sorted({str(h.get("facility_name") or "").strip() for h in matching_hier if str(h.get("facility_name") or "").strip()})
+            facility_choices = hierarchy_ordered_unique(h.get("facility_name") for h in matching_hier)
             if facility_choices:
                 selected_manual_facility = st.selectbox("المنشأة:", facility_choices, key="manual_exam_facility_choice_v2")
             else:
@@ -4401,7 +4392,7 @@ def admin_dashboard():
             assessment_profession = st.selectbox("الوظيفة / التخصص المسؤول عن التقييم:", assessment_professions, key="real_assessment_profession_v1")
             assessment_hier = get_hierarchical_data(include_hidden=False)
             assessment_matching_hier = [h for h in assessment_hier if _scope_matches_row(h, assessment_scope)]
-            assessment_facility_choices = sorted({str(h.get("facility_name") or "").strip() for h in assessment_matching_hier if str(h.get("facility_name") or "").strip()})
+            assessment_facility_choices = hierarchy_ordered_unique(h.get("facility_name") for h in assessment_matching_hier)
             assessment_facility_default = str(assessment_scope.get("scope_facility") or "")
             if assessment_facility_choices:
                 assessment_facility_default = st.selectbox("المنشأة محل التقييم:", assessment_facility_choices, key="real_assessment_facility_choice_v2")
@@ -5564,7 +5555,7 @@ def admin_dashboard():
                         scope_current_rows = add_scope_rows
                         stop_field = {"المديرية / الجهة":"authority", "الإدارة":"administration", "المنشأة":"facility_name"}[add_scope_level]
                         for src_field, dst_field, scope_title in scope_steps:
-                            vals = sorted({str(rr.get(src_field) or "").strip() for rr in scope_current_rows if str(rr.get(src_field) or "").strip()})
+                            vals = hierarchy_ordered_unique(rr.get(src_field) for rr in scope_current_rows)
                             if not vals:
                                 st.warning("لا توجد بيانات متاحة في الهيكل الإداري لتحديد النطاق.")
                                 break
@@ -5623,7 +5614,7 @@ def admin_dashboard():
                         scope_current_rows = edit_scope_rows
                         stop_field = {"المديرية / الجهة":"authority", "الإدارة":"administration", "المنشأة":"facility_name"}[edit_scope_level]
                         for src_field, dst_field, scope_title in scope_steps:
-                            vals = sorted({str(rr.get(src_field) or "").strip() for rr in scope_current_rows if str(rr.get(src_field) or "").strip()})
+                            vals = hierarchy_ordered_unique(rr.get(src_field) for rr in scope_current_rows)
                             if not vals:
                                 break
                             old_value = str(curr_hierarchy_scope.get(dst_field) or "")
