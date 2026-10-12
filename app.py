@@ -1004,13 +1004,32 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
 def hierarchy_level_codes(rows):
-    """Independent sequential display codes for authorities, administrations, and facilities."""
-    authorities = sorted({str(r.get("authority") or "").strip() for r in rows if str(r.get("authority") or "").strip()})
+    """Return display-only codes: authorities globally, administrations within each authority,
+    and facilities within each authority+administration. Database IDs remain internal row keys.
+    """
+    clean = []
+    for row in rows:
+        clean.append({
+            "authority": str(row.get("authority") or "").strip(),
+            "administration": str(row.get("administration") or "").strip(),
+            "facility_name": str(row.get("facility_name") or "").strip(),
+        })
+    authorities = sorted({r["authority"] for r in clean if r["authority"]})
     auth_codes = {name: i for i, name in enumerate(authorities, 1)}
-    admin_pairs = sorted({(str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip()) for r in rows if str(r.get("authority") or "").strip() and str(r.get("administration") or "").strip()})
-    admin_codes = {pair: i for i, pair in enumerate(admin_pairs, 1)}
-    facility_pairs = sorted({(str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip(), str(r.get("facility_name") or "").strip()) for r in rows if str(r.get("authority") or "").strip() and str(r.get("administration") or "").strip() and str(r.get("facility_name") or "").strip()})
-    facility_codes = {pair: i for i, pair in enumerate(facility_pairs, 1)}
+    admin_codes = {}
+    for authority in authorities:
+        admins = sorted({r["administration"] for r in clean
+                         if r["authority"] == authority and r["administration"]})
+        for code, administration in enumerate(admins, 1):
+            admin_codes[(authority, administration)] = code
+    facility_codes = {}
+    for authority, administration in sorted(admin_codes):
+        facilities = sorted({r["facility_name"] for r in clean
+                             if r["authority"] == authority
+                             and r["administration"] == administration
+                             and r["facility_name"]})
+        for code, facility in enumerate(facilities, 1):
+            facility_codes[(authority, administration, facility)] = code
     return auth_codes, admin_codes, facility_codes
 
 def get_hierarchical_data(include_hidden=False):
@@ -3430,11 +3449,23 @@ def admin_dashboard():
                                 else:
                                     c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (delete_target,))
                             reindex_hierarchical_facilities()
-                            st.success("تم حذف الجزء المحدد وإعادة ترقيم جميع IDs تسلسليًا من 1.")
+                            st.success("تم حذف الجزء المحدد. أُعيد احتساب أكواد العرض المستقلة لكل مستوى؛ ومعرّفات قاعدة البيانات تُستخدم داخليًا لربط السجلات.")
                             st.rerun()
 
-                    manage_facilities = sorted(manage_admin_rows, key=lambda r: str(r.get("facility_name") or ""))
-                    manage_facility_labels = {int(r["id"]): f"{r['facility_name']} (كود المنشأة: {manage_facility_codes[(sel_manage_auth, sel_manage_admin, str(r.get('facility_name') or '').strip())]}) — {'مخفي' if r['hidden'] else 'ظاهر'}" for r in manage_facilities}
+                    # Only facility nodes belong in the facility selector; authority/admin-only
+                    # rows have blank facility_name and therefore intentionally have no facility code.
+                    manage_facilities = sorted(
+                        [r for r in manage_admin_rows if str(r.get("facility_name") or "").strip()],
+                        key=lambda r: str(r.get("facility_name") or "").strip()
+                    )
+                    manage_facility_labels = {
+                        int(r["id"]): (
+                            f"{str(r.get('facility_name') or '').strip()} "
+                            f"(كود المنشأة: {manage_facility_codes.get((sel_manage_auth, sel_manage_admin, str(r.get('facility_name') or '').strip()), '—')}) "
+                            f"— {'مخفي' if int(r.get('hidden') or 0) else 'ظاهر'}"
+                        )
+                        for r in manage_facilities
+                    }
                     if not manage_facility_labels:
                         st.info("اختر الإدارة لعرض المنشآت التابعة لها فقط.")
                     else:
