@@ -188,13 +188,6 @@ html, body, [class*="css"] {
     border: 1px solid #cbd5e1 !important;
     border-radius: 6px !important;
 }
-/* جعل جميع خطوط واجهة البرنامج عريضة مع الحفاظ على الألوان والتصميم */
-.stApp,
-.stApp *,
-[data-testid="stModal"] *,
-[data-testid="stPopover"] * {
-    font-weight: 700 !important;
-}
 .ownership-watermark {
     position: fixed;
     bottom: 0;
@@ -3347,6 +3340,55 @@ def admin_dashboard():
                     manage_admins = sorted({str(r.get("administration") or "").strip() for r in manage_auth_rows if str(r.get("administration") or "").strip()})
                     sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, key="hier_manage_administration", on_change=_reset_hier_facility)
                     manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
+
+                    # حذف أي مستوى إداري حتى لو لم تكن له منشآت مسجلة.
+                    st.markdown("##### 🗑️ حذف أي مستوى من الهيكل الإداري وإعادة ترقيم الـ ID")
+                    delete_kind = st.selectbox(
+                        "حدد نوع الجزء المراد حذفه:",
+                        ["مديرية / جهة كاملة", "إدارة بكل منشآتها", "منشأة محددة فقط"],
+                        key="hier_delete_any_kind_v2",
+                    )
+                    delete_target = ""
+                    delete_count = 0
+                    if delete_kind == "مديرية / جهة كاملة":
+                        delete_target = sel_manage_auth
+                        delete_count = sum(1 for r in hier_rows_all if str(r.get("authority") or "").strip() == delete_target)
+                    elif delete_kind == "إدارة بكل منشآتها":
+                        if manage_admins:
+                            delete_target = st.selectbox("الإدارة المراد حذفها:", manage_admins, key="hier_delete_any_admin_v2")
+                            delete_count = sum(1 for r in hier_rows_all if str(r.get("authority") or "").strip() == sel_manage_auth and str(r.get("administration") or "").strip() == delete_target)
+                        else:
+                            st.info("لا توجد إدارات مسجلة تحت المديرية / الجهة المختارة.")
+                    else:
+                        delete_fac_rows = [r for r in manage_admin_rows if str(r.get("facility_name") or "").strip()]
+                        delete_fac_options = {int(r["id"]): str(r.get("facility_name") or "") for r in delete_fac_rows}
+                        if delete_fac_options:
+                            delete_fac_id = st.selectbox(
+                                "المنشأة المراد حذفها:", list(delete_fac_options),
+                                format_func=lambda value: f"{delete_fac_options[value]} (ID {value})",
+                                key="hier_delete_any_facility_v2",
+                            )
+                            delete_target = delete_fac_id
+                            delete_count = 1
+                        else:
+                            st.info("لا توجد منشآت مسجلة تحت الإدارة المختارة.")
+                    if delete_target and delete_count:
+                        confirm_any_delete = st.checkbox(
+                            f"أؤكد الحذف النهائي لـ «{delete_target if delete_kind != 'منشأة محددة فقط' else delete_fac_options[delete_target]}» وحذف {delete_count} سجل/سجلات تابعة له.",
+                            key="hier_delete_any_confirm_v2",
+                        )
+                        if st.button("🗑️ حذف المستوى المحدد وإعادة ترقيم IDs من 1", key="hier_delete_any_button_v2", disabled=not confirm_any_delete, use_container_width=True):
+                            with db() as c:
+                                if delete_kind == "مديرية / جهة كاملة":
+                                    c.execute("DELETE FROM hierarchical_facilities WHERE authority=?", (delete_target,))
+                                elif delete_kind == "إدارة بكل منشآتها":
+                                    c.execute("DELETE FROM hierarchical_facilities WHERE authority=? AND administration=?", (sel_manage_auth, delete_target))
+                                else:
+                                    c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (delete_target,))
+                            reindex_hierarchical_facilities()
+                            st.success("تم حذف الجزء المحدد وإعادة ترقيم جميع IDs تسلسليًا من 1.")
+                            st.rerun()
+
                     manage_facilities = sorted(manage_admin_rows, key=lambda r: str(r.get("facility_name") or ""))
                     manage_facility_labels = {int(r["id"]): f"{r['facility_name']} (ID {r['id']}) — {'مخفي' if r['hidden'] else 'ظاهر'}" for r in manage_facilities}
                     if not manage_facility_labels:
