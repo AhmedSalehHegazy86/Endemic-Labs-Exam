@@ -1232,7 +1232,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
         ("facility_name", "scope_facility", "المنشأة / وحدة الأمراض المتوطنة"),
     ]
     for src, dst, title in field_map:
-        vals = sorted({str(r.get(src) or "").strip() for r in current if str(r.get(src) or "").strip()})
+        vals = hierarchy_ordered_unique(r.get(src) for r in current)
         if not vals:
             st.warning(f"لا توجد بيانات متاحة لمستوى {title} في الهيكل الإداري.")
             return scope
@@ -4649,6 +4649,13 @@ def admin_dashboard():
                             tuple(rep_scope_args)
                         ).fetchall()
                     ]
+                    # Reorder report facilities to match the master administrative hierarchy order.
+                    _report_hier_rows = get_hierarchical_data(include_hidden=False)
+                    _report_facility_order = hierarchy_ordered_unique(r.get("facility_name") for r in _report_hier_rows)
+                    _report_facility_set = set(facs_list_rep)
+                    facs_list_rep = [f for f in _report_facility_order if f in _report_facility_set] + [
+                        f for f in hierarchy_ordered_unique(facs_list_rep) if f not in _report_facility_order
+                    ]
                 if not facs_list_rep:
                     st.info("لا توجد وحدات أو جهات ظاهرة مسجلة.")
                 else:
@@ -4869,7 +4876,14 @@ def admin_dashboard():
                 filtered_assessments = [r for r in assessment_records if _assessment_in_scope(r, scope_assess_report) and (profession_filter == "كل الوظائف" or r.get("profession") == profession_filter)]
                 report_kind = st.radio("نوع التقرير:", ["منشأة", "فرد / مسؤول تقييم", "مجموعة منشآت"], horizontal=True, key="real_assess_report_kind_v1")
                 if report_kind == "منشأة":
-                    facility_options = sorted({r.get("facility", "") for r in filtered_assessments if r.get("facility")})
+                    # Preserve the exact facility order defined in the administrative hierarchy tab.
+                    _hierarchy_order_rows = get_hierarchical_data(include_hidden=False)
+                    _hierarchy_facility_order = hierarchy_ordered_unique(
+                        r.get("facility_name") for r in _hierarchy_order_rows
+                    )
+                    _assessment_facilities = {str(r.get("facility") or "").strip() for r in filtered_assessments if str(r.get("facility") or "").strip()}
+                    facility_options = [f for f in _hierarchy_facility_order if f in _assessment_facilities]
+                    facility_options += [f for f in hierarchy_ordered_unique(r.get("facility", "") for r in filtered_assessments) if f not in facility_options]
                     chosen_facility = st.selectbox("اختر المنشأة:", facility_options or ["لا توجد منشآت مسجلة"], key="real_assess_report_fac_v1")
                     filtered_assessments = [r for r in filtered_assessments if r.get("facility") == chosen_facility]
                 elif report_kind == "فرد / مسؤول تقييم":
