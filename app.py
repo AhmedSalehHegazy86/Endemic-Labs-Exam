@@ -3403,6 +3403,104 @@ def admin_dashboard():
                                 st.rerun()
         with tab_h2:
             if has_subtab_permission('🏥 الهيكل الإداري', '📥 رفع الملفات'):
+                st.markdown("##### 📂 رفع ملفات الهيكل الإداري حسب المستوى")
+                st.caption("ارفع كل مستوى على حدة: المديريات أولاً، ثم اختر المديرية لرفع إداراتها، ثم اختر الإدارة لرفع المنشآت التابعة لها. يقبل ملفات Excel وCSV، وكل صف يمثل اسماً واحداً.")
+
+                def _hierarchy_names_from_upload(uploaded_file, accepted_columns):
+                    """Read a one-column hierarchy file, accepting common Arabic/English headers."""
+                    if uploaded_file is None:
+                        return []
+                    uploaded_file.seek(0)
+                    frame = pd.read_csv(uploaded_file) if uploaded_file.name.lower().endswith('.csv') else pd.read_excel(uploaded_file)
+                    if frame.empty:
+                        return []
+                    chosen = next((col for col in accepted_columns if col in frame.columns), None)
+                    if chosen is None:
+                        # Single-column sheets are convenient for simple name lists.
+                        if len(frame.columns) == 1:
+                            chosen = frame.columns[0]
+                        else:
+                            raise ValueError("لم أجد عمود الأسماء المطلوب. استخدم عنوان العمود الموضح أسفل أداة الرفع أو ارفع ملفاً بعمود واحد فقط.")
+                    names = []
+                    for value in frame[chosen].tolist():
+                        if pd.isna(value):
+                            continue
+                        name = str(value).strip()
+                        if name and name.lower() not in {"nan", "none"}:
+                            names.append(name)
+                    # Preserve order while removing duplicate names in the same file.
+                    return list(dict.fromkeys(names))
+
+                current_upload_hierarchy = get_hierarchical_data(include_hidden=True)
+                upload_authorities = sorted({str(r.get("authority") or "").strip() for r in current_upload_hierarchy if str(r.get("authority") or "").strip()})
+                upload_admin_rows = [r for r in current_upload_hierarchy if str(r.get("administration") or "").strip()]
+
+                with st.expander("1️⃣ رفع المديريات / الجهات", expanded=True):
+                    st.caption("عنوان العمود المقترح: المديرية / الجهة — أو ارفع ملفاً بعمود واحد للأسماء.")
+                    upload_authorities_file = st.file_uploader("ملف المديريات / الجهات (.xlsx أو .xls أو .csv)", type=["xlsx", "xls", "csv"], key="hier_upload_authorities_file")
+                    if st.button("⬆️ استيراد المديريات / الجهات", key="hier_import_authorities_btn", use_container_width=True, disabled=upload_authorities_file is None):
+                        try:
+                            names = _hierarchy_names_from_upload(upload_authorities_file, ["المديرية / الجهة", "المديرية", "الجهة", "authority", "Authority", "اسم المديرية", "اسم الجهة"])
+                            added = 0
+                            with db() as c:
+                                for name in names:
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND COALESCE(administration,'')='' AND COALESCE(facility_name,'')='' LIMIT 1", (name,)).fetchone()
+                                    if not exists:
+                                        c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", name, "", "", "", now(), 0))
+                                        added += 1
+                            reindex_hierarchical_facilities()
+                            st.success(f"تم استيراد {added} مديرية / جهة جديدة. تم تجاهل الأسماء الموجودة مسبقاً.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"تعذر استيراد المديريات / الجهات: {e}")
+
+                with st.expander("2️⃣ رفع الإدارات التابعة لمديرية محددة", expanded=False):
+                    upload_parent_authority = st.selectbox("اختر المديرية / الجهة التي ستتبعها الإدارات:", upload_authorities, key="hier_upload_admin_parent", placeholder="اختر المديرية / الجهة") if upload_authorities else None
+                    st.caption("عنوان العمود المقترح: الإدارة — أو ارفع ملفاً بعمود واحد لأسماء الإدارات.")
+                    upload_admins_file = st.file_uploader("ملف الإدارات (.xlsx أو .xls أو .csv)", type=["xlsx", "xls", "csv"], key="hier_upload_admins_file")
+                    if not upload_authorities:
+                        st.info("ارفع المديريات / الجهات أولاً حتى تظهر هنا.")
+                    if st.button("⬆️ استيراد الإدارات للمديرية المختارة", key="hier_import_admins_btn", use_container_width=True, disabled=(upload_admins_file is None or not upload_parent_authority)):
+                        try:
+                            names = _hierarchy_names_from_upload(upload_admins_file, ["الإدارة", "اسم الإدارة", "administration", "Administration", "department", "Department"])
+                            added = 0
+                            with db() as c:
+                                for name in names:
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND COALESCE(facility_name,'')='' LIMIT 1", (upload_parent_authority, name)).fetchone()
+                                    if not exists:
+                                        c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", upload_parent_authority, "", name, "", now(), 0))
+                                        added += 1
+                            reindex_hierarchical_facilities()
+                            st.success(f"تم استيراد {added} إدارة جديدة تحت {upload_parent_authority}.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"تعذر استيراد الإدارات: {e}")
+
+                with st.expander("3️⃣ رفع المنشآت التابعة لإدارة محددة", expanded=False):
+                    upload_facility_authority = st.selectbox("اختر المديرية / الجهة:", upload_authorities, key="hier_upload_facility_authority", placeholder="اختر المديرية / الجهة") if upload_authorities else None
+                    upload_facility_admins = sorted({str(r.get("administration") or "").strip() for r in upload_admin_rows if str(r.get("authority") or "").strip() == str(upload_facility_authority or "") and str(r.get("administration") or "").strip()})
+                    upload_facility_admin = st.selectbox("اختر الإدارة التي ستتبعها المنشآت:", upload_facility_admins, key="hier_upload_facility_admin", placeholder="اختر الإدارة") if upload_facility_admins else None
+                    st.caption("عنوان العمود المقترح: المنشأة / وحدة الأمراض المتوطنة — أو ارفع ملفاً بعمود واحد لأسماء المنشآت.")
+                    upload_facilities_file = st.file_uploader("ملف المنشآت (.xlsx أو .xls أو .csv)", type=["xlsx", "xls", "csv"], key="hier_upload_facilities_file")
+                    if upload_facility_authority and not upload_facility_admins:
+                        st.info("لا توجد إدارات تحت المديرية المختارة. ارفع الإدارات أولاً.")
+                    if st.button("⬆️ استيراد المنشآت للإدارة المختارة", key="hier_import_facilities_btn", use_container_width=True, disabled=(upload_facilities_file is None or not upload_facility_authority or not upload_facility_admin)):
+                        try:
+                            names = _hierarchy_names_from_upload(upload_facilities_file, ["المنشأة / وحدة الأمراض المتوطنة", "المنشأة", "وحدة الأمراض المتوطنة", "اسم المنشأة", "facility_name", "Facility", "facility"])
+                            added = 0
+                            with db() as c:
+                                for name in names:
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (upload_facility_authority, upload_facility_admin, name)).fetchone()
+                                    if not exists:
+                                        c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", upload_facility_authority, "", upload_facility_admin, name, now(), 0))
+                                        added += 1
+                            reindex_hierarchical_facilities()
+                            st.success(f"تم استيراد {added} منشأة جديدة تحت إدارة {upload_facility_admin}.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"تعذر استيراد المنشآت: {e}")
+
+                st.markdown("---")
                 st.markdown("##### 📄 تنزيل نموذج هيكل إداري فارغ للتعبئة وإعادة الرفع")
                 st.caption("املأ الأعمدة الثلاثة فقط: المديرية / الجهة، الإدارة، والمنشأة / وحدة الأمراض المتوطنة. اترك صف العناوين كما هو، ثم ارفع الملف من نفس القسم لدمج البيانات.")
                 hierarchy_template = pd.DataFrame(columns=["المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة"])
