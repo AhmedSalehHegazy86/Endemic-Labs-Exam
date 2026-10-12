@@ -3392,6 +3392,36 @@ def admin_dashboard():
         with tab_h3:
             if has_subtab_permission('🏥 الهيكل الإداري', '📋 استعراض وإخفاء/إظهار/حذف'):
                 hier_rows_all = get_hierarchical_data(include_hidden=True)
+                st.markdown("##### ♻️ تفريغ الهيكل الإداري وإعادة بدء التكويد")
+                st.warning("هذا الإجراء يحذف جميع المديريات والإدارات والمنشآت من جدول الهيكل الإداري نهائيًا. لا يحذف المتدربين أو الأسئلة أو النماذج، لكن أي تقارير أو صلاحيات تعتمد على أسماء الهيكل قد لا تعود مرتبطة بمستويات محذوفة.")
+                clear_hierarchy_confirm = st.checkbox(
+                    "أؤكد أنني أريد حذف الهيكل الإداري بالكامل، وأفهم أن العملية نهائية.",
+                    key="confirm_clear_entire_hierarchy_v1",
+                )
+                clear_hierarchy_phrase = st.text_input(
+                    "للتأكيد اكتب: تفريغ الهيكل الإداري",
+                    key="clear_entire_hierarchy_phrase_v1",
+                    placeholder="تفريغ الهيكل الإداري",
+                )
+                if st.button(
+                    "🗑️ تفريغ الهيكل الإداري وإعادة بدء IDs من 1",
+                    key="clear_entire_hierarchy_button_v1",
+                    disabled=not (clear_hierarchy_confirm and clear_hierarchy_phrase.strip() == "تفريغ الهيكل الإداري"),
+                    use_container_width=True,
+                ):
+                    with db() as c:
+                        c.execute("DELETE FROM hierarchical_facilities")
+                        try:
+                            c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
+                        except sqlite3.OperationalError:
+                            pass
+                    # Clear hierarchy selection widgets so stale choices are not retained.
+                    for state_key in list(st.session_state.keys()):
+                        if state_key.startswith(("hier_", "manual_exam_hierarchy", "real_assessment_hierarchy", "training_minutes_scope", "trainee_schedule_scope")):
+                            st.session_state.pop(state_key, None)
+                    st.success("تم تفريغ الهيكل الإداري بالكامل. سيبدأ ID الداخلي من 1 عند إضافة السجل التالي، وستبدأ أكواد العرض من 1 لكل مستوى.")
+                    st.rerun()
+                st.markdown("---")
                 if not hier_rows_all:
                     st.info("لا توجد بيانات مسجلة.")
                 else:
@@ -3466,18 +3496,29 @@ def admin_dashboard():
                         )
                         for r in manage_facilities
                     }
+                    # Always render the facility browsing field, even when the chosen
+                    # administration has no facilities yet. Display codes are local to each
+                    # parent; database primary keys remain stable and are never reused as codes.
                     if not manage_facility_labels:
-                        st.info("اختر الإدارة لعرض المنشآت التابعة لها فقط.")
+                        st.info("لا توجد منشآت مسجلة تحت الإدارة المختارة. يمكنك إضافتها من تبويب (إضافة يدوية).")
+                        facility_options = [None]
                     else:
-                        # Store the stable database ID as the widget value, not its display label.
-                        # This prevents selection loss during reruns or when labels/IDs are refreshed.
                         facility_options = [None] + list(manage_facility_labels.keys())
-                        selected_manage_facility_id = st.selectbox(
-                            "المنشأة:", facility_options,
-                            format_func=lambda value: "-- اختر المنشأة --" if value is None else manage_facility_labels.get(int(value), "-- اختر المنشأة --"),
-                            key="hier_manage_facility_id"
+                    selected_manage_facility_id = st.selectbox(
+                        "استعراض المنشآت التابعة للإدارة المختارة:", facility_options,
+                        format_func=lambda value: "-- اختر منشأة للاستعراض والتعديل --" if value is None else manage_facility_labels.get(int(value), "-- اختر منشأة للاستعراض والتعديل --"),
+                        key="hier_manage_facility_id"
+                    )
+                    if manage_facility_labels:
+                        st.markdown("##### 📋 قائمة المنشآت التابعة للإدارة المختارة")
+                        st.dataframe(
+                            [{"كود المنشأة داخل الإدارة": manage_facility_codes.get((sel_manage_auth, sel_manage_admin, str(r.get("facility_name") or "").strip()), "—"),
+                              "اسم المنشأة": str(r.get("facility_name") or "").strip(),
+                              "الحالة": "مخفي" if int(r.get("hidden") or 0) else "ظاهر"}
+                             for r in manage_facilities],
+                            use_container_width=True, hide_index=True
                         )
-                        if selected_manage_facility_id is not None:
+                    if selected_manage_facility_id is not None:
                             target_id = int(selected_manage_facility_id)
                             target_row = next((r for r in manage_facilities if int(r["id"]) == target_id), None)
                             if target_row:
