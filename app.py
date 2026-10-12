@@ -2970,7 +2970,9 @@ def admin_dashboard():
                 (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 AND {dash_pred}) ex,
                 (SELECT COALESCE(AVG(s.percent),0) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND t.hidden=0 AND {dash_pred}) avgp,
                 (SELECT COUNT(*) FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id WHERE s.status='submitted' AND s.passed=1 AND t.hidden=0 AND {dash_pred}) passed_cnt,
-                (SELECT COUNT(*) FROM hierarchical_facilities WHERE hidden=0) facs_cnt
+                (SELECT COUNT(DISTINCT TRIM(authority)) FROM hierarchical_facilities WHERE hidden=0 AND COALESCE(TRIM(authority),'')<>'') authorities_cnt,
+                (SELECT COUNT(DISTINCT TRIM(authority) || '||' || TRIM(administration)) FROM hierarchical_facilities WHERE hidden=0 AND COALESCE(TRIM(authority),'')<>'' AND COALESCE(TRIM(administration),'')<>'') administrations_cnt,
+                (SELECT COUNT(DISTINCT TRIM(authority) || '||' || TRIM(administration) || '||' || TRIM(facility_name)) FROM hierarchical_facilities WHERE hidden=0 AND COALESCE(TRIM(authority),'')<>'' AND COALESCE(TRIM(administration),'')<>'' AND COALESCE(TRIM(facility_name),'')<>'') facilities_cnt
             """, tuple(dash_args * 7)).fetchone()
         total_tr = cnts["tr"] or 1
         passed_cnt = cnts["passed_cnt"] or 0
@@ -2990,15 +2992,24 @@ def admin_dashboard():
         cols_sub = st.columns(4)
         sub_metrics = [
             ("النماذج المتاحة", cnts["tpls"]),
-            ("الوحدات الصحية", cnts["facs_cnt"]),
             ("متوسط النسبة العام", f"{cnts['avgp']:.1f}%"),
             ("نسبة النجاح العامة", f"{pass_ratio:.1f}%")
         ]
-        for box, (l, v) in zip(cols_sub, sub_metrics):
+        for box, (l, v) in zip([cols_sub[0], cols_sub[2], cols_sub[3]], sub_metrics):
             box.markdown(f'<div class="metric"><div class="v">{v}</div><div class="l">{l}</div></div>', unsafe_allow_html=True)
+        cols_sub[1].markdown(f'<div class="metric"><div class="v">{cnts["facilities_cnt"]}</div><div class="l">المنشآت</div></div>', unsafe_allow_html=True)
+        st.markdown("##### 🏥 توزيع الهيكل الإداري:")
+        hierarchy_cols = st.columns(3)
+        hierarchy_metrics = [
+            ("مديريات / هيئات", cnts["authorities_cnt"]),
+            ("إدارات", cnts["administrations_cnt"]),
+            ("منشآت", cnts["facilities_cnt"]),
+        ]
+        for box, (label, value) in zip(hierarchy_cols, hierarchy_metrics):
+            box.markdown(f'<div class="metric"><div class="v">{value}</div><div class="l">{label}</div></div>', unsafe_allow_html=True)
         st.markdown("---")
         st.markdown("### 📈 تحليلات إضافية وتفصيلية:")
-        tab_db_1, tab_db_2, tab_db_3 = st.tabs(["👥 تحليل التخصصات والوظائف", "🏥 توزيع وحدات الأمراض المتوطنة", "📚 تفاصيل بنك الأسئلة والصعوبة"])
+        tab_db_1, tab_db_2, tab_db_3, tab_db_hierarchy = st.tabs(["👥 تحليل التخصصات والوظائف", "🏥 توزيع وحدات الأمراض المتوطنة", "📚 تفاصيل بنك الأسئلة والصعوبة", "🏢 مؤشرات حسب الهيكل الإداري"])
         with tab_db_1:
             if has_subtab_permission('📊 لوحة التحكم', '👥 تحليل التخصصات والوظائف'):
                 with db() as c:
@@ -3028,6 +3039,51 @@ def admin_dashboard():
                     st.info("لا توجد بيانات منشآت مسجلة.")
                 else:
                     st.dataframe(df_fac_analysis, use_container_width=True, hide_index=True)
+        with tab_db_hierarchy:
+            if has_subtab_permission('📊 لوحة التحكم', '🏢 مؤشرات حسب الهيكل الإداري') or is_owner():
+                st.markdown("#### 🏢 مؤشرات الهيكل الإداري")
+                st.caption("الأعداد التالية مستقاة من الهيكل الإداري المسجل، مع عرض كل مستوى على حدة وبالتسلسل الإداري.")
+                with db() as c:
+                    df_authorities = pd.read_sql_query("""
+                        SELECT TRIM(authority) AS 'المديرية / الهيئة', COUNT(DISTINCT NULLIF(TRIM(administration),'')) AS 'عدد الإدارات',
+                               COUNT(DISTINCT CASE WHEN TRIM(COALESCE(facility_name,''))<>'' THEN TRIM(authority)||'|'||TRIM(administration)||'|'||TRIM(facility_name) END) AS 'عدد المنشآت'
+                        FROM hierarchical_facilities
+                        WHERE hidden=0 AND TRIM(COALESCE(authority,''))<>''
+                        GROUP BY TRIM(authority) ORDER BY MIN(id)
+                    """, c)
+                    df_administrations = pd.read_sql_query("""
+                        SELECT TRIM(authority) AS 'المديرية / الهيئة', TRIM(administration) AS 'الإدارة',
+                               COUNT(DISTINCT CASE WHEN TRIM(COALESCE(facility_name,''))<>'' THEN TRIM(facility_name) END) AS 'عدد المنشآت'
+                        FROM hierarchical_facilities
+                        WHERE hidden=0 AND TRIM(COALESCE(authority,''))<>'' AND TRIM(COALESCE(administration,''))<>''
+                        GROUP BY TRIM(authority), TRIM(administration) ORDER BY MIN(id)
+                    """, c)
+                    df_facilities = pd.read_sql_query("""
+                        SELECT TRIM(authority) AS 'المديرية / الهيئة', TRIM(administration) AS 'الإدارة', TRIM(facility_name) AS 'المنشأة'
+                        FROM hierarchical_facilities
+                        WHERE hidden=0 AND TRIM(COALESCE(authority,''))<>'' AND TRIM(COALESCE(administration,''))<>'' AND TRIM(COALESCE(facility_name,''))<>''
+                        GROUP BY TRIM(authority), TRIM(administration), TRIM(facility_name) ORDER BY MIN(id)
+                    """, c)
+                st.markdown("##### المديريات / الهيئات")
+                st.metric("إجمالي المديريات / الهيئات", len(df_authorities))
+                if df_authorities.empty:
+                    st.info("لا توجد مديريات أو هيئات مسجلة.")
+                else:
+                    st.dataframe(df_authorities, use_container_width=True, hide_index=True)
+                st.markdown("##### الإدارات")
+                st.metric("إجمالي الإدارات", len(df_administrations))
+                if df_administrations.empty:
+                    st.info("لا توجد إدارات مسجلة.")
+                else:
+                    st.dataframe(df_administrations, use_container_width=True, hide_index=True)
+                st.markdown("##### المنشآت")
+                st.metric("إجمالي المنشآت", len(df_facilities))
+                if df_facilities.empty:
+                    st.info("لا توجد منشآت مسجلة.")
+                else:
+                    st.dataframe(df_facilities, use_container_width=True, hide_index=True)
+            else:
+                st.info("لا تتوفر لديك صلاحية عرض مؤشرات الهيكل الإداري.")
         with tab_db_3:
             if has_subtab_permission('📊 لوحة التحكم', '📚 تفاصيل بنك الأسئلة والصعوبة'):
                 with db() as c:
