@@ -365,7 +365,7 @@ def trainee_matches_hierarchy(facility_value, hierarchy_row):
 
 def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     """SQL predicate for trainee records stored with a full administrative path."""
-    keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+    keys = ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")
     if scope.get("_scope_denied"):
         return "0=1", []
     if scope.get("scope_all") is True or not any(str(scope.get(k) or "").strip() for k in keys):
@@ -682,6 +682,8 @@ def init_db():
                 scope_center TEXT NOT NULL DEFAULT '',
                 scope_administration TEXT NOT NULL DEFAULT '',
                 scope_facility TEXT NOT NULL DEFAULT '',
+                scope_directorate_section TEXT NOT NULL DEFAULT '',
+                scope_administration_section TEXT NOT NULL DEFAULT '',
                 profession TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS exam_schedules (
@@ -692,6 +694,8 @@ def init_db():
                 scope_center TEXT NOT NULL DEFAULT '',
                 scope_administration TEXT NOT NULL DEFAULT '',
                 scope_facility TEXT NOT NULL DEFAULT '',
+                scope_directorate_section TEXT NOT NULL DEFAULT '',
+                scope_administration_section TEXT NOT NULL DEFAULT '',
                 start_time TEXT NOT NULL,
                 end_time TEXT NOT NULL,
                 profession TEXT NOT NULL DEFAULT '',
@@ -783,6 +787,8 @@ def init_db():
                 scope_center TEXT NOT NULL DEFAULT '',
                 scope_administration TEXT NOT NULL DEFAULT '',
                 scope_facility TEXT NOT NULL DEFAULT '',
+                scope_directorate_section TEXT NOT NULL DEFAULT '',
+                scope_administration_section TEXT NOT NULL DEFAULT '',
                 template_id INTEGER
             );
             CREATE TABLE IF NOT EXISTS facility_real_assessments (
@@ -875,14 +881,20 @@ def init_db():
         ("exam_templates", "scope_center", "TEXT NOT NULL DEFAULT ''"),
         ("exam_templates", "scope_administration", "TEXT NOT NULL DEFAULT ''"),
         ("exam_templates", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "scope_directorate_section", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_templates", "scope_administration_section", "TEXT NOT NULL DEFAULT ''"),
         ("exam_templates", "profession", "TEXT NOT NULL DEFAULT ''"),
         ("exam_sessions", "exam_stage", "TEXT NOT NULL DEFAULT ''"),
         ("exam_schedules", "stage", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_schedules", "scope_directorate_section", "TEXT NOT NULL DEFAULT ''"),
+        ("exam_schedules", "scope_administration_section", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_governorate", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_authority", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_center", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_administration", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "scope_facility", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_directorate_section", "TEXT NOT NULL DEFAULT ''"),
+        ("action_plans", "scope_administration_section", "TEXT NOT NULL DEFAULT ''"),
         ("action_plans", "template_id", "INTEGER"),
         ("action_plans", "start_date", "TEXT"),
         ("action_plans", "end_date", "TEXT"),
@@ -1152,7 +1164,7 @@ def get_hierarchical_data(include_hidden=False):
         scope = st.session_state.get("user_hierarchy_scope") or {}
         if scope.get("scope_all") is True:
             return rows
-        keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+        keys = ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")
         if not any(str(scope.get(k) or "").strip() for k in keys):
             return []
         if any(str(scope.get(k) or "").strip() for k in keys):
@@ -1167,7 +1179,7 @@ def current_user_trainee_scope():
     scope = st.session_state.get("user_hierarchy_scope") or {}
     if scope.get("scope_all") is True:
         return {"scope_all": True}
-    keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+    keys = ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")
     vals = {k: str(scope.get(k) or "").strip() for k in keys}
     return vals if any(vals.values()) else {**vals, "_scope_denied": True}
 
@@ -1237,37 +1249,58 @@ def effective_hierarchy_scope(requested):
     return out
 
 def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:", key="hier_scope"):
-    """Choose a scope from the current hierarchy: authority -> administration -> facility."""
+    """Choose a scope in the updated hierarchy, respecting parent-child relationships."""
     rows = get_hierarchical_data(include_hidden=False)
-    levels = [
-        ("كل الهيكل الإداري", ""),
-        ("المديرية / الجهة", "authority"),
-        ("الإدارة", "administration"),
-        ("المنشأة", "facility_name"),
-    ]
-    level_label = st.selectbox(label, [x[0] for x in levels], key=f"{key}_level")
-    level_field = dict(levels)[level_label]
-    scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
-    if not level_field:
+    scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
+    levels = ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"]
+    selected_level = st.selectbox(label, levels, key=f"{key}_level")
+    if selected_level == "كل الهيكل الإداري":
         scope = effective_hierarchy_scope(scope)
-        st.session_state["_last_hierarchy_scope"] = scope
+        st.session_state["_last_hierarchy_scope"] = dict(scope)
         return scope
-    current = rows
-    field_map = [
-        ("authority", "scope_authority", "المديرية / الجهة"),
-        ("administration", "scope_administration", "الإدارة"),
-        ("facility_name", "scope_facility", "المنشأة / وحدة الأمراض المتوطنة"),
-    ]
-    for src, dst, title in field_map:
-        vals = hierarchy_ordered_unique(r.get(src) for r in current)
-        if not vals:
-            st.warning(f"لا توجد بيانات متاحة لمستوى {title} في الهيكل الإداري.")
+
+    # Every dropdown is constrained by the already-selected parent. Sections are separate
+    # nodes stored in the legacy table, so select their parent first and stop at that level.
+    authority_values = hierarchy_ordered_unique(r.get("authority") for r in rows if r.get("authority"))
+    if not authority_values:
+        st.warning("لا توجد مديريات أو جهات مسجلة في الهيكل الإداري.")
+        return scope
+    authority = st.selectbox("المديرية / الجهة", authority_values, key=f"{key}_authority")
+    scope["scope_authority"] = authority
+    scoped_rows = [r for r in rows if str(r.get("authority") or "").strip() == authority]
+    if selected_level == "المديرية / الجهة":
+        pass
+    elif selected_level == "قسم داخل المديرية":
+        vals = hierarchy_ordered_unique(r.get("directorate_section") for r in scoped_rows if r.get("directorate_section"))
+        if vals:
+            scope["scope_directorate_section"] = st.selectbox("قسم داخل المديرية", vals, key=f"{key}_directorate_section")
+        else:
+            st.warning("لا توجد أقسام مسجلة تحت المديرية المختارة.")
             return scope
-        chosen = st.selectbox(title, vals, key=f"{key}_{src}")
-        scope[dst] = chosen
-        current = [r for r in current if str(r.get(src) or "").strip() == chosen]
-        if src == level_field:
-            break
+    else:
+        admin_values = hierarchy_ordered_unique(r.get("administration") for r in scoped_rows if r.get("administration"))
+        if not admin_values:
+            st.warning("لا توجد إدارات مسجلة تحت المديرية المختارة.")
+            return scope
+        admin = st.selectbox("الإدارة", admin_values, key=f"{key}_administration")
+        scope["scope_administration"] = admin
+        admin_rows = [r for r in scoped_rows if str(r.get("administration") or "").strip() == admin]
+        if selected_level == "الإدارة":
+            pass
+        elif selected_level == "قسم داخل الإدارة":
+            vals = hierarchy_ordered_unique(r.get("administration_section") for r in admin_rows if r.get("administration_section"))
+            if vals:
+                scope["scope_administration_section"] = st.selectbox("قسم داخل الإدارة", vals, key=f"{key}_administration_section")
+            else:
+                st.warning("لا توجد أقسام مسجلة تحت الإدارة المختارة.")
+                return scope
+        else:
+            vals = hierarchy_ordered_unique(r.get("facility_name") for r in admin_rows if r.get("facility_name"))
+            if vals:
+                scope["scope_facility"] = st.selectbox("المنشأة / وحدة الأمراض المتوطنة", vals, key=f"{key}_facility")
+            else:
+                st.warning("لا توجد منشآت مسجلة تحت الإدارة المختارة.")
+                return scope
     scope = effective_hierarchy_scope(scope)
     st.session_state["_last_hierarchy_scope"] = dict(scope)
     return scope
@@ -1278,7 +1311,7 @@ def hierarchy_scope_sql(alias, scope):
     if (scope or {}).get("scope_all") is True:
         return "1=1", []
     conditions, args = [], []
-    mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_center","center"),("scope_administration","administration"),("scope_facility","facility_name")]
+    mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_directorate_section","directorate_section"),("scope_center","center"),("scope_administration","administration"),("scope_administration_section","administration_section"),("scope_facility","facility_name")]
     scoped = False
     for scope_key, col in mapping:
         val = str(scope.get(scope_key) or "").strip()
@@ -1291,7 +1324,7 @@ def hierarchy_scope_sql(alias, scope):
     return (" AND ".join(conditions) if conditions else "1=1"), args
 
 def template_scope_text(row):
-    parts = [row.get("scope_authority"), row.get("scope_administration"), row.get("scope_facility")]
+    parts = [row.get("scope_authority"), row.get("scope_directorate_section"), row.get("scope_administration"), row.get("scope_administration_section"), row.get("scope_facility")]
     parts = [str(x).strip() for x in parts if str(x or "").strip()]
     label = "كل الهيكل الإداري" if not parts else " ← ".join(parts)
     try:
@@ -1344,12 +1377,14 @@ def hierarchy_header_html(scope=None, facility_value=None):
     parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان"]
     if auth:
         parts.append(auth)
+    directorate_section = str(scope.get("scope_directorate_section") or (selected.get("directorate_section") if selected else "") or "").strip()
+    administration_section = str(scope.get("scope_administration_section") or (selected.get("administration_section") if selected else "") or "").strip()
+    if directorate_section:
+        parts.append(directorate_section)
     if admin:
         parts.append(admin)
-    if selected and str(selected.get("directorate_section") or "").strip():
-        parts.append(str(selected.get("directorate_section")).strip())
-    if selected and str(selected.get("administration_section") or "").strip():
-        parts.append(str(selected.get("administration_section")).strip())
+    if administration_section:
+        parts.append(administration_section)
     # Do not include the last hierarchy node as part of the administrative header.
     header = "<br>".join(esc(x) for x in parts if x)
     if target:
@@ -1431,7 +1466,7 @@ def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
         if not facility:
             return None
         rows = c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (int(template_id),)).fetchall()
-        keys = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name")]
+        keys = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_directorate_section", "directorate_section"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_administration_section", "administration_section"), ("scope_facility", "facility_name")]
         matches = []
         wanted_stage = str(exam_stage or "").strip()
         for row in rows:
@@ -1453,7 +1488,9 @@ def template_matches_facility(template_row, facility_name):
     t = dict(template_row) if not isinstance(template_row, dict) else template_row
     vals = {
         "authority": t.get("scope_authority") or "",
+        "directorate_section": t.get("scope_directorate_section") or "",
         "administration": t.get("scope_administration") or "",
+        "administration_section": t.get("scope_administration_section") or "",
         "facility_name": t.get("scope_facility") or "",
     }
     if not any(vals.values()):
@@ -4063,7 +4100,7 @@ def admin_dashboard():
                     schedule_stage = str(schedule_template.get("exam_type") or "قبل التدريب")
                     st.caption(f"مرحلة النموذج: {schedule_stage}")
                 schedule_scope = hierarchy_scope_widget("الهيكل الإداري المستهدف للامتحان:", f"trainee_schedule_scope_{schedule_template['id']}")
-                schedule_scope_keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+                schedule_scope_keys = ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")
                 schedule_scope_values = {k: str(schedule_scope.get(k) or "").strip() for k in schedule_scope_keys}
                 with db() as c:
                     schedules_for_template = [dict(r) for r in c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (schedule_template['id'],)).fetchall()]
@@ -4119,11 +4156,11 @@ def admin_dashboard():
                         else:
                             profession_json = json.dumps(selected_schedule_professions, ensure_ascii=False) if selected_schedule_professions else ""
                             with db() as c:
-                                current_match = c.execute("SELECT id FROM exam_schedules WHERE template_id=? AND active=1 AND stage=? AND scope_governorate=? AND scope_authority=? AND scope_center=? AND scope_administration=? AND scope_facility=? ORDER BY id DESC LIMIT 1", (schedule_template['id'], schedule_stage, *(schedule_scope_values[k] for k in schedule_scope_keys))).fetchone()
+                                current_match = c.execute("SELECT id FROM exam_schedules WHERE template_id=? AND active=1 AND stage=? AND scope_governorate=? AND scope_authority=? AND scope_center=? AND scope_administration=? AND scope_facility=? AND scope_directorate_section=? AND scope_administration_section=? ORDER BY id DESC LIMIT 1", (schedule_template['id'], schedule_stage, schedule_scope_values.get("scope_governorate", ""), schedule_scope_values.get("scope_authority", ""), schedule_scope_values.get("scope_center", ""), schedule_scope_values.get("scope_administration", ""), schedule_scope_values.get("scope_facility", ""), schedule_scope_values.get("scope_directorate_section", ""), schedule_scope_values.get("scope_administration_section", ""))).fetchone()
                                 if current_match:
-                                    c.execute("UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, stage=?, updated_at=? WHERE id=?", (start_iso, end_iso, profession_json, schedule_stage, now(), current_match['id']))
+                                    c.execute("UPDATE exam_schedules SET start_time=?, end_time=?, profession=?, stage=?, scope_directorate_section=?, scope_administration_section=?, updated_at=? WHERE id=?", (start_iso, end_iso, profession_json, schedule_stage, schedule_scope_values.get("scope_directorate_section", ""), schedule_scope_values.get("scope_administration_section", ""), now(), current_match['id']))
                                 else:
-                                    c.execute("INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,stage,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)", (schedule_template['id'], *(schedule_scope_values[k] for k in schedule_scope_keys), start_iso, end_iso, profession_json, schedule_stage, now(), now()))
+                                    c.execute("INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,scope_directorate_section,scope_administration_section,start_time,end_time,profession,stage,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)", (schedule_template['id'], schedule_scope_values.get("scope_governorate", ""), schedule_scope_values.get("scope_authority", ""), schedule_scope_values.get("scope_center", ""), schedule_scope_values.get("scope_administration", ""), schedule_scope_values.get("scope_facility", ""), schedule_scope_values.get("scope_directorate_section", ""), schedule_scope_values.get("scope_administration_section", ""), start_iso, end_iso, profession_json, schedule_stage, now(), now()))
                             st.success("تم حفظ موعد الامتحان وربطه بالنموذج والهيكل الإداري المحددين.")
                             st.rerun()
                 if schedules_for_template:
@@ -4239,7 +4276,7 @@ def admin_dashboard():
                 with db() as c:
                     scoped_ids = [r[0] for r in c.execute(f"SELECT t.id FROM trainees t WHERE {tr_scope_pred}", tuple(tr_scope_args)).fetchall()]
                 df_all_tr = trainees_df(include_hidden=True)
-                if not df_all_tr.empty and any(str(tr_scope_manage.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
+                if not df_all_tr.empty and any(str(tr_scope_manage.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")):
                     df_all_tr = df_all_tr[df_all_tr["id"].isin(scoped_ids)]
                 if df_all_tr.empty:
                     st.info("لا توجد بيانات متدربين مسجلة.")
@@ -4312,14 +4349,14 @@ def admin_dashboard():
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
             st.markdown("#### 🏥 فلترة طباعة النماذج حسب الهيكل الإداري")
             tpl_print_scope = hierarchy_scope_widget("نطاق طباعة نماذج الاختبار:", "template_print_scope_v1")
-            scope_keys = ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")
+            scope_keys = ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")
             scope_values = [str(tpl_print_scope.get(k) or "").strip() for k in scope_keys]
             with db() as c:
                 all_tpl_rows = [dict(r) for r in c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()]
             def _template_in_print_scope(template_row):
                 if not any(scope_values):
                     return True
-                template_scope_values = [str(template_row.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")]
+                template_scope_values = [str(template_row.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")]
                 # A global template is available in every selected administrative scope.
                 if not any(template_scope_values):
                     return True
@@ -4382,10 +4419,10 @@ def admin_dashboard():
                                 c.execute("""INSERT INTO exam_templates(
                                     name, exam_type, num_questions, duration_minutes, pass_percent, categories_json,
                                     start_time, end_time, created_at, scope_governorate, scope_authority, scope_center,
-                                    scope_administration, scope_facility, profession
-                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                    scope_administration, scope_facility, scope_directorate_section, scope_administration_section, profession
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                           (new_tpl_name.strip(), new_exam_type, final_num_q, int(new_tpl_duration), float(new_tpl_pass),
-                                           json.dumps(new_tpl_cats, ensure_ascii=False), None, None, now(), "", "", "", "", "",
+                                           json.dumps(new_tpl_cats, ensure_ascii=False), None, None, now(), "", "", "", "", "", "", "",
                                            "" if not new_tpl_professions or "كل الوظائف" in new_tpl_professions else json.dumps(new_tpl_professions, ensure_ascii=False)))
                             st.success("✅ تم إنشاء نموذج الاختبار بنجاح. حدّد موعد إتاحته والهيكل الإداري من أول قسم في تبويب (المتدربين والنماذج).")
                             st.rerun()
@@ -5219,12 +5256,12 @@ def admin_dashboard():
                             with db() as c:
                                 c.execute("""INSERT INTO action_plans(
                                     target_type, target_name, weakness_areas, action_steps, time_frame_type, start_date, end_date, created_at,
-                                    scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, template_id
-                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                    scope_governorate, scope_authority, scope_center, scope_administration, scope_facility, scope_directorate_section, scope_administration_section, template_id
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                           (target_category, target_name, weak_areas.strip(), action_steps.strip(), "من تاريخ إلى تاريخ",
                                            plan_start_date.isoformat(), plan_end_date.isoformat(), now(),
                                            plan_scope["scope_governorate"], plan_scope["scope_authority"], plan_scope["scope_center"],
-                                           plan_scope["scope_administration"], plan_scope["scope_facility"], selected_plan_template_id))
+                                           plan_scope["scope_administration"], plan_scope["scope_facility"], plan_scope.get("scope_directorate_section", ""), plan_scope.get("scope_administration_section", ""), selected_plan_template_id))
                             st.success("✅ تم حفظ خطة العمل بناءً على التحليل التلقائي بنجاح!")
                             st.rerun()
         with plan_tabs[1]:
@@ -5743,12 +5780,12 @@ def admin_dashboard():
                     st.markdown("#### 🏥 تحديد نطاق الهيكل الإداري للمستخدم")
                     st.caption("اختر كل الهيكل أو قصر صلاحيات المستخدم على مديرية/جهة أو إدارة أو منشأة محددة.")
                     add_scope_rows = get_hierarchical_data(include_hidden=False)
-                    add_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "الإدارة", "المنشأة"], key="add_user_scope_level")
-                    add_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
+                    add_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"], key="add_user_scope_level")
+                    add_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
                     if add_scope_level != "كل الهيكل الإداري":
-                        scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("administration", "scope_administration", "الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
+                        scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("directorate_section", "scope_directorate_section", "قسم داخل المديرية"), ("administration", "scope_administration", "الإدارة"), ("administration_section", "scope_administration_section", "قسم داخل الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
                         scope_current_rows = add_scope_rows
-                        stop_field = {"المديرية / الجهة":"authority", "الإدارة":"administration", "المنشأة":"facility_name"}[add_scope_level]
+                        stop_field = {"المديرية / الجهة":"authority", "قسم داخل المديرية":"directorate_section", "الإدارة":"administration", "قسم داخل الإدارة":"administration_section", "المنشأة":"facility_name"}[add_scope_level]
                         for src_field, dst_field, scope_title in scope_steps:
                             vals = hierarchy_ordered_unique(rr.get(src_field) for rr in scope_current_rows)
                             if not vals:
@@ -5764,7 +5801,7 @@ def admin_dashboard():
                             assigned_perms = [k for k, v in selected_modules_checkboxes.items() if v] + [k for k, v in selected_subtabs_checkboxes.items() if v]
                             with db() as c:
                                 try:
-                                    if not any(str(add_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
+                                    if not any(str(add_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")):
                                         add_user_scope["scope_all"] = True
                                     c.execute("INSERT INTO users(username, display_name, job_title, password_hash, role, permissions_json, hierarchy_scope_json, active, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
                                               (new_u_name.strip(), new_u_name.strip(), new_u_job_title.strip(), hash_password(new_u_pass), new_u_role, json.dumps(assigned_perms, ensure_ascii=False), json.dumps(add_user_scope, ensure_ascii=False), 1, now()))
@@ -5800,14 +5837,18 @@ def admin_dashboard():
                         existing_scope_level = "المنشأة"
                     elif curr_hierarchy_scope.get("scope_administration"):
                         existing_scope_level = "الإدارة"
+                    elif curr_hierarchy_scope.get("scope_administration_section"):
+                        existing_scope_level = "قسم داخل الإدارة"
+                    elif curr_hierarchy_scope.get("scope_directorate_section"):
+                        existing_scope_level = "قسم داخل المديرية"
                     elif curr_hierarchy_scope.get("scope_authority"):
                         existing_scope_level = "المديرية / الجهة"
-                    edit_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "الإدارة", "المنشأة"], index=["كل الهيكل الإداري", "المديرية / الجهة", "الإدارة", "المنشأة"].index(existing_scope_level), key=f"edit_user_scope_level_{target_user['id']}")
-                    edit_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":""}
+                    edit_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"], index=["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"].index(existing_scope_level), key=f"edit_user_scope_level_{target_user['id']}")
+                    edit_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
                     if edit_scope_level != "كل الهيكل الإداري":
-                        scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("administration", "scope_administration", "الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
+                        scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("directorate_section", "scope_directorate_section", "قسم داخل المديرية"), ("administration", "scope_administration", "الإدارة"), ("administration_section", "scope_administration_section", "قسم داخل الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
                         scope_current_rows = edit_scope_rows
-                        stop_field = {"المديرية / الجهة":"authority", "الإدارة":"administration", "المنشأة":"facility_name"}[edit_scope_level]
+                        stop_field = {"المديرية / الجهة":"authority", "قسم داخل المديرية":"directorate_section", "الإدارة":"administration", "قسم داخل الإدارة":"administration_section", "المنشأة":"facility_name"}[edit_scope_level]
                         for src_field, dst_field, scope_title in scope_steps:
                             vals = hierarchy_ordered_unique(rr.get(src_field) for rr in scope_current_rows)
                             if not vals:
@@ -5835,7 +5876,7 @@ def admin_dashboard():
                             del_btn = st.form_submit_button("🗑 حذف المستخدم", use_container_width=True)
                         if save_btn:
                             new_assigned = [k for k, v in edit_checkboxes.items() if v]
-                            if not any(str(edit_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility")):
+                            if not any(str(edit_user_scope.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")):
                                 edit_user_scope["scope_all"] = True
                             with db() as c:
                                 c.execute("UPDATE users SET permissions_json=?, hierarchy_scope_json=? WHERE id=?", (json.dumps(new_assigned, ensure_ascii=False), json.dumps(edit_user_scope, ensure_ascii=False), target_user["id"]))
