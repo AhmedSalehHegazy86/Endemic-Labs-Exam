@@ -1393,6 +1393,33 @@ def hierarchy_header_html(scope=None, facility_value=None):
         header += "<br>كل الهيكل الإداري"
     return header
 
+def hierarchy_margin_html(scope=None):
+    """Compact, right-aligned administrative hierarchy for the top page margin; never includes the leaf facility."""
+    scope = dict(scope or {})
+    rows = get_hierarchical_data(include_hidden=True)
+    authority = str(scope.get("scope_authority") or scope.get("authority") or "").strip()
+    directorate_section = str(scope.get("scope_directorate_section") or scope.get("directorate_section") or "").strip()
+    administration = str(scope.get("scope_administration") or scope.get("administration") or "").strip()
+    administration_section = str(scope.get("scope_administration_section") or scope.get("administration_section") or "").strip()
+    # Resolve parents when the scope is given as a facility or a full hierarchy row.
+    facility = str(scope.get("scope_facility") or scope.get("facility_name") or "").strip()
+    if facility and not (authority or administration):
+        for row in rows:
+            if str(row.get("facility_name") or "").strip() == facility:
+                authority = str(row.get("authority") or "").strip()
+                directorate_section = str(row.get("directorate_section") or "").strip()
+                administration = str(row.get("administration") or "").strip()
+                administration_section = str(row.get("administration_section") or "").strip()
+                break
+    parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان"]
+    if authority: parts.append(authority)
+    if directorate_section: parts.append(directorate_section)
+    if administration: parts.append(administration)
+    if administration_section: parts.append(administration_section)
+    if not authority and not administration and not directorate_section and not administration_section:
+        parts.append("كل الهيكل الإداري")
+    return '<div class="admin-top-margin">' + "".join("<div>" + esc(part) + "</div>" for part in parts) + '</div>'
+
 def current_hierarchy_header():
     scope = st.session_state.get("_last_hierarchy_scope")
     if isinstance(scope, dict):
@@ -2075,7 +2102,7 @@ def generate_trainee_exam_sheet_html(sid):
             return ""
         enforce_session_access_or_raise(sid, c)
         rows = c.execute("""SELECT eq.*, q.question, q.options_json, q.answer FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position""", (sid,)).fetchall()
-    header_right_text = hierarchy_header_html(facility_value=s["facility"])
+    header_right_text = hierarchy_margin_html({"scope_facility": s["facility"]})
     q_html_content = ""
     for idx, r in enumerate(rows, start=1):
         try:
@@ -2144,10 +2171,10 @@ def generate_trainee_exam_sheet_html(sid):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 27mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
+    .admin-top-margin {{ position: fixed; top: -23mm; right: 0; width: 100%; text-align: right; direction: rtl; font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.18; }} .admin-top-margin > div {{ margin: 0; padding: 0; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30mm; gap: 2mm; width: 100%; }}
@@ -2155,10 +2182,7 @@ def generate_trainee_exam_sheet_html(sid):
     </head>
     <body>
     <div class="report-wrapper">
-        <div class="first-page-header">
-            <div style="font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_text}</div>
-            <div>{render_logos_html()}</div>
-        </div>
+        {header_right_text}
         <h2>نموذج إجابة واختبار المتدرب: {esc(s['trainee_name'])}</h2>
         <div class="tpl-info">
             جهة العمل: {esc(s['facility'])} | الوظيفة: {esc(s['trainee_profession'] if s['trainee_profession'] is not None else '')} | الاختبار: {esc(s['template_name'] or 'اختبار معتمد')} ({esc(s['exam_type'] or 'قبل التدريب')}) | النتيجة: {score_val} / {max_score_val} ({percent_val:.1f}%)
@@ -2237,7 +2261,7 @@ def generate_staff_signature_table_html(scope=None, title="كشف العاملي
 def generate_general_report_html(title, content_html, target_pages=1, header_text=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = header_text or current_hierarchy_header()
+    header_right_text = hierarchy_margin_html(st.session_state.get("_last_hierarchy_scope", {}))
     roster_html = generate_staff_signature_table_html(st.session_state.get("_last_hierarchy_scope", {}))
     printable_content = content_html + roster_html
     return f"""
@@ -2246,10 +2270,10 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 27mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
+    .admin-top-margin {{ position: fixed; top: -23mm; right: 0; width: 100%; text-align: right; direction: rtl; font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.18; }} .admin-top-margin > div {{ margin: 0; padding: 0; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 2px; font-size: 8pt; }}
     th, td {{ border: 1px solid #cbd5e1; padding: 3px 5px; text-align: center; line-height: {line_sp}; page-break-inside: avoid; break-inside: avoid; }}
@@ -2260,10 +2284,7 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
     </head>
     <body>
     <div class="report-wrapper">
-        <div class="first-page-header">
-            <div style="font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_text}</div>
-            <div>{render_logos_html()}</div>
-        </div>
+        {header_right_text}
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {printable_content}
@@ -2275,7 +2296,7 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
 def generate_action_plan_report_html(title, content_html, target_pages=1, header_text=None, hierarchy_scope=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = header_text or current_hierarchy_header()
+    header_right_text = hierarchy_margin_html(hierarchy_scope or st.session_state.get("_last_hierarchy_scope", {}))
     roster_html = generate_staff_signature_table_html(hierarchy_scope or {})
     printable_content = content_html + roster_html
     return f"""
@@ -2284,19 +2305,16 @@ def generate_action_plan_report_html(title, content_html, target_pages=1, header
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 landscape; margin: 27mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
+    .admin-top-margin {{ position: fixed; top: -23mm; right: 0; width: 100%; text-align: right; direction: rtl; font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.18; }} .admin-top-margin > div {{ margin: 0; padding: 0; }}
     h2 {{ text-align: center; color: #047857; font-size: 12pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     </style>
     </head>
     <body>
     <div class="report-wrapper">
-        <div class="first-page-header">
-            <div style="font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_text}</div>
-            <div>{render_logos_html()}</div>
-        </div>
+        {header_right_text}
         <h2>{esc(title)}</h2>
         <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {printable_content}
@@ -2316,7 +2334,7 @@ def generate_exam_template_print_html(template_id):
         if not tpl:
             return ""
         t_dict = dict(tpl)
-    header_right_text = hierarchy_header_html(t_dict)
+    header_right_text = hierarchy_margin_html(t_dict)
     questions_list = choose_questions(t_dict)
     q_html_content = ""
     for idx, q in enumerate(questions_list, start=1):
@@ -2360,10 +2378,10 @@ def generate_exam_template_print_html(template_id):
     <head>
     <meta charset="UTF-8">
     <style>
-    @page {{ size: A4 portrait; margin: 12mm 8mm 18mm 8mm !important; }}
+    @page {{ size: A4 portrait; margin: 27mm 8mm 18mm 8mm !important; }}
     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp}; }}
     .report-wrapper {{ width: 194mm; max-width: 194mm; margin: 0 auto !important; padding: 0 !important; position: relative; }}
-    .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 2mm; }}
+    .admin-top-margin {{ position: fixed; top: -23mm; right: 0; width: 100%; text-align: right; direction: rtl; font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.18; }} .admin-top-margin > div {{ margin: 0; padding: 0; }}
     h2 {{ text-align: center; color: #047857; font-size: 11pt; margin: 0 0 2px 0 !important; padding-top: 0 !important; line-height: {line_sp}; }}
     .tpl-info {{ background: #f0fdf4; border: 1px dashed #059669; padding: 2mm 6px; border-radius: 4px; margin-top: 2mm !important; margin-bottom: 2mm; font-size: 7.5pt; font-weight: bold; color: #065f46; text-align: center; line-height: {line_sp}; }}
     .questions-grid {{ display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30mm; gap: 2mm; width: 100%; }}
@@ -2371,10 +2389,7 @@ def generate_exam_template_print_html(template_id):
     </head>
     <body>
     <div class="report-wrapper">
-        <div class="first-page-header">
-            <div style="font-size: 8pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_text}</div>
-            <div>{render_logos_html()}</div>
-        </div>
+        {header_right_text}
         <h2>نموذج امتحان: {esc(t_dict['name'])} ({esc(t_dict.get('exam_type', 'قبل التدريب'))})</h2>
         <div class="tpl-info">
             التصنيف: {esc(t_dict.get('exam_type', 'قبل التدريب'))} | مدة الاختبار: {t_dict['duration_minutes']} د | نسبة النجاح: {t_dict['pass_percent']}% | إجمالي الأسئلة: {len(questions_list)}
@@ -2390,6 +2405,12 @@ def generate_exam_template_print_html(template_id):
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
     is_cert = ("شهاد" in label_prefix) or ("certificate" in label_prefix.lower())
+    # Fixed print orientation by document type: exam forms, training minutes,
+    # and work plans are portrait; all other non-certificate printouts are landscape.
+    label_lower = str(label_prefix or "").lower()
+    portrait_terms = ("نموذج امتحان", "نماذج الامتحان", "نموذج إجابة الامتحان", "محضر تدريب", "خطة عمل")
+    chosen_orient = "رأسي (Portrait)" if any(term in label_prefix for term in portrait_terms) else "أفقي (Landscape)"
+    page_orientation = "portrait" if chosen_orient.startswith("رأسي") else "landscape"
     
     if is_cert:
         repeated_print_css = """
@@ -2436,7 +2457,7 @@ def render_print_button_only(html_content, label_prefix=""):
         table {{ font-size: 9.5pt; }}
         th, td {{ line-height: 1.25; }}
         @page {{
-            size: A4 landscape;
+            size: A4 {page_orientation};
             margin: {m_top} {m_right} 16mm {m_left} !important;
         }}
         @media print {{
@@ -2580,12 +2601,6 @@ def render_print_button_only(html_content, label_prefix=""):
 
     encoded_html = json.dumps(html_content)
     
-    if is_cert:
-        chosen_orient = "أفقي (Landscape)"
-    else:
-        orient_key = f"orient_{hash(label_prefix) & 0xffffffff}"
-        chosen_orient = st.selectbox("اتجاه الورق للطباعة (مقاس A4):", ["أفقي (Landscape)", "رأسي (Portrait)"], key=orient_key)
-
     js_code = """
     <div style="margin: 4px 0;">
         <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
@@ -2800,9 +2815,14 @@ def verification_portal_view():
 def _reset_reg_admin_and_facility():
     st.session_state["reg_administration"] = "-- اختر الإدارة --"
     st.session_state["reg_facility"] = "-- اختر المنشأة --"
+    # Reset child section selectors when their parent directorate changes.
+    st.session_state.pop("reg_directorate_section", None)
+    st.session_state.pop("reg_administration_section", None)
 
 def _reset_reg_facility():
     st.session_state["reg_facility"] = "-- اختر المنشأة --"
+    # The administration-section selector depends on the selected administration.
+    st.session_state.pop("reg_administration_section", None)
 
 def _reset_hier_admin_and_facility():
     st.session_state["hier_manage_administration"] = "-- اختر الإدارة --"
@@ -2872,18 +2892,45 @@ def login_portal():
                 facility_final_str = ""
             else:
                 auth_codes, admin_codes, facility_codes = hierarchy_level_codes(hier_data)
-                auths_list = hierarchy_ordered_unique(item.get("authority") for item in hier_data)
+                auths_list = hierarchy_ordered_unique(item.get("authority") for item in hier_data if item.get("authority"))
                 auth_labels = {name: f"{name} (كود المديرية: {auth_codes[name]})" for name in auths_list}
                 sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
                 rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
-                admins_list = hierarchy_ordered_unique(item.get("administration") for item in rows_auth)
-                admin_labels = {name: f"{name} (كود الإدارة: {admin_codes[(sel_auth, name)]})" for name in admins_list}
+
+                # اختيار القسم التابع للمديرية أولاً، ثم تضييق الإدارات والنتائج على هذا الاختيار.
+                directorate_sections = hierarchy_ordered_unique(item.get("directorate_section") for item in rows_auth if item.get("directorate_section"))
+                sel_directorate_section = ""
+                if directorate_sections:
+                    section_options = ["-- بدون قسم داخل المديرية --"] + directorate_sections
+                    selected_dsec = st.selectbox("قسم داخل المديرية:", section_options, key="reg_directorate_section", on_change=_reset_reg_admin_and_facility)
+                    sel_directorate_section = "" if selected_dsec == "-- بدون قسم داخل المديرية --" else selected_dsec
+                    if sel_directorate_section:
+                        rows_auth = [item for item in rows_auth if str(item.get("directorate_section") or "").strip() == sel_directorate_section]
+                    else:
+                        rows_auth = [item for item in rows_auth if not str(item.get("directorate_section") or "").strip()]
+
+                admins_list = hierarchy_ordered_unique(item.get("administration") for item in rows_auth if item.get("administration"))
+                admin_labels = {name: f"{name} (كود الإدارة: {admin_codes.get((sel_auth, name), '')})" for name in admins_list}
                 sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, format_func=lambda value: value if value == "-- اختر الإدارة --" else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
                 rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
-                facilities_list = hierarchy_ordered_unique(item.get("facility_name") for item in rows_admin)
-                facility_labels = {name: f"{name} (كود المنشأة: {facility_codes[(sel_auth, sel_admin, name)]})" for name in facilities_list}
+
+                # اختيار القسم التابع للإدارة قبل عرض المنشآت التابعة لها.
+                administration_sections = hierarchy_ordered_unique(item.get("administration_section") for item in rows_admin if item.get("administration_section"))
+                sel_administration_section = ""
+                if administration_sections:
+                    section_options = ["-- بدون قسم داخل الإدارة --"] + administration_sections
+                    selected_asec = st.selectbox("قسم داخل الإدارة:", section_options, key="reg_administration_section", on_change=_reset_reg_facility)
+                    sel_administration_section = "" if selected_asec == "-- بدون قسم داخل الإدارة --" else selected_asec
+                    if sel_administration_section:
+                        rows_admin = [item for item in rows_admin if str(item.get("administration_section") or "").strip() == sel_administration_section]
+                    else:
+                        rows_admin = [item for item in rows_admin if not str(item.get("administration_section") or "").strip()]
+
+                facilities_list = hierarchy_ordered_unique(item.get("facility_name") for item in rows_admin if item.get("facility_name"))
+                facility_labels = {name: f"{name} (كود المنشأة: {facility_codes.get((sel_auth, sel_admin, name), '')})" for name in facilities_list}
                 sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, format_func=lambda value: value if value == "-- اختر المنشأة --" else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
-                facility_final_str = f"جمهورية مصر العربية - وزارة الصحة والسكان - {sel_auth} - {sel_admin} - {sel_fac}" if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
+                hierarchy_parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان", sel_auth, sel_directorate_section, sel_admin, sel_administration_section, sel_fac]
+                facility_final_str = " - ".join(str(part).strip() for part in hierarchy_parts if str(part or "").strip() and str(part).strip() not in {"-- اختر المديرية / الجهة --", "-- اختر الإدارة --", "-- اختر المنشأة --"}) if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
             with st.form("trainee_first_registration", clear_on_submit=True):
                 name = st.text_input("الاسم الرباعي:")
                 national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
@@ -5395,7 +5442,7 @@ def admin_dashboard():
                     st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
                     print_sett_m = get_print_settings()
                     # ترويسة المحضر تتبع الهيكل الإداري المرتبط بنموذج الاختبار المختار.
-                    header_right_txt = hierarchy_header_html(minutes_scope) if any(str(minutes_scope.get(k) or '').strip() for k in ('scope_authority','scope_administration','scope_facility')) else hierarchy_header_html(tpl_dict_for_minutes)
+                    header_right_txt = hierarchy_margin_html(minutes_scope) if any(str(minutes_scope.get(k) or '').strip() for k in ('scope_authority','scope_directorate_section','scope_administration','scope_administration_section','scope_facility')) else hierarchy_margin_html(tpl_dict_for_minutes)
                     line_sp_m = print_sett_m.get('line_spacing', 1.25)
 
                     # أسماء المتدربين تتعبأ تلقائياً وفق نطاق النموذج والمهنة والتخصيص الحالي.
@@ -5513,10 +5560,10 @@ def admin_dashboard():
                     <head>
                     <meta charset="UTF-8">
                     <style>
-                    @page {{ size: A4 landscape; margin: 12mm 8mm 18mm 8mm !important; }}
+                    @page {{ size: A4 landscape; margin: 27mm 8mm 18mm 8mm !important; }}
                     body {{ font-family: 'Cairo', 'Tahoma', sans-serif; background: #ffffff; color: #111827; margin: 0 !important; padding: 0 !important; direction: rtl; -webkit-print-color-adjust: exact; line-height: {line_sp_m}; }}
                     .report-wrapper {{ width: 281mm; max-width: 281mm; margin: 0 auto !important; padding: 0 !important; position: relative; box-sizing: border-box; }}
-                    .first-page-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 2mm; margin-bottom: 3mm; }}
+                    .admin-top-margin {{ position: fixed; top: -23mm; right: 0; width: 100%; text-align: right; direction: rtl; font-size: 10pt; font-weight: bold; color: #065f46; line-height: 1.18; }} .admin-top-margin > div {{ margin: 0; padding: 0; }}
                     h2 {{ text-align: center; color: #047857; font-size: 16pt; margin: 0 0 2mm 0 !important; }}
                     .meta-info {{ display: flex; justify-content: space-between; font-size: 11.5pt; font-weight: bold; color: #065f46; background: #f0fdf4; border: 1px solid #059669; padding: 2.5mm 5mm; border-radius: 4px; margin-bottom: 3mm; }}
                     .section-box {{ background: #f8fafc; border: 1px solid #059669; padding: 4mm; border-radius: 5px; font-size: 12pt; white-space: pre-wrap; line-height: 1.5; margin-bottom: 3mm; }}
@@ -5525,10 +5572,7 @@ def admin_dashboard():
                     </head>
                     <body>
                     <div class="report-wrapper">
-                        <div class="first-page-header">
-                            <div style="font-size: 10.5pt; font-weight: bold; color: #065f46; line-height: 1.15;">{header_right_txt}</div>
-                            <div>{render_logos_html()}</div>
-                        </div>
+                        {header_right_txt}
                         <h2>محضر تدريب</h2>
                         <div class="meta-info">
                             <div>المنشأة / الجهة: {esc(final_fac_t)}</div>
