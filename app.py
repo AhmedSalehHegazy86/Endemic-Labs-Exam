@@ -392,6 +392,8 @@ def reindex_hierarchical_facilities():
             "center": "TEXT NOT NULL DEFAULT ''", "administration": "TEXT NOT NULL DEFAULT ''",
             "facility_name": "TEXT NOT NULL DEFAULT ''", "created_at": "TEXT NOT NULL DEFAULT ''",
             "hidden": "INTEGER NOT NULL DEFAULT 0",
+            "directorate_section": "TEXT NOT NULL DEFAULT ''",
+            "administration_section": "TEXT NOT NULL DEFAULT ''",
         }
         for column, definition in migrations.items():
             if column not in existing:
@@ -643,6 +645,26 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_departments_directorate_id ON departments(directorate_id);
             CREATE INDEX IF NOT EXISTS idx_facilities_department_id ON facilities(department_id);
+            CREATE TABLE IF NOT EXISTS directorate_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                directorate_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT '',
+                UNIQUE(directorate_id, name),
+                FOREIGN KEY(directorate_id) REFERENCES directorates(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS administration_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                department_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT '',
+                UNIQUE(department_id, name),
+                FOREIGN KEY(department_id) REFERENCES departments(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_directorate_sections_parent ON directorate_sections(directorate_id);
+            CREATE INDEX IF NOT EXISTS idx_administration_sections_parent ON administration_sections(department_id);
             CREATE TABLE IF NOT EXISTS exam_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -982,31 +1004,36 @@ def sync_normalized_hierarchy():
     """
     with db() as c:
         c.execute("PRAGMA foreign_keys=ON")
-        rows = c.execute("SELECT authority, administration, facility_name, hidden, created_at FROM hierarchical_facilities ORDER BY id").fetchall()
+        rows = c.execute("SELECT authority, directorate_section, administration, administration_section, facility_name, hidden, created_at FROM hierarchical_facilities ORDER BY id").fetchall()
         # Rebuild the normalized projection atomically so edits/imports/deletes in older
         # app flows cannot leave parent links stale. Parent-child IDs are independently assigned.
         c.execute("DELETE FROM facilities")
+        c.execute("DELETE FROM administration_sections")
         c.execute("DELETE FROM departments")
+        c.execute("DELETE FROM directorate_sections")
         c.execute("DELETE FROM directorates")
-        # These normalized tables are a compatibility projection rebuilt from the
-        # legacy hierarchy so every existing report and permission check continues
-        # to work. Reset each independent sequence too, so each level starts at 1.
-        for table_name in ("facilities", "departments", "directorates"):
+        # Compatibility projection: each level has its own IDs; children carry parent IDs.
+        for table_name in ("facilities", "administration_sections", "departments", "directorate_sections", "directorates"):
             c.execute("DELETE FROM sqlite_sequence WHERE name=?", (table_name,))
         for r in rows:
             directorate = str(r["authority"] or "").strip()
+            directorate_section = str(r["directorate_section"] or "").strip()
             department = str(r["administration"] or "").strip()
+            administration_section = str(r["administration_section"] or "").strip()
             facility = str(r["facility_name"] or "").strip()
             hidden, created_at = int(r["hidden"] or 0), str(r["created_at"] or "")
             if not directorate:
                 continue
             c.execute("INSERT OR IGNORE INTO directorates(name, hidden, created_at) VALUES(?,?,?)", (directorate, hidden, created_at))
+            did = c.execute("SELECT id FROM directorates WHERE name=?", (directorate,)).fetchone()[0]
+            if directorate_section:
+                c.execute("INSERT OR IGNORE INTO directorate_sections(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, directorate_section, hidden, created_at))
             if department:
-                c.execute("SELECT id FROM directorates WHERE name=?", (directorate,))
-                did = c.execute("SELECT id FROM directorates WHERE name=?", (directorate,)).fetchone()[0]
                 c.execute("INSERT OR IGNORE INTO departments(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, department, hidden, created_at))
+                depid = c.execute("SELECT id FROM departments WHERE directorate_id=? AND name=?", (did, department)).fetchone()[0]
+                if administration_section:
+                    c.execute("INSERT OR IGNORE INTO administration_sections(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, administration_section, hidden, created_at))
                 if facility:
-                    depid = c.execute("SELECT id FROM departments WHERE directorate_id=? AND name=?", (did, department)).fetchone()[0]
                     c.execute("INSERT OR IGNORE INTO facilities(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, facility, hidden, created_at))
 
 sync_normalized_hierarchy()
@@ -1319,6 +1346,10 @@ def hierarchy_header_html(scope=None, facility_value=None):
         parts.append(auth)
     if admin:
         parts.append(admin)
+    if selected and str(selected.get("directorate_section") or "").strip():
+        parts.append(str(selected.get("directorate_section")).strip())
+    if selected and str(selected.get("administration_section") or "").strip():
+        parts.append(str(selected.get("administration_section")).strip())
     # Do not include the last hierarchy node as part of the administrative header.
     header = "<br>".join(esc(x) for x in parts if x)
     if target:
@@ -3438,24 +3469,28 @@ def admin_dashboard():
                                 st.warning("⚠ لا توجد نتائج معتمدة لهذه المنشأة.")
 
     elif selected_menu == "🏥 الهيكل الإداري":
-        st.subheader("🏥 إدارة الهيكل الإداري لوحدات الأمراض المتوطنة (مديرية / جهة ⬅ إدارة ⬅ منشأة)")
+        st.subheader("🏥 إدارة الهيكل الإداري (مديرية / جهة ⬅ قسم المديرية ⬅ إدارة ⬅ قسم الإدارة ⬅ منشأة)")
         tab_h1, tab_h2, tab_h3 = st.tabs(["✍ إضافة يدوية", "📥 رفع الملفات", "📋 استعراض وإخفاء/إظهار/حذف"])
         with tab_h1:
             if has_subtab_permission('🏥 الهيكل الإداري', '✍ إضافة يدوية'):
                 st.markdown("##### 📌 إضافة مستوى جديد تحت الجهة الأعلى")
                 current_hier = get_hierarchical_data(include_hidden=True)
-                add_level = st.selectbox("المستوى المراد إضافته:", ["مديرية / جهة", "إدارة", "منشأة / وحدة الأمراض المتوطنة"], key="hier_add_level")
+                add_level = st.selectbox("المستوى المراد إضافته:", ["مديرية / جهة", "قسم داخل المديرية", "إدارة", "قسم داخل الإدارة", "منشأة / وحدة الأمراض المتوطنة"], key="hier_add_level")
                 auth_values = hierarchy_ordered_unique(r.get("authority") for r in current_hier)
+                parent_section = ""
                 if add_level == "مديرية / جهة":
                     parent_auth = ""
                     parent_admin = ""
                 else:
                     if not auth_values:
-                        st.info("أضف المديرية / الجهة أولًا حتى يمكنك إضافة إدارة أو منشأة تابعة لها.")
+                        st.info("أضف المديرية / الجهة أولًا حتى يمكنك إضافة المستويات التابعة لها.")
                     parent_auth = st.selectbox("اختر المديرية / الجهة الأعلى:", auth_values, key="hier_add_parent_authority") if auth_values else ""
-                    admin_values = hierarchy_ordered_unique(r.get("administration") for r in current_hier if str(r.get("authority") or "").strip() == parent_auth)
-                    if add_level == "منشأة / وحدة الأمراض المتوطنة":
-                        parent_admin = st.selectbox("اختر الإدارة التابعة لها المنشأة:", admin_values, key="hier_add_parent_admin") if admin_values else ""
+                    rows_for_authority = [r for r in current_hier if str(r.get("authority") or "").strip() == parent_auth]
+                    admin_values = hierarchy_ordered_unique(r.get("administration") for r in rows_for_authority if str(r.get("administration") or "").strip())
+                    if add_level == "قسم داخل المديرية":
+                        parent_admin = ""
+                    elif add_level in ("قسم داخل الإدارة", "منشأة / وحدة الأمراض المتوطنة"):
+                        parent_admin = st.selectbox("اختر الإدارة التابعة لها:", admin_values, key="hier_add_parent_admin") if admin_values else ""
                         if not admin_values:
                             st.info("أضف إدارة تحت المديرية المختارة أولًا.")
                     else:
@@ -3463,33 +3498,41 @@ def admin_dashboard():
                 with st.form("manual_hierarchical_form", clear_on_submit=True):
                     st.text_input("جمهورية مصر العربية", value="جمهورية مصر العربية", disabled=True, key="hier_country_fixed")
                     st.text_input("وزارة الصحة والسكان", value="وزارة الصحة والسكان", disabled=True, key="hier_ministry_fixed")
-                    new_node_name = st.text_input({"مديرية / جهة":"اسم المديرية / الجهة الجديدة:", "إدارة":"اسم الإدارة الجديدة:", "منشأة / وحدة الأمراض المتوطنة":"اسم المنشأة / وحدة الأمراض المتوطنة الجديدة:"}[add_level])
+                    label_map = {"مديرية / جهة":"اسم المديرية / الجهة الجديدة:", "قسم داخل المديرية":"اسم القسم داخل المديرية:", "إدارة":"اسم الإدارة الجديدة:", "قسم داخل الإدارة":"اسم القسم داخل الإدارة:", "منشأة / وحدة الأمراض المتوطنة":"اسم المنشأة / وحدة الأمراض المتوطنة الجديدة:"}
+                    new_node_name = st.text_input(label_map[add_level])
                     if st.form_submit_button("💾 إضافة المستوى التابع", use_container_width=True):
                         node = new_node_name.strip()
                         if not node:
                             st.warning("اكتب اسم المستوى الجديد أولًا.")
                         elif add_level != "مديرية / جهة" and not parent_auth:
                             st.warning("اختر المديرية / الجهة الأعلى أولًا.")
-                        elif add_level == "منشأة / وحدة الأمراض المتوطنة" and not parent_admin:
+                        elif add_level in ("قسم داخل الإدارة", "منشأة / وحدة الأمراض المتوطنة") and not parent_admin:
                             st.warning("اختر الإدارة الأعلى أولًا.")
                         else:
                             auth_value = node if add_level == "مديرية / جهة" else parent_auth
-                            admin_value = node if add_level == "إدارة" else (parent_admin if add_level == "منشأة / وحدة الأمراض المتوطنة" else "")
+                            admin_value = node if add_level == "إدارة" else (parent_admin if add_level in ("قسم داخل الإدارة", "منشأة / وحدة الأمراض المتوطنة") else "")
                             facility_value = node if add_level == "منشأة / وحدة الأمراض المتوطنة" else ""
+                            directorate_section_value = node if add_level == "قسم داخل المديرية" else ""
+                            administration_section_value = node if add_level == "قسم داخل الإدارة" else ""
                             with db() as c:
                                 if add_level == "مديرية / جهة":
-                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND COALESCE(administration,'')='' AND COALESCE(facility_name,'')='' LIMIT 1", (auth_value,)).fetchone()
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND COALESCE(directorate_section,'')='' AND COALESCE(administration,'')='' AND COALESCE(facility_name,'')='' LIMIT 1", (auth_value,)).fetchone()
+                                elif add_level == "قسم داخل المديرية":
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND directorate_section=? LIMIT 1", (auth_value, node)).fetchone()
                                 elif add_level == "إدارة":
-                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND COALESCE(facility_name,'')='' LIMIT 1", (auth_value, admin_value)).fetchone()
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND COALESCE(administration_section,'')='' AND COALESCE(facility_name,'')='' LIMIT 1", (auth_value, admin_value)).fetchone()
+                                elif add_level == "قسم داخل الإدارة":
+                                    exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND administration_section=? LIMIT 1", (auth_value, admin_value, node)).fetchone()
                                 else:
                                     exists = c.execute("SELECT 1 FROM hierarchical_facilities WHERE authority=? AND administration=? AND facility_name=? LIMIT 1", (auth_value, admin_value, facility_value)).fetchone()
                                 if not exists:
-                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", auth_value, "", admin_value, facility_value, now(), 0))
+                                    c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden,directorate_section,administration_section) VALUES(?,?,?,?,?,?,?,?,?)", ("", auth_value, "", admin_value, facility_value, now(), 0, directorate_section_value, administration_section_value))
                             if exists:
                                 st.warning("هذا المستوى مسجل بالفعل تحت الجهة الأعلى المحددة.")
                             else:
                                 reindex_hierarchical_facilities()
-                                st.success("تمت إضافة المستوى الإداري تحت الجهة الأعلى بنجاح.")
+                                sync_normalized_hierarchy()
+                                st.success("تمت إضافة المستوى الإداري وربطه بالجهة الأعلى بنجاح.")
                                 st.rerun()
         with tab_h2:
             if has_subtab_permission('🏥 الهيكل الإداري', '📥 رفع الملفات'):
@@ -3540,6 +3583,7 @@ def admin_dashboard():
                                         c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", name, "", "", "", now(), 0))
                                         added += 1
                             reindex_hierarchical_facilities()
+                            sync_normalized_hierarchy()
                             st.success(f"تم استيراد {added} مديرية / جهة جديدة. تم تجاهل الأسماء الموجودة مسبقاً.")
                             st.rerun()
                         except Exception as e:
@@ -3562,6 +3606,7 @@ def admin_dashboard():
                                         c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", upload_parent_authority, "", name, "", now(), 0))
                                         added += 1
                             reindex_hierarchical_facilities()
+                            sync_normalized_hierarchy()
                             st.success(f"تم استيراد {added} إدارة جديدة تحت {upload_parent_authority}.")
                             st.rerun()
                         except Exception as e:
@@ -3586,6 +3631,7 @@ def admin_dashboard():
                                         c.execute("INSERT INTO hierarchical_facilities(governorate,authority,center,administration,facility_name,created_at,hidden) VALUES(?,?,?,?,?,?,?)", ("", upload_facility_authority, "", upload_facility_admin, name, now(), 0))
                                         added += 1
                             reindex_hierarchical_facilities()
+                            sync_normalized_hierarchy()
                             st.success(f"تم استيراد {added} منشأة جديدة تحت إدارة {upload_facility_admin}.")
                             st.rerun()
                         except Exception as e:
@@ -3594,7 +3640,7 @@ def admin_dashboard():
                 st.markdown("---")
                 st.markdown("##### 📄 تنزيل نموذج هيكل إداري فارغ للتعبئة وإعادة الرفع")
                 st.caption("املأ الأعمدة الثلاثة فقط: المديرية / الجهة، الإدارة، والمنشأة / وحدة الأمراض المتوطنة. اترك صف العناوين كما هو، ثم ارفع الملف من نفس القسم لدمج البيانات.")
-                hierarchy_template = pd.DataFrame(columns=["المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة"])
+                hierarchy_template = pd.DataFrame(columns=["المديرية / الجهة", "قسم المديرية", "الإدارة", "قسم الإدارة", "المنشأة / وحدة الأمراض المتوطنة"])
                 hierarchy_template_bytes = io.BytesIO()
                 with pd.ExcelWriter(hierarchy_template_bytes, engine="openpyxl") as writer:
                     hierarchy_template.to_excel(writer, index=False, sheet_name="HierarchicalFacilities")
@@ -3711,6 +3757,7 @@ def admin_dashboard():
                                 else:
                                     c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (delete_target,))
                             reindex_hierarchical_facilities()
+                            sync_normalized_hierarchy()
                             st.success("تم حذف الجزء المحدد. أُعيد احتساب أكواد العرض المستقلة لكل مستوى؛ ومعرّفات قاعدة البيانات تُستخدم داخليًا لربط السجلات.")
                             st.rerun()
 
@@ -4261,7 +4308,7 @@ def admin_dashboard():
 
     elif selected_menu == "🧪 إنشاء و تعديل و حذف النماذج":
         st.subheader("🧪 إنشاء و تعديل و حذف النماذج")
-        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "🗑 حذف نموذج"], horizontal=True)
+        sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "✏️ تعديل نموذج", "🗑 حذف نموذج"], horizontal=True)
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
             st.markdown("#### 🏥 فلترة طباعة النماذج حسب الهيكل الإداري")
             tpl_print_scope = hierarchy_scope_widget("نطاق طباعة نماذج الاختبار:", "template_print_scope_v1")
@@ -4341,6 +4388,67 @@ def admin_dashboard():
                                            json.dumps(new_tpl_cats, ensure_ascii=False), None, None, now(), "", "", "", "", "",
                                            "" if not new_tpl_professions or "كل الوظائف" in new_tpl_professions else json.dumps(new_tpl_professions, ensure_ascii=False)))
                             st.success("✅ تم إنشاء نموذج الاختبار بنجاح. حدّد موعد إتاحته والهيكل الإداري من أول قسم في تبويب (المتدربين والنماذج).")
+                            st.rerun()
+        elif sub_tpl_mode == "✏️ تعديل نموذج":
+            with db() as c:
+                editable_templates = [dict(r) for r in c.execute("SELECT * FROM exam_templates ORDER BY name ASC, id ASC").fetchall()]
+            if not editable_templates:
+                st.info("لا توجد نماذج لتعديلها. أنشئ نموذجًا أولاً.")
+            else:
+                edit_tpl_map = {f"نموذج ({t['id']}) - {t['name']} [{t['exam_type']}]": t for t in editable_templates}
+                chosen_edit_label = st.selectbox("اختر النموذج المراد تعديله:", list(edit_tpl_map.keys()), key="edit_template_pick_v1")
+                edit_tpl = edit_tpl_map[chosen_edit_label]
+                categories_pool_opts = [
+                    "الاستراتيجية العامة ومكافحة البلهارسيا", "البلهارسيا", "علاج البلهارسيا", "الفاشيولا", "علاج الفاشيولا", "الهتروفيس", "التينيا", "هيمنولبس نانا", "الإسكارس", "الأنكلستوما", "الأكسيورس", "تركيورس تركيورا", "Strongyloides stercoralis", "Entamoeba histolytica", "Giardia lamblia", "الفحوصات الطفيلية والتشخيصية", "فحص البول (بلهارسيا المجاري البولية)", "فحص البراز (طفيليات المعوية)", "طرق فحص البراز المعتمدة", "الترسيب", "التعويم", "اللطخة المباشرة", "التصفية الغشائية", "Kato-Katz", "تحضير وعزل العينات", "أسئلة الصور والأشكال المجهرية"
+                ]
+                tpl_profession_options = ["كل الوظائف"] + list(get_print_settings().get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]))
+                try:
+                    saved_categories = json.loads(edit_tpl.get("categories_json") or "[]")
+                except Exception:
+                    saved_categories = []
+                try:
+                    saved_professions = json.loads(edit_tpl.get("profession") or "[]") if edit_tpl.get("profession") else ["كل الوظائف"]
+                except Exception:
+                    saved_professions = ["كل الوظائف"]
+                saved_professions = [p for p in saved_professions if p in tpl_profession_options]
+                if not saved_professions:
+                    saved_professions = ["كل الوظائف"]
+                try:
+                    saved_num_q = int(edit_tpl.get("num_questions") or 50)
+                except Exception:
+                    saved_num_q = 50
+                is_open_saved = saved_num_q >= 999900
+                with st.form("edit_exam_template_form_v1", clear_on_submit=False):
+                    edit_tpl_name = st.text_input("اسم النموذج:", value=str(edit_tpl.get("name") or ""))
+                    edit_tpl_professions = st.multiselect("المهن المسموح لها بأداء هذا الاختبار:", tpl_profession_options, default=saved_professions, help="يمكن اختيار أكثر من مهنة. اختيار «كل الوظائف» يتيح النموذج لجميع المهن.")
+                    exam_types = ["قبل التدريب", "بعد التدريب", "تقييم شامل", "قبل وبعد التدريب (نفس النموذج)"]
+                    current_exam_type = edit_tpl.get("exam_type") if edit_tpl.get("exam_type") in exam_types else "قبل التدريب"
+                    edit_exam_type = st.radio("نوع النموذج:", exam_types, index=exam_types.index(current_exam_type), horizontal=True)
+                    edit_is_open = st.checkbox("عدد أسئلة مفتوح (كامل البنك)", value=is_open_saved)
+                    edit_num_q = st.number_input("عدد الأسئلة:", min_value=1, max_value=5000, value=min(5000, max(1, saved_num_q if not is_open_saved else 50)))
+                    edit_duration = st.number_input("المدة (بالدقائق):", min_value=5, max_value=300, value=min(300, max(5, int(edit_tpl.get("duration_minutes") or 60))))
+                    edit_pass = st.number_input("نسبة النجاح %:", min_value=0.0, max_value=100.0, value=min(100.0, max(0.0, float(edit_tpl.get("pass_percent") or 60))), step=1.0)
+                    edit_cats = st.multiselect("المجالات / الأقسام:", categories_pool_opts, default=[x for x in saved_categories if x in categories_pool_opts])
+                    if st.form_submit_button("💾 حفظ تعديلات النموذج", use_container_width=True):
+                        if not edit_tpl_name.strip():
+                            st.warning("اكتب اسم النموذج أولاً.")
+                        elif not edit_tpl_professions:
+                            st.warning("اختر مهنة واحدة على الأقل أو اختر كل الوظائف.")
+                        else:
+                            with db() as c:
+                                if edit_cats:
+                                    placeholders = ",".join(["?"] * len(edit_cats))
+                                    img_q_cnt = c.execute(f"SELECT COUNT(*) FROM questions WHERE active=1 AND category IN ({placeholders}) AND question LIKE '%IMAGE:%'", edit_cats).fetchone()[0]
+                                else:
+                                    img_q_cnt = c.execute("SELECT COUNT(*) FROM questions WHERE active=1 AND question LIKE '%IMAGE:%'").fetchone()[0]
+                                if "أسئلة الصور والأشكال المجهرية" in edit_cats and img_q_cnt < 4:
+                                    st.warning(f"⚠ عدد الأسئلة المصورة المتاحة هو ({img_q_cnt})، ويجب ألا يقل عن 4 عند اختيار تصنيف الصور.")
+                                else:
+                                    final_edit_num_q = 999999 if edit_is_open else int(edit_num_q)
+                                    profession_value = "" if "كل الوظائف" in edit_tpl_professions else json.dumps(edit_tpl_professions, ensure_ascii=False)
+                                    c.execute("""UPDATE exam_templates SET name=?, exam_type=?, num_questions=?, duration_minutes=?, pass_percent=?, categories_json=?, profession=? WHERE id=?""",
+                                              (edit_tpl_name.strip(), edit_exam_type, final_edit_num_q, int(edit_duration), float(edit_pass), json.dumps(edit_cats, ensure_ascii=False), profession_value, int(edit_tpl["id"])))
+                            st.success("تم حفظ تعديلات نموذج الاختبار بنجاح.")
                             st.rerun()
         else:
             with db() as c:
