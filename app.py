@@ -559,7 +559,7 @@ ALL_MENU_MODULES = {
     "⚙ إدارة الأسئلة": "إدارة الأسئلة الفردية وبنك الأسئلة الشامل للأمراض المتوطنة",
     "🧑‍🔬 المتدربين والنماذج": "اعتماد المتدربين والنماذج وطباعة النتائج",
     "📚 قاعدة بيانات المتدربين": "عرض وتعديل وطباعة وتصدير جميع بيانات المتدربين",
-    "إنشاء و تعديل و حذف النماذج": "إنشاء وتعديل وحذف نماذج الاختبارات",
+    "🧪 إنشاء و تعديل و حذف النماذج": "إنشاء وتعديل وحذف نماذج الاختبارات",
     "✍ التسجيل اليدوي للاختبارات و التقييم الواقعي": "التسجيل اليدوي للاختبارات و التقييم الواقعي للمنشآت",
     "🖨 ضبط اعدادات الطباعة و الهوامش": "إعدادات هوامش وترويسات التقارير العامة",
     "🎨 إعدادات الشهادات المخصصة": "صفحة مخصصة لضبط الشهادات بالكامل وطباعتها",
@@ -3998,19 +3998,6 @@ def admin_dashboard():
         else:
             tpl_names_list = ["لا توجد نماذج اختبارات مسجلة"]
             tpl_map_dict = {}
-        with st.container(border=True):
-            st.markdown("##### 🚀 التعميم الجماعي لنموذج على كافة المتدربين:")
-            with st.form("bulk_assign_form_fixed", clear_on_submit=True):
-                global_tpl_labels = [f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}" for t in all_tpls_records if not any((t[k] or "").strip() for k in ["scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility"])]
-                global_tpl_map = {f"{t['name']} ({t['exam_type'] or 'قبل التدريب'}) | {template_scope_text(dict(t))}": t['id'] for t in all_tpls_records if not any((t[k] or "").strip() for k in ["scope_governorate", "scope_authority", "scope_center", "scope_administration", "scope_facility"])}
-                bulk_tpl_sel = st.selectbox("اختر نموذج الاختبار لتعميمه على الجميع (النماذج العامة فقط):", global_tpl_labels or ["لا يوجد نموذج عام"] )
-                if st.form_submit_button("تعميم الاختبار واعتماد الجميع", use_container_width=True):
-                    if global_tpl_map and bulk_tpl_sel in global_tpl_map:
-                        set_bulk_template_for_all(global_tpl_map[bulk_tpl_sel])
-                        st.success("✅ تم التعميم والاعتماد بنجاح لكافة المتدربين!")
-                        st.rerun()
-                    else:
-                        st.warning("⚠ يرجى اختيار نموذج صالح.")
         sub_tabs = st.tabs(["📅 مواعيد الامتحانات والهيكل الإداري", "🆕 قبول المسجلين الجدد", "جميع المتدربين (إدارة وإخفاء/إظهار/حذف)", "📝 طباعة نموذج امتحان الممتحن"])
         with sub_tabs[0]:
             st.markdown("#### 📅 تحديد مواعيد الامتحانات وربطها بالهيكل الإداري")
@@ -4272,8 +4259,8 @@ def admin_dashboard():
                     st.markdown("<br>", unsafe_allow_html=True)
                     render_print_button_only(trainee_exam_sheet_html, f"نموذج إجابة الامتحان للممتحن رقم {chosen_exam_session_id}")
 
-    elif selected_menu == "إنشاء و تعديل و حذف النماذج":
-        st.subheader("إنشاء و تعديل و حذف النماذج")
+    elif selected_menu == "🧪 إنشاء و تعديل و حذف النماذج":
+        st.subheader("🧪 إنشاء و تعديل و حذف النماذج")
         sub_tpl_mode = st.radio("القسم:", ["📋 عرض النماذج وطباعة الأسئلة", "➕ إنشاء نموذج جديد", "🗑 حذف نموذج"], horizontal=True)
         if sub_tpl_mode == "📋 عرض النماذج وطباعة الأسئلة":
             st.markdown("#### 🏥 فلترة طباعة النماذج حسب الهيكل الإداري")
