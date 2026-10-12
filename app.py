@@ -1387,7 +1387,16 @@ def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
         trainee = c.execute("SELECT facility, profession FROM trainees WHERE id=? AND hidden=0", (int(trainee_id),)).fetchone()
         if not trainee:
             return None
-        facility = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 LIMIT 1", (trainee["facility"],)).fetchone()
+        # Trainee records may store either the facility name alone or a full
+        # administrative path. Resolve both forms instead of silently treating
+        # a valid trainee as having no schedule.
+        facility = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 ORDER BY id DESC LIMIT 1", (str(trainee["facility"] or "").strip(),)).fetchone()
+        if not facility:
+            all_facilities = c.execute("SELECT * FROM hierarchical_facilities WHERE hidden=0 ORDER BY id DESC").fetchall()
+            for candidate in all_facilities:
+                if trainee_matches_hierarchy(trainee["facility"], candidate):
+                    facility = candidate
+                    break
         if not facility:
             return None
         rows = c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (int(template_id),)).fetchall()
@@ -1398,8 +1407,6 @@ def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
             d = dict(row)
             row_stage = str(d.get("stage") or "").strip()
             if wanted_stage and row_stage and row_stage != wanted_stage:
-                continue
-            if wanted_stage and not row_stage and wanted_stage in ("قبل التدريب", "بعد التدريب") and str(d.get("stage") or "").strip() != wanted_stage:
                 continue
             required_professions = {normalize_text(x) for x in parse_professions(d.get("profession") or "")}
             if required_professions and normalize_text(trainee["profession"] or "") not in required_professions:
@@ -1639,8 +1646,17 @@ def start_session(trainee_id, template_id, exam_stage=None):
         end_t_str = schedule.get("end_time") if schedule else None
         if start_t_str and end_t_str:
             dt_now = now_cairo()
-            dt_start = datetime.fromisoformat(start_t_str)
-            dt_end = datetime.fromisoformat(end_t_str)
+            dt_start = datetime.fromisoformat(str(start_t_str))
+            dt_end = datetime.fromisoformat(str(end_t_str))
+            if dt_start.tzinfo is None:
+                dt_start = dt_start.replace(tzinfo=CAIRO_TZ)
+            else:
+                dt_start = dt_start.astimezone(CAIRO_TZ)
+            if dt_end.tzinfo is None:
+                dt_end = dt_end.replace(tzinfo=CAIRO_TZ)
+            else:
+                dt_end = dt_end.astimezone(CAIRO_TZ)
+            dt_now = dt_now.astimezone(CAIRO_TZ)
             if dt_now < dt_start:
                 raise ValueError(f"عذراً، لم يحن موعد الاختبار بعد. موعد البدء المحدد: {start_t_str.replace('T', ' الساعة ')}")
             if dt_now > dt_end:
@@ -4020,7 +4036,17 @@ def admin_dashboard():
                     st.markdown("##### المواعيد المسجلة لهذا النموذج")
                     for sched in schedules_for_template:
                         scope_desc = " / ".join(str(sched.get(k) or "").strip() for k in schedule_scope_keys if str(sched.get(k) or "").strip()) or "غير محدد"
-                        st.write(f"**{scope_desc}** — من `{sched.get('start_time')}` إلى `{sched.get('end_time')}` — المرحلة: {sched.get('stage') or 'غير محددة'} — المهن: {professions_display(sched.get('profession')) if sched.get('profession') else 'كل المهن'}")
+                        def _schedule_display_dt(value):
+                            try:
+                                parsed = datetime.fromisoformat(str(value))
+                                if parsed.tzinfo is None:
+                                    parsed = parsed.replace(tzinfo=CAIRO_TZ)
+                                return parsed.astimezone(CAIRO_TZ).strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
+                            except Exception:
+                                return str(value or "غير محدد")
+                        start_display = _schedule_display_dt(sched.get('start_time'))
+                        end_display = _schedule_display_dt(sched.get('end_time'))
+                        st.markdown(f"**{scope_desc}** — من <span dir='ltr'>{esc(start_display)}</span> إلى <span dir='ltr'>{esc(end_display)}</span> — المرحلة: {esc(sched.get('stage') or 'غير محددة')} — المهن: {esc(professions_display(sched.get('profession')) if sched.get('profession') else 'كل المهن')}", unsafe_allow_html=True)
                         if st.button("🗑 حذف هذا الموعد", key=f"delete_trainee_schedule_{sched['id']}"):
                             with db() as c:
                                 c.execute("DELETE FROM exam_schedules WHERE id=?", (sched['id'],))
@@ -5797,8 +5823,17 @@ def trainee_portal():
         if start_t and end_t:
             try:
                 dt_now = now_cairo()
-                dt_start = datetime.fromisoformat(start_t)
-                dt_end = datetime.fromisoformat(end_t)
+                dt_start = datetime.fromisoformat(str(start_t))
+                dt_end = datetime.fromisoformat(str(end_t))
+                # Schedule values saved without a UTC offset are Cairo local time.
+                if dt_start.tzinfo is None:
+                    dt_start = dt_start.replace(tzinfo=CAIRO_TZ)
+                else:
+                    dt_start = dt_start.astimezone(CAIRO_TZ)
+                if dt_end.tzinfo is None:
+                    dt_end = dt_end.replace(tzinfo=CAIRO_TZ)
+                else:
+                    dt_end = dt_end.astimezone(CAIRO_TZ)
                 if dt_start <= dt_now <= dt_end:
                     is_exam_open = True
             except:
@@ -5831,7 +5866,9 @@ def trainee_portal():
               <div style="margin-top:10px;font-size:14px">سيتم تحديث الشاشة تلقائياً دون الحاجة إلى تسجيل الخروج.</div>
             </div>
             """, unsafe_allow_html=True)
-            # نتجنب إعادة تحميل نافذة المتصفح؛ زر التحديث يعيد تشغيل سكربت Streamlit داخل الجلسة.
+            # تحديث داخلي للجلسة كل 3 ثوانٍ؛ لا نعيد تحميل المتصفح حتى لا نفقد جلسة الممتحَن.
+            if st.button("🔄 تحديث الموعد", key="trainee_refresh_upcoming", use_container_width=True):
+                st.rerun()
         elif upcoming_end and now_cairo() > upcoming_end:
             st.warning("انتهت فترة إتاحة الامتحان المحددة لهذا النموذج. يرجى مراجعة الإدارة.")
             # لا حاجة لإعادة تحميل المتصفح بالكامل عند انتهاء نافذة الامتحان.
@@ -5843,7 +5880,7 @@ def trainee_portal():
             </div>
             """, unsafe_allow_html=True)
             # تحديث تلقائي هادئ مع توفير أزرار واضحة للممتحَن دون إجباره على تسجيل الخروج.
-            # تحديث داخلي عبر زر التحديث لتفادي فقد جلسة الممتحَن.
+            # تحديث داخلي عبر زر Streamlit لتفادي فقد جلسة الممتحَن.
             refresh_col, home_col = st.columns(2)
             with refresh_col:
                 if st.button("🔄 تحديث الصفحة الآن", key="trainee_refresh_no_exam", use_container_width=True):
@@ -5905,6 +5942,11 @@ def trainee_portal():
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.trainee_id = ""
             st.rerun()
+
+# Streamlit fragment polling keeps the authenticated examinee session alive and
+# re-evaluates the schedule automatically when its start time arrives.
+if hasattr(st, "fragment"):
+    trainee_portal = st.fragment(run_every="3s")(trainee_portal)
 
 def render_readonly_trainee_exam_review(session_id):
     """Show the trainee's own submitted exam and selected answers read-only until review expiry; never expose answer key."""
@@ -5993,7 +6035,7 @@ def exam_interface(session_id):
             if schedule_now < schedule_start:
                 st.warning("⏳ لم يحن موعد الاختبار بعد. سيظهر الامتحان في الموعد المحدد فقط.")
                 st.caption("موعد البدء: " + schedule_start.strftime("%Y-%m-%d %I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً"))
-                components.html("<script>setTimeout(function(){window.location.reload();}, 15000);</script>", height=0)
+                st.caption("سيُعاد فحص الموعد تلقائياً دون إعادة تحميل المتصفح.")
                 return
             if schedule_now > schedule_end:
                 st.warning("انتهت الفترة المحددة لإتاحة الاختبار. سيتم اعتماد الإجابات المحفوظة وإغلاق الجلسة.")
