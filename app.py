@@ -363,6 +363,42 @@ def trainee_matches_hierarchy(facility_value, hierarchy_row):
     legacy_path = " - ".join(str(h.get(k) or "").strip() for k in ("governorate", "authority", "directorate_section", "center", "administration", "administration_section", "facility_name") if str(h.get(k) or "").strip())
     return any(path and value.endswith(path) for path in (new_path, legacy_path))
 
+def hierarchy_row_matches_scope(row, scope, allow_shared_section_rows=True):
+    """Match a legacy hierarchy row using shared-section semantics consistently.
+
+    A department is not duplicated for each directorate section, and a facility is
+    not duplicated for each administration section. Thus blank section fields on a
+    shared descendant are compatible with a selected section, while a row explicitly
+    assigned to a different section is not.
+    """
+    try:
+        data = dict(row)
+    except Exception:
+        data = row or {}
+    scope = scope or {}
+    if scope.get("_scope_denied") or any(str(v) == "__NO_ACCESS__" for v in scope.values()):
+        return False
+    if scope.get("scope_all") is True:
+        return True
+    mapping = (
+        ("scope_governorate", "governorate"),
+        ("scope_authority", "authority"),
+        ("scope_center", "center"),
+        ("scope_administration", "administration"),
+        ("scope_facility", "facility_name"),
+    )
+    for scope_key, column in mapping:
+        wanted = str(scope.get(scope_key) or "").strip()
+        if wanted and str(data.get(column) or "").strip() != wanted:
+            return False
+    for scope_key, column in (("scope_directorate_section", "directorate_section"), ("scope_administration_section", "administration_section")):
+        wanted = str(scope.get(scope_key) or "").strip()
+        actual = str(data.get(column) or "").strip()
+        if wanted and actual != wanted and not (allow_shared_section_rows and not actual):
+            return False
+    return True
+
+
 def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
     """SQL predicate for trainee records stored with a full administrative path."""
     keys = ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")
@@ -1026,55 +1062,68 @@ init_db()
 reindex_hierarchical_facilities()
 
 def sync_normalized_hierarchy():
-    """Maintain normalized hierarchy tables from the legacy table used by existing app modules.
+    """Rebuild normalized hierarchy tables from legacy rows, preserving shared-section links.
 
-    Legacy records are kept for compatibility with reports, trainee scope checks and saved paths.
-    IDs in the three normalized tables are independent and are not reused as legacy row IDs.
+    This is a compatibility migration: existing screens still consume hierarchical_facilities,
+    while normalized tables provide independent per-level IDs and explicit many-to-many links.
+    Child/link tables are cleared in foreign-key-safe order inside one transaction.
     """
     with db() as c:
         c.execute("PRAGMA foreign_keys=ON")
-        rows = c.execute("SELECT authority, directorate_section, administration, administration_section, facility_name, hidden, created_at FROM hierarchical_facilities ORDER BY id").fetchall()
-        # Rebuild the normalized projection atomically so edits/imports/deletes in older
-        # app flows cannot leave parent links stale. Parent-child IDs are independently assigned.
+        rows = c.execute(
+            "SELECT authority, directorate_section, administration, administration_section, "
+            "facility_name, hidden, created_at FROM hierarchical_facilities ORDER BY id"
+        ).fetchall()
+        # Remove link rows first; otherwise SQLite correctly rejects deleting referenced nodes.
+        c.execute("DELETE FROM department_directorate_sections")
+        c.execute("DELETE FROM facility_administration_sections")
         c.execute("DELETE FROM facilities")
         c.execute("DELETE FROM administration_sections")
         c.execute("DELETE FROM departments")
         c.execute("DELETE FROM directorate_sections")
         c.execute("DELETE FROM directorates")
-        c.execute("DELETE FROM department_directorate_sections")
-        c.execute("DELETE FROM facility_administration_sections")
-        # Compatibility projection: each level has its own IDs; children carry parent IDs.
         for table_name in ("facilities", "administration_sections", "departments", "directorate_sections", "directorates"):
             c.execute("DELETE FROM sqlite_sequence WHERE name=?", (table_name,))
+
+        # Merge duplicate projections by natural key; any visible source row keeps the node visible.
+        # This prevents one hidden duplicate from hiding a node that has another visible row.
         for r in rows:
             directorate = str(r["authority"] or "").strip()
-            directorate_section = str(r["directorate_section"] or "").strip()
-            department = str(r["administration"] or "").strip()
-            administration_section = str(r["administration_section"] or "").strip()
+            section = str(r["directorate_section"] or "").strip()
+            admin = str(r["administration"] or "").strip()
+            admin_section = str(r["administration_section"] or "").strip()
             facility = str(r["facility_name"] or "").strip()
             hidden, created_at = int(r["hidden"] or 0), str(r["created_at"] or "")
             if not directorate:
                 continue
             c.execute("INSERT OR IGNORE INTO directorates(name, hidden, created_at) VALUES(?,?,?)", (directorate, hidden, created_at))
             did = c.execute("SELECT id FROM directorates WHERE name=?", (directorate,)).fetchone()[0]
-            if directorate_section:
-                c.execute("INSERT OR IGNORE INTO directorate_sections(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, directorate_section, hidden, created_at))
-            if department:
-                c.execute("INSERT OR IGNORE INTO departments(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, department, hidden, created_at))
-                depid = c.execute("SELECT id FROM departments WHERE directorate_id=? AND name=?", (did, department)).fetchone()[0]
-                if administration_section:
-                    c.execute("INSERT OR IGNORE INTO administration_sections(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, administration_section, hidden, created_at))
+            if not hidden:
+                c.execute("UPDATE directorates SET hidden=0 WHERE id=?", (did,))
+            if section:
+                c.execute("INSERT OR IGNORE INTO directorate_sections(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, section, hidden, created_at))
+                c.execute("UPDATE directorate_sections SET hidden=MIN(hidden, ?) WHERE directorate_id=? AND name=?", (hidden, did, section))
+            if admin:
+                c.execute("INSERT OR IGNORE INTO departments(directorate_id,name,hidden,created_at) VALUES(?,?,?,?)", (did, admin, hidden, created_at))
+                depid = c.execute("SELECT id FROM departments WHERE directorate_id=? AND name=?", (did, admin)).fetchone()[0]
+                c.execute("UPDATE departments SET hidden=MIN(hidden, ?) WHERE id=?", (hidden, depid))
+                if admin_section:
+                    c.execute("INSERT OR IGNORE INTO administration_sections(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, admin_section, hidden, created_at))
+                    c.execute("UPDATE administration_sections SET hidden=MIN(hidden, ?) WHERE department_id=? AND name=?", (hidden, depid, admin_section))
                 if facility:
                     c.execute("INSERT OR IGNORE INTO facilities(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, facility, hidden, created_at))
-        # Build shared visibility links after all unique parent/child records exist.
-        # No administration/facility is duplicated merely because it is visible under
-        # several sections at the same parent level.
-        for dept in c.execute("SELECT id, directorate_id FROM departments").fetchall():
-            for sec in c.execute("SELECT id FROM directorate_sections WHERE directorate_id=?", (dept["directorate_id"],)).fetchall():
-                c.execute("INSERT OR IGNORE INTO department_directorate_sections(department_id,directorate_section_id) VALUES(?,?)", (dept["id"], sec["id"]))
-        for fac in c.execute("SELECT id, department_id FROM facilities").fetchall():
-            for sec in c.execute("SELECT id FROM administration_sections WHERE department_id=?", (fac["department_id"],)).fetchall():
-                c.execute("INSERT OR IGNORE INTO facility_administration_sections(facility_id,administration_section_id) VALUES(?,?)", (fac["id"], sec["id"]))
+                    c.execute("UPDATE facilities SET hidden=MIN(hidden, ?) WHERE department_id=? AND name=?", (hidden, depid, facility))
+
+        # Each administration is linked to every section of its directorate; each facility
+        # is linked to every section of its administration. Nodes are never duplicated.
+        c.execute("""INSERT OR IGNORE INTO department_directorate_sections(department_id,directorate_section_id)
+                     SELECT d.id, s.id FROM departments d JOIN directorate_sections s ON s.directorate_id=d.directorate_id""")
+        c.execute("""INSERT OR IGNORE INTO facility_administration_sections(facility_id,administration_section_id)
+                     SELECT f.id, s.id FROM facilities f JOIN administration_sections s ON s.department_id=f.department_id""")
+        # Validate referential integrity before commit; any error rolls back the rebuild.
+        fk_errors = c.execute("PRAGMA foreign_key_check").fetchall()
+        if fk_errors:
+            raise sqlite3.IntegrityError(f"Normalized hierarchy foreign-key validation failed: {len(fk_errors)} issue(s)")
 
 sync_normalized_hierarchy()
 
@@ -1150,32 +1199,37 @@ def hierarchy_ordered_unique(values):
     return result
 
 def hierarchy_level_codes(rows):
-    """Return display-only codes: authorities globally, administrations within each authority,
-    and facilities within each authority+administration. Database IDs remain internal row keys.
+    """Build independent display codes for each hierarchy level, scoped to its parent.
+
+    Returns five maps: directorates, directorate sections, administrations, administration
+    sections, and facilities. These are display codes only; actual database primary keys remain
+    the relationship keys and must not be rewritten to match display numbering.
     """
     clean = []
     for row in rows:
-        clean.append({
-            "authority": str(row.get("authority") or "").strip(),
-            "administration": str(row.get("administration") or "").strip(),
-            "facility_name": str(row.get("facility_name") or "").strip(),
-        })
+        clean.append({k: str(row.get(k) or "").strip() for k in (
+            "authority", "directorate_section", "administration", "administration_section", "facility_name")})
     authorities = hierarchy_ordered_unique(r["authority"] for r in clean)
     auth_codes = {name: i for i, name in enumerate(authorities, 1)}
+    directorate_section_codes = {}
     admin_codes = {}
-    for authority in authorities:
-        admins = hierarchy_ordered_unique(r["administration"] for r in clean
-                                          if r["authority"] == authority)
-        for code, administration in enumerate(admins, 1):
-            admin_codes[(authority, administration)] = code
+    administration_section_codes = {}
     facility_codes = {}
-    for authority, administration in admin_codes:
-        facilities = hierarchy_ordered_unique(r["facility_name"] for r in clean
-                                              if r["authority"] == authority
-                                              and r["administration"] == administration)
-        for code, facility in enumerate(facilities, 1):
-            facility_codes[(authority, administration, facility)] = code
-    return auth_codes, admin_codes, facility_codes
+    for authority in authorities:
+        sections = hierarchy_ordered_unique(r["directorate_section"] for r in clean if r["authority"] == authority)
+        for code, section in enumerate(sections, 1):
+            directorate_section_codes[(authority, section)] = code
+        admins = hierarchy_ordered_unique(r["administration"] for r in clean if r["authority"] == authority)
+        for code, admin in enumerate(admins, 1):
+            admin_codes[(authority, admin)] = code
+            admin_rows = [r for r in clean if r["authority"] == authority and r["administration"] == admin]
+            admin_sections = hierarchy_ordered_unique(r["administration_section"] for r in admin_rows)
+            for section_code, section in enumerate(admin_sections, 1):
+                administration_section_codes[(authority, admin, section)] = section_code
+            facilities = hierarchy_ordered_unique(r["facility_name"] for r in admin_rows)
+            for facility_code, facility in enumerate(facilities, 1):
+                facility_codes[(authority, admin, facility)] = facility_code
+    return auth_codes, directorate_section_codes, admin_codes, administration_section_codes, facility_codes
 
 def get_hierarchical_data(include_hidden=False):
     """Return only hierarchy nodes within the logged-in user's assigned scope."""
@@ -1196,8 +1250,16 @@ def get_hierarchical_data(include_hidden=False):
         if not any(str(scope.get(k) or "").strip() for k in keys):
             return []
         if any(str(scope.get(k) or "").strip() for k in keys):
-            mapping = (("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_directorate_section", "directorate_section"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_administration_section", "administration_section"), ("scope_facility", "facility_name"))
+            # Sections classify shared descendants; they do not duplicate administrations/facilities.
+            # Therefore a row with an empty section value is still visible inside that section's parent.
+            mapping = (("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name"))
             rows = [r for r in rows if all(not str(scope.get(sk) or "").strip() or str(r.get(col) or "").strip() == str(scope.get(sk) or "").strip() for sk, col in mapping)]
+            directorate_section = str(scope.get("scope_directorate_section") or "").strip()
+            if directorate_section:
+                rows = [r for r in rows if not str(r.get("directorate_section") or "").strip() or str(r.get("directorate_section") or "").strip() == directorate_section]
+            administration_section = str(scope.get("scope_administration_section") or "").strip()
+            if administration_section:
+                rows = [r for r in rows if not str(r.get("administration_section") or "").strip() or str(r.get("administration_section") or "").strip() == administration_section]
     return rows
 
 def current_user_trainee_scope():
@@ -1294,10 +1356,15 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
         return scope
 
     authority_values = hierarchy_ordered_unique(r.get("authority") for r in rows if r.get("authority"))
+    auth_codes, dir_section_codes, admin_codes, admin_section_codes, facility_codes = hierarchy_level_codes(rows)
     if not authority_values:
         st.warning("لا توجد مديريات أو جهات مسجلة في الهيكل الإداري.")
-        return scope
-    authority = st.selectbox("المديرية / الجهة", authority_values, key=f"{key}_authority")
+        denied = effective_hierarchy_scope({"_scope_denied": True})
+        st.session_state["_last_hierarchy_scope"] = dict(denied)
+        return denied
+    authority = st.selectbox("المديرية / الجهة", authority_values,
+                             format_func=lambda value: f"{value} (كود {auth_codes.get(value, '—')})",
+                             key=f"{key}_authority")
     scope["scope_authority"] = authority
     directorate_rows = [r for r in rows if str(r.get("authority") or "").strip() == authority]
 
@@ -1308,14 +1375,19 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
         if not vals:
             st.warning("لا توجد أقسام مسجلة تحت المديرية المختارة.")
             return scope
-        scope["scope_directorate_section"] = st.selectbox("قسم داخل المديرية", vals, key=f"{key}_directorate_section")
+        scope["scope_directorate_section"] = st.selectbox(
+            "قسم داخل المديرية", vals,
+            format_func=lambda value: f"{value} (كود {dir_section_codes.get((authority, value), '—')})",
+            key=f"{key}_directorate_section")
     else:
         # Administrations are direct children of the directorate, regardless of its sections.
         admin_values = hierarchy_ordered_unique(r.get("administration") for r in directorate_rows if r.get("administration"))
         if not admin_values:
             st.warning("لا توجد إدارات مسجلة تحت المديرية المختارة.")
             return scope
-        admin = st.selectbox("الإدارة", admin_values, key=f"{key}_administration")
+        admin = st.selectbox("الإدارة", admin_values,
+                             format_func=lambda value: f"{value} (كود {admin_codes.get((authority, value), '—')})",
+                             key=f"{key}_administration")
         scope["scope_administration"] = admin
         admin_rows = [r for r in directorate_rows if str(r.get("administration") or "").strip() == admin]
         if selected_level == "الإدارة":
@@ -1325,31 +1397,45 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
             if not vals:
                 st.warning("لا توجد أقسام مسجلة تحت الإدارة المختارة.")
                 return scope
-            scope["scope_administration_section"] = st.selectbox("قسم داخل الإدارة", vals, key=f"{key}_administration_section")
+            scope["scope_administration_section"] = st.selectbox(
+                "قسم داخل الإدارة", vals,
+                format_func=lambda value: f"{value} (كود {admin_section_codes.get((authority, admin, value), '—')})",
+                key=f"{key}_administration_section")
         else:
             # Facilities belong to the administration, not to a section record.
             vals = hierarchy_ordered_unique(r.get("facility_name") for r in admin_rows if r.get("facility_name"))
             if not vals:
                 st.warning("لا توجد منشآت مسجلة تحت الإدارة المختارة.")
                 return scope
-            scope["scope_facility"] = st.selectbox("المنشأة / وحدة الأمراض المتوطنة", vals, key=f"{key}_facility")
+            scope["scope_facility"] = st.selectbox(
+                "المنشأة / وحدة الأمراض المتوطنة", vals,
+                format_func=lambda value: f"{value} (كود {facility_codes.get((authority, admin, value), '—')})",
+                key=f"{key}_facility")
     scope = effective_hierarchy_scope(scope)
     st.session_state["_last_hierarchy_scope"] = dict(scope)
     return scope
 
 def hierarchy_scope_sql(alias, scope):
-    if (scope or {}).get("_scope_denied"):
+    if (scope or {}).get("_scope_denied") or any(str(v) == "__NO_ACCESS__" for v in (scope or {}).values()):
         return "0=1", []
     if (scope or {}).get("scope_all") is True:
         return "1=1", []
     conditions, args = [], []
-    mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_directorate_section","directorate_section"),("scope_center","center"),("scope_administration","administration"),("scope_administration_section","administration_section"),("scope_facility","facility_name")]
+    # Parent levels filter exactly. A section filters rows explicitly tagged to it,
+    # plus blank-section rows representing shared descendants under the same parent.
+    mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_center","center"),("scope_administration","administration"),("scope_facility","facility_name")]
     scoped = False
     for scope_key, col in mapping:
         val = str(scope.get(scope_key) or "").strip()
         if val:
             scoped = True
             conditions.append(f"{alias}.{col}=?")
+            args.append(val)
+    for scope_key, col in (("scope_directorate_section", "directorate_section"), ("scope_administration_section", "administration_section")):
+        val = str(scope.get(scope_key) or "").strip()
+        if val:
+            scoped = True
+            conditions.append(f"(COALESCE({alias}.{col},'')='' OR {alias}.{col}=?)")
             args.append(val)
     if scoped:
         conditions.insert(0, f"COALESCE({alias}.hidden,0)=0")
@@ -1515,14 +1601,17 @@ def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
         # Trainee records may store either the facility name alone or a full
         # administrative path. Resolve both forms instead of silently treating
         # a valid trainee as having no schedule.
-        facility = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 ORDER BY id DESC LIMIT 1", (str(trainee["facility"] or "").strip(),)).fetchone()
-        if not facility:
+        # Keep every representation of a facility. The legacy table may contain
+        # separate rows for directorate sections / administration sections, while the
+        # physical facility is shared across those classifications.
+        facility_candidates = c.execute(
+            "SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 ORDER BY id DESC",
+            (str(trainee["facility"] or "").strip(),),
+        ).fetchall()
+        if not facility_candidates:
             all_facilities = c.execute("SELECT * FROM hierarchical_facilities WHERE hidden=0 ORDER BY id DESC").fetchall()
-            for candidate in all_facilities:
-                if trainee_matches_hierarchy(trainee["facility"], candidate):
-                    facility = candidate
-                    break
-        if not facility:
+            facility_candidates = [candidate for candidate in all_facilities if trainee_matches_hierarchy(trainee["facility"], candidate)]
+        if not facility_candidates:
             return None
         rows = c.execute("SELECT * FROM exam_schedules WHERE template_id=? AND active=1 ORDER BY id DESC", (int(template_id),)).fetchall()
         keys = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_directorate_section", "directorate_section"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_administration_section", "administration_section"), ("scope_facility", "facility_name")]
@@ -1536,29 +1625,34 @@ def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
             required_professions = {normalize_text(x) for x in parse_professions(d.get("profession") or "")}
             if required_professions and normalize_text(trainee["profession"] or "") not in required_professions:
                 continue
-            if all(not (d.get(sk) or "").strip() or str(facility[hk] or "").strip() == str(d[sk]).strip() for sk, hk in keys):
+            schedule_scope = {sk: str(d.get(sk) or "").strip() for sk, _ in keys}
+            if any(hierarchy_row_matches_scope(candidate, schedule_scope, allow_shared_section_rows=True) for candidate in facility_candidates):
                 specificity = sum(bool((d.get(sk) or "").strip()) for sk, _ in keys)
                 matches.append((specificity, d))
         return max(matches, key=lambda x: x[0])[1] if matches else None
 
 
 def template_matches_facility(template_row, facility_name):
-    """Check whether a template scope contains the trainee facility."""
+    """Check whether a template scope contains a facility, including shared-section descendants."""
     t = dict(template_row) if not isinstance(template_row, dict) else template_row
-    vals = {
-        "authority": t.get("scope_authority") or "",
-        "directorate_section": t.get("scope_directorate_section") or "",
-        "administration": t.get("scope_administration") or "",
-        "administration_section": t.get("scope_administration_section") or "",
-        "facility_name": t.get("scope_facility") or "",
+    scope = {
+        "scope_authority": t.get("scope_authority") or "",
+        "scope_directorate_section": t.get("scope_directorate_section") or "",
+        "scope_administration": t.get("scope_administration") or "",
+        "scope_administration_section": t.get("scope_administration_section") or "",
+        "scope_facility": t.get("scope_facility") or "",
     }
-    if not any(vals.values()):
+    if not any(str(v or "").strip() for v in scope.values()):
         return True
-    with db() as c:
-        h = c.execute("SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 LIMIT 1", (facility_name,)).fetchone()
-    if not h:
+    if scope["scope_facility"] and str(scope["scope_facility"]).strip() != str(facility_name or "").strip():
         return False
-    return all((not v) or str(h[k] or "").strip() == str(v).strip() for k, v in vals.items())
+    with db() as c:
+        candidates = c.execute(
+            "SELECT * FROM hierarchical_facilities WHERE facility_name=? AND COALESCE(hidden,0)=0 ORDER BY id",
+            (facility_name,),
+        ).fetchall()
+    return any(hierarchy_row_matches_scope(h, scope, allow_shared_section_rows=True) for h in candidates)
+
 
 def ensure_admin():
     with db() as c:
@@ -2923,7 +3017,7 @@ def login_portal():
                 st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
                 facility_final_str = ""
             else:
-                auth_codes, admin_codes, facility_codes = hierarchy_level_codes(hier_data)
+                auth_codes, _dir_section_codes, admin_codes, _admin_section_codes, facility_codes = hierarchy_level_codes(hier_data)
                 auths_list = hierarchy_ordered_unique(item.get("authority") for item in hier_data if item.get("authority"))
                 auth_labels = {name: f"{name} (كود المديرية: {auth_codes[name]})" for name in auths_list}
                 sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
@@ -3739,7 +3833,7 @@ def admin_dashboard():
 
                 st.markdown("---")
                 st.markdown("##### 📄 تنزيل نموذج هيكل إداري فارغ للتعبئة وإعادة الرفع")
-                st.caption("املأ الأعمدة الثلاثة فقط: المديرية / الجهة، الإدارة، والمنشأة / وحدة الأمراض المتوطنة. اترك صف العناوين كما هو، ثم ارفع الملف من نفس القسم لدمج البيانات.")
+                st.caption("يمكنك تعبئة المستويات الإدارية: المديرية / الجهة، قسم المديرية، الإدارة، قسم الإدارة، والمنشأة / وحدة الأمراض المتوطنة. اترك صف العناوين كما هو. الأقسام تصنيفات مشتركة ولا تتطلب تكرار الإدارة أو المنشأة لكل قسم.")
                 hierarchy_template = pd.DataFrame(columns=["المديرية / الجهة", "قسم المديرية", "الإدارة", "قسم الإدارة", "المنشأة / وحدة الأمراض المتوطنة"])
                 hierarchy_template_bytes = io.BytesIO()
                 with pd.ExcelWriter(hierarchy_template_bytes, engine="openpyxl") as writer:
@@ -3762,8 +3856,14 @@ def admin_dashboard():
                     for _col in ("directorate_section", "administration_section"):
                         if _col not in df_hier_download.columns:
                             df_hier_download[_col] = ""
-                    df_hier_download = df_hier_download[["id", "authority", "directorate_section", "administration", "administration_section", "facility_name", "created_at", "hidden"]]
-                    df_hier_download.columns = ["ID", "المديرية / الجهة", "قسم المديرية", "الإدارة", "قسم الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                    _auth_codes, _dir_section_codes, _admin_codes, _admin_section_codes, _facility_codes = hierarchy_level_codes(hier_all_data)
+                    df_hier_download["كود المديرية"] = df_hier_download["authority"].map(_auth_codes).fillna("")
+                    df_hier_download["كود قسم المديرية"] = df_hier_download.apply(lambda r: _dir_section_codes.get((str(r.get("authority") or "").strip(), str(r.get("directorate_section") or "").strip()), ""), axis=1)
+                    df_hier_download["كود الإدارة"] = df_hier_download.apply(lambda r: _admin_codes.get((str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip()), ""), axis=1)
+                    df_hier_download["كود قسم الإدارة"] = df_hier_download.apply(lambda r: _admin_section_codes.get((str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip(), str(r.get("administration_section") or "").strip()), ""), axis=1)
+                    df_hier_download["كود المنشأة"] = df_hier_download.apply(lambda r: _facility_codes.get((str(r.get("authority") or "").strip(), str(r.get("administration") or "").strip(), str(r.get("facility_name") or "").strip()), ""), axis=1)
+                    df_hier_download = df_hier_download[["id", "كود المديرية", "authority", "كود قسم المديرية", "directorate_section", "كود الإدارة", "administration", "كود قسم الإدارة", "administration_section", "كود المنشأة", "facility_name", "created_at", "hidden"]]
+                    df_hier_download.columns = ["معرّف السجل الداخلي", "كود المديرية", "المديرية / الجهة", "كود قسم المديرية", "قسم المديرية", "كود الإدارة", "الإدارة", "كود قسم الإدارة", "قسم الإدارة", "كود المنشأة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
                     output_hier = io.BytesIO()
                     with pd.ExcelWriter(output_hier, engine='openpyxl') as writer:
                         df_hier_download.to_excel(writer, index=False, sheet_name='HierarchicalFacilities')
@@ -3796,6 +3896,8 @@ def admin_dashboard():
                             c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
                         except sqlite3.OperationalError:
                             pass
+                    # Keep normalized tables and M:N section links in sync with the cleared source.
+                    sync_normalized_hierarchy()
                     # Clear hierarchy selection widgets so stale choices are not retained.
                     for state_key in list(st.session_state.keys()):
                         if state_key.startswith(("hier_", "manual_exam_hierarchy", "real_assessment_hierarchy", "training_minutes_scope", "trainee_schedule_scope")):
@@ -3807,7 +3909,7 @@ def admin_dashboard():
                     st.info("لا توجد بيانات مسجلة.")
                 else:
                     st.markdown("##### استعراض الهيكل: المديرية ← قسم المديرية ← الإدارة ← قسم الإدارة ← المنشأة")
-                    manage_auth_codes, manage_admin_codes, manage_facility_codes = hierarchy_level_codes(hier_rows_all)
+                    manage_auth_codes, manage_directorate_section_codes, manage_admin_codes, manage_administration_section_codes, manage_facility_codes = hierarchy_level_codes(hier_rows_all)
                     manage_auths = hierarchy_ordered_unique(r.get("authority") for r in hier_rows_all)
                     sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, format_func=lambda value: value, key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
                     manage_auth_rows = [r for r in hier_rows_all if str(r.get("authority") or "").strip() == sel_manage_auth]
@@ -3928,6 +4030,7 @@ def admin_dashboard():
                                                         c.execute("UPDATE hierarchical_facilities SET administration=? WHERE authority=? AND administration=?", (edit_admin, edit_auth, old_admin))
                                                     c.execute("UPDATE hierarchical_facilities SET facility_name=? WHERE id=?", (edit_fac, target_id))
                                                     reindex_hierarchical_facilities()
+                                                    sync_normalized_hierarchy()
                                                     st.success("تم تعديل بيانات الهيكل الإداري بنجاح.")
                                                     st.rerun()
                                 st.markdown("##### 🗑️ حذف جزء من الهيكل الإداري")
@@ -3943,6 +4046,7 @@ def admin_dashboard():
                                         else:
                                             c.execute("DELETE FROM hierarchical_facilities WHERE authority=?", (target_row.get("authority"),))
                                     reindex_hierarchical_facilities()
+                                    sync_normalized_hierarchy()
                                     st.success("تم حذف المستوى الإداري المحدد والسجلات التابعة له.")
                                     st.rerun()
                             with st.form("manage_single_hier_form", clear_on_submit=True):
@@ -3956,17 +4060,20 @@ def admin_dashboard():
                             if hide_fac_submit:
                                 with db() as c:
                                     c.execute("UPDATE hierarchical_facilities SET hidden=1 WHERE id=?", (target_id,))
+                                sync_normalized_hierarchy()
                                 st.success("✅ تم إخفاء المنشأة من التقارير بنجاح!")
                                 st.rerun()
                             if show_fac_submit:
                                 with db() as c:
                                     c.execute("UPDATE hierarchical_facilities SET hidden=0 WHERE id=?", (target_id,))
+                                sync_normalized_hierarchy()
                                 st.success("✅ تم إظهار المنشأة في التقارير بنجاح!")
                                 st.rerun()
                             if single_del:
                                 with db() as c:
                                     c.execute("DELETE FROM hierarchical_facilities WHERE id=?", (target_id,))
                                 reindex_hierarchical_facilities()
+                                sync_normalized_hierarchy()
                                 st.success("✅ تم حذف المنشأة وإعادة الترتيب التسلسلي للـ ID بنجاح!")
                                 st.rerun()
                     df_hier = pd.DataFrame(hier_rows_all)
@@ -4580,8 +4687,7 @@ def admin_dashboard():
             manual_profession = st.selectbox("الوظيفة / التخصص:", manual_profession_list, key="manual_exam_profession_v1")
             hier_data = get_hierarchical_data(include_hidden=False)
             def _scope_matches_row(row, scope):
-                checks = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_directorate_section", "directorate_section"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_administration_section", "administration_section"), ("scope_facility", "facility_name")]
-                return all(not str(scope.get(sk) or "").strip() or str(row.get(hk) or "").strip() == str(scope.get(sk) or "").strip() for sk, hk in checks)
+                return hierarchy_row_matches_scope(row, scope, allow_shared_section_rows=True)
             matching_hier = [h for h in hier_data if _scope_matches_row(h, manual_scope)]
             facility_choices = hierarchy_ordered_unique(h.get("facility_name") for h in matching_hier)
             if facility_choices:
