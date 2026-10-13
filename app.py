@@ -8,9 +8,9 @@ import streamlit.components.v1 as components
 import qrcode
 from PIL import Image
 
-# ============================================================
-# 1) إعدادات التطبيق الأساسية (الإصدار V1.0)
-# ============================================================
+
+
+
 st.set_page_config(
     page_title="نظام تقييم واختبار العاملين بالأمراض المتوطنة 🪱🔬🐌💊 - System V1.0",
     layout="wide",
@@ -40,11 +40,11 @@ STATUS_AR = {
 os.makedirs(BACKUP_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE, "assets"), exist_ok=True)
 
-DEFAULT_LOGO = ""  # لا يوجد شعار افتراضي
+DEFAULT_LOGO = ""
 
-# ============================================================
-# 2) دوال التوقيت المحدث أونلاين لمصر (Online Cairo Timezone - Live Sync)
-# ============================================================
+
+
+
 CAIRO_TZ = ZoneInfo("Africa/Cairo")
 
 def get_online_network_time():
@@ -67,9 +67,9 @@ def now():
 def today_date():
     return now_cairo().date().isoformat()
 
-# ============================================================
-# 3) حقن التنسيقات (CSS) وتدرج الألوان
-# ============================================================
+
+
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -279,9 +279,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ============================================================
-# 4) دوال النظام وقاعدة البيانات وإعادة الترتيب التلقائي للـ ID
-# ============================================================
+
+
+
 def esc(x):
     return html.escape("" if x is None else str(x))
 
@@ -447,7 +447,7 @@ def reindex_hierarchical_facilities():
             return
         current_ids = [int(r["old_id"]) for r in rows if r["old_id"] is not None]
         temp_base = max([0] + [abs(v) for v in current_ids]) + len(rows) + 10000
-        # Keep explicit temporary IDs so phase two never queries the changed rowid.
+
         temporary_ids = []
         for idx, row in enumerate(rows, start=1):
             old_id = row["old_id"]
@@ -511,7 +511,7 @@ def reindex_templates():
         old_ids = [int(r['id']) for r in rows]
         t_mapping = {old_id: new_id for new_id, old_id in enumerate(old_ids, start=1)}
 
-        # Move child references out of the real ID range before replacing parent rows.
+
         for old_id in old_ids:
             temp_id = -old_id
             c.execute("UPDATE exam_sessions SET template_id=? WHERE template_id=?", (temp_id, old_id))
@@ -537,7 +537,7 @@ def reindex_templates():
             except sqlite3.OperationalError:
                 pass
 
-        # Rebuild schedule references against the new template IDs, retaining stage.
+
         if schedule_rows:
             c.execute("DELETE FROM exam_schedules")
             for sched in schedule_rows:
@@ -550,7 +550,7 @@ def reindex_templates():
                     else:
                         c.execute("""INSERT INTO exam_schedules(id,template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at)
                             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (sched["id"], mapped_template_id, sched["scope_governorate"], sched["scope_authority"], sched["scope_center"], sched["scope_administration"], sched["scope_facility"], sched["start_time"], sched["end_time"], sched["profession"], sched["active"], sched["created_at"], sched["updated_at"]))
-        # Empty template table means the next inserted model starts at ID 1.
+
         c.execute("UPDATE sqlite_sequence SET seq=? WHERE name='exam_templates'", (len(rows),))
         if rows and c.execute("SELECT changes()").fetchone()[0] == 0:
             c.execute("INSERT INTO sqlite_sequence(name,seq) VALUES('exam_templates',?)", (len(rows),))
@@ -571,8 +571,8 @@ def verify_password(password, stored):
         digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210000)
         return secrets.compare_digest(digest.hex(), digest_hex)
     except Exception:
-        # Compatibility with older databases that may contain a non-PBKDF2 password.
-        # Successful authentication upgrades the stored value in login_user().
+
+
         return secrets.compare_digest(str(password), stored)
 
 @contextmanager
@@ -906,8 +906,8 @@ def init_db():
         if "report_hierarchy_json" not in print_cols:
             c.execute("ALTER TABLE print_settings ADD COLUMN report_hierarchy_json TEXT NOT NULL DEFAULT '{}'")
 
-        # ترحيل آمن لقاعدة بيانات الشهادات: إضافة حالة التحقق وتسجيل إصدار المخطط،
-        # مع الاحتفاظ بأكواد الشهادات القديمة حتى لا تتعطل الشهادات المطبوعة سابقاً.
+
+
         facility_cert_cols = {row[1] for row in c.execute("PRAGMA table_info(facility_certificates)").fetchall()}
         if "verification_status" not in facility_cert_cols:
             c.execute("ALTER TABLE facility_certificates ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'valid'")
@@ -924,6 +924,8 @@ def init_db():
         ("trainees", "phone", "TEXT NOT NULL DEFAULT ''"),
         ("trainees", "national_id", "TEXT NOT NULL DEFAULT ''"),
         ("hierarchical_facilities", "hidden", "INTEGER NOT NULL DEFAULT 0"),
+        ("hierarchical_facilities", "directorate_section", "TEXT NOT NULL DEFAULT ''"),
+        ("hierarchical_facilities", "administration_section", "TEXT NOT NULL DEFAULT ''"),
         ("users", "permissions_json", "TEXT NOT NULL DEFAULT '[]'"),
         ("users", "hierarchy_scope_json", "TEXT NOT NULL DEFAULT '{}'"),
         ("exam_templates", "exam_type", "TEXT NOT NULL DEFAULT 'قبل التدريب'"),
@@ -978,7 +980,7 @@ def init_db():
         except:
             pass
 
-    # ترحيل المواعيد القديمة إلى جدول مستقل لكل نموذج ونطاق إداري، دون فقد البيانات.
+
     with db() as c:
         legacy_rows = c.execute("SELECT * FROM exam_templates WHERE COALESCE(start_time,'')<>'' AND COALESCE(end_time,'')<>''").fetchall()
         for row in legacy_rows:
@@ -986,15 +988,15 @@ def init_db():
             exists = c.execute("SELECT id FROM exam_schedules WHERE template_id=? AND scope_governorate=? AND scope_authority=? AND scope_center=? AND scope_administration=? AND scope_facility=? LIMIT 1", (row["id"], *scope)).fetchone()
             if not exists:
                 c.execute("INSERT INTO exam_schedules(template_id,scope_governorate,scope_authority,scope_center,scope_administration,scope_facility,start_time,end_time,profession,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,1,?,?)", (row["id"], *scope, row["start_time"], row["end_time"], row["profession"] or "", now(), now()))
-        # Legacy columns are retained for compatibility, but new schedule logic uses exam_schedules only.
+
         c.execute("UPDATE exam_templates SET start_time=NULL, end_time=NULL")
-    # إلغاء مستويات المحافظة والمركز من نطاقات الصلاحيات المحفوظة، مع الإبقاء على المديرية والإدارة والمنشأة.
+
     with db() as c:
         c.execute("UPDATE exam_templates SET scope_governorate='', scope_authority='', scope_center='', scope_administration='', scope_facility='' WHERE COALESCE(scope_governorate,'')<>'' OR COALESCE(scope_authority,'')<>'' OR COALESCE(scope_center,'')<>'' OR COALESCE(scope_administration,'')<>'' OR COALESCE(scope_facility,'')<>''")
         c.execute("UPDATE action_plans SET scope_governorate='', scope_center='' WHERE COALESCE(scope_governorate,'')<>'' OR COALESCE(scope_center,'')<>''")
 
-    # منع تكرار الممتحن على مستوى قاعدة البيانات: الهاتف هو المعرف الرئيسي، والرقم القومي معرف فريد أيضاً.
-    # استخدمنا Triggers بالإضافة إلى فحوصات الواجهة حتى يتم منع التكرار حتى عند التعديل المباشر أو أي مسار آخر.
+
+
     with db() as c:
         c.execute("""
             CREATE TRIGGER IF NOT EXISTS trg_trainees_unique_phone_insert
@@ -1038,7 +1040,7 @@ def init_db():
             c.execute("""INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                       (default_header, "12mm", "auto", "8mm", "8mm", 1.10, DEFAULT_LOGO, "", "", "", "", "شهادة", "تقرير أداء الأمراض المتوطنة والإشراف الفني المعتمد", "", "دكتور", "أخصائي الأمراض المتوطنة", json.dumps(default_professions, ensure_ascii=False), "13mm"))
 
-        # Safe schema migration for existing databases: keep login name separate from display name.
+
         user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
         if "display_name" not in user_columns:
             c.execute("ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''")
@@ -1046,7 +1048,7 @@ def init_db():
             c.execute("ALTER TABLE users ADD COLUMN job_title TEXT NOT NULL DEFAULT ''")
         c.execute("UPDATE users SET display_name=username WHERE display_name IS NULL OR TRIM(display_name)=''")
 
-        # Preserve legacy users' previous unrestricted access with an explicit marker.
+
         c.execute("UPDATE users SET hierarchy_scope_json=? WHERE hierarchy_scope_json IS NULL OR TRIM(hierarchy_scope_json)='' OR hierarchy_scope_json='{}'", (json.dumps({"scope_all": True}),))
 
         cnt_tpl = c.execute("SELECT COUNT(*) FROM exam_templates").fetchone()[0]
@@ -1057,8 +1059,8 @@ def init_db():
                       ("النموذج التقييمي العام للاستجابة والتدريب للأمراض المتوطنة", "قبل التدريب", 999999, 60, 60.0, '[]', default_start, default_end, 1, now()))
 
 init_db()
-# Reindex on startup too, so the deployed database is repaired even if a prior
-# add/delete operation skipped reindexing or Streamlit restarted mid-operation.
+
+
 reindex_hierarchical_facilities()
 
 def sync_normalized_hierarchy():
@@ -1074,7 +1076,7 @@ def sync_normalized_hierarchy():
             "SELECT authority, directorate_section, administration, administration_section, "
             "facility_name, hidden, created_at FROM hierarchical_facilities ORDER BY id"
         ).fetchall()
-        # Remove link rows first; otherwise SQLite correctly rejects deleting referenced nodes.
+
         c.execute("DELETE FROM department_directorate_sections")
         c.execute("DELETE FROM facility_administration_sections")
         c.execute("DELETE FROM facilities")
@@ -1085,8 +1087,8 @@ def sync_normalized_hierarchy():
         for table_name in ("facilities", "administration_sections", "departments", "directorate_sections", "directorates"):
             c.execute("DELETE FROM sqlite_sequence WHERE name=?", (table_name,))
 
-        # Merge duplicate projections by natural key; any visible source row keeps the node visible.
-        # This prevents one hidden duplicate from hiding a node that has another visible row.
+
+
         for r in rows:
             directorate = str(r["authority"] or "").strip()
             section = str(r["directorate_section"] or "").strip()
@@ -1114,13 +1116,13 @@ def sync_normalized_hierarchy():
                     c.execute("INSERT OR IGNORE INTO facilities(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, facility, hidden, created_at))
                     c.execute("UPDATE facilities SET hidden=MIN(hidden, ?) WHERE department_id=? AND name=?", (hidden, depid, facility))
 
-        # Each administration is linked to every section of its directorate; each facility
-        # is linked to every section of its administration. Nodes are never duplicated.
+
+
         c.execute("""INSERT OR IGNORE INTO department_directorate_sections(department_id,directorate_section_id)
                      SELECT d.id, s.id FROM departments d JOIN directorate_sections s ON s.directorate_id=d.directorate_id""")
         c.execute("""INSERT OR IGNORE INTO facility_administration_sections(facility_id,administration_section_id)
                      SELECT f.id, s.id FROM facilities f JOIN administration_sections s ON s.department_id=f.department_id""")
-        # Validate referential integrity before commit; any error rolls back the rebuild.
+
         fk_errors = c.execute("PRAGMA foreign_key_check").fetchall()
         if fk_errors:
             raise sqlite3.IntegrityError(f"Normalized hierarchy foreign-key validation failed: {len(fk_errors)} issue(s)")
@@ -1241,7 +1243,7 @@ def get_hierarchical_data(include_hidden=False):
         rows = [dict(r) for r in c.execute(q).fetchall()]
     if not rows:
         return []
-    # The system owner retains unrestricted access; scoped users only see assigned nodes.
+
     if st.session_state.get("logged_in") and not is_owner():
         scope = st.session_state.get("user_hierarchy_scope") or {}
         if scope.get("scope_all") is True:
@@ -1250,8 +1252,8 @@ def get_hierarchical_data(include_hidden=False):
         if not any(str(scope.get(k) or "").strip() for k in keys):
             return []
         if any(str(scope.get(k) or "").strip() for k in keys):
-            # Sections classify shared descendants; they do not duplicate administrations/facilities.
-            # Therefore a row with an empty section value is still visible inside that section's parent.
+
+
             mapping = (("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name"))
             rows = [r for r in rows if all(not str(scope.get(sk) or "").strip() or str(r.get(col) or "").strip() == str(scope.get(sk) or "").strip() for sk, col in mapping)]
             directorate_section = str(scope.get("scope_directorate_section") or "").strip()
@@ -1313,7 +1315,7 @@ def enforce_session_access_or_raise(session_id, conn=None):
             if not is_owner():
                 enforce_trainee_scope_or_raise(trainee_id, conn)
         else:
-            # The public exam portal may access only the session belonging to its authenticated trainee.
+
             current_tid = st.session_state.get("trainee_id")
             if not current_tid or int(current_tid) != trainee_id:
                 raise PermissionError("لا يمكنك الوصول إلى جلسة اختبار تخص متدربًا آخر.")
@@ -1328,15 +1330,114 @@ def effective_hierarchy_scope(requested):
         return requested
     if assigned.get("_scope_denied"):
         return {"_scope_denied": True}
-    # Assigned scope is authoritative. A page filter may narrow it, never widen it.
+
     out = dict(assigned)
     for key, value in (requested or {}).items():
         if value and not out.get(key):
             out[key] = value
         elif value and out.get(key) and str(value) != str(out[key]):
-            # Conflicting narrowing choice produces an impossible scope.
+
             out[key] = "__NO_ACCESS__"
     return out
+
+def get_hierarchy_linked_projection_rows(include_hidden=False):
+    """Build display-only hierarchy paths from the normalized many-to-many links.
+
+    The legacy table stores sections and shared descendants as separate rows. This
+    projection repeats a node only in the returned display paths (never in storage),
+    so every administration appears beneath each directorate section and every
+    facility beneath each administration section.
+    """
+    with db() as c:
+        hidden_clause = "" if include_hidden else "WHERE hidden=0"
+        raw = [dict(r) for r in c.execute(f"SELECT * FROM hierarchical_facilities {hidden_clause} ORDER BY id").fetchall()]
+        directorates = [dict(r) for r in c.execute("SELECT * FROM directorates WHERE (?=1 OR hidden=0) ORDER BY id", (1 if include_hidden else 0,)).fetchall()]
+        dir_sections = [dict(r) for r in c.execute("SELECT * FROM directorate_sections WHERE (?=1 OR hidden=0) ORDER BY id", (1 if include_hidden else 0,)).fetchall()]
+        departments = [dict(r) for r in c.execute("SELECT * FROM departments WHERE (?=1 OR hidden=0) ORDER BY id", (1 if include_hidden else 0,)).fetchall()]
+        admin_sections = [dict(r) for r in c.execute("SELECT * FROM administration_sections WHERE (?=1 OR hidden=0) ORDER BY id", (1 if include_hidden else 0,)).fetchall()]
+        facilities = [dict(r) for r in c.execute("SELECT * FROM facilities WHERE (?=1 OR hidden=0) ORDER BY id", (1 if include_hidden else 0,)).fetchall()]
+        dept_links = c.execute("SELECT department_id,directorate_section_id FROM department_directorate_sections").fetchall()
+        facility_links = c.execute("SELECT facility_id,administration_section_id FROM facility_administration_sections").fetchall()
+
+
+    assigned = {}
+    if st.session_state.get("logged_in") and not is_owner():
+        assigned = st.session_state.get("user_hierarchy_scope") or {}
+        if assigned.get("scope_all") is not True:
+            if not any(str(assigned.get(k) or "").strip() for k in ("scope_authority","scope_directorate_section","scope_administration","scope_administration_section","scope_facility","scope_governorate","scope_center")):
+                return []
+            def parent_ok(authority, admin="", facility=""):
+                for key, val in (("scope_authority",authority),("scope_administration",admin),("scope_facility",facility)):
+                    want=str(assigned.get(key) or "").strip()
+                    if want and want != str(val or "").strip(): return False
+                return True
+            allowed_authorities={str(r.get("authority") or "").strip() for r in raw if parent_ok(r.get("authority"),r.get("administration"),r.get("facility_name"))}
+            directorates=[d for d in directorates if d["name"] in allowed_authorities]
+
+    wanted_ds = str(assigned.get("scope_directorate_section") or "").strip()
+    wanted_admin = str(assigned.get("scope_administration") or "").strip()
+    wanted_as = str(assigned.get("scope_administration_section") or "").strip()
+    wanted_fac = str(assigned.get("scope_facility") or "").strip()
+    if wanted_ds: dir_sections = [x for x in dir_sections if str(x.get("name") or "").strip() == wanted_ds]
+    if wanted_admin: departments = [x for x in departments if str(x.get("name") or "").strip() == wanted_admin]
+    if wanted_as: admin_sections = [x for x in admin_sections if str(x.get("name") or "").strip() == wanted_as]
+    if wanted_fac: facilities = [x for x in facilities if str(x.get("name") or "").strip() == wanted_fac]
+    sections_by_dir={d["id"]:[] for d in directorates}
+    for x in dir_sections:
+        if x["directorate_id"] in sections_by_dir: sections_by_dir[x["directorate_id"]].append(x)
+    depts_by_dir={d["id"]:[] for d in directorates}
+    for x in departments:
+        if x["directorate_id"] in depts_by_dir: depts_by_dir[x["directorate_id"]].append(x)
+    dept_section_ids={}
+    for x in dept_links: dept_section_ids.setdefault(x["department_id"],set()).add(x["directorate_section_id"])
+    admin_sections_by_dept={d["id"]:[] for d in departments}
+    for x in admin_sections:
+        if x["department_id"] in admin_sections_by_dept: admin_sections_by_dept[x["department_id"]].append(x)
+    facility_section_ids={}
+    for x in facility_links: facility_section_ids.setdefault(x["facility_id"],set()).add(x["administration_section_id"])
+    facilities_by_dept={d["id"]:[] for d in departments}
+    for x in facilities:
+        if x["department_id"] in facilities_by_dept: facilities_by_dept[x["department_id"]].append(x)
+    result=[]
+    for d in directorates:
+        auth=d["name"]
+        if not any(str(r.get("authority") or "").strip()==auth for r in raw): continue
+        base={"id":None,"governorate":"","authority":auth,"center":"","administration":"","facility_name":"","directorate_section":"","administration_section":"","hidden":d.get("hidden",0),"created_at":d.get("created_at","")}
+        result.append(dict(base))
+        sections=sections_by_dir.get(d["id"],[]) or [None]
+        for ds in sections:
+            ds_name=ds["name"] if ds else ""
+            section_row=dict(base); section_row["directorate_section"]=ds_name
+            if ds: section_row["id"]=f"ds:{ds['id']}"
+            if ds: result.append(section_row)
+            for dep in depts_by_dir.get(d["id"],[]):
+                if not parent_ok_for_projection(raw, auth, dep["name"]): continue
+                admin_base=dict(base); admin_base.update(administration=dep["name"],directorate_section=ds_name,id=f"dep:{dep['id']}",hidden=dep.get("hidden",0))
+                result.append(admin_base)
+                a_secs=admin_sections_by_dept.get(dep["id"],[]) or [None]
+                for asec in a_secs:
+                    as_name=asec["name"] if asec else ""
+                    if asec:
+                        as_row=dict(admin_base); as_row.update(administration_section=as_name,id=f"as:{asec['id']}",hidden=asec.get("hidden",0)); result.append(as_row)
+                    for fac in facilities_by_dept.get(dep["id"],[]):
+                        if asec and asec["id"] not in facility_section_ids.get(fac["id"],set()): continue
+                        fac_row=dict(admin_base); fac_row.update(administration_section=as_name,facility_name=fac["name"],id=f"fac:{fac['id']}",hidden=fac.get("hidden",0)); result.append(fac_row)
+
+
+    known_paths={(str(r.get("authority") or ""),str(r.get("directorate_section") or ""),str(r.get("administration") or ""),str(r.get("administration_section") or ""),str(r.get("facility_name") or "")) for r in result}
+    known_entities={(str(r.get("authority") or ""),str(r.get("administration") or ""),str(r.get("facility_name") or "")) for r in result if str(r.get("administration") or "").strip() or str(r.get("facility_name") or "").strip()}
+    for r in raw:
+        key=(str(r.get("authority") or ""),str(r.get("directorate_section") or ""),str(r.get("administration") or ""),str(r.get("administration_section") or ""),str(r.get("facility_name") or ""))
+        entity=(str(r.get("authority") or ""),str(r.get("administration") or ""),str(r.get("facility_name") or ""))
+
+
+        if key not in known_paths and entity not in known_entities:
+            result.append(r); known_paths.add(key)
+            if entity[1] or entity[2]: known_entities.add(entity)
+    return result
+
+def parent_ok_for_projection(raw_rows, authority, administration):
+    return any(str(r.get("authority") or "").strip()==str(authority or "").strip() and str(r.get("administration") or "").strip()==str(administration or "").strip() for r in raw_rows)
 
 def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:", key="hier_scope"):
     """Select hierarchy scope with sibling branches under each parent.
@@ -1346,7 +1447,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
     administration is shared across all those sections. Sections are classifications,
     not duplicated parent records.
     """
-    rows = get_hierarchical_data(include_hidden=False)
+    rows = get_hierarchy_linked_projection_rows(include_hidden=False)
     scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
     levels = ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"]
     selected_level = st.selectbox(label, levels, key=f"{key}_level")
@@ -1380,7 +1481,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
             format_func=lambda value: f"{value} (كود {dir_section_codes.get((authority, value), '—')})",
             key=f"{key}_directorate_section")
     else:
-        # Administrations are direct children of the directorate, regardless of its sections.
+
         admin_values = hierarchy_ordered_unique(r.get("administration") for r in directorate_rows if r.get("administration"))
         if not admin_values:
             st.warning("لا توجد إدارات مسجلة تحت المديرية المختارة.")
@@ -1402,7 +1503,7 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
                 format_func=lambda value: f"{value} (كود {admin_section_codes.get((authority, admin, value), '—')})",
                 key=f"{key}_administration_section")
         else:
-            # Facilities belong to the administration, not to a section record.
+
             vals = hierarchy_ordered_unique(r.get("facility_name") for r in admin_rows if r.get("facility_name"))
             if not vals:
                 st.warning("لا توجد منشآت مسجلة تحت الإدارة المختارة.")
@@ -1421,8 +1522,8 @@ def hierarchy_scope_sql(alias, scope):
     if (scope or {}).get("scope_all") is True:
         return "1=1", []
     conditions, args = [], []
-    # Parent levels filter exactly. A section filters rows explicitly tagged to it,
-    # plus blank-section rows representing shared descendants under the same parent.
+
+
     mapping = [("scope_governorate","governorate"),("scope_authority","authority"),("scope_center","center"),("scope_administration","administration"),("scope_facility","facility_name")]
     scoped = False
     for scope_key, col in mapping:
@@ -1460,7 +1561,7 @@ def hierarchy_header_html(scope=None, facility_value=None):
     selected = None
     raw = str(facility_value or "").strip()
 
-    # Resolve a supplied facility/full path to its hierarchy record.
+
     if raw:
         for item in rows:
             facility = str(item.get("facility_name") or "").strip()
@@ -1483,7 +1584,7 @@ def hierarchy_header_html(scope=None, facility_value=None):
         target = str(selected.get("facility_name") or "").strip()
     else:
         target = str(scope.get("scope_facility") or scope.get("facility_name") or "").strip()
-        # If only a facility scope is supplied, resolve its parent levels from the hierarchy.
+
         if target and not (auth or admin):
             for item in rows:
                 if str(item.get("facility_name") or "").strip() == target:
@@ -1503,7 +1604,7 @@ def hierarchy_header_html(scope=None, facility_value=None):
         parts.append(admin)
     if administration_section:
         parts.append(administration_section)
-    # Do not include the last hierarchy node as part of the administrative header.
+
     header = "<br>".join(esc(x) for x in parts if x)
     if target:
         header += "<br><span style=\"font-weight:700;\">المنشأة المستهدفة: " + esc(target) + "</span>"
@@ -1519,7 +1620,7 @@ def hierarchy_margin_html(scope=None):
     directorate_section = str(scope.get("scope_directorate_section") or scope.get("directorate_section") or "").strip()
     administration = str(scope.get("scope_administration") or scope.get("administration") or "").strip()
     administration_section = str(scope.get("scope_administration_section") or scope.get("administration_section") or "").strip()
-    # Resolve parents when the scope is given as a facility or a full hierarchy row.
+
     facility = str(scope.get("scope_facility") or scope.get("facility_name") or "").strip()
     if facility and not (authority or administration):
         for row in rows:
@@ -1598,12 +1699,12 @@ def get_schedule_for_trainee(trainee_id, template_id, exam_stage=None):
         trainee = c.execute("SELECT facility, profession FROM trainees WHERE id=? AND hidden=0", (int(trainee_id),)).fetchone()
         if not trainee:
             return None
-        # Trainee records may store either the facility name alone or a full
-        # administrative path. Resolve both forms instead of silently treating
-        # a valid trainee as having no schedule.
-        # Keep every representation of a facility. The legacy table may contain
-        # separate rows for directorate sections / administration sections, while the
-        # physical facility is shared across those classifications.
+
+
+
+
+
+
         facility_candidates = c.execute(
             "SELECT * FROM hierarchical_facilities WHERE facility_name=? AND hidden=0 ORDER BY id DESC",
             (str(trainee["facility"] or "").strip(),),
@@ -1662,7 +1763,7 @@ def ensure_admin():
             c.execute("INSERT OR REPLACE INTO users(username,password_hash,role,permissions_json,active,created_at) VALUES(?,?,?,?,?,?)",
                       ("admin", hash_password("admin"), "admin", json.dumps(all_modules, ensure_ascii=False), 1, now()))
         else:
-            # أي حساب يحمل دور admin هو مالك المنصة، وتُعاد له جميع الصلاحيات تلقائياً.
+
             c.execute("UPDATE users SET permissions_json=?, active=1 WHERE role='admin'", (json.dumps(all_modules, ensure_ascii=False),))
 
 ensure_admin()
@@ -1693,7 +1794,7 @@ def login_user(u, p):
         if not verify_password(password, user["password_hash"]):
             st.session_state["admin_login_error"] = "اسم المستخدم موجود، لكن كلمة المرور لا تطابق كلمة المرور المحفوظة لهذا الحساب. لم يتم تغيير أي بيانات."
             return None
-        # Upgrade a legacy plaintext password only after successful verification.
+
         if "$" not in str(user["password_hash"]):
             c.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(password), user["id"]))
         c.execute("UPDATE users SET last_login=? WHERE id=?", (now(), user["id"]))
@@ -1808,7 +1909,7 @@ def trainees_df(status=None, include_hidden=False):
             args.append(status)
         if not include_hidden:
             conditions.append("hidden=0")
-        # Central safeguard: every dataframe-based trainee list respects the logged-in user's assigned scope.
+
         scope_pred, scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "trainees")
         if scope_pred != "1=1":
             conditions.append(scope_pred)
@@ -1841,7 +1942,7 @@ def choose_questions(t):
         return all_db_questions[:limit_count]
 
 def start_session(trainee_id, template_id, exam_stage=None):
-    # A public portal may only start an exam for the authenticated trainee.
+
     if st.session_state.get("logged_in"):
         if not is_owner():
             enforce_trainee_scope_or_raise(trainee_id)
@@ -1906,7 +2007,7 @@ def start_session(trainee_id, template_id, exam_stage=None):
         qs = choose_questions(t)
         started = now_cairo()
         expires = started + timedelta(minutes=int(t_dict.get("duration_minutes", 60)))
-        # Exam duration is bounded by both the template duration and the schedule closing time.
+
         if schedule and schedule.get("end_time"):
             try:
                 schedule_end_dt = datetime.fromisoformat(str(schedule["end_time"]))
@@ -1946,7 +2047,7 @@ def submit_session(sid):
         s = c.execute("SELECT * FROM exam_sessions WHERE id=?", (int(sid),)).fetchone()
         if not s:
             raise PermissionError("جلسة الاختبار غير موجودة أو غير متاحة.")
-        # Fail closed: a missing identity never grants access to a session.
+
         enforce_session_access_or_raise(sid, c)
         if s["status"] != "active":
             return None
@@ -2106,7 +2207,7 @@ def generate_customizable_certificate_html(sid, custom_title=None, custom_notes=
     cert_no = str(r["certificate_id"] or generate_individual_certificate_code(sid, r["trainee_id"], r["template_id"]))
     qr = generate_qr_code_base64(cert_no)
 
-    # Prefix is a dedicated line; title + name are a separate line.
+
     prefix_html = f"<div class='cert-prefix-line'>{esc(prefix_val)}</div>" if prefix_val else ""
     person_label = " ".join(x for x in [title_role_val, name] if x)
 
@@ -2154,7 +2255,7 @@ def generate_facility_certificate_html(facility_name, session_ids, custom_title=
         return ""
 
     avg = sum(rows) / len(rows)
-    # إنشاء رقم عشوائي غير متسلسل وفريد، وحفظ الشهادة حتى يمكن التحقق منها لاحقًا.
+
     issued_at = now()
     valid_session_ids = []
     with db() as c:
@@ -2531,8 +2632,8 @@ def generate_exam_template_print_html(template_id):
 def render_print_button_only(html_content, label_prefix=""):
     print_sett = get_print_settings()
     is_cert = ("شهاد" in label_prefix) or ("certificate" in label_prefix.lower())
-    # Fixed print orientation by document type: exam forms, training minutes,
-    # and work plans are portrait; all other non-certificate printouts are landscape.
+
+
     label_lower = str(label_prefix or "").lower()
     portrait_terms = ("نموذج امتحان", "نماذج الامتحان", "نموذج إجابة الامتحان", "محضر تدريب", "خطة عمل")
     chosen_orient = "رأسي (Portrait)" if any(term in label_prefix for term in portrait_terms) else "أفقي (Landscape)"
@@ -2569,8 +2670,8 @@ def render_print_button_only(html_content, label_prefix=""):
         m_top = "12mm"
         m_right = "8mm"
         m_left = "8mm"
-        # Apply Arabic Naskh typography to every non-certificate printout only.
-        # Certificate HTML is intentionally left untouched to preserve its existing design.
+
+
         repeated_print_css = f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
@@ -2752,9 +2853,9 @@ def render_print_button_only(html_content, label_prefix=""):
     """
     components.html(js_code, height=100)
 
-# ============================================================
-# 5) واجهات النظام وتوجيه الشاشات
-# ============================================================
+
+
+
 for k, v in {"logged_in": False, "username": "", "role": "", "permissions": [], "trainee_id": "", "trainee_name": "", "exam_session_id": None, "last_result_id": None, "form_key": 0, "add_success_msg": "", "active_admin_tab": "📊 لوحة التحكم", "scanned_cert_code": ""}.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -2804,7 +2905,7 @@ def decode_qr_from_camera_image(uploaded_image):
     try:
         from PIL import Image as PILImage
         pil_image = PILImage.open(uploaded_image).convert("RGB")
-        # OpenCV is preferred because it avoids external zbar system dependencies.
+
         try:
             import cv2
             import numpy as np
@@ -2840,7 +2941,7 @@ def verification_portal_view():
             st.image(img_pil, caption="الصورة الملتقطة / المرفوعة", width=200)
             decoded_code, decode_error = decode_qr_from_camera_image(qr_image)
             if decoded_code:
-                # QR الحالي يحمل كود الشهادة مباشرة. اقبل أيضاً روابط تحتوي الكود كآخر جزء.
+
                 parsed_code = decoded_code.strip()
                 if parsed_code.lower().startswith(("http://", "https://")):
                     parsed_code = parsed_code.rstrip("/").split("/")[-1].split("?")[0]
@@ -2941,13 +3042,13 @@ def verification_portal_view():
 def _reset_reg_admin_and_facility():
     st.session_state["reg_administration"] = "-- اختر الإدارة --"
     st.session_state["reg_facility"] = "-- اختر المنشأة --"
-    # Reset child section selectors when their parent directorate changes.
+
     st.session_state.pop("reg_directorate_section", None)
     st.session_state.pop("reg_administration_section", None)
 
 def _reset_reg_facility():
     st.session_state["reg_facility"] = "-- اختر المنشأة --"
-    # The administration-section selector depends on the selected administration.
+
     st.session_state.pop("reg_administration_section", None)
 
 def _reset_hier_admin_and_facility():
@@ -2969,7 +3070,7 @@ def login_portal():
     print_st = get_print_settings()
     professions_list = print_st.get("professions_list", ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"])
 
-    # كل زر يفتح محتواه تحته مباشرة، مع بقاء دخول الإدارة مخفياً كما كان.
+
     if "login_portal_section" not in st.session_state:
         st.session_state.login_portal_section = ""
     st.markdown("<style>div.stButton > button {min-height: 3.2rem; font-weight: 800 !important;} .portal-gap {height: 22px;}</style>", unsafe_allow_html=True)
@@ -3023,13 +3124,13 @@ def login_portal():
                 sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
                 rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
 
-                # أقسام المديرية فرع مستقل تحت المديرية، وليست مستوى أبويًا للإدارات؛ لذلك لا تدخل في مسار المنشأة.
+
                 admins_list = hierarchy_ordered_unique(item.get("administration") for item in rows_auth if item.get("administration"))
                 admin_labels = {name: f"{name} (كود الإدارة: {admin_codes.get((sel_auth, name), '')})" for name in admins_list}
                 sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, format_func=lambda value: value if value == "-- اختر الإدارة --" else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
                 rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
 
-                # أقسام الإدارة فرع مستقل تحت الإدارة، وليست مستوى أبويًا للمنشآت؛ لذلك لا تُستخدم لتصفية المنشآت.
+
                 facilities_list = hierarchy_ordered_unique(item.get("facility_name") for item in rows_admin if item.get("facility_name"))
                 facility_labels = {name: f"{name} (كود المنشأة: {facility_codes.get((sel_auth, sel_admin, name), '')})" for name in facilities_list}
                 sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, format_func=lambda value: value if value == "-- اختر المنشأة --" else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
@@ -3090,7 +3191,7 @@ def login_portal():
                         stored_permissions = json.loads(user["permissions_json"]) if user["permissions_json"] else []
                     except:
                         stored_permissions = []
-                    # المالك لا يعتمد على permissions_json للوصول؛ جميع الوحدات متاحة له دائماً.
+
                     st.session_state.permissions = list(ALL_MENU_MODULES.keys()) if user["role"] == "admin" else stored_permissions
                     try:
                         st.session_state.user_hierarchy_scope = json.loads(user.get("hierarchy_scope_json") or "{}") if hasattr(user, "get") else json.loads(user["hierarchy_scope_json"] or "{}")
@@ -3120,7 +3221,7 @@ def has_subtab_permission(module_key, tab_label):
     if is_owner():
         return True
     perms = st.session_state.get("permissions") or []
-    # الأقسام الممنوحة بالكامل تظل متوافقة مع الحسابات القديمة.
+
     return module_key in perms or subtab_permission_key(module_key, tab_label) in perms
 
 def require_permission(module_key):
@@ -3147,7 +3248,7 @@ def admin_dashboard():
             st.session_state.permissions = []
             st.rerun()
     all_modules_list = list(ALL_MENU_MODULES.keys())
-    # المالك يرى كل أجزاء النظام دائماً، حتى لو كانت permissions_json قديمة أو ناقصة.
+
     if is_owner():
         available_menus = all_modules_list
     else:
@@ -3464,7 +3565,7 @@ def admin_dashboard():
                 current_logo3_val = f"data:image/{uploaded_logo3.type.split('/')[-1]};base64," + __import__("base64").b64encode(uploaded_logo3.read()).decode("utf-8")
             
             if st.form_submit_button("💾 حفظ ضبط اعدادات الطباعة و الهوامش", use_container_width=True):
-                # حفظ الهيكل المختار مع إعدادات الطباعة، وتوليد ترويسة التقارير منه تلقائيًا.
+
                 effective_header_text = hierarchy_header_html(scope=report_hierarchy_val) if any(str(v or "").strip() for v in report_hierarchy_val.values()) else header_text_val
                 save_print_settings(
                     effective_header_text, "12mm", "auto", "8mm", "8mm", line_spacing_val,
@@ -3744,7 +3845,7 @@ def admin_dashboard():
                         return []
                     chosen = next((col for col in accepted_columns if col in frame.columns), None)
                     if chosen is None:
-                        # Single-column sheets are convenient for simple name lists.
+
                         if len(frame.columns) == 1:
                             chosen = frame.columns[0]
                         else:
@@ -3756,7 +3857,7 @@ def admin_dashboard():
                         name = str(value).strip()
                         if name and name.lower() not in {"nan", "none"}:
                             names.append(name)
-                    # Preserve order while removing duplicate names in the same file.
+
                     return list(dict.fromkeys(names))
 
                 current_upload_hierarchy = get_hierarchical_data(include_hidden=True)
@@ -3896,9 +3997,9 @@ def admin_dashboard():
                             c.execute("DELETE FROM sqlite_sequence WHERE name='hierarchical_facilities'")
                         except sqlite3.OperationalError:
                             pass
-                    # Keep normalized tables and M:N section links in sync with the cleared source.
+
                     sync_normalized_hierarchy()
-                    # Clear hierarchy selection widgets so stale choices are not retained.
+
                     for state_key in list(st.session_state.keys()):
                         if state_key.startswith(("hier_", "manual_exam_hierarchy", "real_assessment_hierarchy", "training_minutes_scope", "trainee_schedule_scope")):
                             st.session_state.pop(state_key, None)
@@ -3917,7 +4018,7 @@ def admin_dashboard():
                     sel_manage_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + manage_admins, format_func=lambda value: value, key="hier_manage_administration", on_change=_reset_hier_facility)
                     manage_admin_rows = [r for r in manage_auth_rows if sel_manage_admin != "-- اختر الإدارة --" and str(r.get("administration") or "").strip() == sel_manage_admin]
 
-                    # حذف أي مستوى إداري حتى لو لم تكن له منشآت مسجلة.
+
                     st.markdown("##### 🗑️ حذف أي مستوى من الهيكل الإداري وإعادة ترقيم الـ ID")
                     delete_kind = st.selectbox(
                         "حدد نوع الجزء المراد حذفه:",
@@ -3966,8 +4067,8 @@ def admin_dashboard():
                             st.success("تم حذف الجزء المحدد. أُعيد احتساب أكواد العرض المستقلة لكل مستوى؛ ومعرّفات قاعدة البيانات تُستخدم داخليًا لربط السجلات.")
                             st.rerun()
 
-                    # Only facility nodes belong in the facility selector; authority/admin-only
-                    # rows have blank facility_name and therefore intentionally have no facility code.
+
+
                     manage_facilities = [r for r in manage_admin_rows if str(r.get("facility_name") or "").strip()]
                     manage_facility_labels = {
                         int(r["id"]): (
@@ -3976,9 +4077,9 @@ def admin_dashboard():
                         )
                         for r in manage_facilities
                     }
-                    # Always render the facility browsing field, even when the chosen
-                    # administration has no facilities yet. Display codes are local to each
-                    # parent; database primary keys remain stable and are never reused as codes.
+
+
+
                     if not manage_facility_labels:
                         st.info("لا توجد منشآت مسجلة تحت الإدارة المختارة. يمكنك إضافتها من تبويب (إضافة يدوية).")
                         facility_options = [None]
@@ -4078,9 +4179,21 @@ def admin_dashboard():
                                 st.rerun()
                     df_hier = pd.DataFrame(hier_rows_all)
                     df_hier["hidden"] = df_hier["hidden"].apply(lambda x: "مخفي 👁‍🗨" if x==1 else "ظاهر ✅")
-                    df_hier = df_hier[["id", "authority", "administration", "facility_name", "created_at", "hidden"]]
-                    df_hier.columns = ["ID", "المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                    for col in ("directorate_section", "administration_section"):
+                        if col not in df_hier.columns: df_hier[col] = ""
+                    df_hier = df_hier[["id", "authority", "directorate_section", "administration", "administration_section", "facility_name", "created_at", "hidden"]]
+                    df_hier.columns = ["ID السجل", "المديرية / الجهة", "قسم المديرية", "الإدارة", "قسم الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
                     st.dataframe(df_hier, use_container_width=True, hide_index=True)
+                    st.markdown("##### 🌳 عرض مسارات الربط الفعلية للأقسام المشتركة")
+                    linked_preview = get_hierarchy_linked_projection_rows(include_hidden=True)
+                    preview_rows = []
+                    for rr in linked_preview:
+                        if str(rr.get("directorate_section") or "").strip() or str(rr.get("administration_section") or "").strip():
+                            preview_rows.append({"المديرية":rr.get("authority",""),"قسم المديرية":rr.get("directorate_section",""),"الإدارة المشتركة":rr.get("administration",""),"قسم الإدارة":rr.get("administration_section",""),"المنشأة المشتركة":rr.get("facility_name","")})
+                    if preview_rows:
+                        st.dataframe(pd.DataFrame(preview_rows).drop_duplicates(), use_container_width=True, hide_index=True)
+                    else:
+                        st.info("أضف أقسام المديرية وأقسام الإدارة لتظهر مسارات الربط هنا.")
 
     elif selected_menu == "⚙ إدارة الأسئلة":
         st.subheader("⚙ إدارة الأسئلة وبنك الأسئلة الشامل للأمراض المتوطنة (مع إمكانية الحذف الفردي والنهائي والتفريغ)")
@@ -4530,7 +4643,7 @@ def admin_dashboard():
                 if not any(scope_values):
                     return True
                 template_scope_values = [str(template_row.get(k) or "").strip() for k in ("scope_governorate", "scope_authority", "scope_directorate_section", "scope_center", "scope_administration", "scope_administration_section", "scope_facility")]
-                # A global template is available in every selected administrative scope.
+
                 if not any(template_scope_values):
                     return True
                 return all(not template_scope_values[i] or template_scope_values[i] == scope_values[i] for i in range(len(scope_values))) and all(not scope_values[i] or not template_scope_values[i] or template_scope_values[i] == scope_values[i] for i in range(len(scope_values)))
@@ -4744,7 +4857,7 @@ def admin_dashboard():
                         with db() as c:
                             tpl_id_val = manual_tpl_choices.get(selected_manual_tpl_name)
                             selected_ids = [manual_trainee_labels[manual_selected_label]]
-                            # Revalidate selected trainee against current hierarchy/facility/profession before writing.
+
                             selected_row = c.execute("SELECT id,name,facility,profession,hidden FROM trainees WHERE id=?", (selected_ids[0],)).fetchone()
                             if not selected_row or selected_row["hidden"] or selected_row["facility"] != (selected_manual_facility or str(manual_scope.get("scope_facility") or "")) or selected_row["profession"] != manual_profession:
                                 st.error("❌ المتدرب المختار لا يطابق الهيكل الإداري أو المنشأة أو المهنة المحددة.")
@@ -4851,7 +4964,7 @@ def admin_dashboard():
             "🏥 تقارير التقييم الواقعي ومقارنة الفترات"
         ])
 
-        # أدوات داخلية آمنة للتقارير
+
         def _report_date_ok(d1, d2):
             if d1 > d2:
                 st.warning("⚠️ تاريخ البداية يجب أن يكون قبل أو مساوياً لتاريخ النهاية.")
@@ -5009,7 +5122,7 @@ def admin_dashboard():
                             tuple(rep_scope_args)
                         ).fetchall()
                     ]
-                    # Reorder report facilities to match the master administrative hierarchy order.
+
                     _report_hier_rows = get_hierarchical_data(include_hidden=False)
                     _report_facility_order = hierarchy_ordered_unique(r.get("facility_name") for r in _report_hier_rows)
                     _report_facility_set = set(facs_list_rep)
@@ -5089,7 +5202,7 @@ def admin_dashboard():
                         WHERE COALESCE(t.hidden,0)=0 AND {rep_scope_sql}
                         ORDER BY t.id DESC,s.id DESC
                     """.format(rep_scope_sql=rep_scope_sql), tuple(rep_scope_args)).fetchall()
-                    # رقم الشهادة اختياري حتى لا يتعطل التقرير مع قاعدة قديمة.
+
                     cols=[r[1] for r in c.execute("PRAGMA table_info(exam_sessions)").fetchall()]
                     has_cert="certificate_id" in cols
                     if has_cert:
@@ -5236,7 +5349,7 @@ def admin_dashboard():
                 filtered_assessments = [r for r in assessment_records if _assessment_in_scope(r, scope_assess_report) and (profession_filter == "كل الوظائف" or r.get("profession") == profession_filter)]
                 report_kind = st.radio("نوع التقرير:", ["منشأة", "فرد / مسؤول تقييم", "مجموعة منشآت"], horizontal=True, key="real_assess_report_kind_v1")
                 if report_kind == "منشأة":
-                    # Preserve the exact facility order defined in the administrative hierarchy tab.
+
                     _hierarchy_order_rows = get_hierarchical_data(include_hidden=False)
                     _hierarchy_facility_order = hierarchy_ordered_unique(
                         r.get("facility_name") for r in _hierarchy_order_rows
@@ -5484,7 +5597,7 @@ def admin_dashboard():
         with plan_tabs[2]:
             if has_subtab_permission('📈 خطط العمل', '📄 محاضر التدريب'):
                 st.markdown("#### 📄 طباعة وتعديل محضر التدريب:")
-                # قائمة الهيكل الإداري داخل محاضر التدريب نفسها، وليست في تبويب آخر.
+
                 minutes_scope = hierarchy_scope_widget("الهيكل الإداري لمحضر التدريب:", "training_minutes_scope_v1")
                 with db() as c:
                     all_tpls_for_minutes = [dict(r) for r in c.execute("SELECT * FROM exam_templates ORDER BY name ASC").fetchall()]
@@ -5500,7 +5613,7 @@ def admin_dashboard():
                         existing_min = c.execute("SELECT * FROM training_minutes WHERE template_id=?", (chosen_min_tpl_id,)).fetchone()
                         tpl_rec = c.execute("SELECT * FROM exam_templates WHERE id=?", (chosen_min_tpl_id,)).fetchone()
 
-                    # توليد بيانات محضر التدريب تلقائياً من نموذج الاختبار ونطاقه الإداري.
+
                     tpl_dict_for_minutes = dict(tpl_rec) if tpl_rec else {}
                     minute_scope_parts = [str(tpl_dict_for_minutes.get(k) or '').strip() for k in ('scope_authority', 'scope_administration', 'scope_facility')]
                     minute_scope_parts = [x for x in minute_scope_parts if x]
@@ -5532,7 +5645,7 @@ def admin_dashboard():
                     cur_items_text = existing_min["training_items"] if existing_min and existing_min["training_items"] else default_items_text
                     cur_goals_text = existing_min["training_goals"] if existing_min and existing_min["training_goals"] else default_goals_text
                     cur_date_val = existing_min["training_date"] if existing_min and existing_min["training_date"] else default_date_val
-                    # Always default the first field from the selected template / hierarchy, not stale saved text.
+
                     cur_facility_val = default_facility_val
 
                     hierarchy_rows_for_minutes = get_hierarchical_data(include_hidden=False)
@@ -5566,11 +5679,11 @@ def admin_dashboard():
                     st.markdown("---")
                     st.markdown("##### 🖨 معاينة وطباعة محضر التدريب:")
                     print_sett_m = get_print_settings()
-                    # ترويسة المحضر تتبع الهيكل الإداري المرتبط بنموذج الاختبار المختار.
+
                     header_right_txt = hierarchy_margin_html(minutes_scope) if any(str(minutes_scope.get(k) or '').strip() for k in ('scope_authority','scope_directorate_section','scope_administration','scope_administration_section','scope_facility')) else hierarchy_margin_html(tpl_dict_for_minutes)
                     line_sp_m = print_sett_m.get('line_spacing', 1.25)
 
-                    # أسماء المتدربين تتعبأ تلقائياً وفق نطاق النموذج والمهنة والتخصيص الحالي.
+
                     user_scope_pred, user_scope_args = hierarchy_filter_for_trainees(current_user_trainee_scope(), "t")
                     with db() as c:
                         all_minutes_trainees = [dict(r) for r in c.execute(
@@ -5589,7 +5702,7 @@ def admin_dashboard():
                         if trainee_row.get('assigned_template_id') not in (None, 0, chosen_min_tpl_id):
                             continue
                         if not minutes_has_scope and not template_has_scope:
-                            # النموذج العام يشمل المتدربين غير المخصصين لنموذج آخر.
+
                             matching_minutes_trainees.append(trainee_row)
                             continue
                         matching_scope_rows = [hrow for hrow in hierarchy_rows_minutes
@@ -5854,11 +5967,11 @@ def admin_dashboard():
                     if not owner_row or not verify_password(reset_owner_password, owner_row["password_hash"]):
                         st.error("كلمة مرور المالك غير صحيحة؛ لم يتم حذف أي بيانات.")
                     else:
-                        # Delete operational data in dependency order; preserve owner, role labels and print settings.
+
                         for table in ("exam_questions", "exam_sessions", "exam_schedules", "training_minutes", "facility_real_assessments", "action_plans", "trainees", "questions", "exam_templates", "hierarchical_facilities", "audit_logs"):
                             if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
                                 c.execute(f'DELETE FROM "{table}"')
-                        # Remove non-owner accounts, reset generated IDs, retain owner account/settings.
+
                         c.execute("DELETE FROM users WHERE role<>'admin'")
                         seq_tables = ("hierarchical_facilities", "exam_templates", "exam_schedules", "trainees", "questions", "exam_sessions", "exam_questions", "action_plans", "facility_real_assessments", "audit_logs", "training_minutes")
                         for table in seq_tables:
@@ -6117,8 +6230,8 @@ def admin_dashboard():
                         else:
                             with db() as c:
                                 actor_user = c.execute("SELECT * FROM users WHERE username=? AND active=1", (st.session_state.username,)).fetchone()
-                                # Only a logged-in owner may edit credentials. If editing the owner's own record,
-                                # verify against that exact record; otherwise verify the active owner's password.
+
+
                                 chosen_row = c.execute("SELECT * FROM users WHERE id=?", (chosen_target["id"],)).fetchone()
                                 is_authorized_owner = bool(actor_user and actor_user["role"] == "admin" and verify_password(current_password_input, actor_user["password_hash"]))
                                 if not is_authorized_owner:
@@ -6208,8 +6321,8 @@ def trainee_portal():
             <p style="font-size: 15px; color: #d1fae5;">جاري تحديث الصفحة تلقائياً حتى يتم اعتمادك وتفعيل الاختبار...</p>
         </div>
         """, unsafe_allow_html=True)
-        # لا تستخدم إعادة تحميل المتصفح كاملة؛ لأنها قد تفقد حالة جلسة الممتحَن.
-        # التحديث اليدوي أدناه يستخدم st.rerun ويحافظ على جلسة Streamlit.
+
+
         if st.button("🔄 تحديث الصفحة يدوياً", use_container_width=True):
             st.rerun()
         st.markdown("<br>", unsafe_allow_html=True)
@@ -6233,7 +6346,7 @@ def trainee_portal():
                 dt_now = now_cairo()
                 dt_start = datetime.fromisoformat(str(start_t))
                 dt_end = datetime.fromisoformat(str(end_t))
-                # Schedule values saved without a UTC offset are Cairo local time.
+
                 if dt_start.tzinfo is None:
                     dt_start = dt_start.replace(tzinfo=CAIRO_TZ)
                 else:
@@ -6248,7 +6361,7 @@ def trainee_portal():
                 pass
 
     if not is_exam_open:
-        # Keep the examinee portal polling so a scheduled exam becomes available without manual refresh.
+
         upcoming_schedule = None
         upcoming_start = None
         upcoming_end = None
@@ -6274,12 +6387,12 @@ def trainee_portal():
               <div style="margin-top:10px;font-size:14px">سيتم تحديث الشاشة تلقائياً دون الحاجة إلى تسجيل الخروج.</div>
             </div>
             """, unsafe_allow_html=True)
-            # تحديث داخلي للجلسة كل 3 ثوانٍ؛ لا نعيد تحميل المتصفح حتى لا نفقد جلسة الممتحَن.
+
             if st.button("🔄 تحديث الموعد", key="trainee_refresh_upcoming", use_container_width=True):
                 st.rerun()
         elif upcoming_end and now_cairo() > upcoming_end:
             st.warning("انتهت فترة إتاحة الامتحان المحددة لهذا النموذج. يرجى مراجعة الإدارة.")
-            # لا حاجة لإعادة تحميل المتصفح بالكامل عند انتهاء نافذة الامتحان.
+
         else:
             st.markdown("""
             <div style="background: linear-gradient(135deg, #064e3b, #047857); color: #ffffff; padding: 45px; border-radius: 16px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.15); border: 3px solid #059669; margin-top: 50px; margin-bottom: 30px; font-family: 'Cairo', sans-serif;">
@@ -6287,8 +6400,8 @@ def trainee_portal():
                 <div style="font-size:16px;margin-top:12px">ستُحدّث الشاشة تلقائياً للتحقق من الموعد.</div>
             </div>
             """, unsafe_allow_html=True)
-            # تحديث تلقائي هادئ مع توفير أزرار واضحة للممتحَن دون إجباره على تسجيل الخروج.
-            # تحديث داخلي عبر زر Streamlit لتفادي فقد جلسة الممتحَن.
+
+
             refresh_col, home_col = st.columns(2)
             with refresh_col:
                 if st.button("🔄 تحديث الصفحة الآن", key="trainee_refresh_no_exam", use_container_width=True):
@@ -6351,8 +6464,8 @@ def trainee_portal():
             st.session_state.trainee_id = ""
             st.rerun()
 
-# Streamlit fragment polling keeps the authenticated examinee session alive and
-# re-evaluates the schedule automatically when its start time arrives.
+
+
 if hasattr(st, "fragment"):
     trainee_portal = st.fragment(run_every="3s")(trainee_portal)
 
@@ -6366,7 +6479,7 @@ def render_readonly_trainee_exam_review(session_id):
         enforce_session_access_or_raise(session_id, c)
         expiry_raw = session["review_expires_at"]
         if not expiry_raw:
-            # Backward compatibility for older completed sessions: duration after submission.
+
             try:
                 tpl = c.execute("SELECT duration_minutes FROM exam_templates WHERE id=?", (session["template_id"],)).fetchone()
                 mins = max(1, int(tpl["duration_minutes"] or 60)) if tpl else 60
@@ -6391,7 +6504,7 @@ def render_readonly_trainee_exam_review(session_id):
     st.markdown(f"""<div style="border:2px solid #0f766e;border-radius:12px;padding:16px;margin:12px 0;background:#f0fdfa;color:#134e4a;text-align:center">
     <h3>📘 نموذج امتحانك — للعرض فقط</h3><b>المتدرب:</b> {esc(trainee_name)} &nbsp; | &nbsp; <b>النموذج:</b> {esc(template_name)}<br>
     <b>متبقي لعرض النموذج:</b> <span id="review-timer">{remaining // 60:02d}:{remaining % 60:02d}</span><br><small>لن يمكنك تعديل الإجابات، ولا يعرض هذا النموذج مفتاح الإجابات الصحيحة.</small></div>""", unsafe_allow_html=True)
-    # A browser-side countdown improves visibility; server-side expiry check remains authoritative on rerun.
+
     components.html(f"""<script>(function(){{let s={remaining};const el=window.parent.document.getElementById('review-timer');function tick(){{if(s<=0){{window.parent.location.reload();return;}}if(el)el.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');s--;setTimeout(tick,1000);}}tick();}})();</script>""", height=0)
     for idx, row in enumerate(rows, start=1):
         try: opts = json.loads(row["options_json"] or "[]")
@@ -6419,14 +6532,14 @@ def exam_interface(session_id):
         if not session:
             st.error("جلسة الاختبار غير موجودة أو غير متاحة.")
             return
-        # Authorization must succeed for every request, including direct URL/session-id access.
+
         enforce_session_access_or_raise(session_id, c)
         if session["status"] != "active":
             st.error("هذه الجلسة غير نشطة أو تم تسليمها بالفعل.")
             return
 
-        # Enforce the template's scheduled availability on every rerun, not only at login.
-        # Missing/invalid schedule values fail closed: the exam must not be exposed.
+
+
         active_schedule = get_schedule_for_trainee(session["trainee_id"], session["template_id"]) if session["template_id"] else None
         schedule_start_raw = active_schedule.get("start_time") if active_schedule else None
         schedule_end_raw = active_schedule.get("end_time") if active_schedule else None
@@ -6456,7 +6569,7 @@ def exam_interface(session_id):
             if isinstance(schedule_error, ValueError) and str(schedule_error) == "وقت الجدولة غير محدد":
                 st.error("الاختبار غير متاح لأن الإدارة لم تحدد وقت البدء والنهاية بشكل صحيح.")
                 return
-            # Malformed schedule values fail closed rather than exposing exam questions.
+
             st.error("تعذر التحقق من موعد الاختبار؛ لن يتم عرض الأسئلة حتى تصحيح موعد النموذج.")
             return
 
@@ -6469,7 +6582,7 @@ def exam_interface(session_id):
         exam_is_expired = now_cairo() >= exam_expiry
         rows = c.execute("SELECT eq.*, q.question, q.options_json FROM exam_questions eq JOIN questions q ON q.id=eq.question_id WHERE eq.session_id=? ORDER BY eq.position", (int(session_id),)).fetchall()
 
-    # Dynamic visible watermark discourages sharing; browser controls cannot fully block OS screenshots.
+
     st.markdown(
         f"<div style='position:sticky;top:0;z-index:9999;background:rgba(255,255,255,.96);border:1px solid #b91c1c;color:#991b1b;padding:8px;text-align:center;font-weight:800;pointer-events:none;'>نسخة مخصصة للمتدرب: {esc(session['scoped_trainee_name'])} | رقم الجلسة: {int(session_id)} | يمنع تداول محتوى الاختبار</div>",
         unsafe_allow_html=True,
@@ -6528,9 +6641,9 @@ def exam_interface(session_id):
             st.session_state.exam_session_id = None
             st.rerun()
 
-# ============================================================
-# 6) التوجيه الأساسي الشامل للشاشات
-# ============================================================
+
+
+
 if st.session_state.get("show_verification_portal", False):
     verification_portal_view()
     if st.button("🔙 العودة للبوابة الرئيسية"):
