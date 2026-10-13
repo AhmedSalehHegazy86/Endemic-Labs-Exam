@@ -359,8 +359,8 @@ def trainee_matches_hierarchy(facility_value, hierarchy_row):
     h = dict(hierarchy_row)
     if value == str(h.get("facility_name") or "").strip():
         return True
-    new_path = " - ".join(str(h.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(h.get(k) or "").strip())
-    legacy_path = " - ".join(str(h.get(k) or "").strip() for k in ("governorate", "authority", "center", "administration", "facility_name") if str(h.get(k) or "").strip())
+    new_path = " - ".join(str(h.get(k) or "").strip() for k in ("authority", "directorate_section", "administration", "administration_section", "facility_name") if str(h.get(k) or "").strip())
+    legacy_path = " - ".join(str(h.get(k) or "").strip() for k in ("governorate", "authority", "directorate_section", "center", "administration", "administration_section", "facility_name") if str(h.get(k) or "").strip())
     return any(path and value.endswith(path) for path in (new_path, legacy_path))
 
 def hierarchy_filter_for_trainees(scope, trainee_alias="t"):
@@ -665,6 +665,23 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_directorate_sections_parent ON directorate_sections(directorate_id);
             CREATE INDEX IF NOT EXISTS idx_administration_sections_parent ON administration_sections(department_id);
+            -- Explicit many-to-many visibility relationships: every administration under a
+            -- directorate is visible through every section of that directorate; likewise,
+            -- every facility under an administration is visible through every section of it.
+            CREATE TABLE IF NOT EXISTS department_directorate_sections (
+                department_id INTEGER NOT NULL,
+                directorate_section_id INTEGER NOT NULL,
+                PRIMARY KEY(department_id, directorate_section_id),
+                FOREIGN KEY(department_id) REFERENCES departments(id) ON DELETE CASCADE,
+                FOREIGN KEY(directorate_section_id) REFERENCES directorate_sections(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS facility_administration_sections (
+                facility_id INTEGER NOT NULL,
+                administration_section_id INTEGER NOT NULL,
+                PRIMARY KEY(facility_id, administration_section_id),
+                FOREIGN KEY(facility_id) REFERENCES facilities(id) ON DELETE CASCADE,
+                FOREIGN KEY(administration_section_id) REFERENCES administration_sections(id) ON DELETE CASCADE
+            );
             CREATE TABLE IF NOT EXISTS exam_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -1024,6 +1041,8 @@ def sync_normalized_hierarchy():
         c.execute("DELETE FROM departments")
         c.execute("DELETE FROM directorate_sections")
         c.execute("DELETE FROM directorates")
+        c.execute("DELETE FROM department_directorate_sections")
+        c.execute("DELETE FROM facility_administration_sections")
         # Compatibility projection: each level has its own IDs; children carry parent IDs.
         for table_name in ("facilities", "administration_sections", "departments", "directorate_sections", "directorates"):
             c.execute("DELETE FROM sqlite_sequence WHERE name=?", (table_name,))
@@ -1047,6 +1066,15 @@ def sync_normalized_hierarchy():
                     c.execute("INSERT OR IGNORE INTO administration_sections(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, administration_section, hidden, created_at))
                 if facility:
                     c.execute("INSERT OR IGNORE INTO facilities(department_id,name,hidden,created_at) VALUES(?,?,?,?)", (depid, facility, hidden, created_at))
+        # Build shared visibility links after all unique parent/child records exist.
+        # No administration/facility is duplicated merely because it is visible under
+        # several sections at the same parent level.
+        for dept in c.execute("SELECT id, directorate_id FROM departments").fetchall():
+            for sec in c.execute("SELECT id FROM directorate_sections WHERE directorate_id=?", (dept["directorate_id"],)).fetchall():
+                c.execute("INSERT OR IGNORE INTO department_directorate_sections(department_id,directorate_section_id) VALUES(?,?)", (dept["id"], sec["id"]))
+        for fac in c.execute("SELECT id, department_id FROM facilities").fetchall():
+            for sec in c.execute("SELECT id FROM administration_sections WHERE department_id=?", (fac["department_id"],)).fetchall():
+                c.execute("INSERT OR IGNORE INTO facility_administration_sections(facility_id,administration_section_id) VALUES(?,?)", (fac["id"], sec["id"]))
 
 sync_normalized_hierarchy()
 
@@ -1168,7 +1196,7 @@ def get_hierarchical_data(include_hidden=False):
         if not any(str(scope.get(k) or "").strip() for k in keys):
             return []
         if any(str(scope.get(k) or "").strip() for k in keys):
-            mapping = (("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name"))
+            mapping = (("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_directorate_section", "directorate_section"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_administration_section", "administration_section"), ("scope_facility", "facility_name"))
             rows = [r for r in rows if all(not str(scope.get(sk) or "").strip() or str(r.get(col) or "").strip() == str(scope.get(sk) or "").strip() for sk, col in mapping)]
     return rows
 
@@ -1249,7 +1277,13 @@ def effective_hierarchy_scope(requested):
     return out
 
 def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:", key="hier_scope"):
-    """Choose a scope in the updated hierarchy, respecting parent-child relationships."""
+    """Select hierarchy scope with sibling branches under each parent.
+
+    Directorates contain sections; every administration under a directorate is shared
+    across all those sections. Administrations contain sections; every facility under an
+    administration is shared across all those sections. Sections are classifications,
+    not duplicated parent records.
+    """
     rows = get_hierarchical_data(include_hidden=False)
     scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
     levels = ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"]
@@ -1259,48 +1293,46 @@ def hierarchy_scope_widget(label="الهيكل الإداري المستهدف:"
         st.session_state["_last_hierarchy_scope"] = dict(scope)
         return scope
 
-    # Every dropdown is constrained by the already-selected parent. Sections are separate
-    # nodes stored in the legacy table, so select their parent first and stop at that level.
     authority_values = hierarchy_ordered_unique(r.get("authority") for r in rows if r.get("authority"))
     if not authority_values:
         st.warning("لا توجد مديريات أو جهات مسجلة في الهيكل الإداري.")
         return scope
     authority = st.selectbox("المديرية / الجهة", authority_values, key=f"{key}_authority")
     scope["scope_authority"] = authority
-    scoped_rows = [r for r in rows if str(r.get("authority") or "").strip() == authority]
+    directorate_rows = [r for r in rows if str(r.get("authority") or "").strip() == authority]
+
     if selected_level == "المديرية / الجهة":
         pass
     elif selected_level == "قسم داخل المديرية":
-        vals = hierarchy_ordered_unique(r.get("directorate_section") for r in scoped_rows if r.get("directorate_section"))
-        if vals:
-            scope["scope_directorate_section"] = st.selectbox("قسم داخل المديرية", vals, key=f"{key}_directorate_section")
-        else:
+        vals = hierarchy_ordered_unique(r.get("directorate_section") for r in directorate_rows if r.get("directorate_section"))
+        if not vals:
             st.warning("لا توجد أقسام مسجلة تحت المديرية المختارة.")
             return scope
+        scope["scope_directorate_section"] = st.selectbox("قسم داخل المديرية", vals, key=f"{key}_directorate_section")
     else:
-        admin_values = hierarchy_ordered_unique(r.get("administration") for r in scoped_rows if r.get("administration"))
+        # Administrations are direct children of the directorate, regardless of its sections.
+        admin_values = hierarchy_ordered_unique(r.get("administration") for r in directorate_rows if r.get("administration"))
         if not admin_values:
             st.warning("لا توجد إدارات مسجلة تحت المديرية المختارة.")
             return scope
         admin = st.selectbox("الإدارة", admin_values, key=f"{key}_administration")
         scope["scope_administration"] = admin
-        admin_rows = [r for r in scoped_rows if str(r.get("administration") or "").strip() == admin]
+        admin_rows = [r for r in directorate_rows if str(r.get("administration") or "").strip() == admin]
         if selected_level == "الإدارة":
             pass
         elif selected_level == "قسم داخل الإدارة":
             vals = hierarchy_ordered_unique(r.get("administration_section") for r in admin_rows if r.get("administration_section"))
-            if vals:
-                scope["scope_administration_section"] = st.selectbox("قسم داخل الإدارة", vals, key=f"{key}_administration_section")
-            else:
+            if not vals:
                 st.warning("لا توجد أقسام مسجلة تحت الإدارة المختارة.")
                 return scope
+            scope["scope_administration_section"] = st.selectbox("قسم داخل الإدارة", vals, key=f"{key}_administration_section")
         else:
+            # Facilities belong to the administration, not to a section record.
             vals = hierarchy_ordered_unique(r.get("facility_name") for r in admin_rows if r.get("facility_name"))
-            if vals:
-                scope["scope_facility"] = st.selectbox("المنشأة / وحدة الأمراض المتوطنة", vals, key=f"{key}_facility")
-            else:
+            if not vals:
                 st.warning("لا توجد منشآت مسجلة تحت الإدارة المختارة.")
                 return scope
+            scope["scope_facility"] = st.selectbox("المنشأة / وحدة الأمراض المتوطنة", vals, key=f"{key}_facility")
     scope = effective_hierarchy_scope(scope)
     st.session_state["_last_hierarchy_scope"] = dict(scope)
     return scope
@@ -2897,39 +2929,17 @@ def login_portal():
                 sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
                 rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
 
-                # اختيار القسم التابع للمديرية أولاً، ثم تضييق الإدارات والنتائج على هذا الاختيار.
-                directorate_sections = hierarchy_ordered_unique(item.get("directorate_section") for item in rows_auth if item.get("directorate_section"))
-                sel_directorate_section = ""
-                if directorate_sections:
-                    section_options = ["-- بدون قسم داخل المديرية --"] + directorate_sections
-                    selected_dsec = st.selectbox("قسم داخل المديرية:", section_options, key="reg_directorate_section", on_change=_reset_reg_admin_and_facility)
-                    sel_directorate_section = "" if selected_dsec == "-- بدون قسم داخل المديرية --" else selected_dsec
-                    if sel_directorate_section:
-                        rows_auth = [item for item in rows_auth if str(item.get("directorate_section") or "").strip() == sel_directorate_section]
-                    else:
-                        rows_auth = [item for item in rows_auth if not str(item.get("directorate_section") or "").strip()]
-
+                # أقسام المديرية فرع مستقل تحت المديرية، وليست مستوى أبويًا للإدارات؛ لذلك لا تدخل في مسار المنشأة.
                 admins_list = hierarchy_ordered_unique(item.get("administration") for item in rows_auth if item.get("administration"))
                 admin_labels = {name: f"{name} (كود الإدارة: {admin_codes.get((sel_auth, name), '')})" for name in admins_list}
                 sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, format_func=lambda value: value if value == "-- اختر الإدارة --" else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
                 rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
 
-                # اختيار القسم التابع للإدارة قبل عرض المنشآت التابعة لها.
-                administration_sections = hierarchy_ordered_unique(item.get("administration_section") for item in rows_admin if item.get("administration_section"))
-                sel_administration_section = ""
-                if administration_sections:
-                    section_options = ["-- بدون قسم داخل الإدارة --"] + administration_sections
-                    selected_asec = st.selectbox("قسم داخل الإدارة:", section_options, key="reg_administration_section", on_change=_reset_reg_facility)
-                    sel_administration_section = "" if selected_asec == "-- بدون قسم داخل الإدارة --" else selected_asec
-                    if sel_administration_section:
-                        rows_admin = [item for item in rows_admin if str(item.get("administration_section") or "").strip() == sel_administration_section]
-                    else:
-                        rows_admin = [item for item in rows_admin if not str(item.get("administration_section") or "").strip()]
-
+                # أقسام الإدارة فرع مستقل تحت الإدارة، وليست مستوى أبويًا للمنشآت؛ لذلك لا تُستخدم لتصفية المنشآت.
                 facilities_list = hierarchy_ordered_unique(item.get("facility_name") for item in rows_admin if item.get("facility_name"))
                 facility_labels = {name: f"{name} (كود المنشأة: {facility_codes.get((sel_auth, sel_admin, name), '')})" for name in facilities_list}
                 sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, format_func=lambda value: value if value == "-- اختر المنشأة --" else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
-                hierarchy_parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان", sel_auth, sel_directorate_section, sel_admin, sel_administration_section, sel_fac]
+                hierarchy_parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان", sel_auth, sel_admin, sel_fac]
                 facility_final_str = " - ".join(str(part).strip() for part in hierarchy_parts if str(part or "").strip() and str(part).strip() not in {"-- اختر المديرية / الجهة --", "-- اختر الإدارة --", "-- اختر المنشأة --"}) if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
             with st.form("trainee_first_registration", clear_on_submit=True):
                 name = st.text_input("الاسم الرباعي:")
@@ -3309,11 +3319,14 @@ def admin_dashboard():
         current_set = get_print_settings()
         hierarchy_rows_for_reports = get_hierarchical_data()
         def _report_hierarchy_label(item):
-            parts = [str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()]
+            parts = [str(item.get(k) or "").strip() for k in ("authority", "directorate_section", "administration", "administration_section", "facility_name") if str(item.get(k) or "").strip()]
             return " — ".join(parts) if parts else "هيكل إداري غير محدد"
         hierarchy_options_for_reports = {"استخدام نص الترويسة اليدوي (بدون تحديد)": {}}
         for _hrow in hierarchy_rows_for_reports:
-            hierarchy_options_for_reports[_report_hierarchy_label(_hrow)] = {k: _hrow.get(k, "") or "" for k in ("governorate", "authority", "center", "administration", "facility_name")}
+            _report_label = _report_hierarchy_label(_hrow)
+            if _report_label in hierarchy_options_for_reports:
+                _report_label += f" (سجل {_hrow.get('id', '')})"
+            hierarchy_options_for_reports[_report_label] = {k: _hrow.get(k, "") or "" for k in ("governorate", "authority", "center", "directorate_section", "administration", "administration_section", "facility_name")}
         try:
             saved_report_hierarchy = json.loads(current_set.get("report_hierarchy_json", "{}") or "{}")
         except Exception:
@@ -3385,11 +3398,14 @@ def admin_dashboard():
                 ])
                 hierarchy_rows_for_cert = get_hierarchical_data()
                 def _cert_hierarchy_label(item):
-                    parts = [str(item.get(k) or "").strip() for k in ("authority", "administration", "facility_name") if str(item.get(k) or "").strip()]
+                    parts = [str(item.get(k) or "").strip() for k in ("authority", "directorate_section", "administration", "administration_section", "facility_name") if str(item.get(k) or "").strip()]
                     return " — ".join(parts) if parts else "هيكل إداري غير محدد"
                 hierarchy_options_for_cert = {"كل الهيكل الإداري (بدون تحديد)": {}}
                 for _hrow in hierarchy_rows_for_cert:
-                    hierarchy_options_for_cert[_cert_hierarchy_label(_hrow)] = {k: _hrow.get(k, "") or "" for k in ("governorate", "authority", "center", "administration", "facility_name")}
+                    _cert_label = _cert_hierarchy_label(_hrow)
+                    if _cert_label in hierarchy_options_for_cert:
+                        _cert_label += f" (سجل {_hrow.get('id', '')})"
+                    hierarchy_options_for_cert[_cert_label] = {k: _hrow.get(k, "") or "" for k in ("governorate", "authority", "center", "directorate_section", "administration", "administration_section", "facility_name")}
                 try:
                     saved_cert_hierarchy = json.loads(current_set.get("cert_hierarchy_json", "{}") or "{}")
                 except Exception:
@@ -3621,8 +3637,8 @@ def admin_dashboard():
         with tab_h2:
             if has_subtab_permission('🏥 الهيكل الإداري', '📥 رفع الملفات'):
                 st.markdown("## 📥 رفع ملفات الهيكل الإداري")
-                st.markdown("**٣ أدوات منفصلة:** مديريات / جهات ← إدارات حسب المديرية المختارة ← منشآت حسب الإدارة المختارة.")
-                st.caption("ارفع كل مستوى على حدة: المديريات أولاً، ثم اختر المديرية لرفع إداراتها، ثم اختر الإدارة لرفع المنشآت التابعة لها. يقبل ملفات Excel وCSV، وكل صف يمثل اسماً واحداً.")
+                st.markdown("**أدوات رفع المستويات الأساسية:** مديريات / جهات ← إدارات حسب المديرية المختارة ← منشآت حسب الإدارة المختارة. ويمكن إضافة أقسام المديرية وأقسام الإدارة من الإضافة اليدوية.")
+                st.caption("ارفع المستويات الأساسية على حدة. لإضافة قسم داخل المديرية أو داخل الإدارة استخدم الإضافة اليدوية مع تحديد المستوى الأب. يقبل الرفع ملفات Excel وCSV، وكل صف يمثل اسماً واحداً.")
 
                 def _hierarchy_names_from_upload(uploaded_file, accepted_columns):
                     """Read a one-column hierarchy file, accepting common Arabic/English headers."""
@@ -3743,8 +3759,11 @@ def admin_dashboard():
                 hier_all_data = get_hierarchical_data(include_hidden=True)
                 if hier_all_data:
                     df_hier_download = pd.DataFrame(hier_all_data)
-                    df_hier_download = df_hier_download[["id", "authority", "administration", "facility_name", "created_at", "hidden"]]
-                    df_hier_download.columns = ["ID", "المديرية / الجهة", "الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
+                    for _col in ("directorate_section", "administration_section"):
+                        if _col not in df_hier_download.columns:
+                            df_hier_download[_col] = ""
+                    df_hier_download = df_hier_download[["id", "authority", "directorate_section", "administration", "administration_section", "facility_name", "created_at", "hidden"]]
+                    df_hier_download.columns = ["ID", "المديرية / الجهة", "قسم المديرية", "الإدارة", "قسم الإدارة", "المنشأة / وحدة الأمراض المتوطنة", "تاريخ الإنشاء", "حالة الإخفاء"]
                     output_hier = io.BytesIO()
                     with pd.ExcelWriter(output_hier, engine='openpyxl') as writer:
                         df_hier_download.to_excel(writer, index=False, sheet_name='HierarchicalFacilities')
@@ -3787,7 +3806,7 @@ def admin_dashboard():
                 if not hier_rows_all:
                     st.info("لا توجد بيانات مسجلة.")
                 else:
-                    st.markdown("##### اختر المديرية ثم الإدارة ثم المنشأة التابعة لها:")
+                    st.markdown("##### استعراض الهيكل: المديرية ← قسم المديرية ← الإدارة ← قسم الإدارة ← المنشأة")
                     manage_auth_codes, manage_admin_codes, manage_facility_codes = hierarchy_level_codes(hier_rows_all)
                     manage_auths = hierarchy_ordered_unique(r.get("authority") for r in hier_rows_all)
                     sel_manage_auth = st.selectbox("المديرية / الجهة:", manage_auths, format_func=lambda value: value, key="hier_manage_authority", on_change=_reset_hier_admin_and_facility)
@@ -4561,7 +4580,7 @@ def admin_dashboard():
             manual_profession = st.selectbox("الوظيفة / التخصص:", manual_profession_list, key="manual_exam_profession_v1")
             hier_data = get_hierarchical_data(include_hidden=False)
             def _scope_matches_row(row, scope):
-                checks = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_facility", "facility_name")]
+                checks = [("scope_governorate", "governorate"), ("scope_authority", "authority"), ("scope_directorate_section", "directorate_section"), ("scope_center", "center"), ("scope_administration", "administration"), ("scope_administration_section", "administration_section"), ("scope_facility", "facility_name")]
                 return all(not str(scope.get(sk) or "").strip() or str(row.get(hk) or "").strip() == str(scope.get(sk) or "").strip() for sk, hk in checks)
             matching_hier = [h for h in hier_data if _scope_matches_row(h, manual_scope)]
             facility_choices = hierarchy_ordered_unique(h.get("facility_name") for h in matching_hier)
@@ -5413,7 +5432,7 @@ def admin_dashboard():
                     hierarchy_rows_for_minutes = get_hierarchical_data(include_hidden=False)
                     hierarchy_paths_for_minutes = []
                     for hr in hierarchy_rows_for_minutes:
-                        path_parts = [str(hr.get(k) or '').strip() for k in ('authority', 'administration', 'facility_name') if str(hr.get(k) or '').strip()]
+                        path_parts = [str(hr.get(k) or '').strip() for k in ('authority', 'directorate_section', 'administration', 'administration_section', 'facility_name') if str(hr.get(k) or '').strip()]
                         path_label = " - ".join(path_parts)
                         if path_label and path_label not in hierarchy_paths_for_minutes:
                             hierarchy_paths_for_minutes.append(path_label)
@@ -5822,24 +5841,34 @@ def admin_dashboard():
                             for tab_label in SUBTAB_PERMISSION_CATALOG.get(mod_key, []):
                                 selected_subtabs_checkboxes[subtab_permission_key(mod_key, tab_label)] = st.checkbox(f"تبويب: {tab_label}", value=True, key=f"new_sub_perm_{mod_key}_{tab_label}")
                     st.markdown("#### 🏥 تحديد نطاق الهيكل الإداري للمستخدم")
-                    st.caption("اختر كل الهيكل أو قصر صلاحيات المستخدم على مديرية/جهة أو إدارة أو منشأة محددة.")
+                    st.caption("الأقسام فروع مستقلة: أقسام المديرية والإدارات تتبع المديرية، وأقسام الإدارة والمنشآت تتبع الإدارة.")
                     add_scope_rows = get_hierarchical_data(include_hidden=False)
                     add_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"], key="add_user_scope_level")
                     add_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
                     if add_scope_level != "كل الهيكل الإداري":
-                        scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("directorate_section", "scope_directorate_section", "قسم داخل المديرية"), ("administration", "scope_administration", "الإدارة"), ("administration_section", "scope_administration_section", "قسم داخل الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
-                        scope_current_rows = add_scope_rows
-                        stop_field = {"المديرية / الجهة":"authority", "قسم داخل المديرية":"directorate_section", "الإدارة":"administration", "قسم داخل الإدارة":"administration_section", "المنشأة":"facility_name"}[add_scope_level]
-                        for src_field, dst_field, scope_title in scope_steps:
-                            vals = hierarchy_ordered_unique(rr.get(src_field) for rr in scope_current_rows)
-                            if not vals:
-                                st.warning("لا توجد بيانات متاحة في الهيكل الإداري لتحديد النطاق.")
-                                break
-                            chosen_scope_val = st.selectbox(f"{scope_title} المسموح بها:", vals, key=f"add_user_scope_{src_field}")
-                            add_user_scope[dst_field] = chosen_scope_val
-                            scope_current_rows = [rr for rr in scope_current_rows if str(rr.get(src_field) or "").strip() == chosen_scope_val]
-                            if src_field == stop_field:
-                                break
+                        auth_vals = hierarchy_ordered_unique(rr.get("authority") for rr in add_scope_rows if rr.get("authority"))
+                        if auth_vals:
+                            chosen_auth = st.selectbox("المديرية / الجهة المسموح بها:", auth_vals, key="add_user_scope_authority")
+                            add_user_scope["scope_authority"] = chosen_auth
+                            auth_rows = [rr for rr in add_scope_rows if str(rr.get("authority") or "").strip() == chosen_auth]
+                            if add_scope_level == "قسم داخل المديرية":
+                                vals = hierarchy_ordered_unique(rr.get("directorate_section") for rr in auth_rows if rr.get("directorate_section"))
+                                if vals:
+                                    add_user_scope["scope_directorate_section"] = st.selectbox("قسم المديرية المسموح به:", vals, key="add_user_scope_directorate_section")
+                            elif add_scope_level in ("الإدارة", "قسم داخل الإدارة", "المنشأة"):
+                                vals = hierarchy_ordered_unique(rr.get("administration") for rr in auth_rows if rr.get("administration"))
+                                if vals:
+                                    chosen_admin = st.selectbox("الإدارة المسموح بها:", vals, key="add_user_scope_administration")
+                                    add_user_scope["scope_administration"] = chosen_admin
+                                    admin_rows = [rr for rr in auth_rows if str(rr.get("administration") or "").strip() == chosen_admin]
+                                    if add_scope_level == "قسم داخل الإدارة":
+                                        vals = hierarchy_ordered_unique(rr.get("administration_section") for rr in admin_rows if rr.get("administration_section"))
+                                        if vals:
+                                            add_user_scope["scope_administration_section"] = st.selectbox("قسم الإدارة المسموح به:", vals, key="add_user_scope_administration_section")
+                                    elif add_scope_level == "المنشأة":
+                                        vals = hierarchy_ordered_unique(rr.get("facility_name") for rr in admin_rows if rr.get("facility_name"))
+                                        if vals:
+                                            add_user_scope["scope_facility"] = st.selectbox("المنشأة المسموح بها:", vals, key="add_user_scope_facility")
                     if st.form_submit_button("💾 حفظ", use_container_width=True):
                         if new_u_name.strip() and new_u_pass.strip() and len(new_u_pass) >= 8:
                             assigned_perms = [k for k, v in selected_modules_checkboxes.items() if v] + [k for k, v in selected_subtabs_checkboxes.items() if v]
@@ -5890,20 +5919,39 @@ def admin_dashboard():
                     edit_scope_level = st.selectbox("نطاق صلاحية المستخدم:", ["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"], index=["كل الهيكل الإداري", "المديرية / الجهة", "قسم داخل المديرية", "الإدارة", "قسم داخل الإدارة", "المنشأة"].index(existing_scope_level), key=f"edit_user_scope_level_{target_user['id']}")
                     edit_user_scope = {"scope_governorate":"", "scope_authority":"", "scope_center":"", "scope_administration":"", "scope_facility":"", "scope_directorate_section":"", "scope_administration_section":""}
                     if edit_scope_level != "كل الهيكل الإداري":
-                        scope_steps = [("authority", "scope_authority", "المديرية / الجهة"), ("directorate_section", "scope_directorate_section", "قسم داخل المديرية"), ("administration", "scope_administration", "الإدارة"), ("administration_section", "scope_administration_section", "قسم داخل الإدارة"), ("facility_name", "scope_facility", "المنشأة")]
-                        scope_current_rows = edit_scope_rows
-                        stop_field = {"المديرية / الجهة":"authority", "قسم داخل المديرية":"directorate_section", "الإدارة":"administration", "قسم داخل الإدارة":"administration_section", "المنشأة":"facility_name"}[edit_scope_level]
-                        for src_field, dst_field, scope_title in scope_steps:
-                            vals = hierarchy_ordered_unique(rr.get(src_field) for rr in scope_current_rows)
-                            if not vals:
-                                break
-                            old_value = str(curr_hierarchy_scope.get(dst_field) or "")
-                            idx = vals.index(old_value) if old_value in vals else 0
-                            chosen_scope_val = st.selectbox(f"{scope_title} المسموح بها:", vals, index=idx, key=f"edit_user_scope_{target_user['id']}_{src_field}")
-                            edit_user_scope[dst_field] = chosen_scope_val
-                            scope_current_rows = [rr for rr in scope_current_rows if str(rr.get(src_field) or "").strip() == chosen_scope_val]
-                            if src_field == stop_field:
-                                break
+                        auth_vals = hierarchy_ordered_unique(rr.get("authority") for rr in edit_scope_rows if rr.get("authority"))
+                        if auth_vals:
+                            old_value = str(curr_hierarchy_scope.get("scope_authority") or "")
+                            idx = auth_vals.index(old_value) if old_value in auth_vals else 0
+                            chosen_auth = st.selectbox("المديرية / الجهة المسموح بها:", auth_vals, index=idx, key=f"edit_user_scope_{target_user['id']}_authority")
+                            edit_user_scope["scope_authority"] = chosen_auth
+                            auth_rows = [rr for rr in edit_scope_rows if str(rr.get("authority") or "").strip() == chosen_auth]
+                            if edit_scope_level == "قسم داخل المديرية":
+                                vals = hierarchy_ordered_unique(rr.get("directorate_section") for rr in auth_rows if rr.get("directorate_section"))
+                                if vals:
+                                    old_value = str(curr_hierarchy_scope.get("scope_directorate_section") or "")
+                                    idx = vals.index(old_value) if old_value in vals else 0
+                                    edit_user_scope["scope_directorate_section"] = st.selectbox("قسم المديرية المسموح به:", vals, index=idx, key=f"edit_user_scope_{target_user['id']}_directorate_section")
+                            elif edit_scope_level in ("الإدارة", "قسم داخل الإدارة", "المنشأة"):
+                                vals = hierarchy_ordered_unique(rr.get("administration") for rr in auth_rows if rr.get("administration"))
+                                if vals:
+                                    old_value = str(curr_hierarchy_scope.get("scope_administration") or "")
+                                    idx = vals.index(old_value) if old_value in vals else 0
+                                    chosen_admin = st.selectbox("الإدارة المسموح بها:", vals, index=idx, key=f"edit_user_scope_{target_user['id']}_administration")
+                                    edit_user_scope["scope_administration"] = chosen_admin
+                                    admin_rows = [rr for rr in auth_rows if str(rr.get("administration") or "").strip() == chosen_admin]
+                                    if edit_scope_level == "قسم داخل الإدارة":
+                                        vals = hierarchy_ordered_unique(rr.get("administration_section") for rr in admin_rows if rr.get("administration_section"))
+                                        if vals:
+                                            old_value = str(curr_hierarchy_scope.get("scope_administration_section") or "")
+                                            idx = vals.index(old_value) if old_value in vals else 0
+                                            edit_user_scope["scope_administration_section"] = st.selectbox("قسم الإدارة المسموح به:", vals, index=idx, key=f"edit_user_scope_{target_user['id']}_administration_section")
+                                    elif edit_scope_level == "المنشأة":
+                                        vals = hierarchy_ordered_unique(rr.get("facility_name") for rr in admin_rows if rr.get("facility_name"))
+                                        if vals:
+                                            old_value = str(curr_hierarchy_scope.get("scope_facility") or "")
+                                            idx = vals.index(old_value) if old_value in vals else 0
+                                            edit_user_scope["scope_facility"] = st.selectbox("المنشأة المسموح بها:", vals, index=idx, key=f"edit_user_scope_{target_user['id']}_facility")
                     with st.form(f"edit_user_perms_{target_user['id']}", clear_on_submit=True):
                         st.markdown("#### صلاحيات الأقسام والتبويبات الداخلية")
                         edit_checkboxes = {}
