@@ -878,7 +878,8 @@ def init_db():
                 professions_list_json TEXT NOT NULL DEFAULT '[]',
                 cert_box_inset TEXT NOT NULL DEFAULT '13mm',
                 cert_hierarchy_json TEXT NOT NULL DEFAULT '{}',
-                report_hierarchy_json TEXT NOT NULL DEFAULT '{}'
+                report_hierarchy_json TEXT NOT NULL DEFAULT '{}',
+                paper_print_settings_json TEXT NOT NULL DEFAULT '{}'
             );
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -969,6 +970,7 @@ def init_db():
         ("print_settings", "cert_trainee_extra", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "cert_facility_extra", "TEXT NOT NULL DEFAULT ''"),
         ("print_settings", "cert_facility_section", "TEXT NOT NULL DEFAULT ''"),
+        ("print_settings", "paper_print_settings_json", "TEXT NOT NULL DEFAULT '{}'"),
         ("training_minutes", "training_items", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_goals", "TEXT NOT NULL DEFAULT ''"),
         ("training_minutes", "training_date", "TEXT NOT NULL DEFAULT ''"),
@@ -1129,6 +1131,43 @@ def sync_normalized_hierarchy():
 
 sync_normalized_hierarchy()
 
+def default_paper_print_settings():
+    """Independent, safe print profiles for each document family."""
+    return {
+        "reports": {"paper": "A4", "orientation": "landscape", "top": 27, "right": 8, "bottom": 18, "left": 8, "font_size": 9, "line_spacing": 1.15},
+        "action_plans": {"paper": "A4", "orientation": "landscape", "top": 27, "right": 8, "bottom": 18, "left": 8, "font_size": 9, "line_spacing": 1.15},
+        "training_minutes": {"paper": "A4", "orientation": "landscape", "top": 27, "right": 8, "bottom": 18, "left": 8, "font_size": 9, "line_spacing": 1.15},
+        "exam_templates": {"paper": "A4", "orientation": "portrait", "top": 12, "right": 8, "bottom": 16, "left": 8, "font_size": 9, "line_spacing": 1.1},
+        "answer_sheets": {"paper": "A4", "orientation": "landscape", "top": 12, "right": 8, "bottom": 16, "left": 8, "font_size": 10, "line_spacing": 1.2},
+        "trainee_database": {"paper": "A4", "orientation": "landscape", "top": 12, "right": 8, "bottom": 16, "left": 8, "font_size": 8, "line_spacing": 1.1},
+    }
+
+
+def normalized_paper_print_settings(raw=None):
+    defaults = default_paper_print_settings()
+    try:
+        supplied = json.loads(raw or "{}") if isinstance(raw, str) else (raw or {})
+    except Exception:
+        supplied = {}
+    if not isinstance(supplied, dict):
+        supplied = {}
+    for key, base in defaults.items():
+        value = supplied.get(key, {})
+        if not isinstance(value, dict):
+            value = {}
+        merged = dict(base)
+        merged.update({k: value[k] for k in base if k in value})
+        merged["paper"] = merged["paper"] if merged["paper"] in ("A4", "A3", "Letter") else base["paper"]
+        merged["orientation"] = merged["orientation"] if merged["orientation"] in ("portrait", "landscape") else base["orientation"]
+        for k, low, high in (("top", 0, 50), ("right", 0, 30), ("bottom", 0, 50), ("left", 0, 30), ("font_size", 6, 18), ("line_spacing", 0.8, 3.0)):
+            try:
+                merged[k] = min(high, max(low, float(merged[k])))
+            except Exception:
+                merged[k] = base[k]
+        defaults[key] = merged
+    return defaults
+
+
 def get_print_settings():
     with db() as c:
         row = c.execute("SELECT * FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
@@ -1140,6 +1179,7 @@ def get_print_settings():
                 res["professions_list"] = ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
             if "line_spacing" not in res or res["line_spacing"] is None:
                 res["line_spacing"] = 1.10
+            res["paper_print_settings"] = normalized_paper_print_settings(res.get("paper_print_settings_json", "{}"))
             return res
     return {
         "header_text": "جمهورية مصر العربية<br>وزارة الصحة والسكان<br>مديرية الشئون الصحية بالشرقية<br>الإدارة الصحية بأولاد صقر",
@@ -1148,6 +1188,7 @@ def get_print_settings():
         "margin_right": "8mm",
         "margin_left": "8mm",
         "line_spacing": 1.10,
+        "paper_print_settings": default_paper_print_settings(),
         "logo_base64": DEFAULT_LOGO,
         "logo2_base64": "",
         "logo3_base64": "",
@@ -1161,9 +1202,10 @@ def get_print_settings():
         "professions_list": ["أخصائي الأمراض المتوطنة", "طبيب بيطري", "أخصائي ميكروبيولوجي", "فني صحي متوطنة", "فني تمريض", "مسؤول وحدة متوطنة", "مراقب صحي", "أخصائي پاراتاسيتولوجي (طفيليات متوطنة)"]
     }
 
-def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None, cert_facility_section=None, cert_hierarchy=None, report_hierarchy=None):
+def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, professions_list, cert_box_inset="13mm", cert_trainee_extra=None, cert_facility_extra=None, cert_facility_section=None, cert_hierarchy=None, report_hierarchy=None, paper_print_settings=None):
     with db() as c:
-        old_cert = c.execute("SELECT cert_trainee_extra, cert_facility_extra, cert_facility_section FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
+        old_settings = c.execute("SELECT * FROM print_settings ORDER BY id DESC LIMIT 1").fetchone()
+        old_cert = old_settings
         if cert_trainee_extra is None:
             cert_trainee_extra = old_cert["cert_trainee_extra"] if old_cert and "cert_trainee_extra" in old_cert.keys() else ""
         if cert_facility_extra is None:
@@ -1180,9 +1222,15 @@ def save_print_settings(h_text, m_top, m_bot, m_right, m_left, line_spacing, log
             report_hierarchy = old_report_hierarchy["report_hierarchy_json"] if old_report_hierarchy and "report_hierarchy_json" in old_report_hierarchy.keys() else "{}"
         elif not isinstance(report_hierarchy, str):
             report_hierarchy = json.dumps(report_hierarchy, ensure_ascii=False)
+        if paper_print_settings is None:
+            old_paper_json = old_settings["paper_print_settings_json"] if old_settings and "paper_print_settings_json" in old_settings.keys() else "{}"
+            paper_print_settings = normalized_paper_print_settings(old_paper_json)
+        else:
+            paper_print_settings = normalized_paper_print_settings(paper_print_settings)
+        paper_json = json.dumps(paper_print_settings, ensure_ascii=False)
         c.execute("DELETE FROM print_settings")
-        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset, cert_hierarchy_json, report_hierarchy_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}", report_hierarchy or "{}"))
+        c.execute("INSERT INTO print_settings(header_text, margin_top, margin_bottom, margin_right, margin_left, line_spacing, logo_base64, logo2_base64, logo3_base64, bg_base64, frame_base64, default_cert_title, default_cert_notes, trainee_prefix, trainee_title, trainee_profession, professions_list_json, cert_box_inset, cert_hierarchy_json, report_hierarchy_json, paper_print_settings_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (h_text, m_top, "auto", m_right, m_left, float(line_spacing), logo_data, logo2_data, logo3_data, bg_data, frame_data, def_title, def_notes, trainee_prefix, trainee_title, trainee_profession, json.dumps(professions_list, ensure_ascii=False), cert_box_inset, cert_hierarchy or "{}", report_hierarchy or "{}", paper_json))
         c.execute("UPDATE print_settings SET cert_trainee_extra=?, cert_facility_extra=?, cert_facility_section=? WHERE id=(SELECT MAX(id) FROM print_settings)", (cert_trainee_extra or "", cert_facility_extra or "", cert_facility_section or ""))
 
 def hierarchy_ordered_unique(values):
@@ -2488,8 +2536,21 @@ def generate_staff_signature_table_html(scope=None, title="كشف العاملي
 def generate_general_report_html(title, content_html, target_pages=1, header_text=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = hierarchy_margin_html(st.session_state.get("_last_hierarchy_scope", {}))
-    roster_html = generate_staff_signature_table_html(st.session_state.get("_last_hierarchy_scope", {}))
+    report_scope = st.session_state.get("_last_hierarchy_scope", {})
+    if not isinstance(report_scope, dict) or not any(str(v or "").strip() for v in report_scope.values()):
+        try:
+            report_scope = json.loads(sett.get("report_hierarchy_json", "{}") or "{}")
+        except Exception:
+            report_scope = {}
+    has_report_scope = isinstance(report_scope, dict) and any(str(v or "").strip() for v in report_scope.values())
+    if has_report_scope:
+        header_right_text = hierarchy_margin_html(report_scope)
+    else:
+        manual_header = header_text or sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان")
+        header_right_text = '<div class="admin-top-margin">' + str(manual_header) + '</div>'
+    target_name = str((report_scope or {}).get("scope_facility") or (report_scope or {}).get("facility_name") or "").strip() if has_report_scope else ""
+    target_html = '<div class="print-target-facility" style="text-align:right;font-size:8.5pt;font-weight:bold;color:#065f46;margin:1mm 0 2mm 0;">المنشأة المستهدفة: ' + esc(target_name) + '</div>' if target_name else ""
+    roster_html = generate_staff_signature_table_html(report_scope if has_report_scope else {})
     printable_content = content_html + roster_html
     return f"""
     <!DOCTYPE html>
@@ -2513,6 +2574,7 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
     <div class="report-wrapper">
         {header_right_text}
         <h2>{esc(title)}</h2>
+        {target_html}
         <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {printable_content}
     </div>
@@ -2523,8 +2585,16 @@ def generate_general_report_html(title, content_html, target_pages=1, header_tex
 def generate_action_plan_report_html(title, content_html, target_pages=1, header_text=None, hierarchy_scope=None):
     sett = get_print_settings()
     line_sp = sett.get("line_spacing", 1.25)
-    header_right_text = hierarchy_margin_html(hierarchy_scope or st.session_state.get("_last_hierarchy_scope", {}))
-    roster_html = generate_staff_signature_table_html(hierarchy_scope or {})
+    plan_scope = hierarchy_scope or st.session_state.get("_last_hierarchy_scope", {}) or {}
+    has_plan_scope = isinstance(plan_scope, dict) and any(str(v or "").strip() for v in plan_scope.values())
+    if has_plan_scope:
+        header_right_text = hierarchy_margin_html(plan_scope)
+    else:
+        manual_header = header_text or sett.get("header_text", "جمهورية مصر العربية<br>وزارة الصحة والسكان")
+        header_right_text = '<div class="admin-top-margin">' + str(manual_header) + '</div>'
+    target_name = str((plan_scope or {}).get("scope_facility") or (plan_scope or {}).get("facility_name") or "").strip() if has_plan_scope else ""
+    target_html = '<div class="print-target-facility" style="text-align:right;font-size:8.5pt;font-weight:bold;color:#065f46;margin:1mm 0 2mm 0;">المنشأة المستهدفة: ' + esc(target_name) + '</div>' if target_name else ""
+    roster_html = generate_staff_signature_table_html(plan_scope if has_plan_scope else {})
     printable_content = content_html + roster_html
     return f"""
     <!DOCTYPE html>
@@ -2543,6 +2613,7 @@ def generate_action_plan_report_html(title, content_html, target_pages=1, header
     <div class="report-wrapper">
         {header_right_text}
         <h2>{esc(title)}</h2>
+        {target_html}
         <div style="text-align: left; font-size: 7.5pt; color: #6b7280; margin-bottom: 2px;">تاريخ الإصدار: {now_cairo().strftime('%Y-%m-%d %I:%M %p')}</div>
         {printable_content}
     </div>
@@ -2635,9 +2706,31 @@ def render_print_button_only(html_content, label_prefix=""):
 
 
     label_lower = str(label_prefix or "").lower()
-    portrait_terms = ("نموذج امتحان", "نماذج الامتحان", "نموذج إجابة الامتحان", "محضر تدريب", "خطة عمل")
-    chosen_orient = "رأسي (Portrait)" if any(term in label_prefix for term in portrait_terms) else "أفقي (Landscape)"
-    page_orientation = "portrait" if chosen_orient.startswith("رأسي") else "landscape"
+    paper_profiles = normalized_paper_print_settings(print_sett.get("paper_print_settings_json", print_sett.get("paper_print_settings", {})))
+    if is_cert:
+        profile_key = "certificates"
+    elif "نموذج امتحان" in label_prefix or "نماذج الامتحان" in label_prefix:
+        profile_key = "exam_templates"
+    elif "محضر تدريب" in label_prefix:
+        profile_key = "training_minutes"
+    elif "خطة عمل" in label_prefix:
+        profile_key = "action_plans"
+    elif "قاعدة بيانات المتدربين" in label_prefix:
+        profile_key = "trainee_database"
+    elif any(term in label_prefix for term in ("نموذج إجابة الامتحان", "تقرير نتيجة الممتحن", "نتائج جميع الممتحنين")):
+        profile_key = "answer_sheets"
+    else:
+        profile_key = "reports"
+    profile = paper_profiles.get(profile_key, default_paper_print_settings()["reports"])
+    page_orientation = profile.get("orientation", "landscape")
+    chosen_orient = "رأسي (Portrait)" if page_orientation == "portrait" else "أفقي (Landscape)"
+    page_size = profile.get("paper", "A4")
+    m_top = f'{profile.get("top", 12)}mm'
+    m_right = f'{profile.get("right", 8)}mm'
+    m_bottom = f'{profile.get("bottom", 16)}mm'
+    m_left = f'{profile.get("left", 8)}mm'
+    font_size = profile.get("font_size", 9)
+    profile_line_spacing = profile.get("line_spacing", print_sett.get("line_spacing", 1.15))
     
     if is_cert:
         repeated_print_css = """
@@ -2667,25 +2760,21 @@ def render_print_button_only(html_content, label_prefix=""):
         </style>
         """
     else:
-        m_top = "12mm"
-        m_right = "8mm"
-        m_left = "8mm"
-
-
         repeated_print_css = f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
         html, body, body * {{
             font-family: 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', serif !important;
         }}
-        html, body {{ font-size: 11pt; }}
-        body {{ line-height: 1.35; }}
-        p, li {{ font-size: 10.5pt; }}
-        table {{ font-size: 9.5pt; }}
-        th, td {{ line-height: 1.25; }}
+        html, body {{ font-size: {font_size}pt !important; }}
+        body {{ line-height: {profile_line_spacing} !important; }}
+        p, li {{ font-size: {max(7, font_size - 0.5)}pt; }}
+        table {{ font-size: {max(7, font_size - 0.5)}pt; }}
+        th, td {{ line-height: {profile_line_spacing}; }}
+        .report-wrapper {{ width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }}
         @page {{
-            size: A4 {page_orientation};
-            margin: {m_top} {m_right} 16mm {m_left} !important;
+            size: {page_size} {page_orientation};
+            margin: {m_top} {m_right} {m_bottom} {m_left} !important;
         }}
         @media print {{
             html, body {{
@@ -2831,7 +2920,7 @@ def render_print_button_only(html_content, label_prefix=""):
     js_code = """
     <div style="margin: 4px 0;">
         <button onclick="printDoc()" style="width: 100%; background-color: #059669; color: white; padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13pt;">
-            🖨 طباعة / حفظ المستند (A4 """ + chosen_orient + """ - """ + label_prefix + """)
+            🖨 طباعة / حفظ المستند (""" + page_size + """ """ + chosen_orient + """ - """ + label_prefix + """)
         </button>
     </div>
     <script>
@@ -3118,24 +3207,48 @@ def login_portal():
                 st.warning("⚠ لا توجد بيانات مسجلة في الهيكل الإداري حالياً. يرجى إضافتها من لوحة التحكم أولاً.")
                 facility_final_str = ""
             else:
-                auth_codes, _dir_section_codes, admin_codes, _admin_section_codes, facility_codes = hierarchy_level_codes(hier_data)
+                auth_codes, dir_section_codes, admin_codes, admin_section_codes, facility_codes = hierarchy_level_codes(hier_data)
+                placeholder_auth = "-- اختر المديرية / الجهة --"
+                placeholder_ds = "-- اختر قسم المديرية --"
+                placeholder_admin = "-- اختر الإدارة --"
+                placeholder_as = "-- اختر قسم الإدارة --"
+                placeholder_fac = "-- اختر المنشأة --"
                 auths_list = hierarchy_ordered_unique(item.get("authority") for item in hier_data if item.get("authority"))
-                auth_labels = {name: f"{name} (كود المديرية: {auth_codes[name]})" for name in auths_list}
-                sel_auth = st.selectbox("المديرية / الجهة:", ["-- اختر المديرية / الجهة --"] + auths_list, format_func=lambda value: value if value == "-- اختر المديرية / الجهة --" else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
-                rows_auth = [item for item in hier_data if sel_auth != "-- اختر المديرية / الجهة --" and str(item.get("authority") or "").strip() == sel_auth]
+                auth_labels = {name: f"{name} (كود المديرية: {auth_codes.get(name, '')})" for name in auths_list}
+                sel_auth = st.selectbox("المديرية / الجهة:", [placeholder_auth] + auths_list, format_func=lambda value: value if value == placeholder_auth else auth_labels[value], key="reg_authority", on_change=_reset_reg_admin_and_facility)
+                rows_auth = [item for item in hier_data if sel_auth != placeholder_auth and str(item.get("authority") or "").strip() == sel_auth]
 
+                dir_sections_list = hierarchy_ordered_unique(item.get("directorate_section") for item in rows_auth if item.get("directorate_section"))
+                if dir_sections_list:
+                    dir_section_labels = {name: f"{name} (كود القسم: {dir_section_codes.get((sel_auth, name), '')})" for name in dir_sections_list}
+                    sel_dir_section = st.selectbox("قسم المديرية:", [placeholder_ds] + dir_sections_list, format_func=lambda value: value if value == placeholder_ds else dir_section_labels[value], key="reg_directorate_section", disabled=not bool(rows_auth))
+                    rows_auth = [item for item in rows_auth if sel_dir_section != placeholder_ds and str(item.get("directorate_section") or "").strip() == sel_dir_section]
+                else:
+                    sel_dir_section = ""
 
                 admins_list = hierarchy_ordered_unique(item.get("administration") for item in rows_auth if item.get("administration"))
                 admin_labels = {name: f"{name} (كود الإدارة: {admin_codes.get((sel_auth, name), '')})" for name in admins_list}
-                sel_admin = st.selectbox("الإدارة:", ["-- اختر الإدارة --"] + admins_list, format_func=lambda value: value if value == "-- اختر الإدارة --" else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
-                rows_admin = [item for item in rows_auth if sel_admin != "-- اختر الإدارة --" and str(item.get("administration") or "").strip() == sel_admin]
+                sel_admin = st.selectbox("الإدارة:", [placeholder_admin] + admins_list, format_func=lambda value: value if value == placeholder_admin else admin_labels[value], key="reg_administration", disabled=not bool(rows_auth), on_change=_reset_reg_facility)
+                rows_admin = [item for item in rows_auth if sel_admin != placeholder_admin and str(item.get("administration") or "").strip() == sel_admin]
 
+                admin_sections_list = hierarchy_ordered_unique(item.get("administration_section") for item in rows_admin if item.get("administration_section"))
+                if admin_sections_list:
+                    admin_section_labels = {name: f"{name} (كود القسم: {admin_section_codes.get((sel_auth, sel_admin, name), '')})" for name in admin_sections_list}
+                    sel_admin_section = st.selectbox("قسم الإدارة:", [placeholder_as] + admin_sections_list, format_func=lambda value: value if value == placeholder_as else admin_section_labels[value], key="reg_administration_section", disabled=not bool(rows_admin))
+                    rows_admin = [item for item in rows_admin if sel_admin_section != placeholder_as and str(item.get("administration_section") or "").strip() == sel_admin_section]
+                else:
+                    sel_admin_section = ""
 
                 facilities_list = hierarchy_ordered_unique(item.get("facility_name") for item in rows_admin if item.get("facility_name"))
                 facility_labels = {name: f"{name} (كود المنشأة: {facility_codes.get((sel_auth, sel_admin, name), '')})" for name in facilities_list}
-                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", ["-- اختر المنشأة --"] + facilities_list, format_func=lambda value: value if value == "-- اختر المنشأة --" else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
-                hierarchy_parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان", sel_auth, sel_admin, sel_fac]
-                facility_final_str = " - ".join(str(part).strip() for part in hierarchy_parts if str(part or "").strip() and str(part).strip() not in {"-- اختر المديرية / الجهة --", "-- اختر الإدارة --", "-- اختر المنشأة --"}) if sel_auth != "-- اختر المديرية / الجهة --" and sel_admin != "-- اختر الإدارة --" and sel_fac != "-- اختر المنشأة --" else ""
+                sel_fac = st.selectbox("المنشأة / وحدة الأمراض المتوطنة:", [placeholder_fac] + facilities_list, format_func=lambda value: value if value == placeholder_fac else facility_labels[value], key="reg_facility", disabled=not bool(rows_admin))
+                hierarchy_parts = ["جمهورية مصر العربية", "وزارة الصحة والسكان", sel_auth, sel_dir_section, sel_admin, sel_admin_section, sel_fac]
+                required_parts = (sel_auth != placeholder_auth and sel_admin != placeholder_admin and sel_fac != placeholder_fac)
+                if dir_sections_list:
+                    required_parts = required_parts and sel_dir_section != placeholder_ds
+                if admin_sections_list:
+                    required_parts = required_parts and sel_admin_section != placeholder_as
+                facility_final_str = " - ".join(str(part).strip() for part in hierarchy_parts if str(part or "").strip() and str(part).strip() not in {placeholder_auth, placeholder_ds, placeholder_admin, placeholder_as, placeholder_fac}) if required_parts else ""
             with st.form("trainee_first_registration", clear_on_submit=True):
                 name = st.text_input("الاسم الرباعي:")
                 national_id = st.text_input("الرقم القومي:", max_chars=14, help="يجب أن يكون 14 رقماً.")
@@ -3532,8 +3645,37 @@ def admin_dashboard():
             report_hierarchy_label = st.selectbox("اختر الجهة / الإدارة / المنشأة لتظهر تلقائيًا في ترويسة التقارير:", list(hierarchy_options_for_reports.keys()), index=list(hierarchy_options_for_reports.keys()).index(saved_report_label), help="عند اختيار مستوى إداري سيتم إنشاء الترويسة تلقائيًا وإظهار المنشأة المستهدفة إذا كانت محددة.")
             report_hierarchy_val = hierarchy_options_for_reports[report_hierarchy_label]
             header_text_val = st.text_area("نص الترويسة اليدوي (يُستخدم عند اختيار بدون تحديد فقط):", value=current_set.get("header_text", "جمهورية مصر العربية"), help="إذا اخترت جهة من القائمة أعلاه، فسيتم إنشاء الترويسة تلقائيًا بدلًا من هذا النص.")
-            st.info("📐 تم ضبط هوامش الطباعة تلقائياً حسب مقاس A4، ولا تحتاج إلى تعديل يدوي.")
-            line_spacing_val = st.number_input("المسافة بين الأسطر:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
+            st.markdown("#### ⚙️ إعدادات مستقلة لكل نوع ورقة")
+            st.caption("الإعدادات التالية تُحفظ لكل نوع مستند على حدة، وتُطبّق عند الطباعة دون تغيير تصميم الشهادات.")
+            paper_profiles = normalized_paper_print_settings(current_set.get("paper_print_settings_json", current_set.get("paper_print_settings", {})))
+            profile_labels = {
+                "reports": "التقارير العامة",
+                "action_plans": "خطط العمل",
+                "training_minutes": "محاضر التدريب",
+                "exam_templates": "نماذج الامتحانات",
+                "answer_sheets": "نماذج الإجابة ونتائج الممتحنين",
+                "trainee_database": "كشف قاعدة بيانات المتدربين",
+            }
+            profile_tabs = st.tabs(list(profile_labels.values()))
+            for _tab, (_profile_key, _profile_label) in zip(profile_tabs, profile_labels.items()):
+                with _tab:
+                    _cfg = paper_profiles[_profile_key]
+                    _c1, _c2, _c3 = st.columns(3)
+                    with _c1:
+                        paper_profiles[_profile_key]["paper"] = st.selectbox("مقاس الورق", ["A4", "A3", "Letter"], index=["A4", "A3", "Letter"].index(_cfg["paper"]), key=f"print_{_profile_key}_paper")
+                        paper_profiles[_profile_key]["orientation"] = st.selectbox("اتجاه الورق", ["landscape", "portrait"], index=["landscape", "portrait"].index(_cfg["orientation"]), format_func=lambda x: "أفقي" if x == "landscape" else "رأسي", key=f"print_{_profile_key}_orientation")
+                    with _c2:
+                        paper_profiles[_profile_key]["top"] = st.number_input("الهامش العلوي (مم)", min_value=0.0, max_value=50.0, value=float(_cfg["top"]), step=1.0, key=f"print_{_profile_key}_top")
+                        paper_profiles[_profile_key]["bottom"] = st.number_input("الهامش السفلي (مم)", min_value=0.0, max_value=50.0, value=float(_cfg["bottom"]), step=1.0, key=f"print_{_profile_key}_bottom")
+                    with _c3:
+                        paper_profiles[_profile_key]["right"] = st.number_input("الهامش الأيمن (مم)", min_value=0.0, max_value=30.0, value=float(_cfg["right"]), step=1.0, key=f"print_{_profile_key}_right")
+                        paper_profiles[_profile_key]["left"] = st.number_input("الهامش الأيسر (مم)", min_value=0.0, max_value=30.0, value=float(_cfg["left"]), step=1.0, key=f"print_{_profile_key}_left")
+                    _c4, _c5 = st.columns(2)
+                    with _c4:
+                        paper_profiles[_profile_key]["font_size"] = st.number_input("حجم الخط (نقطة)", min_value=6.0, max_value=18.0, value=float(_cfg["font_size"]), step=0.5, key=f"print_{_profile_key}_font")
+                    with _c5:
+                        paper_profiles[_profile_key]["line_spacing"] = st.number_input("تباعد الأسطر", min_value=0.8, max_value=3.0, value=float(_cfg["line_spacing"]), step=0.05, key=f"print_{_profile_key}_line")
+            line_spacing_val = st.number_input("تباعد الأسطر الأساسي للمستندات غير المحدد لها ملف خاص:", min_value=0.8, max_value=3.0, value=float(current_set.get("line_spacing", 1.25)), step=0.05)
             st.markdown("#### 🖼 رفع الصور والشعارات لترويسة التقارير:")
             col_logo1, col_logo2, col_logo3 = st.columns(3)
             with col_logo1:
@@ -3573,7 +3715,7 @@ def admin_dashboard():
                     current_set.get("bg_base64", ""), current_set.get("frame_base64", ""),
                     current_set["default_cert_title"], current_set["default_cert_notes"],
                     current_set["trainee_prefix"], current_set["trainee_title"], current_set["trainee_profession"],
-                    current_set.get("professions_list", []), cert_hierarchy=current_set.get("cert_hierarchy_json", "{}"), report_hierarchy=report_hierarchy_val
+                    current_set.get("professions_list", []), cert_hierarchy=current_set.get("cert_hierarchy_json", "{}"), report_hierarchy=report_hierarchy_val, paper_print_settings=paper_profiles
                 )
                 st.success("✅ تم حفظ إعدادات الطباعة والترويسة الإدارية بنجاح!")
                 st.rerun()
