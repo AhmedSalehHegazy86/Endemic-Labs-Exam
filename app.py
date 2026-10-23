@@ -11029,51 +11029,136 @@ def exam_interface(session_id):
 
 
 
+
 if st.session_state.get("show_verification_portal", False):
     verification_portal_view()
+
     if st.button("🔙 العودة للبوابة الرئيسية"):
         st.session_state.show_verification_portal = False
         st.rerun()
+
 elif st.session_state.get("exam_session_id"):
     exam_interface(st.session_state.exam_session_id)
-elif st.session_state.trainee_id and not st.session_state.logged_in:
+
+elif st.session_state.get("trainee_id") and not st.session_state.get("logged_in", False):
     if st.session_state.get("last_result_id"):
         sid = st.session_state.last_result_id
+
         try:
             enforce_session_access_or_raise(sid)
         except PermissionError:
             st.session_state.last_result_id = None
             st.error("لا يمكنك الوصول إلى نتيجة تخص متدربًا آخر.")
             st.stop()
+
         header()
+
         with db() as c:
-            result_row = c.execute("SELECT s.*, t.name trainee_name, e.duration_minutes FROM exam_sessions s JOIN trainees t ON t.id=s.trainee_id LEFT JOIN exam_templates e ON e.id=s.template_id WHERE s.id=?", (int(sid),)).fetchone()
+            result_row = c.execute(
+                """
+                SELECT s.*, t.name AS trainee_name, e.duration_minutes
+                FROM exam_sessions s
+                JOIN trainees t ON t.id = s.trainee_id
+                LEFT JOIN exam_templates e ON e.id = s.template_id
+                WHERE s.id = ?
+                """,
+                (int(sid),)
+            ).fetchone()
+
         if not result_row:
             st.error("تعذر العثور على نتيجة الاختبار.")
             st.stop()
+
         if int(result_row["passed"] or 0) == 1:
-            st.success(f"🎉 ألف مبروك يا {esc(result_row['trainee_name'])}! لقد اجتزت الاختبار بنجاح.")
+            st.success(
+                f"🎉 ألف مبروك يا {esc(result_row['trainee_name'])}! "
+                "لقد اجتزت الاختبار بنجاح."
+            )
             st.balloons()
         else:
-            st.warning(f"💪 حظ أوفر المرة القادمة يا {esc(result_row['trainee_name'])}. لا تيأس، واصل التعلم والمحاولة.")
-        st.caption("تم تسليم الاختبار أو اعتماده تلقائيًا عند انتهاء الوقت. نموذج الامتحان التالي للعرض فقط، ولن يؤثر على النتيجة.")
-        components.html("""<script>(function(){try{const d=window.parent.document;d.addEventListener('contextmenu',e=>e.preventDefault(),true);d.addEventListener('copy',e=>e.preventDefault(),true);d.addEventListener('cut',e=>e.preventDefault(),true);d.addEventListener('selectstart',e=>e.preventDefault(),true);d.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['c','x','s','p','u','a'].includes((e.key||'').toLowerCase()))e.preventDefault();if(e.key==='PrintScreen')e.preventDefault();},true);const st=d.createElement('style');st.textContent='body{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}';d.head.appendChild(st);}catch(e){}})();</script>""", height=0)
+            st.warning(
+                f"💪 حظ أوفر المرة القادمة يا "
+                f"{esc(result_row['trainee_name'])}. "
+                "لا تيأس، واصل التعلم والمحاولة."
+            )
+
+        st.caption(
+            "تم تسليم الاختبار أو اعتماده تلقائيًا عند انتهاء الوقت. "
+            "نموذج الامتحان التالي للعرض فقط، ولن يؤثر على النتيجة."
+        )
+
+        components.html(
+            """<script>
+            (function() {
+                try {
+                    const d = window.parent.document;
+                    d.addEventListener('contextmenu', e => e.preventDefault(), true);
+                    d.addEventListener('copy', e => e.preventDefault(), true);
+                    d.addEventListener('cut', e => e.preventDefault(), true);
+                    d.addEventListener('selectstart', e => e.preventDefault(), true);
+                    d.addEventListener('keydown', e => {
+                        if ((e.ctrlKey || e.metaKey) &&
+                            ['c','x','s','p','u','a'].includes(
+                                (e.key || '').toLowerCase()
+                            )) {
+                            e.preventDefault();
+                        }
+                        if (e.key === 'PrintScreen') e.preventDefault();
+                    }, true);
+
+                    const st = d.createElement('style');
+                    st.textContent =
+                        'body{-webkit-user-select:none!important;' +
+                        'user-select:none!important;' +
+                        '-webkit-touch-callout:none!important}';
+                    d.head.appendChild(st);
+                } catch (e) {}
+            })();
+            </script>""",
+            height=0
+        )
+
         render_readonly_trainee_exam_review(sid)
+
+        score = float(result_row["score"] or 0)
+        max_score = float(result_row["max_score"] or 0)
+        percent = float(result_row["percent"] or 0)
+
         st.markdown(
-            f"<div style='border:3px solid #0e7490;border-radius:16px;padding:22px;margin:18px 0;text-align:center;background:linear-gradient(135deg,#ecfeff,#cffafe;color:#164e63'>"
-            f"<div style='font-size:22px;font-weight:900'>النتيجة النهائية</div>"
-            f"<div style='font-size:30px;font-weight:900;margin:8px 0'>{float(result_row['score'] or 0):g} / {float(result_row['max_score'] or 0):g}</div>"
-            f"<div style='font-size:22px;font-weight:800'>النسبة: {float(result_row['percent'] or 0):.1f}%</div></div>",
+            f"""
+            <div style="
+                border:3px solid #0e7490;
+                border-radius:16px;
+                padding:22px;
+                margin:18px 0;
+                text-align:center;
+                background:linear-gradient(135deg,#ecfeff,#cffafe);
+                color:#164e63;
+            ">
+                <div style="font-size:22px;font-weight:900">
+                    النتيجة النهائية
+                </div>
+                <div style="font-size:30px;font-weight:900;margin:8px 0">
+                    {score:g} / {max_score:g}
+                </div>
+                <div style="font-size:22px;font-weight:800">
+                    النسبة: {percent:.1f}%
+                </div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-        if st.button("العودة للرئيسية"):
 
+        if st.button("العودة للرئيسية"):
             st.session_state.trainee_id = ""
             st.session_state.last_result_id = None
             st.rerun()
+
     else:
         trainee_portal()
-elif not st.session_state.logged_in:
+
+elif not st.session_state.get("logged_in", False):
     login_portal()
+
 else:
     admin_dashboard()
