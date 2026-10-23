@@ -1,0 +1,10 @@
+streamlit>=1.40
+pandas>=2.0
+reportlab>=4.0
+arabic-reshaper>=3.0
+python-bidi>=0.4
+openpyxl>=3.1
+qrcode[pil]
+pillow
+psycopg[binary]>=3.2
+psycopg-pool>=3.2
