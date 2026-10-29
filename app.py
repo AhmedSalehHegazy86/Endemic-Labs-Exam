@@ -6967,11 +6967,17 @@ def _admin_dashboard_impl():
                     trainee_scope_sql, trainee_scope_args = hierarchy_filter_for_trainees(cert_scope, "t")
                     combined_scope_sql = f"(({cert_scope_sql}) OR ({trainee_scope_sql}))"
                     combined_scope_args = tuple(cert_scope_args) + tuple(trainee_scope_args)
-                    with db() as c:
+                with db() as c:
                         all_facilities_list = [row[0] for row in c.execute(
-                            f"SELECT DISTINCT t.facility FROM trainees t WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {combined_scope_sql} ORDER BY t.facility",
+                            f"""SELECT DISTINCT t.facility 
+                                FROM exam_sessions s
+                                JOIN trainees t ON t.id=s.trainee_id
+                                LEFT JOIN exam_templates e ON e.id=s.template_id
+                                WHERE s.status='submitted' AND t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {combined_scope_sql} 
+                                ORDER BY t.facility""",
                             combined_scope_args
                         ).fetchall()]
+                        
                         sessions_full_list = c.execute("""SELECT DISTINCT s.id, t.name trainee_name, t.facility, t.profession trainee_profession,
                             s.score, s.max_score, s.percent, s.passed, e.name as tpl_name, e.exam_type
                             FROM exam_sessions s
