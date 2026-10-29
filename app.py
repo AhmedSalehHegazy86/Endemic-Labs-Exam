@@ -6959,26 +6959,24 @@ def _admin_dashboard_impl():
                 if cert_scope.get("_scope_denied"):
                     st.info("اختر الهيكل الإداري أولًا لعرض المتدربين والنتائج وخيارات طباعة الشهادات. ستظل البيانات فارغة حتى تحديد النطاق.")
                 else:
-                                        cert_scope_sql, cert_scope_args = hierarchy_scope_sql("h", cert_scope)
+                    cert_scope_sql, cert_scope_args = hierarchy_scope_sql("h", cert_scope)
 
-                    # Support both legacy facility-only records and full hierarchy paths.
-                    trainee_scope_sql, trainee_scope_args = hierarchy_filter_for_trainees(
-                        cert_scope, "t"
-                    )
+                    # Support both legacy records and full hierarchy paths.
+                    trainee_scope_sql, trainee_scope_args = hierarchy_filter_for_trainees(cert_scope, "t")
 
-                    # Fix: alias h must be defined inside the query using it.
                     hierarchy_match_sql = (
                         "EXISTS (SELECT 1 FROM hierarchical_facilities h "
                         f"WHERE h.facility_name = t.facility AND ({cert_scope_sql}))"
                     )
 
-                    combined_scope_sql = (
-                        f"(({hierarchy_match_sql}) OR ({trainee_scope_sql}))"
-                    )
+                    combined_scope_sql = f"(({hierarchy_match_sql}) OR ({trainee_scope_sql}))"
+                    combined_scope_args = tuple(cert_scope_args) + tuple(trainee_scope_args)
 
-                    combined_scope_args = (
-                        tuple(cert_scope_args) + tuple(trainee_scope_args)
-                    )
+                    with db() as c:
+                        all_facilities_list = [row[0] for row in c.execute(
+                            f"SELECT DISTINCT t.facility FROM trainees t WHERE t.facility IS NOT NULL AND t.facility != '' AND t.hidden=0 AND {combined_scope_sql} ORDER BY t.facility",
+                            combined_scope_args
+                        ).fetchall()]
                     with db() as c:
                         all_facilities_list = [row[0] for row in c.execute(
                             f"""SELECT DISTINCT t.facility 
