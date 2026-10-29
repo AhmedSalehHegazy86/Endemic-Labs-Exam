@@ -6967,7 +6967,7 @@ def _admin_dashboard_impl():
                     trainee_scope_sql, trainee_scope_args = hierarchy_filter_for_trainees(cert_scope, "t")
                     combined_scope_sql = f"(({cert_scope_sql}) OR ({trainee_scope_sql}))"
                     combined_scope_args = tuple(cert_scope_args) + tuple(trainee_scope_args)
-                with db() as c:
+                                   with db() as c:
                         all_facilities_list = [row[0] for row in c.execute(
                             f"""SELECT DISTINCT t.facility 
                                 FROM exam_sessions s
